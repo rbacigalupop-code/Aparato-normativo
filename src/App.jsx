@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
+import TokenGate, { useToken } from './TokenGate.jsx'
+import { usarProyecto } from './supabase.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
@@ -2640,7 +2642,7 @@ ${capaLabels}
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica }) {
+function TabResultados({ proy, termica, onExportar }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
 
@@ -2689,7 +2691,12 @@ function TabResultados({ proy, termica }) {
     }).filter(Boolean)
   }
 
-  function exportarInforme() {
+  async function exportarInforme() {
+    // Verificar y consumir crédito de proyecto antes de generar
+    if (onExportar) {
+      const permitido = await onExportar()
+      if (!permitido) return
+    }
     const fechaHoy = new Date().toLocaleDateString('es-CL')
     const zonaData = zona
 
@@ -3057,10 +3064,39 @@ ${vpctHtml}
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', 'Resultados', '⚙ Admin']
 
 export default function App() {
+  return <TokenGate><AppInner /></TokenGate>
+}
+
+function AppInner() {
+  const tokenCtx = useToken()
   const [tab, setTab] = useState(0)
   const [proy, setProy] = useState({ nombre: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', estructura: '', estructuras: [] })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
+  const [exportError, setExportError] = useState('')
+
+  // Callback que llama TabResultados antes de generar el informe
+  async function onExportar() {
+    const td = tokenCtx?.tokenData
+    if (!td) return true  // sin gate (dev) → siempre ok
+
+    // max_proyectos = 0 → ilimitado
+    if (td.max_proyectos > 0 && td.proyectos_usados >= td.max_proyectos) {
+      setExportError('Has alcanzado el límite de proyectos de tu licencia. Contacta al administrador para renovar.')
+      setTimeout(() => setExportError(''), 6000)
+      return false
+    }
+
+    const ok = await usarProyecto(td.token)
+    if (ok && tokenCtx.refreshTokenData) {
+      tokenCtx.refreshTokenData({ proyectos_usados: td.proyectos_usados + 1 })
+    }
+    if (!ok) {
+      setExportError('Error al registrar el uso del proyecto. Revisa tu conexión.')
+      setTimeout(() => setExportError(''), 5000)
+    }
+    return ok
+  }
 
   function onAplicar(sc) {
     const elem = sc.elem === 'techumbre' ? 'techo' : sc.elem
@@ -3137,6 +3173,11 @@ export default function App() {
           </div>
         )}
       </div>
+      {exportError && (
+        <div style={{ background: '#fef2f2', borderBottom: '2px solid #fca5a5', padding: '10px 20px', color: '#991b1b', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+          ⚠️ {exportError}
+        </div>
+      )}
       <div style={S.tabs}>
         {TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)}
       </div>
@@ -3148,7 +3189,7 @@ export default function App() {
         {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} />}
         {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} />}
         {tab === 6 && <TabVentana proy={proy} />}
-        {tab === 7 && <TabResultados proy={proy} termica={termica} />}
+        {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} />}
         {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
       </div>
     </div>
