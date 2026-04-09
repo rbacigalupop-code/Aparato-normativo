@@ -15,6 +15,8 @@ import {
 } from './data.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
+import { useProjects } from './useProjects.js'
+import ProjectManager from './ProjectManager.jsx'
 
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
@@ -2294,7 +2296,7 @@ function TabCalcU({ proy, initData }) {
 }
 
 // ─── PESTAÑA VENTANA ───────────────────────────────────────────────────────────
-function TabVentana({ proy }) {
+function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNextId }) {
   const zona = proy.zona || 'D'
   const vpctZona = VPCT[zona]
   const permLimit = PERM_V[zona]
@@ -2327,16 +2329,9 @@ function TabVentana({ proy }) {
   }
 
   // ─── Analizador multi-fachada VPCT ──────────────────────────────────────────
-  const [fachadas, setFachadas] = useState([
-    { id: 1, nombre: '', orient: 'N',  areaFachada: '', vanos: '', uw: '' },
-    { id: 2, nombre: '', orient: 'OP', areaFachada: '', vanos: '', uw: '' },
-    { id: 3, nombre: '', orient: 'S',  areaFachada: '', vanos: '', uw: '' },
-  ])
-  const [nextId, setNextId] = useState(4)
-
   function addFachada(orient) {
-    setFachadas(prev => [...prev, { id: nextId, nombre: '', orient, areaFachada: '', vanos: '', uw: '' }])
-    setNextId(n => n + 1)
+    setFachadas(prev => [...prev, { id: fachadasNextId, nombre: '', orient, areaFachada: '', vanos: '', uw: '' }])
+    setFachadasNextId(n => n + 1)
   }
   function removeFachada(id) { setFachadas(prev => prev.filter(f => f.id !== id)) }
   function updF(id, field, val) { setFachadas(prev => prev.map(f => f.id === id ? { ...f, [field]: val } : f)) }
@@ -3075,6 +3070,42 @@ function AppInner() {
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
 
+  const proyectos = useProjects()
+  const [proyectoActual, setProyectoActual] = useState(null)
+  const [showProjects, setShowProjects] = useState(false)
+  const [hasUnsaved, setHasUnsaved] = useState(false)
+  const autoSaveTimer = useRef(null)
+
+  // State lifted from TabVentana
+  const [fachadas, setFachadas] = useState([
+    { id: 1, nombre: '', orient: 'N',  areaFachada: '', vanos: '', uw: '' },
+    { id: 2, nombre: '', orient: 'OP', areaFachada: '', vanos: '', uw: '' },
+    { id: 3, nombre: '', orient: 'S',  areaFachada: '', vanos: '', uw: '' },
+  ])
+  const [fachadasNextId, setFachadasNextId] = useState(4)
+
+  // Restore autosave on mount
+  useEffect(() => {
+    const saved = proyectos.cargarAutoguardado()
+    if (saved) {
+      if (saved.proy)            setProy(saved.proy)
+      if (saved.termica)         setTermica(saved.termica)
+      if (saved.calcUInit)       setCalcUInit(saved.calcUInit)
+      if (saved.fachadas)        setFachadas(saved.fachadas)
+      if (saved.fachadasNextId)  setFachadasNextId(saved.fachadasNextId)
+    }
+  }, [])
+
+  // Auto-save debounced (1.5s after last change)
+  useEffect(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => {
+      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId })
+      setHasUnsaved(true)
+    }, 1500)
+    return () => clearTimeout(autoSaveTimer.current)
+  }, [proy, termica, calcUInit, fachadas, fachadasNextId])
+
   // Callback que llama TabResultados antes de generar el informe
   async function onExportar() {
     const td = tokenCtx?.tokenData
@@ -3096,6 +3127,19 @@ function AppInner() {
       setTimeout(() => setExportError(''), 5000)
     }
     return ok
+  }
+
+  function getData() {
+    return { proy, termica, calcUInit, fachadas, fachadasNextId }
+  }
+
+  function onCargar(data) {
+    if (data.proy)           setProy(data.proy)
+    if (data.termica)        setTermica(data.termica)
+    if (data.calcUInit)      setCalcUInit(data.calcUInit)
+    if (data.fachadas)       setFachadas(data.fachadas)
+    if (data.fachadasNextId) setFachadasNextId(data.fachadasNextId)
+    setHasUnsaved(false)
   }
 
   function onAplicar(sc) {
@@ -3172,6 +3216,12 @@ function AppInner() {
             Zona {proy.zona} — {proy.uso || 'sin uso'} {proy.nombre && `| ${proy.nombre}`}
           </div>
         )}
+        <button
+          onClick={() => setShowProjects(true)}
+          style={{ marginLeft: proy.zona ? 8 : 'auto', background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'#fff', borderRadius:8, padding:'5px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}
+        >
+          📁 Proyectos {hasUnsaved && proyectoActual && <span style={{ background:'#f59e0b', borderRadius:10, padding:'1px 6px', fontSize:10 }}>●</span>}
+        </button>
       </div>
       {exportError && (
         <div style={{ background: '#fef2f2', borderBottom: '2px solid #fca5a5', padding: '10px 20px', color: '#991b1b', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
@@ -3188,10 +3238,19 @@ function AppInner() {
         {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} />}
         {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} />}
         {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} />}
-        {tab === 6 && <TabVentana proy={proy} />}
+        {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} />}
         {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} />}
         {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
       </div>
+      <ProjectManager
+        open={showProjects}
+        onClose={() => setShowProjects(false)}
+        proyectoActual={proyectoActual}
+        setProyectoActual={setProyectoActual}
+        getData={getData}
+        onCargar={onCargar}
+        proyectos={proyectos}
+      />
     </div>
   )
 }
