@@ -505,6 +505,35 @@ export default function TabDiag({ proy, setProy }) {
             <span style={S.norm}>Permite sistemas distintos por tramo de pisos — LOFC Ed.17 2025</span>
           </div>
         </div>
+
+        {/* Fila 3: profesional responsable */}
+        <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 14, paddingTop: 14 }}>
+          <div style={{ marginBottom: 6, fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Profesional responsable
+          </div>
+          <div style={{ ...S.row, marginBottom: 10 }}>
+            <div style={S.col}>
+              <label style={S.label(false)}>Nombre completo</label>
+              <input style={S.input(false)} value={proy.profesional || ''} onChange={e => setPr('profesional', e.target.value)} placeholder="Nombre del profesional" />
+            </div>
+            <div style={S.col}>
+              <label style={S.label(false)}>Título</label>
+              <input style={S.input(false)} value={proy.titulo || ''} onChange={e => setPr('titulo', e.target.value)} placeholder="Arquitecto / Ingeniero Civil / etc." />
+            </div>
+            <div style={S.col}>
+              <label style={S.label(false)}>N° Registro MINVU / Colegio</label>
+              <input style={S.input(false)} value={proy.registro || ''} onChange={e => setPr('registro', e.target.value)} placeholder="Ej: 12345" />
+            </div>
+            <div style={S.col}>
+              <label style={S.label(false)}>Email</label>
+              <input style={S.input(false)} type="email" value={proy.email || ''} onChange={e => setPr('email', e.target.value)} placeholder="correo@ejemplo.cl" />
+            </div>
+            <div style={S.col}>
+              <label style={S.label(false)}>Teléfono</label>
+              <input style={S.input(false)} value={proy.telefono || ''} onChange={e => setPr('telefono', e.target.value)} placeholder="+56 9 ..." />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── CHIPS ZONA ─────────────────────────────────────────── */}

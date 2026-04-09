@@ -11,22 +11,55 @@ export function useProjects() {
 
   function guardarNuevo(nombre, data) {
     const id = Date.now().toString()
-    const item = { id, nombre, savedAt: new Date().toISOString(), ...data }
+    const item = { id, nombre, savedAt: new Date().toISOString(), snapshots: [], ...data }
     const lista = listarProyectos()
     localStorage.setItem(LS_PROJECTS, JSON.stringify([item, ...lista]))
     return id
   }
 
   function sobrescribir(id, nombre, data) {
-    const lista = listarProyectos().map(p =>
-      p.id === id ? { ...p, nombre, savedAt: new Date().toISOString(), ...data } : p
+    const lista = listarProyectos()
+    const original = lista.find(p => p.id === id)
+    const snapshots = original?.snapshots || []
+
+    // Save current state as snapshot before overwriting
+    const snap = {
+      savedAt: original?.savedAt || new Date().toISOString(),
+      proy: original?.proy,
+      termica: original?.termica,
+      calcUInit: original?.calcUInit,
+      fachadas: original?.fachadas,
+      fachadasNextId: original?.fachadasNextId,
+      notas: original?.notas,
+    }
+    const newSnapshots = [snap, ...snapshots].slice(0, 10)
+
+    const updated = lista.map(p =>
+      p.id === id ? { ...p, nombre, savedAt: new Date().toISOString(), snapshots: newSnapshots, ...data } : p
     )
-    localStorage.setItem(LS_PROJECTS, JSON.stringify(lista))
+    localStorage.setItem(LS_PROJECTS, JSON.stringify(updated))
   }
 
   function eliminarProyecto(id) {
     const lista = listarProyectos().filter(p => p.id !== id)
     localStorage.setItem(LS_PROJECTS, JSON.stringify(lista))
+  }
+
+  function duplicarProyecto(id) {
+    const lista = listarProyectos()
+    const original = lista.find(p => p.id === id)
+    if (!original) return null
+    const newId = Date.now().toString()
+    const copia = { ...original, id: newId, nombre: `Copia de ${original.nombre}`, savedAt: new Date().toISOString(), snapshots: [] }
+    localStorage.setItem(LS_PROJECTS, JSON.stringify([copia, ...lista]))
+    return newId
+  }
+
+  function restaurarSnapshot(id, snapIdx) {
+    const lista = listarProyectos()
+    const proyecto = lista.find(p => p.id === id)
+    if (!proyecto?.snapshots?.[snapIdx]) return null
+    return proyecto.snapshots[snapIdx]
   }
 
   function autoGuardar(data) {
@@ -63,5 +96,5 @@ export function useProjects() {
     })
   }
 
-  return { listarProyectos, guardarNuevo, sobrescribir, eliminarProyecto, autoGuardar, cargarAutoguardado, exportarJSON, importarJSON }
+  return { listarProyectos, guardarNuevo, sobrescribir, eliminarProyecto, duplicarProyecto, restaurarSnapshot, autoGuardar, cargarAutoguardado, exportarJSON, importarJSON }
 }

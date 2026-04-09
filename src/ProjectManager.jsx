@@ -4,6 +4,7 @@ export default function ProjectManager({ open, onClose, proyectoActual, setProye
   const [nombre, setNombre] = useState('')
   const [lista, setLista] = useState(() => proyectos.listarProyectos())
   const [msg, setMsg] = useState('')
+  const [historialOpen, setHistorialOpen] = useState(null)
   const fileRef = useRef()
 
   function refrescar() { setLista(proyectos.listarProyectos()) }
@@ -125,17 +126,41 @@ export default function ProjectManager({ open, onClose, proyectoActual, setProye
             </div>
           ) : (
             lista.map(p => (
-              <div key={p.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:8, marginBottom:8, background: proyectoActual?.id === p.id ? '#eff6ff' : '#fff', borderColor: proyectoActual?.id === p.id ? '#93c5fd' : '#e2e8f0' }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:700, fontSize:13, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {proyectoActual?.id === p.id && <span style={{ color:'#1e40af', marginRight:4 }}>●</span>}
-                    {p.nombre}
+              <div key={p.id}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:8, marginBottom:4, background: proyectoActual?.id === p.id ? '#eff6ff' : '#fff', borderColor: proyectoActual?.id === p.id ? '#93c5fd' : '#e2e8f0' }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {proyectoActual?.id === p.id && <span style={{ color:'#1e40af', marginRight:4 }}>●</span>}
+                      {p.nombre}
+                    </div>
+                    <div style={{ fontSize:11, color:'#94a3b8' }}>{fmtFecha(p.savedAt)}</div>
                   </div>
-                  <div style={{ fontSize:11, color:'#94a3b8' }}>{fmtFecha(p.savedAt)}</div>
+                  <button onClick={() => handleAbrir(p)} style={{ background:'#1e40af', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:12, fontWeight:600, cursor:'pointer' }}>Abrir</button>
+                  <button onClick={() => handleExportar(p)} style={{ background:'#f1f5f9', color:'#475569', border:'1px solid #e2e8f0', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Exportar como .json">↓</button>
+                  <button onClick={() => { proyectos.duplicarProyecto(p.id); refrescar(); showMsg('✅ Proyecto duplicado') }} style={{ background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Duplicar">📋</button>
+                  <button onClick={() => setHistorialOpen(historialOpen === p.id ? null : p.id)} style={{ background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Historial">🕐</button>
+                  <button onClick={() => handleEliminar(p.id)} style={{ background:'#fee2e2', color:'#991b1b', border:'none', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Eliminar">🗑</button>
                 </div>
-                <button onClick={() => handleAbrir(p)} style={{ background:'#1e40af', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:12, fontWeight:600, cursor:'pointer' }}>Abrir</button>
-                <button onClick={() => handleExportar(p)} style={{ background:'#f1f5f9', color:'#475569', border:'1px solid #e2e8f0', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Exportar como .json">↓</button>
-                <button onClick={() => handleEliminar(p.id)} style={{ background:'#fee2e2', color:'#991b1b', border:'none', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Eliminar">🗑</button>
+
+                {historialOpen === p.id && p.snapshots?.length > 0 && (
+                  <div style={{ margin:'4px 0 8px 0', padding:'8px 12px', background:'#faf5ff', borderRadius:8, border:'1px solid #e9d5ff' }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#6d28d9', marginBottom:6 }}>Historial de versiones</div>
+                    {p.snapshots.map((snap, idx) => (
+                      <div key={idx} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0', borderBottom: idx < p.snapshots.length - 1 ? '1px solid #ede9fe' : 'none' }}>
+                        <span style={{ fontSize:11, color:'#64748b' }}>{fmtFecha(snap.savedAt)}</span>
+                        <button
+                          onClick={() => { const data = proyectos.restaurarSnapshot(p.id, idx); if(data) { onCargar(data); setProyectoActual({ id: p.id, nombre: p.nombre }); onClose(); showMsg('✅ Versión restaurada') } }}
+                          style={{ background:'#6d28d9', color:'#fff', border:'none', borderRadius:5, padding:'3px 8px', fontSize:11, cursor:'pointer' }}
+                        >Restaurar</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {historialOpen === p.id && (!p.snapshots || p.snapshots.length === 0) && (
+                  <div style={{ margin:'4px 0 8px 0', padding:'8px 12px', background:'#faf5ff', borderRadius:8, border:'1px solid #e9d5ff', fontSize:11, color:'#94a3b8', fontStyle:'italic' }}>
+                    Sin versiones anteriores. El historial se genera al usar "Actualizar".
+                  </div>
+                )}
               </div>
             ))
           )}

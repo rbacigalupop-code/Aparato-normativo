@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import TokenGate, { useToken } from './TokenGate.jsx'
 import { usarProyecto } from './supabase.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
+import NotasPanel from './NotasPanel.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST,
@@ -593,7 +594,7 @@ function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
 const ELEM_LABELS = { muro:'Muro', tabique:'Tabique', techumbre:'Techumbre', piso:'Piso', ventana:'Ventana', puerta:'Puerta' }
 const ELEM_LIST   = ['muro','tabique','techumbre','piso','ventana','puerta']
 
-function TabSoluciones({ proy, onAplicar, onEnviarCalcU }) {
+function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
   const [elem,      setElem]      = useState('muro')
   const [expandido, setExpandido] = useState(null)
   const [soloOk,    setSoloOk]    = useState(false)
@@ -601,6 +602,8 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU }) {
   const [busqueda,       setBusqueda]       = useState('')
   const [filtroRF,       setFiltroRF]       = useState('')
   const [filtroSistema,  setFiltroSistema]  = useState('')
+  const [selComp,   setSelComp]   = useState([])
+  const [showComp,  setShowComp]  = useState(false)
 
   const zona  = proy.zona  || 'D'
   const uso   = proy.uso   || 'Vivienda'
@@ -887,7 +890,25 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU }) {
                     )}
                   </div>
                 </div>
-                <span style={{ fontSize:11, color:'#94a3b8', flexShrink:0 }}>{exp ? '▲' : '▼'}</span>
+                <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      setSelComp(prev => {
+                        if (prev.find(x => x.cod === s.cod)) return prev.filter(x => x.cod !== s.cod)
+                        if (prev.length >= 2) return [prev[1], s]
+                        return [...prev, s]
+                      })
+                    }}
+                    style={{
+                      background: selComp.find(x => x.cod === s.cod) ? '#1e40af' : '#f1f5f9',
+                      color: selComp.find(x => x.cod === s.cod) ? '#fff' : '#64748b',
+                      border: '1px solid #e2e8f0', borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: 'pointer'
+                    }}
+                  >
+                    {selComp.find(x => x.cod === s.cod) ? '✓ Sel.' : 'Comparar'}
+                  </button>
+                  <span style={{ fontSize:11, color:'#94a3b8' }}>{exp ? '▲' : '▼'}</span>
+                </div>
               </div>
 
               {/* Panel expandido */}
@@ -974,12 +995,75 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU }) {
           )
         })}
       </div>
+
+      {/* ── Barra flotante de comparación ──────────────────────────────────── */}
+      {selComp.length > 0 && (
+        <div style={{ position: 'sticky', bottom: 0, background: '#1e40af', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: '12px 12px 0 0', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}>
+          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, flex: 1 }}>
+            {selComp.length === 1 ? `"${selComp[0].desc?.substring(0,40)}..." seleccionada — elige una más` : `2 soluciones seleccionadas`}
+          </span>
+          {selComp.length === 2 && <button onClick={() => setShowComp(true)} style={{ background: '#fff', color: '#1e40af', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Ver comparación →</button>}
+          <button onClick={() => setSelComp([])} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>✕ Limpiar</button>
+        </div>
+      )}
+
+      {/* ── Modal comparador ──────────────────────────────────────────────────── */}
+      {showComp && selComp.length === 2 && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 760, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ background: '#1e40af', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0 }}>
+              <span style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>Comparador de soluciones</span>
+              <button onClick={() => setShowComp(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', width: '20%', color: '#64748b', fontSize: 11 }}>CAMPO</th>
+                    {selComp.map((sc, i) => (
+                      <th key={i} style={{ padding: '8px 12px', textAlign: 'left', background: i === 0 ? '#eff6ff' : '#f0fdf4', borderBottom: '2px solid #e2e8f0', color: i === 0 ? '#1e40af' : '#166534' }}>
+                        {sc.cod}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { label: 'Descripción', render: sc => sc.desc || '—' },
+                    { label: 'U (W/m²K)', render: sc => sc.u ? `${sc.u} W/m²K` : '—' },
+                    { label: 'Resistencia al fuego', render: sc => sc.rf || '—' },
+                    { label: 'Aislación acústica Rw', render: sc => sc.ac_rw ? `${sc.ac_rw} dB` : '—' },
+                    { label: 'Elemento', render: sc => sc.elem || '—' },
+                    { label: 'Observaciones', render: sc => sc.obs || '—' },
+                  ].map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                      <td style={{ padding: '8px 12px', color: '#64748b', fontWeight: 600, fontSize: 12, borderBottom: '1px solid #e2e8f0' }}>{row.label}</td>
+                      {selComp.map((sc, j) => (
+                        <td key={j} style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontWeight: row.label === 'U (W/m²K)' ? 700 : 400 }}>{row.render(sc)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                {selComp.map((sc, i) => (
+                  <button key={i} onClick={() => { onAplicar(sc); setShowComp(false) }} style={{ flex: 1, padding: '10px 0', background: i === 0 ? '#1e40af' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+                    Usar {sc.cod}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <NotasPanel tabKey="soluciones" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
 
 // ─── PESTAÑA TÉRMICA ───────────────────────────────────────────────────────────
-function TabTermica({ proy, termica, setTermica, setTab }) {
+function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
@@ -1128,12 +1212,13 @@ function TabTermica({ proy, termica, setTermica, setTab }) {
           </div>
         )}
       </div>
+      <NotasPanel tabKey="termica" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
 
 // ─── PESTAÑA FUEGO ────────────────────────────────────────────────────────────
-function TabFuego({ proy, termica, setTermica }) {
+function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
   const uso = proy.uso || ''
   const rfDef = RF_DEF[uso] || {}
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
@@ -1294,12 +1379,13 @@ function TabFuego({ proy, termica, setTermica }) {
           </div>
         )
       })}
+      <NotasPanel tabKey="fuego" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
 
 // ─── PESTAÑA ACÚSTICA ─────────────────────────────────────────────────────────
-function TabAcustica({ proy, termica, setTermica }) {
+function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
   const uso = proy.uso || ''
   const acDef = AC_DEF[uso] || {}
   const acImpact = AC_IMPACT_DEF[uso] || {}
@@ -1530,6 +1616,7 @@ function TabAcustica({ proy, termica, setTermica }) {
           </div>
         )
       })}
+      <NotasPanel tabKey="acustica" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
@@ -2269,7 +2356,7 @@ ${cambios.length && solucion ? `
 }
 
 // ─── PESTAÑA CÁLCULO U + GLASER ───────────────────────────────────────────────
-function TabCalcU({ proy, initData }) {
+function TabCalcU({ proy, initData, notas, setNotas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   return (
     <div>
@@ -2291,12 +2378,13 @@ function TabCalcU({ proy, initData }) {
         <PanelCalcU elemKey="piso"    elemTipo="piso"      label="Piso"            umax={zona?.piso}  proy={proy} initData={initData?.piso}    headerColor="#166534" />
         <PanelCalcU elemKey="tabique" elemTipo="muro"      label="Tabique"         umax={null}        proy={proy} initData={initData?.tabique} headerColor="#b45309" />
       </div>
+      <NotasPanel tabKey="calcU" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
 
 // ─── PESTAÑA VENTANA ───────────────────────────────────────────────────────────
-function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNextId }) {
+function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNextId, notas, setNotas }) {
   const zona = proy.zona || 'D'
   const vpctZona = VPCT[zona]
   const permLimit = PERM_V[zona]
@@ -2577,6 +2665,7 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
           </table>
         </div>
       )}
+      <NotasPanel tabKey="ventana" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
@@ -2637,7 +2726,7 @@ ${capaLabels}
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
 
@@ -2944,6 +3033,14 @@ ${glaserHtml}`
   <div class="data-item"><label>Fecha emisión</label><span>${fechaHoy}</span></div>
 </div>
 ${zonaData ? `<div class="aviso">Condiciones de diseño Zona ${proy.zona}: Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Exigencias DS N°15: U<sub>muro</sub> ≤ ${zonaData.muro} · U<sub>techo</sub> ≤ ${zonaData.techo} · U<sub>piso</sub> ≤ ${zonaData.piso} W/m²K</div>` : ''}
+${proy.profesional ? `
+<div style="margin-top:12px; padding:10px 16px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0">
+  <div style="font-size:11px; color:#64748b; margin-bottom:4px">PROFESIONAL RESPONSABLE</div>
+  <div style="font-weight:700">${proy.profesional}</div>
+  ${proy.titulo ? `<div style="font-size:12px; color:#475569">${proy.titulo}</div>` : ''}
+  ${proy.registro ? `<div style="font-size:12px; color:#475569">Reg. N° ${proy.registro}</div>` : ''}
+  ${proy.email ? `<div style="font-size:12px; color:#475569">${proy.email}</div>` : ''}
+</div>` : ''}
 
 <h2>Resumen ejecutivo — Estado de cumplimiento</h2>
 ${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complete los módulos Térmica, Fuego y Acústica.</div>' : `
@@ -3051,6 +3148,7 @@ ${vpctHtml}
         <b>Normativa:</b> DS N°15 MINVU | OGUC Título 4 | NCh853:2021 | NCh1973 | NCh352 | LOSCAT Ed.13 | LOCF Ed.17 2025<br />
         Esta verificación es preliminar. El arquitecto responsable debe firmar el expediente DOM.
       </div>
+      <NotasPanel tabKey="resultados" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
@@ -3065,10 +3163,11 @@ export default function App() {
 function AppInner() {
   const tokenCtx = useToken()
   const [tab, setTab] = useState(0)
-  const [proy, setProy] = useState({ nombre: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', estructura: '', estructuras: [] })
+  const [proy, setProy] = useState({ nombre: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', estructura: '', estructuras: [], profesional: '', titulo: '', registro: '', email: '', telefono: '' })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
+  const [notas, setNotas] = useState({})
 
   const proyectos = useProjects()
   const [proyectoActual, setProyectoActual] = useState(null)
@@ -3093,6 +3192,7 @@ function AppInner() {
       if (saved.calcUInit)       setCalcUInit(saved.calcUInit)
       if (saved.fachadas)        setFachadas(saved.fachadas)
       if (saved.fachadasNextId)  setFachadasNextId(saved.fachadasNextId)
+      if (saved.notas)           setNotas(saved.notas)
     }
   }, [])
 
@@ -3100,11 +3200,11 @@ function AppInner() {
   useEffect(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId })
+      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, notas })
       setHasUnsaved(true)
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [proy, termica, calcUInit, fachadas, fachadasNextId])
+  }, [proy, termica, calcUInit, fachadas, fachadasNextId, notas])
 
   // Callback que llama TabResultados antes de generar el informe
   async function onExportar() {
@@ -3130,7 +3230,7 @@ function AppInner() {
   }
 
   function getData() {
-    return { proy, termica, calcUInit, fachadas, fachadasNextId }
+    return { proy, termica, calcUInit, fachadas, fachadasNextId, notas }
   }
 
   function onCargar(data) {
@@ -3139,6 +3239,7 @@ function AppInner() {
     if (data.calcUInit)      setCalcUInit(data.calcUInit)
     if (data.fachadas)       setFachadas(data.fachadas)
     if (data.fachadasNextId) setFachadasNextId(data.fachadasNextId)
+    if (data.notas)          setNotas(data.notas)
     setHasUnsaved(false)
   }
 
@@ -3232,14 +3333,21 @@ function AppInner() {
         {TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)}
       </div>
       <div style={S.body}>
-        {tab === 0 && <TabDiag proy={proy} setProy={setProy} />}
-        {tab === 1 && <TabSoluciones proy={proy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} />}
-        {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} />}
-        {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} />}
-        {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} />}
-        {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} />}
-        {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} />}
-        {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} />}
+        {tab === 0 && (
+          <div>
+            <TabDiag proy={proy} setProy={setProy} />
+            <div style={{ padding: '0 16px 16px' }}>
+              <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
+            </div>
+          </div>
+        )}
+        {tab === 1 && <TabSoluciones proy={proy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
+        {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
+        {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
+        {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
+        {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} notas={notas} setNotas={setNotas} />}
+        {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
+        {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} />}
         {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
       </div>
       <ProjectManager
