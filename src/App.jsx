@@ -316,7 +316,7 @@ function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
   function exportarFicha() {
     const allC = [...capas, ...extra]
     const lineas = [
-      'FICHA DE SOLUCIÓN CONSTRUCTIVA — Verificador OGUC Chile',
+      'FICHA DE SOLUCIÓN CONSTRUCTIVA — NormaCheck',
       `Código: ${s.cod}`,
       `Descripción: ${s.desc}`,
       `Elemento: ${elem}  |  Zonas: ${s.zonas}`,
@@ -1968,7 +1968,7 @@ ${cambios.length && solucion ? `
 
 <hr style="margin-top:30px;border:none;border-top:1px solid #e2e8f0">
 <p style="font-size:9pt;color:#94a3b8;text-align:center">
-  Generado por Verificador Normativo OGUC Chile · ${fechaHoy} ·
+  Generado por NormaCheck · ${fechaHoy} ·
   Normativa: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV
 </p>
 </body></html>`
@@ -2989,7 +2989,7 @@ ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${pro
 ${vpctHtml}
 
 <p class="nota">
-  Generado por <b>Verificador Normativo OGUC Chile</b> · ${fechaHoy}<br>
+  Generado por <b>NormaCheck</b> · ${fechaHoy}<br>
   Normativa aplicada: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV · LOFC Ed.17 2025 · NCh352:2013<br>
   <b>Nota legal:</b> Esta memoria es de carácter preliminar. El profesional competente es responsable de la revisión, firma y presentación del expediente DOM (OGUC Art. 1.2.2).
 </p>
@@ -3208,7 +3208,7 @@ function AppInner() {
       <div style={S.header}>
         <div style={{ fontSize: 20 }}>🏗️</div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Verificador Normativo OGUC Chile</div>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>NormaCheck</div>
           <div style={{ fontSize: 11, opacity: 0.85 }}>DS N°15 | OGUC Título 4 | NCh853 | NCh1973 | NCh352 | LOSCAT Ed.13 2025</div>
         </div>
         {proy.zona && (
