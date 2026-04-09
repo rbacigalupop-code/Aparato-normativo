@@ -2294,45 +2294,93 @@ function TabCalcU({ proy, initData }) {
 // ─── PESTAÑA VENTANA ───────────────────────────────────────────────────────────
 function TabVentana({ proy }) {
   const zona = proy.zona || 'D'
-  const zonaD = ZONAS[zona]
+  const vpctZona = VPCT[zona]
+  const permLimit = PERM_V[zona]
+  const sobr = SOBR_R[zona]
+
+  // Nivel VPCT según Uw: 0=Niv1 (mejor vidrio, más % permitido) … 2=Niv3 (peor)
+  const getVpctNivel = uw => { const u = parseFloat(uw); if (isNaN(u)) return null; return u <= 2.0 ? 0 : u <= 3.5 ? 1 : 2 }
+  const NIVEL_LABELS = ['Nivel 1 (Uw≤2.0)', 'Nivel 2 (Uw≤3.5)', 'Nivel 3 (Uw>3.5)']
+  const ORIENTS = [{ key: 'N', label: 'Norte' }, { key: 'OP', label: 'Oriente / Poniente' }, { key: 'S', label: 'Sur' }]
+  const ORIENT_COLORS = { N: '#1e40af', OP: '#166534', S: '#7c3aed' }
+
+  // ─── Calculadora U ventana ───────────────────────────────────────────────────
   const [vidrio, setVidrio] = useState('')
   const [marco, setMarco] = useState('')
   const [ag, setAg] = useState('')
   const [af, setAf] = useState('')
   const [lg, setLg] = useState('')
-  const [res, setRes] = useState(null)
+  const [resUw, setResUw] = useState(null)
 
   const vData = VIDRIOS.flatMap(g => g.items).find(v => v.n === vidrio)
   const mData = MARCOS.flatMap(g => g.items).find(m => m.n === marco)
 
-  function calcular() {
+  function calcularUw() {
     if (!vData || !mData || !ag || !af) return
     const Ag = parseFloat(ag), Af = parseFloat(af), Lg = parseFloat(lg || 0)
     const Ug = vData.ug, Uf = mData.uf, psi = mData.psi
     const Aw = Ag + Af
     const Uw = (Ug * Ag + Uf * Af + psi * Lg) / Aw
-    setRes({ Uw: Uw.toFixed(3), Ag, Af, Lg, Ug, Uf, psi, Aw })
+    setResUw({ Uw: Uw.toFixed(3), Ag, Af, Lg, Ug, Uf, psi, Aw })
   }
 
-  const uso = proy.uso || 'Vivienda'
-  const vpctZona = VPCT[zona]
+  // ─── Analizador multi-fachada VPCT ──────────────────────────────────────────
+  const [fachadas, setFachadas] = useState([
+    { id: 1, nombre: '', orient: 'N',  areaFachada: '', vanos: '', uw: '' },
+    { id: 2, nombre: '', orient: 'OP', areaFachada: '', vanos: '', uw: '' },
+    { id: 3, nombre: '', orient: 'S',  areaFachada: '', vanos: '', uw: '' },
+  ])
+  const [nextId, setNextId] = useState(4)
+
+  function addFachada(orient) {
+    setFachadas(prev => [...prev, { id: nextId, nombre: '', orient, areaFachada: '', vanos: '', uw: '' }])
+    setNextId(n => n + 1)
+  }
+  function removeFachada(id) { setFachadas(prev => prev.filter(f => f.id !== id)) }
+  function updF(id, field, val) { setFachadas(prev => prev.map(f => f.id === id ? { ...f, [field]: val } : f)) }
+
+  // Resultados por fachada
+  const fachadasCalc = fachadas.map(f => {
+    const area = parseFloat(f.areaFachada), vanos = parseFloat(f.vanos), niv = getVpctNivel(f.uw)
+    if (!isNaN(area) && area > 0 && !isNaN(vanos) && vanos >= 0 && niv !== null && vpctZona) {
+      const pct = (vanos / area) * 100
+      const limite = vpctZona[f.orient]?.[niv] ?? null
+      return { ...f, pct: pct.toFixed(1), limite, cumple: limite !== null ? pct <= limite : null, niv }
+    }
+    return { ...f, pct: null, limite: null, cumple: null, niv }
+  })
+
+  // Resumen por orientación (nivel más restrictivo = Uw más alto del grupo)
+  const orientSummary = ORIENTS.map(({ key, label }) => {
+    const group = fachadasCalc.filter(f => f.orient === key && f.pct !== null)
+    if (!group.length) return null
+    const totalArea = group.reduce((s, f) => s + parseFloat(f.areaFachada), 0)
+    const totalVanos = group.reduce((s, f) => s + parseFloat(f.vanos), 0)
+    const pct = (totalVanos / totalArea) * 100
+    const nivMax = Math.max(...group.map(f => f.niv))
+    const limite = vpctZona?.[key]?.[nivMax] ?? null
+    return { key, label, totalArea: totalArea.toFixed(1), totalVanos: totalVanos.toFixed(1), pct: pct.toFixed(1), nivMax, limite, cumple: limite !== null ? pct <= limite : null }
+  }).filter(Boolean)
 
   return (
     <div>
       <AyudaPanel
-        titulo="Cómo usar — Calculadora de ventanas"
+        titulo="Cómo usar — Calculadora de ventanas y análisis VPCT por fachada"
         pasos={[
-          'Selecciona el tipo de <b>vidrio</b> (Ug) y el tipo de <b>marco</b> (Uf, ψ) de los catálogos.',
-          'Ingresa el <b>área de vidrio Ag (m²)</b>, el <b>área de marco Af (m²)</b> y la <b>longitud de junta Lg (m)</b>.',
-          'Pulsa <b>"Calcular U ventana"</b>: el sistema aplica Uw = (Ug·Ag + Uf·Af + ψ·Lg) / Aw según EN 10077.',
-          'Compara Uw con el límite de la zona (si aplica). Para ventanas, DS N°15 no fija U máximo directo, pero sí exige <b>clase de permeabilidad al aire</b>.',
-          'Consulta la tabla <b>VPCT</b> (Ventilación / Protección / Control Térmico) para verificar porcentajes máximos de acristalamiento por orientación (N, O/P, S).',
-          'El nivel VPCT depende del tipo de vidrio y la zona del proyecto.',
+          'Usa la <b>Calculadora U ventana</b> para obtener Uw según EN 10077 (Ug vidrio + Uf marco + ψ junta).',
+          'En el <b>Analizador VPCT</b>, cada fila representa una fachada del edificio (un plano vertical por orientación).',
+          'Para edificios con volumen complejo puedes agregar <b>múltiples fachadas por orientación</b> con el botón "+".',
+          'Ingresa: área total de la fachada (m²), área total de vanos/ventanas (m²), y Uw de las ventanas.',
+          'El nivel VPCT se determina según Uw: <b>Nivel 1</b> (Uw≤2.0), <b>Nivel 2</b> (Uw≤3.5), <b>Nivel 3</b> (Uw>3.5).',
+          'El % de vano = Av/At×100 se compara contra el límite VPCT de la zona y orientación.',
+          'El <b>resumen por orientación</b> agrega todas las fachadas del mismo eje para la verificación normativa final.',
         ]}
-        normativa="DS N°15 MINVU Tabla 3 · EN 10077 · NCh-EN 12207 (permeabilidad al aire) · OGUC Art. 4.1.10"
+        normativa="DS N°15 MINVU Tabla 3 (VPCT) · EN 10077 (Uw) · NCh-EN 12207 (permeabilidad) · OGUC Art. 4.1.10"
       />
+
+      {/* ── Calculadora Uw ─────────────────────────────────────────────────────── */}
       <div style={S.card}>
-        <p style={S.h2}>Calculadora U ventana (NCh853 / EN 10077)</p>
+        <p style={S.h2}>Calculadora U ventana (EN 10077)</p>
         <div style={{ ...S.row, marginBottom: 12 }}>
           <div style={S.col}>
             <span style={S.label}>Vidrio</span>
@@ -2362,28 +2410,171 @@ function TabVentana({ proy }) {
           <div style={S.col}><span style={S.label}>Área marco Af (m²)</span><input style={{ ...S.input, width: 90 }} value={af} onChange={e => setAf(e.target.value)} placeholder="0.2" /></div>
           <div style={S.col}><span style={S.label}>Long. junta Lg (m)</span><input style={{ ...S.input, width: 90 }} value={lg} onChange={e => setLg(e.target.value)} placeholder="4.0" /></div>
           <div style={{ ...S.col, justifyContent: 'flex-end' }}>
-            <button style={S.btn()} onClick={calcular}>Calcular U ventana</button>
+            <button style={S.btn()} onClick={calcularUw}>Calcular U ventana</button>
           </div>
+        </div>
+        {resUw && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+              U ventana = <span style={{ color: colSem(parseFloat(resUw.Uw)) }}>{resUw.Uw} W/m²K</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              Uw = ({resUw.Ug}×{resUw.Ag} + {resUw.Uf}×{resUw.Af} + {resUw.psi}×{resUw.Lg}) / {resUw.Aw.toFixed(2)} m²
+            </div>
+            <div style={{ marginTop: 6, fontSize: 12, color: '#0369a1' }}>
+              → <b>{NIVEL_LABELS[getVpctNivel(resUw.Uw)]}</b> — copia este Uw al ingresar las fachadas abajo
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Permeabilidad ──────────────────────────────────────────────────────── */}
+      <div style={S.card}>
+        <p style={S.h3}>Permeabilidad al aire — Zona {zona}</p>
+        <div style={{ fontSize: 13, color: '#475569' }}>
+          Clase mínima de ventana: <b>{permLimit ?? '—'}</b> (NCh-EN 12207) &nbsp;·&nbsp;
+          Sobreresistencia requerida: <b>{sobr ?? '—'} Pa</b>
         </div>
       </div>
 
-      {res && (
+      {/* ── Analizador VPCT por fachada ────────────────────────────────────────── */}
+      <div style={S.card}>
+        <p style={S.h2}>Analizador VPCT por fachada — Zona {zona}</p>
+        <p style={{ fontSize: 12, color: '#64748b', marginTop: -6, marginBottom: 16 }}>
+          Ingresa cada fachada del edificio agrupada por orientación. Para volúmenes con múltiples
+          tramos o planos por orientación, agrega las filas necesarias con <b>+ Agregar fachada</b>.
+        </p>
+
+        {ORIENTS.map(({ key: oKey, label: oLabel }) => {
+          const color = ORIENT_COLORS[oKey]
+          const vpctLims = vpctZona?.[oKey]
+          const fachs = fachadas.filter(f => f.orient === oKey)
+          return (
+            <div key={oKey} style={{ marginBottom: 20, border: `2px solid ${color}30`, borderRadius: 10, overflow: 'hidden' }}>
+              {/* Header orientación */}
+              <div style={{ background: color, padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
+                  {oLabel}
+                  {vpctLims && <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.85, marginLeft: 10 }}>
+                    Límites: N1={vpctLims[0]}% / N2={vpctLims[1]}% / N3={vpctLims[2]}%
+                  </span>}
+                </span>
+                <button
+                  style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                  onClick={() => addFachada(oKey)}
+                >+ Agregar fachada</button>
+              </div>
+
+              {/* Filas de fachada */}
+              <div style={{ padding: '10px 14px' }}>
+                {fachs.length === 0 && (
+                  <div style={{ color: '#94a3b8', fontSize: 12, fontStyle: 'italic', padding: '6px 0' }}>
+                    Sin fachadas en esta orientación — pulsa "+ Agregar fachada".
+                  </div>
+                )}
+                {fachs.map((f, idx) => {
+                  const fc = fachadasCalc.find(x => x.id === f.id)
+                  return (
+                    <div key={f.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 8, padding: '8px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 20, fontSize: 12, fontWeight: 700, color: color, paddingBottom: 3 }}>{idx + 1}</div>
+                      <div style={S.col}>
+                        <span style={S.label}>Nombre / tramo</span>
+                        <input style={{ ...S.input, width: 130 }} value={f.nombre} onChange={e => updF(f.id, 'nombre', e.target.value)} placeholder={`Fachada ${idx + 1}`} />
+                      </div>
+                      <div style={S.col}>
+                        <span style={S.label}>Área fachada (m²)</span>
+                        <input style={{ ...S.input, width: 90 }} value={f.areaFachada} onChange={e => updF(f.id, 'areaFachada', e.target.value)} placeholder="120.0" />
+                      </div>
+                      <div style={S.col}>
+                        <span style={S.label}>Área vanos (m²)</span>
+                        <input style={{ ...S.input, width: 90 }} value={f.vanos} onChange={e => updF(f.id, 'vanos', e.target.value)} placeholder="36.0" />
+                      </div>
+                      <div style={S.col}>
+                        <span style={S.label}>Uw ventanas (W/m²K)</span>
+                        <input style={{ ...S.input, width: 90 }} value={f.uw} onChange={e => updF(f.id, 'uw', e.target.value)} placeholder="2.0" />
+                      </div>
+                      {fc?.pct !== null && (
+                        <>
+                          <div style={S.col}>
+                            <span style={S.label}>% vano</span>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: fc.cumple ? '#166534' : '#991b1b', paddingTop: 5 }}>{fc.pct}%</div>
+                          </div>
+                          <div style={S.col}>
+                            <span style={S.label}>Límite</span>
+                            <div style={{ fontSize: 13, paddingTop: 5, color: '#475569' }}>{fc.limite}% <span style={{ fontSize: 10, color: '#94a3b8' }}>({NIVEL_LABELS[fc.niv]})</span></div>
+                          </div>
+                          <div style={{ ...S.col, paddingBottom: 3 }}>
+                            <span style={S.label}>&nbsp;</span>
+                            <span style={S.badge(fc.cumple)}>{fc.cumple ? 'CUMPLE' : 'NO CUMPLE'}</span>
+                          </div>
+                        </>
+                      )}
+                      <button
+                        title="Eliminar fachada"
+                        style={{ marginBottom: 2, background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, fontWeight: 700, alignSelf: 'flex-end' }}
+                        onClick={() => removeFachada(f.id)}
+                      >✕</button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── Resumen por orientación ────────────────────────────────────────────── */}
+      {orientSummary.length > 0 && (
         <div style={S.card}>
-          <p style={S.h2}>U ventana = <span style={{ color: colSem(parseFloat(res.Uw)) }}>{res.Uw} W/m²K</span></p>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-            Uw = (Ug×Ag + Uf×Af + ψ×Lg) / Aw = ({res.Ug}×{res.Ag} + {res.Uf}×{res.Af} + {res.psi}×{res.Lg}) / {res.Aw.toFixed(2)}
+          <p style={S.h3}>Resumen VPCT por orientación — verificación normativa</p>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>Orientación</th>
+                <th style={S.th}>Área total fachada</th>
+                <th style={S.th}>Área total vanos</th>
+                <th style={S.th}>% vano total</th>
+                <th style={S.th}>Nivel (conserv.)</th>
+                <th style={S.th}>Límite VPCT</th>
+                <th style={S.th}>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orientSummary.map(o => (
+                <tr key={o.key}>
+                  <td style={S.td}><b style={{ color: ORIENT_COLORS[o.key] }}>{o.label}</b></td>
+                  <td style={S.td}>{o.totalArea} m²</td>
+                  <td style={S.td}>{o.totalVanos} m²</td>
+                  <td style={{ ...S.td, fontWeight: 700, color: o.cumple ? '#166534' : '#991b1b' }}>{o.pct}%</td>
+                  <td style={S.td}><span style={{ fontSize: 11 }}>{NIVEL_LABELS[o.nivMax]}</span></td>
+                  <td style={S.td}>{o.limite}%</td>
+                  <td style={S.td}><span style={S.badge(o.cumple)}>{o.cumple ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+            * El nivel VPCT del resumen es el más restrictivo (mayor Uw) entre todas las fachadas de esa orientación.
           </div>
         </div>
       )}
 
+      {/* ── Tabla referencia VPCT ─────────────────────────────────────────────── */}
       {vpctZona && (
         <div style={S.card}>
-          <p style={S.h3}>Porcentajes máximos VPCT — Zona {zona}</p>
+          <p style={S.h3}>Tabla de referencia VPCT — Zona {zona}</p>
           <table style={S.table}>
-            <thead><tr><th style={S.th}>Orientación</th><th style={S.th}>Nivel 1</th><th style={S.th}>Nivel 2</th><th style={S.th}>Nivel 3</th></tr></thead>
+            <thead>
+              <tr>
+                <th style={S.th}>Orientación</th>
+                <th style={S.th}>Nivel 1 (Uw≤2.0 W/m²K)</th>
+                <th style={S.th}>Nivel 2 (Uw≤3.5 W/m²K)</th>
+                <th style={S.th}>{'Nivel 3 (Uw>3.5 W/m²K)'}</th>
+              </tr>
+            </thead>
             <tbody>
               <tr><td style={S.td}><b>Norte</b></td>{vpctZona.N.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
-              <tr><td style={S.td}><b>Oriente/Poniente</b></td>{vpctZona.OP.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
+              <tr><td style={S.td}><b>Oriente / Poniente</b></td>{vpctZona.OP.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
               <tr><td style={S.td}><b>Sur</b></td>{vpctZona.S.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
             </tbody>
           </table>
