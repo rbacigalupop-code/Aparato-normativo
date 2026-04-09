@@ -2,10 +2,10 @@ import { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
-  RF_DEF, RF_EST, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST,
+  RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST,
   ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
-  VPCT, PERM_V, PUERTA_U, PUERTA_P, SOBR_R, INFILT,
+  VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
   calcU_SC, buildCapas, rfN, colSem, ist,
   calcGlaser, generarCorrecciones,
@@ -975,141 +975,155 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU }) {
 }
 
 // ─── PESTAÑA TÉRMICA ───────────────────────────────────────────────────────────
-function TabTermica({ proy, termica, setTermica }) {
+function TabTermica({ proy, termica, setTermica, setTab }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
+  const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
-  const items = [
-    { id: 'muro', label: 'Muro perimetral', umax: zona?.muro },
-    { id: 'techo', label: 'Techumbre', umax: zona?.techo },
-    { id: 'piso', label: 'Piso ventilado', umax: zona?.piso },
-    { id: 'ventana', label: 'Ventana', umax: null },
-    { id: 'puerta', label: 'Puerta ext.', umax: proy.zona ? PUERTA_U[proy.zona] : null },
+  const ELEMS = [
+    { id:'muro',    label:'Muro',            umax: zona?.muro,  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos) },
+    { id:'techo',   label:'Techo/Cubierta',  umax: zona?.techo, rfReq: RF_ELEM_REQ('techo',uso,proy.pisos) },
+    { id:'piso',    label:'Piso',            umax: zona?.piso,  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos) },
+    { id:'tabique', label:'Tabique',         umax: null,        rfReq: RF_ELEM_REQ('tabique',uso,proy.pisos) },
+    { id:'ventana', label:'Ventana',         umax: null,        rfReq: '' },
+    { id:'puerta',  label:'Puerta exterior', umax: PUERTA_U[proy.zona]||null, rfReq: PUERTA_RF[proy.zona]||'' },
   ]
 
-  const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
+  const vpctAlerta = zona?.pda
 
   return (
     <div>
       <AyudaPanel
-        titulo="Cómo usar — Verificación térmica"
+        titulo="Cómo usar — Verificación Térmica"
         pasos={[
-          'Completa primero la <b>zona térmica y el uso</b> en Diagnóstico.',
-          'Para cada elemento, ingresa el <b>U propuesto (W/m²K)</b>. Puedes obtenerlo desde Soluciones o desde el Cálculo U.',
-          'El sistema compara con el <b>U máximo DS N°15</b> para tu zona y muestra CUMPLE / NO CUMPLE.',
-          'El campo <b>RF propuesta</b> es opcional: si lo completas, se contrasta con la exigencia OGUC según uso.',
-          'Si tu zona tiene <b>protección solar obligatoria</b>, aparece la advertencia de VPCT — verifica orientaciones en la pestaña Ventana.',
-          'Los valores ingresados aquí se reflejan en el <b>Resumen de Resultados</b>.',
+          'Ingresa el valor U (W/m²K) para cada elemento: puedes tomarlo de la solución LOSCAT aplicada o calcularlo en <b>Cálculo U</b>.',
+          'El campo <b>RF propuesta</b> es opcional; si completaste Fuego, se toma automáticamente.',
+          'El campo <b>Factor puente térmico (TB%)</b> corrige el U real según la presencia de estructura portante. Usa el valor de la solución LOSCAT o MINVU (guía puentes térmicos).',
+          'Las filas en verde cumplen DS N°15 · Zona ' + (proy.zona||'—') + '. Las rojas requieren ajuste.',
+          'La columna <b>Condensación</b> se calcula en la pestaña Cálculo U con el método Glaser.',
         ]}
-        normativa="DS N°15 MINVU Tabla 1 · NCh853:2021 · OGUC Art. 4.1.10 · ISO 6946"
+        normativa="DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Art. 4.1.10 · LOFC Ed.17"
       />
-      <div style={S.card}>
-        <p style={S.h2}>Verificación térmica RT-2025</p>
-        {!zona && <div style={S.warn}>Selecciona zona térmica en Diagnóstico primero.</div>}
 
-        {/* ── Soluciones aplicadas por elemento ─────────────────────────────── */}
-        {items.some(({ id }) => termica[id]?.solucion) && (
-          <div style={{ marginBottom: 14 }}>
-            <p style={{ ...S.h3, marginBottom: 6 }}>Soluciones constructivas aplicadas</p>
-            {items.map(({ id, label, umax }) => {
-              const sol = termica[id]?.solucion
-              if (!sol) return null
-              const up = parseFloat(sol.u)
-              const cumple = !umax || up <= umax
-              return (
-                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 5,
-                  background: cumple ? '#f0fdf4' : '#fff5f5',
-                  border: `1px solid ${cumple ? '#86efac' : '#fca5a5'}`, borderRadius: 6 }}>
-                  <span style={{ fontSize: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px', color: '#1e40af', fontWeight: 700, flexShrink: 0 }}>
-                    {sol.cod}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 11, color: '#374151' }}>
-                    <b>{label}:</b> {sol.desc}
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
-                    U = {sol.u} W/m²K{umax ? ` (máx ${umax})` : ''}
-                  </span>
-                  <span style={S.badge(cumple)}>{cumple ? 'CUMPLE' : 'NO CUMPLE'}</span>
-                </div>
-              )
-            })}
+      {/* ── Soluciones aplicadas (resumen visual) ─────────────────────────── */}
+      {(() => {
+        const conSol = ['muro','techo','piso','tabique'].filter(k => termica[k]?.solucion)
+        if (!conSol.length) return null
+        return (
+          <div style={S.card}>
+            <p style={S.h3}>Soluciones constructivas aplicadas</p>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {conSol.map(k => {
+                const sol = termica[k].solucion
+                const up = parseFloat(termica[k]?.u || 99)
+                const um = ELEMS.find(e=>e.id===k)?.umax
+                const ok = !um || up <= um
+                return (
+                  <div key={k} style={{ background: ok?'#f0fdf4':'#fff5f5', border:`1px solid ${ok?'#86efac':'#fca5a5'}`, borderRadius:8, padding:'8px 12px', minWidth:180, flex:1 }}>
+                    <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:1 }}>{k}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{sol.cod}</div>
+                    <div style={{ fontSize:11 }}>{sol.desc}</div>
+                    <div style={{ fontSize:11, marginTop:2 }}>
+                      U = <b>{termica[k]?.u} W/m²K</b>
+                      {um && <> · máx {um} · <span style={{ fontWeight:700, color: ok?'#166534':'#dc2626' }}>{ok?'✓ CUMPLE':'✗ NO CUMPLE'}</span></>}
+                    </div>
+                    {sol.rf && <div style={{ fontSize:10, color:'#374151' }}>RF {sol.rf} · Rw {sol.ac_rw!=null?sol.ac_rw+'dB':'—'}</div>}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        )}
+        )
+      })()}
 
-        <p style={{ ...S.h3, marginBottom: 6 }}>Verificación por elemento — ingreso manual o ajuste</p>
+      {/* ── Tabla de verificación ─────────────────────────────────────────── */}
+      <div style={S.card}>
+        <p style={S.h2}>Verificación térmica — DS N°15 MINVU · Zona {proy.zona||'—'}</p>
+        {!zona && <div style={S.warn}>Selecciona zona térmica en Diagnóstico.</div>}
         <table style={S.table}>
           <thead><tr>
             <th style={S.th}>Elemento</th>
-            <th style={S.th}>U propuesto (W/m²K)</th>
-            <th style={S.th}>U máx norma</th>
-            <th style={S.th}>Estado</th>
+            <th style={S.th}>U propuesta (W/m²K)</th>
+            <th style={S.th}>TB% <span style={{ fontWeight:400, fontSize:10 }}>(opcional)</span></th>
+            <th style={S.th}>U corregida</th>
+            <th style={S.th}>U máx DS N°15</th>
             <th style={S.th}>RF propuesta</th>
-            <th style={S.th}>RF requerida</th>
+            <th style={S.th}>RF mín OGUC</th>
+            <th style={S.th}>Estado</th>
           </tr></thead>
           <tbody>
-            {items.map(({ id, label, umax }) => {
-              const up = parseFloat(termica[id]?.u || 0)
-              const cumpleU = !umax || !up || up <= umax
-              const rfProp = termica[id]?.rf || ''
-              const rfReq = id === 'muro' || id === 'techo' || id === 'piso' ? RF_DEF[uso]?.estructura || '' : ''
-              const cumpleRF = !rfReq || !rfProp || rfN(rfProp) >= rfN(rfReq)
+            {ELEMS.map(({ id, label, umax, rfReq }) => {
               const sol = termica[id]?.solucion
+              const uRaw = termica[id]?.u || ''
+              const up = parseFloat(uRaw)
+              const tbPct = parseFloat(termica[id]?.tb || 0)
+              const uCorr = (!isNaN(up) && up > 0 && tbPct > 0) ? (up * (1 + tbPct/100)) : up
+              const uDisplay = (!isNaN(uCorr) && uCorr > 0) ? uCorr.toFixed(3) : ''
+              const cumpleU = !umax || !uDisplay || parseFloat(uDisplay) <= umax
+              const rfProp = termica[id]?.rf || (sol?.rf||'')
+              const cumpleRF = !rfReq || !rfProp || rfN(rfProp) >= rfN(rfReq)
+              const cumpleTodo = cumpleU && cumpleRF
+              const uInvalid = uRaw !== '' && (isNaN(up) || up <= 0)
               return (
-                <tr key={id}>
+                <tr key={id} style={{ background: uDisplay&&!cumpleTodo?'#fff5f5':'transparent' }}>
                   <td style={S.td}>
                     <b>{label}</b>
-                    {sol && <div style={{ fontSize: 10, color: '#1e40af', marginTop: 1 }}>📋 {sol.cod}</div>}
+                    {sol && <div style={{ fontSize:10, color:'#1e40af', marginTop:2 }}>📋 {sol.cod}</div>}
                   </td>
                   <td style={S.td}>
-                    <input type="number" step="0.01" min="0" style={{ ...ist, width: 80 }}
-                      value={termica[id]?.u || ''} onChange={e => set(id, 'u', e.target.value)} />
+                    <input type="number" step="0.01" min="0" max="10" style={{ ...ist, width:75 }}
+                      value={uRaw} onChange={e=>set(id,'u',e.target.value)} placeholder="ej. 0.45"/>
+                    {uInvalid && <div style={{ fontSize:10, color:'#dc2626', marginTop:2 }}>⚠ Valor inválido</div>}
                   </td>
-                  <td style={S.td}>{umax ? umax + ' W/m²K' : '—'}</td>
-                  <td style={S.td}>{up && umax ? <span style={S.badge(cumpleU)}>{cumpleU ? 'CUMPLE' : 'NO CUMPLE'}</span> : '—'}</td>
                   <td style={S.td}>
-                    <select style={{ ...ist, width: 80 }} value={termica[id]?.rf || ''} onChange={e => set(id, 'rf', e.target.value)}>
+                    <input type="number" step="1" min="0" max="50" style={{ ...ist, width:55 }}
+                      value={termica[id]?.tb||''} onChange={e=>set(id,'tb',e.target.value)} placeholder="0"/>
+                    <div style={{ fontSize:9, color:'#94a3b8' }}>% corrección</div>
+                  </td>
+                  <td style={{ ...S.td, fontWeight: tbPct>0?700:'normal', color: tbPct>0?'#b45309':'inherit' }}>
+                    {uDisplay || '—'}
+                    {tbPct>0 && uDisplay && <div style={{ fontSize:9, color:'#b45309' }}>+{tbPct}% TB</div>}
+                  </td>
+                  <td style={{ ...S.td, color:'#dc2626', fontWeight:700 }}>
+                    {umax ? `≤ ${umax}` : <span style={{ color:'#94a3b8' }}>—</span>}
+                  </td>
+                  <td style={S.td}>
+                    <select style={{ ...ist, width:75 }} value={termica[id]?.rf||''}
+                      onChange={e=>set(id,'rf',e.target.value)}>
                       <option value="">—</option>
-                      {['F15', 'F30', 'F60', 'F90', 'F120'].map(f => <option key={f}>{f}</option>)}
+                      {['F0','F15','F30','F60','F90','F120','F150','F180'].map(f=><option key={f}>{f}</option>)}
                     </select>
+                    {sol?.rf && !termica[id]?.rf && <div style={{ fontSize:10, color:'#94a3b8' }}>↑ {sol.rf} (sol.)</div>}
                   </td>
-                  <td style={S.td}>{rfReq || '—'} {rfReq && rfProp && <span style={S.badge(cumpleRF)}>{cumpleRF ? '✓' : '✗'}</span>}</td>
+                  <td style={{ ...S.td, color: rfReq?'#dc2626':'#94a3b8', fontWeight: rfReq?700:'normal' }}>
+                    {rfReq || '—'}
+                  </td>
+                  <td style={S.td}>
+                    {uDisplay ? <span style={S.badge(cumpleTodo)}>{cumpleTodo?'CUMPLE':'NO CUMPLE'}</span>
+                      : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
-        {proy.zona && zona?.pda && (
-          <div style={{ ...S.warn, marginTop: 10 }}>⚠️ Zona {proy.zona}: protección solar obligatoria. Verificar orientación y VPCT.</div>
+
+        {/* ── Infiltración de referencia ──────────────────────────────────── */}
+        {zona && INFILT[proy.zona] && (
+          <div style={{ marginTop:10, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:6, padding:'8px 12px', fontSize:11, color:'#374151' }}>
+            <b>Permeabilidad al aire de referencia — Zona {proy.zona}:</b> ≤ {INFILT[proy.zona]} m³/h·m² @ 100 Pa
+            <span style={{ color:'#64748b', marginLeft:6 }}>(DS N°15 · medición según NCh2485)</span>
+          </div>
+        )}
+
+        {/* ── Alerta VPCT ────────────────────────────────────────────────── */}
+        {vpctAlerta && (
+          <div style={{ ...S.warn, marginTop:10, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
+            <span>☀ Zona {proy.zona}: <b>protección solar obligatoria</b> — verifica porcentajes de vano por orientación (DS N°15 Art. 4.1.10 / VPCT).</span>
+            {setTab && <button onClick={()=>setTab(6)} style={{ ...S.btn('#b45309'), padding:'4px 10px', fontSize:11 }}>→ Ir a Ventana/VPCT</button>}
+          </div>
         )}
       </div>
-
-      {/* ── Sugerencias por elemento que no cumple U ──────────────────────────── */}
-      {zona && items.map(({ id, label, umax }) => {
-        const up = parseFloat(termica[id]?.u || 0)
-        if (!up || !umax || up <= umax) return null
-        const elemSC = { muro:'muro', techo:'techumbre', piso:'piso' }[id]
-        if (!elemSC) return null
-        const alts = SC.filter(s => s.elem===elemSC && s.zonas.includes(proy.zona) && s.usos.includes(uso||'Vivienda') && s.u<=umax)
-          .sort((a,b)=>a.u-b.u).slice(0,4)
-        if (!alts.length) return null
-        return (
-          <div key={id} style={{ ...S.card, borderColor:'#fca5a5', background:'#fff5f5' }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#dc2626', marginBottom:8 }}>
-              ❌ {label}: U={up} W/m²K supera máximo {umax} W/m²K — Soluciones LOSCAT que cumplen:
-            </div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {alts.map(s => (
-                <div key={s.cod} style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'6px 10px', flex:1, minWidth:200 }}>
-                  <div style={{ fontWeight:700, fontSize:11, color:'#166534' }}>{s.cod}</div>
-                  <div style={{ fontSize:11 }}>{s.desc}</div>
-                  <div style={{ fontSize:11, fontWeight:700, color:'#1e40af', marginTop:2 }}>U={s.u} W/m²K · RF={s.rf||'—'}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize:10, color:'#64748b', marginTop:6 }}>Ve a Soluciones → filtra por {label} → presiona "Aplicar al proyecto" para transferir valores.</div>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -1120,11 +1134,31 @@ function TabFuego({ proy, termica, setTermica }) {
   const rfDef = RF_DEF[uso] || {}
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
+  const VALID_RF = ['F0','F15','F30','F60','F90','F120','F150','F180']
+
+  // RF desde soluciones constructivas aplicadas
+  const rfFromSol = {
+    estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
+    cubierta:   termica.techo?.solucion?.rf || '',
+    muros_sep:  termica.tabique?.solucion?.rf || termica.muro?.solucion?.rf || '',
+    escaleras:  '',
+  }
+  const solForElem = {
+    estructura: [termica.muro?.solucion, termica.techo?.solucion, termica.piso?.solucion].filter(Boolean)[0],
+    cubierta:   termica.techo?.solucion,
+    muros_sep:  termica.tabique?.solucion || termica.muro?.solucion,
+    escaleras:  null,
+  }
+
   const elems = [
-    { id: 'estructura', label: 'Estructura principal', rfReq: proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura },
-    { id: 'muros_sep', label: 'Muros separación', rfReq: rfDef.muros_sep },
-    { id: 'escaleras', label: 'Escaleras/escape', rfReq: rfDef.escaleras },
-    { id: 'cubierta', label: 'Cubierta', rfReq: rfDef.cubierta },
+    { id:'estructura', label:'Estructura principal',       rfReq: proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura,
+      obs: 'RF según material, pisos y uso. LOFC Ed.17 A.1–A.4.' },
+    { id:'muros_sep',  label:'Muros de separación',        rfReq: rfDef.muros_sep,
+      obs: 'Muros entre unidades y entre piso/techo de escape. OGUC Art. 4.5.4.' },
+    { id:'escaleras',  label:'Escaleras / Vías de escape', rfReq: rfDef.escaleras,
+      obs: 'Verificar ensayo NCh850 específico. No hay soluciones SC predefinidas para escaleras.' },
+    { id:'cubierta',   label:'Cubierta',                   rfReq: rfDef.cubierta,
+      obs: 'Cubierta y estructura de techumbre. OGUC Art. 4.5.5.' },
   ]
 
   return (
@@ -1132,129 +1166,127 @@ function TabFuego({ proy, termica, setTermica }) {
       <AyudaPanel
         titulo="Cómo usar — Resistencia al Fuego"
         pasos={[
-          'Define primero el <b>uso y número de pisos</b> en Diagnóstico: determinan las exigencias RF.',
-          'Ingresa la RF propuesta para cada elemento (estructura, muros de separación, escaleras, cubierta).',
-          'La columna "RF mínima OGUC" se calcula automáticamente: estructura usa <b>RF_PISOS(uso, pisos)</b>, otros según OGUC Art. 4.5.4.',
-          '<b>Importante:</b> La RF debe estar respaldada por ensayos NCh850. Los valores ingresados aquí son declarados por el proyectista.',
-          'Los resultados se consolidan en la pestaña <b>Resultados</b>.',
+          'Define primero el <b>uso y número de pisos</b> en Diagnóstico: determinan las exigencias RF mínimas.',
+          'Las columnas <b>RF mínima</b> se calculan automáticamente según OGUC Art. 4.5.4 y RF_PISOS(uso, pisos).',
+          'La columna <b>Solución SC</b> muestra el RF de la solución LOSCAT aplicada si corresponde al elemento.',
+          'Ingresa la <b>RF propuesta</b> manualmente si difiere de la solución o si el elemento no tiene solución aplicada.',
+          '<b>Escaleras:</b> No existen soluciones SC predefinidas — la RF debe respaldarse con ensayo NCh850 específico.',
+          'La RF intrínseca del sistema estructural se muestra a continuación de la tabla como referencia.',
         ]}
         normativa="OGUC Art. 4.5.4 y 4.5.7 · LOFC Ed.17 2025 · NCh850"
       />
       <div style={S.card}>
         <p style={S.h2}>Resistencia al fuego — {uso || 'sin uso definido'}</p>
         {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
+        {uso && !proy.pisos && (
+          <div style={{ ...S.warn, marginBottom:8 }}>
+            ⚠ <b>Número de pisos no definido</b> — completa el campo en Diagnóstico para calcular la RF de estructura exacta.
+            La RF mostrada usa el valor por defecto del uso.
+          </div>
+        )}
 
-        {/* ── Soluciones aplicadas por elemento constructivo ─────────────────── */}
-        {(() => {
-          const elemConstr = [
-            { id: 'muro',     label: 'Muro perimetral',      rfReq: RF_PISOS(uso, proy.pisos) },
-            { id: 'techo',    label: 'Cubierta / Techumbre', rfReq: rfDef.cubierta },
-            { id: 'piso',     label: 'Piso / Losa',          rfReq: RF_PISOS(uso, proy.pisos) },
-            { id: 'tabique',  label: 'Tabique separación',   rfReq: rfDef.muros_sep },
-          ]
-          const conSolucion = elemConstr.filter(e => termica[e.id]?.solucion)
-          if (!conSolucion.length) return null
-          return (
-            <div style={{ marginBottom: 14 }}>
-              <p style={{ ...S.h3, marginBottom: 6 }}>Soluciones constructivas aplicadas — verificación RF</p>
-              {elemConstr.map(({ id, label, rfReq }) => {
-                const sol = termica[id]?.solucion
-                if (!sol) return null
-                const rfSol = sol.rf || ''
-                const cumple = !rfReq || !rfSol || rfN(rfSol) >= rfN(rfReq)
-                const sinRF  = !rfSol
-                return (
-                  <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 5,
-                    background: sinRF ? '#fafafa' : cumple ? '#f0fdf4' : '#fff5f5',
-                    border: `1px solid ${sinRF ? '#e2e8f0' : cumple ? '#86efac' : '#fca5a5'}`, borderRadius: 6 }}>
-                    <span style={{ fontSize: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px', color: '#1e40af', fontWeight: 700, flexShrink: 0 }}>
-                      {sol.cod}
-                    </span>
-                    <span style={{ flex: 1, fontSize: 11, color: '#374151' }}>
-                      <b>{label}:</b> {sol.desc}
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
-                      RF {rfSol || '—'}{rfReq ? ` (req. ≥${rfReq})` : ''}
-                    </span>
-                    {!sinRF && rfReq && <span style={S.badge(cumple)}>{cumple ? 'CUMPLE' : 'NO CUMPLE'}</span>}
-                    {sinRF && <span style={{ fontSize: 10, color: '#94a3b8' }}>Sin dato RF</span>}
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })()}
-
-        {/* ── Tabla general por categoría estructural ────────────────────────── */}
-        <p style={{ ...S.h3, marginBottom: 6 }}>Verificación por categoría — ingreso manual o ajuste</p>
         <table style={S.table}>
           <thead><tr>
             <th style={S.th}>Elemento</th>
+            <th style={S.th}>Solución SC (RF certif.)</th>
             <th style={S.th}>RF propuesta</th>
-            <th style={S.th}>RF mínima OGUC</th>
+            <th style={S.th}>RF mínima requerida</th>
             <th style={S.th}>Estado</th>
           </tr></thead>
           <tbody>
-            {elems.map(({ id, label, rfReq }) => {
-              // Pre-llenar desde solución aplicada si no hay valor manual
-              const rfFromSol = {
-                estructura: termica.muro?.rf || termica.techo?.rf || termica.piso?.rf || '',
-                cubierta:   termica.techo?.rf || '',
-                muros_sep:  termica.tabique?.rf || termica.muro?.rf || '',
-                escaleras:  '',
-              }[id] || ''
-              const rfP = termica['rf_' + id]?.rf || rfFromSol
+            {elems.map(({ id, label, rfReq, obs }) => {
+              const rfManual = termica['rf_' + id]?.rf || ''
+              const rfSol = rfFromSol[id] || ''
+              const rfP = rfManual || rfSol
               const cumple = !rfReq || !rfP || rfN(rfP) >= rfN(rfReq)
+              const sol = solForElem[id]
+              const rfInvalid = rfManual && !VALID_RF.includes(rfManual)
               return (
                 <tr key={id}>
-                  <td style={S.td}>{label}</td>
                   <td style={S.td}>
-                    <select style={{ ...ist, width: 80 }} value={termica['rf_' + id]?.rf || ''}
-                      onChange={e => set('rf_' + id, 'rf', e.target.value)}>
-                      <option value="">—</option>
-                      {['F15', 'F30', 'F60', 'F90', 'F120'].map(f => <option key={f}>{f}</option>)}
-                    </select>
-                    {!termica['rf_' + id]?.rf && rfFromSol && (
-                      <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>↑ {rfFromSol} (solución)</span>
+                    <b>{label}</b>
+                    <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{obs}</div>
+                  </td>
+                  <td style={S.td}>
+                    {sol ? (
+                      <div>
+                        <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }}>{sol.cod}</span>
+                        <span style={{ fontSize:11, marginLeft:5, fontWeight:700 }}>{rfSol || '—'}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>
                     )}
                   </td>
-                  <td style={{ ...S.td, color: '#dc2626', fontWeight: 700 }}>{rfReq || '—'}</td>
-                  <td style={S.td}>{rfP && rfReq ? <span style={S.badge(cumple)}>{cumple ? 'CUMPLE' : 'NO CUMPLE'}</span> : '—'}</td>
+                  <td style={S.td}>
+                    <select style={{ ...ist, width:85 }} value={rfManual}
+                      onChange={e=>set('rf_'+id,'rf',e.target.value)}>
+                      <option value="">—</option>
+                      {VALID_RF.map(f=><option key={f}>{f}</option>)}
+                    </select>
+                    {rfInvalid && <div style={{ fontSize:10, color:'#dc2626' }}>⚠ valor fuera de norma</div>}
+                    {!rfManual && rfSol && <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>}
+                  </td>
+                  <td style={{ ...S.td, color: rfReq?'#dc2626':'#94a3b8', fontWeight: rfReq?700:'normal' }}>
+                    {rfReq ? `≥ ${rfReq}` : '—'}
+                  </td>
+                  <td style={S.td}>
+                    {rfP && rfReq
+                      ? <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
+                      : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
-        <div style={{ ...S.warn, marginTop: 10 }}>
-          <b>Riesgo de incendio:</b> {RIESGO_INC[uso] || '—'} &nbsp;|&nbsp;
-          {proy.estructura && <><b>{proy.estructura}:</b> {OBS_EST[proy.estructura]}</>}
+
+        {/* ── RF intrínseca del sistema ───────────────────────────────────── */}
+        {proy.estructura && (
+          <div style={{ marginTop:10, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:6, padding:'8px 12px', fontSize:11 }}>
+            <b>Sistema estructural — {proy.estructura}:</b> RF base ≈ {RF_EST[proy.estructura]||'—'} ·{' '}
+            <span style={{ color:'#64748b' }}>{OBS_EST[proy.estructura]||''}</span>
+          </div>
+        )}
+        <div style={{ ...S.warn, marginTop:8 }}>
+          <b>Riesgo de incendio:</b> {RIESGO_INC[uso] || '—'}
         </div>
       </div>
 
-      {/* ── Sugerencias RF cuando no cumple ────────────────────────────────────── */}
-      {elems.filter(e => { const rp = termica['rf_' + e.id]?.rf || ''; return e.rfReq && rp && rfN(rp) < rfN(e.rfReq) }).map(e => {
-        const elemSC = { estructura: 'muro', muros_sep: 'muro', escaleras: null, cubierta: 'techumbre' }[e.id]
-        const alts = elemSC ? SC.filter(s => s.elem === elemSC && s.zonas.includes(proy.zona || 'D') && s.usos.includes(uso || 'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a, b) => rfN(b.rf) - rfN(a.rf)).slice(0, 4) : []
+      {/* ── Sugerencias cuando no cumple ───────────────────────────────── */}
+      {elems.filter(e => {
+        const rp = termica['rf_' + e.id]?.rf || rfFromSol[e.id] || ''
+        return e.rfReq && rp && rfN(rp) < rfN(e.rfReq)
+      }).map(e => {
+        const elemSC = { estructura:'muro', muros_sep:'muro', escaleras:null, cubierta:'techumbre' }[e.id]
+        const alts = elemSC ? SC.filter(s => s.elem===elemSC && s.zonas.includes(proy.zona||'D') && s.usos.includes(uso||'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,4) : []
         return (
-          <div key={e.id} style={{ ...S.card, borderColor: '#fca5a5', background: '#fff5f5' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>
-              ❌ {e.label}: RF propuesta ({termica['rf_' + e.id]?.rf || '—'}) insuficiente — se requiere ≥ {e.rfReq}
+          <div key={e.id} style={{ ...S.card, borderColor:'#fca5a5', background:'#fff5f5' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#dc2626', marginBottom:6 }}>
+              ❌ {e.label}: RF propuesta ({termica['rf_'+e.id]?.rf||rfFromSol[e.id]||'—'}) insuficiente — se requiere ≥ {e.rfReq}
             </div>
             {alts.length > 0 ? (
               <>
-                <div style={{ fontSize: 11, color: '#374151', marginBottom: 6 }}>Soluciones LOSCAT con RF ≥ {e.rfReq}:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ fontSize:11, color:'#374151', marginBottom:6 }}>Soluciones LOSCAT con RF ≥ {e.rfReq}:</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                   {alts.map(s => (
-                    <div key={s.cod} style={{ background: '#fff', border: '1px solid #fca5a5', borderRadius: 6, padding: '6px 10px', flex: 1, minWidth: 180 }}>
-                      <div style={{ fontWeight: 700, fontSize: 11, color: '#dc2626' }}>{s.cod} · RF {s.rf}</div>
-                      <div style={{ fontSize: 11 }}>{s.desc}</div>
-                      <div style={{ fontSize: 10, color: '#64748b' }}>U={s.u} W/m²K</div>
+                    <div key={s.cod} style={{ background:'#fff', border:'1px solid #fca5a5', borderRadius:6, padding:'6px 10px', flex:1, minWidth:180 }}>
+                      <div style={{ fontWeight:700, fontSize:11, color:'#dc2626' }}>{s.cod} · RF {s.rf}</div>
+                      <div style={{ fontSize:11 }}>{s.desc}</div>
+                      <div style={{ fontSize:10, color:'#64748b' }}>U={s.u} W/m²K</div>
                     </div>
                   ))}
                 </div>
               </>
-            ) : <div style={{ fontSize: 11, color: '#64748b' }}>Consulta LOFC Ed.17 tabla A para el elemento/material específico. RF depende del ensayo NCh850.</div>}
-            <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Normativa: LOFC Ed.17 2025 · OGUC Art. 4.5.4 · {OBS_EST[proy.estructura] || 'Verificar con tabla LOFC según material y espesor.'}</div>
+            ) : (
+              <div style={{ fontSize:11, color:'#64748b' }}>
+                {e.id==='escaleras'
+                  ? 'Las escaleras requieren ensayo NCh850 específico. Consulta LOFC Ed.17 Capítulo B según material (HA, acero, madera).'
+                  : 'Consulta LOFC Ed.17 tabla A para el elemento/material específico. RF depende del ensayo NCh850.'}
+              </div>
+            )}
+            <div style={{ fontSize:10, color:'#64748b', marginTop:6 }}>
+              Normativa: LOFC Ed.17 2025 · OGUC Art. 4.5.4 · {OBS_EST[proy.estructura]||'Verificar con tabla LOFC según material y espesor.'}
+            </div>
           </div>
         )
       })}
@@ -1266,12 +1298,28 @@ function TabFuego({ proy, termica, setTermica }) {
 function TabAcustica({ proy, termica, setTermica }) {
   const uso = proy.uso || ''
   const acDef = AC_DEF[uso] || {}
+  const acImpact = AC_IMPACT_DEF[uso] || {}
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
   const acElems = [
-    { id: 'entre_unidades', label: 'Entre unidades', req: acDef.entre_unidades },
-    { id: 'fachada', label: 'Fachada', req: acDef.fachada },
-    { id: 'entre_pisos', label: 'Entre pisos', req: acDef.entre_pisos },
+    {
+      id: 'entre_unidades',
+      label: 'Entre unidades habitacionales',
+      req: acDef.entre_unidades,
+      desc: 'Aislación entre unidades adyacentes (horizontal). Incluye muros, tabiques, puertas de acceso y ductos compartidos. Mayor Rw = mejor aislación.',
+    },
+    {
+      id: 'fachada',
+      label: 'Fachada exterior',
+      req: acDef.fachada,
+      desc: 'Aislación frente a ruido externo (tráfico, viento). Incluye muro, ventana y puerta exterior. El Rw de ventana puede ser determinante — verificar en pestaña Ventana.',
+    },
+    {
+      id: 'entre_pisos',
+      label: 'Entre pisos — ruido aéreo',
+      req: acDef.entre_pisos,
+      desc: 'Aislación aérea vertical (voces, música). Incluye losa, piso flotante y cielo. Mayor Rw = mejor aislación.',
+    },
   ]
 
   return (
@@ -1279,61 +1327,63 @@ function TabAcustica({ proy, termica, setTermica }) {
       <AyudaPanel
         titulo="Cómo usar — Aislamiento Acústico"
         pasos={[
-          'Define primero el <b>uso</b> en Diagnóstico: determina los requisitos mínimos de Rw.',
-          'Ingresa el Rw medido o certificado (dB) para cada tipo de separación.',
-          'Los valores se comparan con los mínimos NCh352 para el uso del edificio.',
-          '<b>Importante:</b> El Rw debe estar respaldado por ensayos NCh352. Los valores ingresados aquí son declarados por el proyectista.',
-          'Los resultados se consolidan en la pestaña <b>Resultados</b>.',
+          'Define primero el <b>uso</b> en Diagnóstico: determina los requisitos mínimos de Rw (NCh352:2013).',
+          '<b>Entre unidades:</b> aislación horizontal entre departamentos/oficinas contiguas — muros y tabiques.',
+          '<b>Fachada:</b> aislación frente a ruido exterior (tráfico, actividad urbana) — incluye ventana y puerta exterior.',
+          '<b>Entre pisos ruido aéreo (Rw):</b> aislación vertical de sonido aéreo — losa y terminaciones.',
+          '<b>Entre pisos ruido de impacto (L\'n,w):</b> nivel de impacto normalizado — pasos, caída de objetos. <b>MENOR valor = MEJOR aislación</b>.',
+          'Ingresa valores medidos o certificados (ensayo NCh352). Tolerancia de medición: ±2 dB típico.',
+          'Los valores Rw de soluciones LOSCAT se pre-rellenan automáticamente al aplicar soluciones.',
         ]}
-        normativa="OGUC Art. 4.1.6 · NCh352:2013 · NCh353 · ISO 15712"
+        normativa="OGUC Art. 4.1.6 · NCh352:2013 · NCh353 · ISO 15712 · DS N°594"
       />
+
+      {/* ── Soluciones aplicadas (Rw) ────────────────────────────────────── */}
+      {(() => {
+        const elemConstrAc = [
+          { id:'muro',    label:'Muro / Fachada',       req: acDef.entre_unidades },
+          { id:'techo',   label:'Cubierta / Techumbre', req: acDef.entre_pisos },
+          { id:'piso',    label:'Piso / Losa',          req: acDef.entre_pisos },
+          { id:'tabique', label:'Tabique separación',   req: acDef.entre_unidades },
+        ]
+        const conSolucion = elemConstrAc.filter(e => termica[e.id]?.solucion)
+        if (!conSolucion.length) return null
+        return (
+          <div style={S.card}>
+            <p style={S.h3}>Soluciones constructivas aplicadas — verificación Rw</p>
+            {elemConstrAc.map(({ id, label, req }) => {
+              const sol = termica[id]?.solucion
+              if (!sol) return null
+              const rwSol = sol.ac_rw ?? null
+              const cumple = !req || rwSol == null || rwSol >= req
+              const sinRw = rwSol == null
+              return (
+                <div key={id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', marginBottom:5,
+                  background: sinRw?'#fafafa':cumple?'#f0fdf4':'#fff5f5',
+                  border:`1px solid ${sinRw?'#e2e8f0':cumple?'#86efac':'#fca5a5'}`, borderRadius:6 }}>
+                  <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700, flexShrink:0 }}>
+                    {sol.cod}
+                  </span>
+                  <span style={{ flex:1, fontSize:11, color:'#374151' }}>
+                    <b>{label}:</b> {sol.desc}
+                  </span>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#374151', flexShrink:0 }}>
+                    Rw {rwSol != null ? `${rwSol} dB` : '—'}{req ? ` (req. ≥${req} dB)` : ''}
+                  </span>
+                  {!sinRw && req && <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>}
+                  {sinRw && <span style={{ fontSize:10, color:'#94a3b8' }}>Sin dato Rw</span>}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
+      {/* ── Tabla Rw ruido aéreo ─────────────────────────────────────────── */}
       <div style={S.card}>
-        <p style={S.h2}>Aislamiento acústico (Rw dB) — {uso || '—'}</p>
+        <p style={S.h2}>Aislamiento acústico — ruido aéreo Rw (dB) · {uso || '—'}</p>
         {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
 
-        {/* ── Soluciones aplicadas por elemento constructivo ─────────────────── */}
-        {(() => {
-          const elemConstrAc = [
-            { id: 'muro',    label: 'Muro / Fachada',        req: acDef.entre_unidades },
-            { id: 'techo',   label: 'Cubierta / Techumbre',  req: acDef.entre_pisos },
-            { id: 'piso',    label: 'Piso / Losa',           req: acDef.entre_pisos },
-            { id: 'tabique', label: 'Tabique separación',    req: acDef.entre_unidades },
-          ]
-          const conSolucion = elemConstrAc.filter(e => termica[e.id]?.solucion)
-          if (!conSolucion.length) return null
-          return (
-            <div style={{ marginBottom: 14 }}>
-              <p style={{ ...S.h3, marginBottom: 6 }}>Soluciones constructivas aplicadas — verificación Rw</p>
-              {elemConstrAc.map(({ id, label, req }) => {
-                const sol = termica[id]?.solucion
-                if (!sol) return null
-                const rwSol = sol.ac_rw ?? null
-                const cumple = !req || rwSol == null || rwSol >= req
-                const sinRw  = rwSol == null
-                return (
-                  <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 5,
-                    background: sinRw ? '#fafafa' : cumple ? '#f0fdf4' : '#fff5f5',
-                    border: `1px solid ${sinRw ? '#e2e8f0' : cumple ? '#86efac' : '#fca5a5'}`, borderRadius: 6 }}>
-                    <span style={{ fontSize: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px', color: '#1e40af', fontWeight: 700, flexShrink: 0 }}>
-                      {sol.cod}
-                    </span>
-                    <span style={{ flex: 1, fontSize: 11, color: '#374151' }}>
-                      <b>{label}:</b> {sol.desc}
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
-                      Rw {rwSol != null ? `${rwSol} dB` : '—'}{req ? ` (req. ≥${req} dB)` : ''}
-                    </span>
-                    {!sinRw && req && <span style={S.badge(cumple)}>{cumple ? 'CUMPLE' : 'NO CUMPLE'}</span>}
-                    {sinRw && <span style={{ fontSize: 10, color: '#94a3b8' }}>Sin dato Rw</span>}
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })()}
-
-        {/* ── Tabla general ──────────────────────────────────────────────────── */}
-        <p style={{ ...S.h3, marginBottom: 6 }}>Verificación por separación — ingreso manual o ajuste</p>
         <table style={S.table}>
           <thead><tr>
             <th style={S.th}>Separación</th>
@@ -1342,57 +1392,137 @@ function TabAcustica({ proy, termica, setTermica }) {
             <th style={S.th}>Estado</th>
           </tr></thead>
           <tbody>
-            {acElems.map(({ id, label, req }) => {
-              // Pre-llenar desde solución si no hay valor manual
+            {acElems.map(({ id, label, req, desc }) => {
               const rwFromSol = {
-                entre_unidades: termica.muro?.rw || termica.tabique?.rw || '',
-                fachada:        termica.muro?.rw || '',
-                entre_pisos:    termica.piso?.rw || termica.techo?.rw || '',
+                entre_unidades: parseFloat(termica.muro?.rw||0) || parseFloat(termica.tabique?.rw||0) || '',
+                fachada:        parseFloat(termica.muro?.rw||0) || '',
+                entre_pisos:    parseFloat(termica.piso?.rw||0) || parseFloat(termica.techo?.rw||0) || '',
               }[id] || ''
-              const rw = parseInt(termica['ac_' + id]?.rw || 0)
+              const rwManual = termica['ac_' + id]?.rw || ''
+              const rw = parseFloat(rwManual || rwFromSol || 0)
               const cumple = !req || !rw || rw >= req
               return (
                 <tr key={id}>
-                  <td style={S.td}>{label}</td>
                   <td style={S.td}>
-                    <input type="number" min={0} max={80} style={{ ...ist, width: 70 }}
-                      value={termica['ac_' + id]?.rw || ''} onChange={e => set('ac_' + id, 'rw', e.target.value)} />
-                    {!termica['ac_' + id]?.rw && rwFromSol && (
-                      <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>↑ {rwFromSol} dB (solución)</span>
+                    <b>{label}</b>
+                    <div style={{ fontSize:10, color:'#64748b', marginTop:2, lineHeight:1.4 }}>{desc}</div>
+                  </td>
+                  <td style={S.td}>
+                    <input type="number" min={0} max={90} step="0.5" style={{ ...ist, width:70 }}
+                      value={rwManual} onChange={e => set('ac_'+id, 'rw', e.target.value)}
+                      placeholder="ej. 45"/>
+                    {!rwManual && rwFromSol ? (
+                      <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rwFromSol} dB (solución)</div>
+                    ) : null}
+                  </td>
+                  <td style={{ ...S.td, color:'#0369a1', fontWeight:700 }}>{req ? req + ' dB' : '—'}</td>
+                  <td style={S.td}>
+                    {(rw || rwFromSol) && req
+                      ? <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
+                      : '—'}
+                    {rw && req && !cumple && Math.abs(rw - req) <= 2 && (
+                      <div style={{ fontSize:10, color:'#b45309', marginTop:2 }}>⚠ Déficit ≤ 2 dB — verificar con ensayo NCh352 (tolerancia de medición ±2 dB)</div>
                     )}
                   </td>
-                  <td style={{ ...S.td, color: '#0369a1', fontWeight: 700 }}>{req ? req + ' dB' : '—'}</td>
-                  <td style={S.td}>{rw && req ? <span style={S.badge(cumple)}>{cumple ? 'CUMPLE' : 'NO CUMPLE'}</span> : '—'}</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
+        <div style={{ fontSize:10, color:'#94a3b8', marginTop:6 }}>
+          Tolerancia de medición NCh352: ±2 dB típico. Valores ingresados como declarados por el proyectista.
+        </div>
       </div>
 
-      {/* ── Sugerencias Rw cuando no cumple ────────────────────────────────────── */}
-      {acElems.filter(e => { const rw = parseFloat(termica['ac_' + e.id]?.rw || 0); return rw && e.req && rw < e.req }).map(e => {
-        const elemSC = { entre_unidades: 'muro', fachada: 'muro', entre_pisos: 'piso' }[e.id]
-        const alts = elemSC ? SC.filter(s => s.elem === elemSC && s.zonas.includes(proy.zona || 'D') && s.usos.includes(uso || 'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a, b) => b.ac_rw - a.ac_rw).slice(0, 4) : []
+      {/* ── Tabla L'n,w ruido de impacto ─────────────────────────────────── */}
+      <div style={S.card}>
+        <p style={S.h2}>Aislamiento acústico — ruido de impacto L'n,w (dB) · {uso || '—'}</p>
+        <div style={{ fontSize:11, color:'#64748b', marginBottom:8 }}>
+          L'n,w = nivel de ruido de impacto normalizado. <b>MENOR valor = MEJOR aislación.</b>
+          Aplica principalmente a pisos/losas entre unidades habitables.
+          Fuente: NCh352:2013 / DS N°594.
+        </div>
+        {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
+        <table style={S.table}>
+          <thead><tr>
+            <th style={S.th}>Elemento</th>
+            <th style={S.th}>L'n,w medido (dB)</th>
+            <th style={S.th}>L'n,w máximo NCh352</th>
+            <th style={S.th}>Estado</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td style={S.td}>
+                <b>Entre pisos — ruido de impacto</b>
+                <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
+                  Pasos, caída de objetos. Incluye losa, piso flotante y terminación. Menor valor = mejor. NCh352 / DS N°594.
+                </div>
+              </td>
+              <td style={S.td}>
+                <input type="number" min={0} max={100} step="1" style={{ ...ist, width:70 }}
+                  value={termica.ac_impacto_pisos?.lnw || ''}
+                  onChange={e => set('ac_impacto_pisos', 'lnw', e.target.value)}
+                  placeholder="ej. 58"/>
+                <div style={{ fontSize:9, color:'#94a3b8', marginTop:2 }}>dB (medido)</div>
+              </td>
+              <td style={{ ...S.td, color:'#0369a1', fontWeight:700 }}>
+                {acImpact.entre_pisos ? `≤ ${acImpact.entre_pisos} dB` : '—'}
+              </td>
+              <td style={S.td}>
+                {(() => {
+                  const lnw = parseFloat(termica.ac_impacto_pisos?.lnw || 0)
+                  if (!lnw || !acImpact.entre_pisos) return '—'
+                  const cumple = lnw <= acImpact.entre_pisos
+                  return (
+                    <>
+                      <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
+                      {!cumple && lnw - acImpact.entre_pisos <= 3 && (
+                        <div style={{ fontSize:10, color:'#b45309', marginTop:2 }}>⚠ Exceso ≤ 3 dB — verificar con ensayo NCh352</div>
+                      )}
+                    </>
+                  )
+                })()}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div style={{ ...S.warn, marginTop:8 }}>
+          <b>Piso flotante:</b> agrega R≈0.10–0.15 m²K/W (térmico) y reduce L'n,w en ~15–25 dB (impacto).
+          Para cumplir impacto, considerar losa + piso flotante con material absorbente (lana mineral, EPS).
+        </div>
+      </div>
+
+      {/* ── Sugerencias Rw cuando no cumple ─────────────────────────────── */}
+      {acElems.filter(e => {
+        const rw = parseFloat(termica['ac_' + e.id]?.rw || termica[{entre_unidades:'muro',fachada:'muro',entre_pisos:'piso'}[e.id]]?.rw || 0)
+        return rw && e.req && rw < e.req
+      }).map(e => {
+        const elemSC = { entre_unidades:'muro', fachada:'muro', entre_pisos:'piso' }[e.id]
+        const alts = elemSC ? SC.filter(s => s.elem===elemSC && s.zonas.includes(proy.zona||'D') && s.usos.includes(uso||'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,4) : []
         return (
-          <div key={e.id} style={{ ...S.card, borderColor: '#bfdbfe', background: '#f0f7ff' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#1e40af', marginBottom: 6 }}>
-              ❌ {e.label}: Rw propuesto ({termica['ac_' + e.id]?.rw || '—'} dB) insuficiente — se requiere ≥ {e.req} dB
+          <div key={e.id} style={{ ...S.card, borderColor:'#bfdbfe', background:'#f0f7ff' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#1e40af', marginBottom:6 }}>
+              ❌ {e.label}: Rw propuesto ({termica['ac_'+e.id]?.rw||'—'} dB) insuficiente — se requiere ≥ {e.req} dB
             </div>
             {alts.length > 0 ? (
               <>
-                <div style={{ fontSize: 11, color: '#374151', marginBottom: 6 }}>Soluciones LOSCAT con Rw ≥ {e.req} dB:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ fontSize:11, color:'#374151', marginBottom:6 }}>Soluciones LOSCAT con Rw ≥ {e.req} dB:</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                   {alts.map(s => (
-                    <div key={s.cod} style={{ background: '#fff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 10px', flex: 1, minWidth: 180 }}>
-                      <div style={{ fontWeight: 700, fontSize: 11, color: '#1e40af' }}>{s.cod} · Rw {s.ac_rw} dB</div>
-                      <div style={{ fontSize: 11 }}>{s.desc}</div>
-                      <div style={{ fontSize: 10, color: '#64748b' }}>U={s.u} W/m²K · RF={s.rf || '—'}</div>
+                    <div key={s.cod} style={{ background:'#fff', border:'1px solid #bfdbfe', borderRadius:6, padding:'6px 10px', flex:1, minWidth:180 }}>
+                      <div style={{ fontWeight:700, fontSize:11, color:'#1e40af' }}>{s.cod} · Rw {s.ac_rw} dB</div>
+                      <div style={{ fontSize:11 }}>{s.desc}</div>
+                      <div style={{ fontSize:10, color:'#64748b' }}>U={s.u} W/m²K · RF {s.rf||'—'}</div>
                     </div>
                   ))}
                 </div>
               </>
-            ) : <div style={{ fontSize: 11, color: '#64748b' }}>El Rw se obtiene por ensayo NCh352. Considere doble hoja con cámara de aire o masa adicional (ley de masa ISO 15712).</div>}
+            ) : (
+              <div style={{ fontSize:11, color:'#64748b' }}>
+                Considera doble hoja con cámara de aire ≥ 50mm, masa ≥ 200 kg/m² o combinación de ambas.
+                Para fachada, verifica Rw de ventana (doble vidrio) en pestaña Ventana.
+              </div>
+            )}
           </div>
         )
       })}
@@ -2328,21 +2458,25 @@ function TabResultados({ proy, termica }) {
     { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: zona?.techo, rfReq: RF_DEF[uso]?.cubierta,  rwReq: AC_DEF[uso]?.entre_pisos },
     { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: zona?.piso,  rfReq: RF_DEF[uso]?.estructura, rwReq: AC_DEF[uso]?.entre_pisos },
     { key: 'tabique', label: 'Tabique',          tipo: 'muro',      umax: null,        rfReq: RF_DEF[uso]?.muros_sep, rwReq: AC_DEF[uso]?.entre_unidades },
+    { key: 'puerta',  label: 'Puerta exterior',  tipo: 'muro',      umax: PUERTA_U[proy.zona]||null, rfReq: PUERTA_RF[proy.zona]||'', rwReq: null },
   ]
 
   const checks = useMemo(() => {
     if (!zona || !uso) return []
+    const rfReqEstr = RF_PISOS(uso, proy.pisos)
     return [
-      { label: 'Muro U',          val: termica.muro?.u,            max: zona.muro,                   ok: !termica.muro?.u            || parseFloat(termica.muro.u)            <= zona.muro },
-      { label: 'Techo U',         val: termica.techo?.u,           max: zona.techo,                  ok: !termica.techo?.u           || parseFloat(termica.techo.u)           <= zona.techo },
-      { label: 'Piso U',          val: termica.piso?.u,            max: zona.piso,                   ok: !termica.piso?.u            || parseFloat(termica.piso.u)            <= zona.piso },
-      { label: 'RF Estructura',   val: termica.rf_estructura?.rf,  max: RF_PISOS(uso, proy.pisos),   ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(RF_PISOS(uso, proy.pisos)) },
-      { label: 'RF Muros sep.',   val: termica.rf_muros_sep?.rf,   max: RF_DEF[uso]?.muros_sep,      ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep || 'F0') },
-      { label: 'RF Escaleras',    val: termica.rf_escaleras?.rf,   max: RF_DEF[uso]?.escaleras,      ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(RF_DEF[uso]?.escaleras || 'F0') },
-      { label: 'RF Cubierta',     val: termica.rf_cubierta?.rf,    max: RF_DEF[uso]?.cubierta,       ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(RF_DEF[uso]?.cubierta || 'F0') },
-      { label: 'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw + ' dB' : null, max: AC_DEF[uso]?.entre_unidades, ok: !termica.ac_entre_unidades?.rw || parseInt(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades || 0) },
-      { label: 'Rw fachada',      val: termica.ac_fachada?.rw       ? termica.ac_fachada.rw       + ' dB' : null, max: AC_DEF[uso]?.fachada,         ok: !termica.ac_fachada?.rw       || parseInt(termica.ac_fachada.rw)       >= (AC_DEF[uso]?.fachada || 0) },
-      { label: 'Rw entre pisos',  val: termica.ac_entre_pisos?.rw   ? termica.ac_entre_pisos.rw   + ' dB' : null, max: AC_DEF[uso]?.entre_pisos,     ok: !termica.ac_entre_pisos?.rw   || parseInt(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos || 0) },
+      { label:'Muro U',            val: termica.muro?.u,            max:`≤ ${zona.muro} W/m²K`,       ok: !termica.muro?.u            || parseFloat(termica.muro.u)            <= zona.muro },
+      { label:'Techo U',           val: termica.techo?.u,           max:`≤ ${zona.techo} W/m²K`,      ok: !termica.techo?.u           || parseFloat(termica.techo.u)           <= zona.techo },
+      { label:'Piso U',            val: termica.piso?.u,            max:`≤ ${zona.piso} W/m²K`,       ok: !termica.piso?.u            || parseFloat(termica.piso.u)            <= zona.piso },
+      { label:'Puerta U',          val: termica.puerta?.u,          max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !termica.puerta?.u || !PUERTA_U[proy.zona] || parseFloat(termica.puerta.u) <= PUERTA_U[proy.zona] },
+      { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr) },
+      { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0') },
+      { label:'RF Escaleras',      val: termica.rf_escaleras?.rf,   max:`≥ ${RF_DEF[uso]?.escaleras}`,ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(RF_DEF[uso]?.escaleras||'F0') },
+      { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${RF_DEF[uso]?.cubierta}`, ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(RF_DEF[uso]?.cubierta||'F0') },
+      { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
+      { label:'Rw fachada',        val: termica.ac_fachada?.rw      ? termica.ac_fachada.rw+'  dB':null,      max:`≥ ${AC_DEF[uso]?.fachada} dB`,        ok: !termica.ac_fachada?.rw       || parseFloat(termica.ac_fachada.rw)       >= (AC_DEF[uso]?.fachada||0) },
+      { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
+      { label:"L'n,w impacto pisos", val: termica.ac_impacto_pisos?.lnw ? termica.ac_impacto_pisos.lnw+' dB':null, max:`≤ ${AC_IMPACT_DEF[uso]?.entre_pisos} dB`, ok: !termica.ac_impacto_pisos?.lnw || parseFloat(termica.ac_impacto_pisos.lnw) <= (AC_IMPACT_DEF[uso]?.entre_pisos||99) },
     ].filter(c => c.val)
   }, [proy, termica, zona, uso])
 
@@ -2381,7 +2515,9 @@ function TabResultados({ proy, termica }) {
 
       const res = (cv?.length && zonaData) ? calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo) : null
       const uCalc = res ? parseFloat(res.U) : (data?.u ? parseFloat(data.u) : null)
-      const cumpleU = el.umax ? (uCalc != null && uCalc <= el.umax) : true
+      const tbPct = parseFloat(data?.tb || 0)
+      const uCalcCorr = (uCalc != null && tbPct > 0) ? uCalc * (1 + tbPct/100) : uCalc
+      const cumpleU = el.umax ? (uCalcCorr != null && uCalcCorr <= el.umax) : true
 
       // Tabla de capas con R por capa
       let tablaCapa = ''
@@ -2461,8 +2597,8 @@ ${tablaCapa}
 <table>
   <tr><th>Criterio normativo</th><th>Valor de diseño</th><th>Exigencia mínima</th><th>Norma / Fuente</th><th>Estado</th></tr>
   ${el.umax ? `<tr>
-    <td>Transmitancia térmica U</td>
-    <td><b>${uCalc != null ? uCalc.toFixed(4) + ' W/m²K' : data?.u ? data.u + ' W/m²K' : '—'}</b></td>
+    <td>Transmitancia térmica U${tbPct > 0 ? ` <span style="font-size:9pt;color:#b45309">(+${tbPct}% puente térmico)</span>` : ''}</td>
+    <td><b>${uCalcCorr != null ? uCalcCorr.toFixed(4) + ' W/m²K' : data?.u ? data.u + ' W/m²K' : '—'}</b>${tbPct > 0 && uCalc != null ? ` <span style="font-size:9pt;color:#64748b">(base ${uCalc.toFixed(4)})</span>` : ''}</td>
     <td>≤ ${el.umax} W/m²K</td>
     <td>DS N°15 MINVU · Zona ${proy.zona} · ${el.label}</td>
     <td><span class="${cumpleU ? 'badge-ok' : 'badge-no'}">${cumpleU ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
@@ -2511,18 +2647,18 @@ ${glaserHtml}`
     }).join('')
 
     // ── Tabla Rw acústica ─────────────────────────────────────────────────────
-    const acElems = [
+    const acElemsRpt = [
       { id: 'entre_unidades', label: 'Entre unidades habitacionales', req: AC_DEF[uso]?.entre_unidades },
       { id: 'fachada',        label: 'Fachada exterior',              req: AC_DEF[uso]?.fachada },
-      { id: 'entre_pisos',    label: 'Entre pisos',                   req: AC_DEF[uso]?.entre_pisos },
+      { id: 'entre_pisos',    label: 'Entre pisos — ruido aéreo',     req: AC_DEF[uso]?.entre_pisos },
     ]
     const rwFromSol = {
       entre_unidades: termica.muro?.rw || termica.tabique?.rw || '',
       fachada:        termica.muro?.rw || '',
       entre_pisos:    termica.piso?.rw || termica.techo?.rw || '',
     }
-    const rwRows = acElems.map(e => {
-      const rw = parseInt(termica['ac_' + e.id]?.rw || rwFromSol[e.id] || 0)
+    const rwRows = acElemsRpt.map(e => {
+      const rw = parseFloat(termica['ac_' + e.id]?.rw || rwFromSol[e.id] || 0)
       const src = termica['ac_' + e.id]?.rw ? 'manual' : rwFromSol[e.id] ? 'solución' : ''
       const ok = !e.req || !rw || rw >= e.req
       return `<tr>
@@ -2532,6 +2668,15 @@ ${glaserHtml}`
         <td>${rw && e.req ? `<span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '—'}</td>
       </tr>`
     }).join('')
+    const lnwImpact = parseFloat(termica.ac_impacto_pisos?.lnw || 0)
+    const lnwReq = AC_IMPACT_DEF[uso]?.entre_pisos
+    const lnwCumple = !lnwImpact || !lnwReq || lnwImpact <= lnwReq
+    const lnwRow = lnwImpact ? `<tr>
+      <td>Entre pisos — ruido de impacto L'n,w</td>
+      <td><b>${lnwImpact} dB</b></td>
+      <td style="color:#0369a1;font-weight:700">${lnwReq ? '≤ '+lnwReq+' dB' : '—'}</td>
+      <td>${lnwReq ? `<span class="${lnwCumple?'badge-ok':'badge-no'}">${lnwCumple?'CUMPLE':'NO CUMPLE'}</span>` : '—'}</td>
+    </tr>` : ''
 
     // ── Resumen ejecutivo ─────────────────────────────────────────────────────
     const allOkLocal = checks.every(c => c.ok)
@@ -2645,6 +2790,7 @@ ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${pro
 <table>
   <tr><th>Tipo de separación</th><th>Rw propuesto</th><th>Rw mínimo NCh352</th><th>Estado</th></tr>
   ${rwRows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Sin datos de aislamiento acústico</td></tr>'}
+  ${lnwRow}
 </table>
 
 ${vpctHtml}
@@ -2806,7 +2952,7 @@ export default function App() {
       <div style={S.body}>
         {tab === 0 && <TabDiag proy={proy} setProy={setProy} />}
         {tab === 1 && <TabSoluciones proy={proy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} />}
-        {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} />}
+        {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} />}
         {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} />}
         {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} />}
         {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} />}

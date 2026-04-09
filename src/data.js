@@ -6,6 +6,8 @@ export const COMUNAS_ZONA={A:["Arica","Camarones","Putre","General Lagos","Iquiq
 export const PERM_V={A:null,B:1,C:1,D:2,E:2,F:2,G:3,H:3,I:3};
 export const PUERTA_U={A:null,B:1.7,C:1.7,D:1.7,E:1.7,F:2.0,G:2.0,H:2.0,I:2.0};
 export const PUERTA_P={A:null,B:1,C:1,D:2,E:2,F:2,G:3,H:3,I:3};
+// RF mínima para puertas de separación (OGUC Art. 4.5.4)
+export const PUERTA_RF={A:null,B:'F15',C:'F15',D:'F30',E:'F30',F:'F30',G:'F30',H:'F30',I:'F30'};
 export const SOBR_R={A:null,B:45,C:45,D:45,E:45,F:91,G:91,H:91,I:91};
 export const INFILT={A:null,B:4.0,C:5.0,D:8.0,E:5.0,F:8.0,G:5.0,H:4.0,I:4.0};
 export const VPCT={A:{N:[100,97,94],OP:[94,87,80],S:[85,78,69]},B:{N:[96,92,88],OP:[84,78,71],S:[75,68,59]},C:{N:[91,88,83],OP:[75,69,62],S:[64,58,49]},D:{N:[87,83,77],OP:[65,60,53],S:[54,48,40]},E:{N:[83,78,71],OP:[56,51,45],S:[44,38,31]},F:{N:[78,73,65],OP:[47,42,36],S:[34,28,21]},G:{N:[74,67,59],OP:[38,34,28],S:[24,19,13]},H:{N:[69,62,53],OP:[29,25,20],S:[23,18,12]},I:{N:[64,57,46],OP:[38,34,28],S:[21,16,10]}};
@@ -16,8 +18,30 @@ export const USOS_RT=["Vivienda","Educacion","Salud"];
 export const ESTRUCTURAS=["Hormigon armado","Albanileria confinada","Albanileria armada","Estructura de acero","Estructura de madera","Mixta HA + albanileria"];
 export const RF_DEF={Vivienda:{estructura:"F30",muros_sep:"F60",escaleras:"F60",cubierta:"F15"},Educacion:{estructura:"F60",muros_sep:"F60",escaleras:"F90",cubierta:"F30"},Salud:{estructura:"F90",muros_sep:"F90",escaleras:"F120",cubierta:"F30"},Oficina:{estructura:"F60",muros_sep:"F60",escaleras:"F90",cubierta:"F30"},Comercio:{estructura:"F60",muros_sep:"F60",escaleras:"F90",cubierta:"F30"},Industrial:{estructura:"F90",muros_sep:"F90",escaleras:"F120",cubierta:"F60"}};
 export const AC_DEF={Vivienda:{entre_unidades:45,fachada:30,entre_pisos:45},Educacion:{entre_unidades:40,fachada:35,entre_pisos:40},Salud:{entre_unidades:50,fachada:40,entre_pisos:50},Oficina:{entre_unidades:40,fachada:30,entre_pisos:40},Comercio:{entre_unidades:40,fachada:30,entre_pisos:40},Industrial:{entre_unidades:50,fachada:35,entre_pisos:45}};
+// Nivel máximo de ruido de impacto normalizado L'n,w (dB) — MENOR valor = MEJOR aislación
+// NCh352:2013 / DS N°594 — entre_pisos para uso habitable
+export const AC_IMPACT_DEF={
+  Vivienda:   { entre_pisos: 65 },
+  Educacion:  { entre_pisos: 60 },
+  Salud:      { entre_pisos: 55 },
+  Oficina:    { entre_pisos: 65 },
+  Comercio:   { entre_pisos: 65 },
+  Industrial: { entre_pisos: 65 },
+};
 export const RIESGO_INC={Vivienda:"R2 - Riesgo moderado",Educacion:"R2 - Riesgo moderado",Salud:"R2 - Riesgo moderado (R1 en algunos recintos)",Oficina:"R2 - Riesgo moderado",Comercio:"R3 - Riesgo alto",Industrial:"R3/R4 - Riesgo alto/muy alto"};
 export const RF_PISOS=(tipo,pisos)=>{const n=parseInt(pisos)||1;if(tipo==="Industrial")return n<=1?"F90":"F120";if(["Salud","Educacion"].includes(tipo))return n<=2?"F60":n<=4?"F90":"F120";if(tipo==="Vivienda")return n<=2?"F30":n<=5?"F60":"F90";return n<=2?"F60":"F90";};
+// RF requerida por elemento constructivo (OGUC Art. 4.5.4 / LOFC Ed.17)
+// id: 'muro' | 'techo' | 'piso' | 'tabique' | 'ventana' | 'puerta'
+export const RF_ELEM_REQ=(id,uso,pisos)=>{
+  const rfDef=RF_DEF[uso]||{};
+  switch(id){
+    case 'muro':    return rfDef.muros_sep||'';
+    case 'techo':   return rfDef.cubierta||'';
+    case 'piso':    return RF_PISOS(uso,pisos)||'';
+    case 'tabique': return rfDef.muros_sep||'';
+    default: return '';
+  }
+};
 export const OBS_EST={"Hormigon armado":"LOFC Ed.17 A.1.3: H.A. 100mm=F90, 150mm=F150, 200mm=F180. Verificar recubrimiento segun NCh430.","Albanileria confinada":"LOFC Ed.17 A.2.2: Ladrillo Santiago 7 (140mm)=F240, Santiago 9 (140mm)=F180. Verificar pilares y cadenas de HA.","Albanileria armada":"LOFC Ed.17: similar a confinada. Albañileria ceramica 140mm cumple F180 min. Verificar armadura interior.","Estructura de acero":"El acero pierde resistencia a ~500°C. LOFC Ed.17 B.1.3: requiere proteccion ignifuga (hormigon fino 25mm=F30, 35mm=F60, 50mm=F120).","Estructura de madera":"LOFC Ed.17 A.1.5: madera maciza 45mm=F30, 90mm=F60, 140mm=F90. Carbonizacion ~0.7mm/min. Calcular seccion residual segun NCh1198.","Mixta HA + albanileria":"Verificar elemento a elemento. LOFC Ed.17: HA 150mm=F150, albañileria ceramica 140mm=F180+. Determinar elemento critico."};
 // RF intrínseca por sistema estructural — configuración estándar (LOFC Ed.17 2025)
 // HA 150mm, albañilería cerámica 140mm, madera maciza 90mm
