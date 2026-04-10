@@ -3210,6 +3210,94 @@ function AppInner() {
   const [showProjects, setShowProjects] = useState(false)
   const [hasUnsaved, setHasUnsaved] = useState(false)
   const autoSaveTimer = useRef(null)
+  const [showAyuda, setShowAyuda] = useState(false)
+
+  // Contenido del panel de ayuda por pestaña (índice = tab)
+  const ayudaData = useMemo(() => ({
+    1: {
+      titulo: 'Soluciones constructivas',
+      pasos: [
+        'Asegúrate de tener la <b>zona, uso y pisos</b> definidos en Diagnóstico. Las exigencias se calculan automáticamente.',
+        'Selecciona el tipo de elemento: <b>Muro, Tabique, Techumbre, Piso, Ventana o Puerta</b>.',
+        'Cada solución muestra semáforo triple: <b>T</b> (térmico), <b>F</b> (fuego), <b>A</b> (acústica).',
+        'Usa <b>"Solo las que cumplen los 3 criterios"</b> para filtrar soluciones aptas.',
+        'Ordena por <b>Cumplimiento, U↑, RF↓ o Rw↓</b> según el criterio prioritario.',
+        'Expande una solución para ver sus capas. Las marcadas <b>"Homologable"</b> permiten editar espesores.',
+        'Presiona <b>"Aplicar al proyecto"</b> para traspasar valores a la pestaña Térmica.',
+      ],
+      normativa: 'LOSCAT Ed.13 2025 · LOFC Ed.17 2025 · DS N°15 Tabla 1 y 3 · OGUC Art. 4.5.4 · NCh352 · NCh853:2021',
+    },
+    2: {
+      titulo: 'Verificación Térmica',
+      pasos: [
+        'Ingresa el valor U (W/m²K) para cada elemento desde la solución LOSCAT o desde Cálculo U.',
+        'El campo <b>RF propuesta</b> es opcional; si completaste Fuego, se toma automáticamente.',
+        'El campo <b>Factor puente térmico (TB%)</b> corrige el U real según la estructura portante.',
+        `Las filas en verde cumplen DS N°15 · Zona ${proy.zona||'—'}. Las rojas requieren ajuste.`,
+        'La columna <b>Condensación</b> se calcula en la pestaña Cálculo U con el método Glaser.',
+      ],
+      normativa: 'DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Art. 4.1.10 · LOFC Ed.17',
+    },
+    3: {
+      titulo: 'Resistencia al Fuego',
+      pasos: [
+        'Define primero el <b>uso y número de pisos</b> en Diagnóstico: determinan las exigencias RF mínimas.',
+        'Las columnas <b>RF mínima</b> se calculan automáticamente según OGUC Art. 4.5.4.',
+        'La columna <b>Solución SC</b> muestra el RF de la solución LOSCAT aplicada si corresponde.',
+        'Ingresa la <b>RF propuesta</b> manualmente si difiere de la solución.',
+        '<b>Escaleras:</b> La RF debe respaldarse con ensayo NCh850 específico.',
+        'La RF intrínseca del sistema estructural se muestra a continuación como referencia.',
+      ],
+      normativa: 'OGUC Art. 4.5.4 y 4.5.7 · LOFC Ed.17 2025 · NCh850',
+    },
+    4: {
+      titulo: 'Aislamiento Acústico',
+      pasos: [
+        'Define primero el <b>uso</b> en Diagnóstico: determina los requisitos mínimos de Rw (NCh352:2013).',
+        '<b>Entre unidades:</b> aislación horizontal entre departamentos contiguas — muros y tabiques.',
+        '<b>Fachada:</b> aislación frente a ruido exterior — incluye ventana y puerta exterior.',
+        '<b>Entre pisos Rw:</b> aislación vertical de sonido aéreo — losa y terminaciones.',
+        '<b>Entre pisos L\'n,w:</b> nivel de impacto normalizado — <b>MENOR valor = MEJOR aislación</b>.',
+        'Ingresa valores medidos o certificados (ensayo NCh352). Tolerancia ±2 dB típico.',
+      ],
+      normativa: 'OGUC Art. 4.1.6 · NCh352:2013 · NCh353 · ISO 15712 · DS N°594',
+    },
+    5: {
+      titulo: 'Calculadora U y Condensación',
+      pasos: [
+        'Cada panel corresponde a un elemento: <b>Muro, Techo, Piso y Tabique</b>.',
+        'Al aplicar una solución desde <b>Soluciones</b>, sus capas se cargan automáticamente.',
+        'Puedes <b>agregar, editar, mover o eliminar capas</b> y presionar <b>Calcular U</b>.',
+        'El sistema calcula U (ISO 6946) y verifica condensación intersticial (Glaser, NCh853:2021).',
+        'Si hay incumplimientos, aparecen <b>correcciones sugeridas</b> y texto de homologación.',
+        'Usa <b>▼/▲</b> para colapsar paneles ya completados.',
+      ],
+      normativa: 'NCh853:2021 · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1',
+    },
+    6: {
+      titulo: 'Ventanas y análisis VPCT',
+      pasos: [
+        'Usa la <b>Calculadora U ventana</b> para obtener Uw según EN 10077 (Ug vidrio + Uf marco + ψ junta).',
+        'En el <b>Analizador VPCT</b>, cada fila representa una fachada por orientación.',
+        'Para volúmenes complejos agrega <b>múltiples fachadas</b> por orientación con el botón "+".',
+        'Ingresa: área total fachada (m²), área vanos (m²) y Uw.',
+        'Nivel VPCT según Uw: <b>Nivel 1</b> (≤2.0), <b>Nivel 2</b> (≤3.5), <b>Nivel 3</b> ({'>'}3.5).',
+        'El % de vano = Av/At×100 se compara contra el límite VPCT de la zona y orientación.',
+      ],
+      normativa: 'DS N°15 MINVU Tabla 3 (VPCT) · EN 10077 (Uw) · NCh-EN 12207 · OGUC Art. 4.1.10',
+    },
+    7: {
+      titulo: 'Resumen y exportación',
+      pasos: [
+        'Consolida automáticamente los datos de <b>Diagnóstico, Soluciones, Térmica, Fuego y Acústica</b>.',
+        'Solo aparecen filas para los parámetros que hayas completado.',
+        'Filas en <b>verde</b> = cumple · filas en <b>rojo</b> = requiere corrección.',
+        'Presiona <b>"Exportar Informe DOM"</b> para generar un informe HTML completo.',
+        '<b>Nota legal:</b> Verificación preliminar. El profesional es responsable de la firma (OGUC Art. 1.2.2).',
+      ],
+      normativa: 'DS N°15 MINVU · OGUC Título 4 · NCh853:2021 · NCh352 · LOSCAT Ed.13 2025 · LOFC Ed.17 2025',
+    },
+  }), [proy.zona])
 
   // State lifted from TabVentana
   const [fachadas, setFachadas] = useState([
@@ -3225,6 +3313,33 @@ function AppInner() {
     const st = document.createElement('style')
     st.id = 'nc-mobile-css'
     st.textContent = `
+      /* ── Sidebar desktop ─────────────────────────── */
+      @media (min-width: 641px) {
+        .nc-with-sidebar {
+          display: flex;
+          gap: 16px;
+          align-items: flex-start;
+        }
+        .nc-with-sidebar .nc-content {
+          flex: 1;
+          min-width: 0;
+        }
+        .nc-sidebar {
+          width: 270px;
+          min-width: 270px;
+          position: sticky;
+          top: 16px;
+          max-height: calc(100vh - 80px);
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #bfdbfe transparent;
+        }
+        .nc-sidebar::-webkit-scrollbar { width: 4px; }
+        .nc-sidebar::-webkit-scrollbar-thumb { background: #bfdbfe; border-radius: 4px; }
+        /* Ocultar paneles inline cuando sidebar activo */
+        .nc-has-sidebar .nc-ayuda-inline { display: none !important; }
+      }
+      /* ── Móvil ───────────────────────────────────── */
       @media (max-width: 640px) {
         .nc-body { padding: 8px !important; }
         .nc-tabs { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -3235,6 +3350,8 @@ function AppInner() {
         .nc-table-scroll input { width: 48px !important; min-width: 0 !important; }
         .nc-header-info { display: none !important; }
         .nc-header-subtitle { display: none !important; }
+        .nc-sidebar { display: none !important; }
+        .nc-sidebar-btn { display: none !important; }
       }
     `
     document.head.appendChild(st)
@@ -3362,7 +3479,7 @@ function AppInner() {
   }
 
   return (
-    <div style={S.app} className="nc-app">
+    <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header}>
         {/* Logo NormaCheck */}
         <svg width="36" height="36" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -3396,26 +3513,52 @@ function AppInner() {
           ⚠️ {exportError}
         </div>
       )}
-      <div style={S.tabs} className="nc-tabs">
+      <div style={{ ...S.tabs, alignItems: 'center' }} className="nc-tabs">
         {TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)}
+        {ayudaData[tab] && (
+          <button
+            className="nc-sidebar-btn"
+            onClick={() => setShowAyuda(v => !v)}
+            style={{
+              marginLeft: 'auto', marginBottom: 2, padding: '5px 11px',
+              background: showAyuda ? '#dbeafe' : '#eff6ff',
+              border: `1px solid ${showAyuda ? '#93c5fd' : '#bfdbfe'}`,
+              borderRadius: 6, fontSize: 11, fontWeight: 700,
+              color: '#1e40af', cursor: 'pointer', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <span>ℹ</span>
+            {showAyuda ? 'Ocultar guía' : 'Ver guía'}
+          </button>
+        )}
       </div>
       <div style={S.body} className="nc-body">
-        {tab === 0 && (
-          <div>
-            <TabDiag proy={proy} setProy={setProy} />
-            <div style={{ padding: '0 16px 16px' }}>
-              <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
-            </div>
+        <div className={showAyuda && ayudaData[tab] ? 'nc-with-sidebar' : ''}>
+          <div className="nc-content">
+            {tab === 0 && (
+              <div>
+                <TabDiag proy={proy} setProy={setProy} />
+                <div style={{ padding: '0 16px 16px' }}>
+                  <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
+                </div>
+              </div>
+            )}
+            {tab === 1 && <TabSoluciones proy={proy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
+            {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
+            {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
+            {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
+            {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} notas={notas} setNotas={setNotas} />}
+            {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
+            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} />}
+            {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
-        )}
-        {tab === 1 && <TabSoluciones proy={proy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
-        {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
-        {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
-        {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
-        {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} notas={notas} setNotas={setNotas} />}
-        {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-        {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} />}
-        {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
+          {showAyuda && ayudaData[tab] && (
+            <div className="nc-sidebar">
+              <AyudaPanel {...ayudaData[tab]} alwaysOpen />
+            </div>
+          )}
+        </div>
       </div>
       <ProjectManager
         open={showProjects}
