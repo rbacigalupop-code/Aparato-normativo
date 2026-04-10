@@ -3482,18 +3482,8 @@ function AppInner() {
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header}>
         {/* Logo NormaCheck */}
-        <svg width="36" height="36" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-          <rect width="56" height="56" rx="14" fill="rgba(255,255,255,0.15)"/>
-          <rect x="13" y="22" width="22" height="22" rx="2" fill="white" opacity="0.95"/>
-          <polygon points="11,23 24,14 35,23" fill="white" opacity="0.7"/>
-          <rect x="17" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
-          <rect x="25" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
-          <rect x="21" y="35" width="6" height="9" rx="1" fill="#1e40af" opacity="0.4"/>
-          <circle cx="38" cy="18" r="9" fill="#22c55e"/>
-          <path d="M34 18 L37 21 L43 13" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+        <img src="/logo.png" alt="NormaCheck" style={{ height: 44, width: 'auto', flexShrink: 0, filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))' }} />
         <div>
-          <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: -0.3 }}>NormaCheck</div>
           <div style={{ fontSize: 10, opacity: 0.75 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
         </div>
         {proy.zona && (

@@ -31,30 +31,14 @@ const ERRORES = {
   network:   { titulo: 'Error de conexión',             msg: 'No se pudo verificar el token. Revisa tu conexión a internet.' },
 }
 
-// ─── Logo SVG NormaCheck ──────────────────────────────────────────────────────
+// ─── Logo NormaCheck ──────────────────────────────────────────────────────────
 function NormaCheckLogo({ size = 56 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
-      <rect width="56" height="56" rx="14" fill="#1e40af"/>
-      <rect width="56" height="56" rx="14" fill="url(#lg)" opacity="0.6"/>
-      <defs>
-        <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.4"/>
-          <stop offset="100%" stopColor="#1e3a8a" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      {/* Edificio */}
-      <rect x="13" y="22" width="22" height="22" rx="2" fill="white" opacity="0.95"/>
-      <rect x="13" y="22" width="22" height="5" rx="1" fill="#1e40af" opacity="0.15"/>
-      <rect x="17" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
-      <rect x="25" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
-      <rect x="21" y="35" width="6" height="9" rx="1" fill="#1e40af" opacity="0.4"/>
-      {/* Techo */}
-      <polygon points="11,23 24,14 35,23" fill="white" opacity="0.7"/>
-      {/* Check badge */}
-      <circle cx="38" cy="18" r="9" fill="#22c55e"/>
-      <path d="M34 18 L37 21 L43 13" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <img
+      src="/logo.png"
+      alt="NormaCheck"
+      style={{ width: size * 1.6, height: 'auto', objectFit: 'contain' }}
+    />
   )
 }
 
@@ -97,7 +81,6 @@ export default function TokenGate({ children }) {
       <div style={gS.overlay}>
         <div style={gS.card}>
           <NormaCheckLogo size={64} />
-          <div style={gS.brand}>NormaCheck</div>
           <div style={gS.tagline}>Verificación normativa OGUC</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13, marginTop: 24 }}>
             <div style={gS.spinner} />
@@ -118,7 +101,6 @@ export default function TokenGate({ children }) {
         <div style={gS.card}>
           {/* Logo */}
           <NormaCheckLogo size={64} />
-          <div style={gS.brand}>NormaCheck</div>
           <div style={gS.tagline}>Verificación normativa OGUC · DS N°15 · LOSCAT</div>
 
           <div style={gS.divider} />
@@ -192,10 +174,7 @@ function TokenBadge({ tokenData }) {
         <div style={gS.popover}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <NormaCheckLogo size={28} />
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#1e293b' }}>NormaCheck</div>
-              <div style={{ fontSize: 10, color: '#94a3b8' }}>Licencia activa</div>
-            </div>
+            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Licencia activa</div>
           </div>
           {tokenData.descripcion && <div style={gS.popRow}><span>Usuario</span><b>{tokenData.descripcion}</b></div>}
           <div style={gS.popRow}><span>Token</span><b style={{ fontFamily: 'monospace', fontSize: 11 }}>{tokenData.token}</b></div>
@@ -217,7 +196,7 @@ function TokenBadge({ tokenData }) {
         onClick={() => setOpen(o => !o)}
         title="Información de licencia"
       >
-        <NormaCheckLogo size={16} />
+        <span style={{ fontSize: 14 }}>{agotado ? '⛔' : '✅'}</span>
         <span style={{ color: agotado ? '#991b1b' : '#166534' }}>
           {tokenData.max_proyectos === 0 ? '∞ proy.' : `${restantes} proy.`}
         </span>
