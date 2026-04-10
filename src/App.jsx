@@ -3021,10 +3021,42 @@ ${glaserHtml}`
 </style>
 </head>
 <body>
-<h1>Memoria de Cálculo — Verificación Normativa OGUC</h1>
+
+<!-- ══ PORTADA NORMACHECK ══════════════════════════════════════════════════ -->
+<div style="background:linear-gradient(135deg,#1e40af,#0369a1);color:#fff;padding:28px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start">
+  <div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <svg width="44" height="44" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+        <rect width="56" height="56" rx="14" fill="rgba(255,255,255,0.15)"/>
+        <rect x="13" y="22" width="22" height="22" rx="2" fill="white" opacity="0.95"/>
+        <polygon points="11,23 24,14 35,23" fill="white" opacity="0.7"/>
+        <rect x="17" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
+        <rect x="25" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
+        <rect x="21" y="35" width="6" height="9" rx="1" fill="#1e40af" opacity="0.4"/>
+        <circle cx="38" cy="18" r="9" fill="#22c55e"/>
+        <path d="M34 18 L37 21 L43 13" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div style="font-size:22px;font-weight:900;letter-spacing:-0.5px">NormaCheck</div>
+        <div style="font-size:11px;opacity:0.8">Plataforma de Verificación Normativa OGUC</div>
+      </div>
+    </div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${proy.nombre || 'Sin nombre de proyecto'}</div>
+    <div style="font-size:12px;opacity:0.85">${proy.comuna ? proy.comuna + ' · ' : ''}Zona Térmica ${proy.zona || '—'} · ${uso || '—'} · ${proy.pisos || '—'} piso(s)</div>
+  </div>
+  <div style="text-align:right;font-size:11px;opacity:0.8;min-width:120px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">Memoria de Cálculo DOM</div>
+    <div>Fecha: ${fechaHoy}</div>
+    <div style="margin-top:8px;padding:4px 10px;background:${allOkLocal ? '#22c55e' : '#ef4444'};border-radius:20px;font-weight:800;font-size:12px;display:inline-block">
+      ${allOkLocal ? '✓ CUMPLE' : '✗ OBSERVACIONES'}
+    </div>
+  </div>
+</div>
+
+<!-- Datos del proyecto y profesional -->
 <div class="data-row">
   <div class="data-item"><label>Proyecto</label><span>${proy.nombre || '[sin nombre]'}</span></div>
-  <div class="data-item"><label>Profesional responsable</label><span>${proy.arq || '[sin nombre]'}</span></div>
+  <div class="data-item"><label>Arquitecto / Proyectista</label><span>${proy.arq || '[sin nombre]'}</span></div>
   <div class="data-item"><label>Comuna</label><span>${proy.comuna || '—'}</span></div>
   <div class="data-item"><label>Zona térmica</label><span>${proy.zona || '—'} — ${ZONAS[proy.zona]?.n || '—'}</span></div>
   <div class="data-item"><label>Uso</label><span>${uso || '—'}</span></div>
@@ -3034,12 +3066,12 @@ ${glaserHtml}`
 </div>
 ${zonaData ? `<div class="aviso">Condiciones de diseño Zona ${proy.zona}: Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Exigencias DS N°15: U<sub>muro</sub> ≤ ${zonaData.muro} · U<sub>techo</sub> ≤ ${zonaData.techo} · U<sub>piso</sub> ≤ ${zonaData.piso} W/m²K</div>` : ''}
 ${proy.profesional ? `
-<div style="margin-top:12px; padding:10px 16px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0">
-  <div style="font-size:11px; color:#64748b; margin-bottom:4px">PROFESIONAL RESPONSABLE</div>
-  <div style="font-weight:700">${proy.profesional}</div>
-  ${proy.titulo ? `<div style="font-size:12px; color:#475569">${proy.titulo}</div>` : ''}
-  ${proy.registro ? `<div style="font-size:12px; color:#475569">Reg. N° ${proy.registro}</div>` : ''}
-  ${proy.email ? `<div style="font-size:12px; color:#475569">${proy.email}</div>` : ''}
+<div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;border-left:4px solid #1e40af">
+  <div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px">Profesional Responsable</div>
+  <div style="font-weight:800;font-size:14px;color:#1e293b">${proy.profesional}</div>
+  ${proy.titulo ? `<div style="font-size:12px;color:#475569">${proy.titulo}</div>` : ''}
+  ${proy.registro ? `<div style="font-size:12px;color:#475569">Reg. N° ${proy.registro}</div>` : ''}
+  ${proy.email || proy.telefono ? `<div style="font-size:12px;color:#475569">${[proy.email, proy.telefono].filter(Boolean).join(' · ')}</div>` : ''}
 </div>` : ''}
 
 <h2>Resumen ejecutivo — Estado de cumplimiento</h2>
@@ -3307,10 +3339,20 @@ function AppInner() {
   return (
     <div style={S.app}>
       <div style={S.header}>
-        <div style={{ fontSize: 20 }}>🏗️</div>
+        {/* Logo NormaCheck */}
+        <svg width="36" height="36" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+          <rect width="56" height="56" rx="14" fill="rgba(255,255,255,0.15)"/>
+          <rect x="13" y="22" width="22" height="22" rx="2" fill="white" opacity="0.95"/>
+          <polygon points="11,23 24,14 35,23" fill="white" opacity="0.7"/>
+          <rect x="17" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
+          <rect x="25" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
+          <rect x="21" y="35" width="6" height="9" rx="1" fill="#1e40af" opacity="0.4"/>
+          <circle cx="38" cy="18" r="9" fill="#22c55e"/>
+          <path d="M34 18 L37 21 L43 13" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>NormaCheck</div>
-          <div style={{ fontSize: 11, opacity: 0.85 }}>DS N°15 | OGUC Título 4 | NCh853 | NCh1973 | NCh352 | LOSCAT Ed.13 2025</div>
+          <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: -0.3 }}>NormaCheck</div>
+          <div style={{ fontSize: 10, opacity: 0.75 }}>DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>
