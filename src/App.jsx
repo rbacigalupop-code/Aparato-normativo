@@ -2102,6 +2102,7 @@ ${cambios.length && solucion ? `
             </div>
             <div style={S.sep} />
         <p style={S.h3}>Capas (interior → exterior)</p>
+        <div className="nc-table-scroll">
         <table style={S.table}>
           <thead><tr>
             <th style={{ ...S.th, width:28 }}>#</th>
@@ -2154,6 +2155,7 @@ ${cambios.length && solucion ? `
             })}
           </tbody>
         </table>
+        </div>
         <div style={{ ...S.row, marginTop:8 }}>
           <button style={S.btn('#64748b')} onClick={addCapa}>+ Capa</button>
           <button style={S.btn('#0369a1')} onClick={addCamara}>+ Cámara</button>
@@ -2235,6 +2237,7 @@ ${cambios.length && solucion ? `
             {res.ifaces?.length>0&&(
               <>
                 <div style={S.sep}/>
+                <div className="nc-table-scroll">
                 <table style={S.table}>
                   <thead><tr>{['Interfaz','T °C','Pvsat Pa','Pvreal Pa','Margen','Estado'].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
                   <tbody>
@@ -2250,6 +2253,7 @@ ${cambios.length && solucion ? `
                     ))}
                   </tbody>
                 </table>
+                </div>
               </>
             )}
 
@@ -3215,6 +3219,27 @@ function AppInner() {
   ])
   const [fachadasNextId, setFachadasNextId] = useState(4)
 
+  // Inyectar CSS responsive móvil
+  useEffect(() => {
+    if (document.getElementById('nc-mobile-css')) return
+    const st = document.createElement('style')
+    st.id = 'nc-mobile-css'
+    st.textContent = `
+      @media (max-width: 640px) {
+        .nc-body { padding: 8px !important; }
+        .nc-tabs { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .nc-tabs::-webkit-scrollbar { display: none; }
+        .nc-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .nc-table-scroll table { min-width: 480px; }
+        .nc-table-scroll select { width: 130px !important; min-width: 0 !important; }
+        .nc-table-scroll input { width: 48px !important; min-width: 0 !important; }
+        .nc-header-info { display: none !important; }
+        .nc-header-subtitle { display: none !important; }
+      }
+    `
+    document.head.appendChild(st)
+  }, [])
+
   // Restore autosave on mount
   useEffect(() => {
     const saved = proyectos.cargarAutoguardado()
@@ -3337,7 +3362,7 @@ function AppInner() {
   }
 
   return (
-    <div style={S.app}>
+    <div style={S.app} className="nc-app">
       <div style={S.header}>
         {/* Logo NormaCheck */}
         <svg width="36" height="36" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -3352,10 +3377,10 @@ function AppInner() {
         </svg>
         <div>
           <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: -0.3 }}>NormaCheck</div>
-          <div style={{ fontSize: 10, opacity: 0.75 }}>DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
+          <div style={{ fontSize: 10, opacity: 0.75 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
         </div>
         {proy.zona && (
-          <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>
+          <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
             Zona {proy.zona} — {proy.uso || 'sin uso'} {proy.nombre && `| ${proy.nombre}`}
           </div>
         )}
@@ -3371,10 +3396,10 @@ function AppInner() {
           ⚠️ {exportError}
         </div>
       )}
-      <div style={S.tabs}>
+      <div style={S.tabs} className="nc-tabs">
         {TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)}
       </div>
-      <div style={S.body}>
+      <div style={S.body} className="nc-body">
         {tab === 0 && (
           <div>
             <TabDiag proy={proy} setProy={setProy} />
