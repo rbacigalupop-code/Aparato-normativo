@@ -22,7 +22,7 @@ import ProjectManager from './ProjectManager.jsx'
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
   app: { fontFamily: 'system-ui,sans-serif', fontSize: 13, color: '#1e293b', minHeight: '100vh', background: '#f1f5f9' },
-  header: { background: 'linear-gradient(135deg,#1e40af,#0369a1)', color: '#fff', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12 },
+  header: { background: 'linear-gradient(135deg,#1e40af,#0369a1)', color: '#fff', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12 },
   tabs: { display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 8px 0', flexWrap: 'wrap' },
   tab: (a) => ({ padding: '7px 14px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', fontSize: 12, fontWeight: a ? 700 : 400, background: a ? '#fff' : 'transparent', color: a ? '#1e40af' : '#64748b' }),
   body: { padding: 16, maxWidth: 1100, margin: '0 auto' },
@@ -3482,7 +3482,7 @@ function AppInner() {
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header}>
         {/* Logo NormaCheck */}
-        <img src="/logo.png" alt="NormaCheck" style={{ height: 44, width: 'auto', flexShrink: 0, filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))' }} />
+        <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
         <div>
           <div style={{ fontSize: 10, opacity: 0.75 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
         </div>
