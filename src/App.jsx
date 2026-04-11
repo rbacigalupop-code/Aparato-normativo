@@ -2730,7 +2730,7 @@ ${capaLabels}
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
 
@@ -2787,6 +2787,12 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas }) {
     }
     const fechaHoy = new Date().toLocaleDateString('es-CL')
     const zonaData = zona
+
+    // ── Logo como base64 para embeber en el HTML ──────────────────────────────
+    const logoDataUrl = await fetch('/logo.png')
+      .then(r => r.blob())
+      .then(b => new Promise(res => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.readAsDataURL(b) }))
+      .catch(() => '')
 
     // ── Sección térmica por elemento ──────────────────────────────────────────
     const seccionesTermicas = ELEMS_DEF.map(el => {
@@ -2973,17 +2979,84 @@ ${glaserHtml}`
       <td><span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
     </tr>`).join('')
 
-    // ── VPCT ─────────────────────────────────────────────────────────────────
+    // ── VPCT — análisis por fachada ───────────────────────────────────────────
     const vpctZona = zonaData ? VPCT[proy.zona] : null
-    const vpctHtml = vpctZona ? `
-<h2>Módulo 5 — Vanos y Ventilación (VPCT, DS N°15)</h2>
+    const ORIENT_NAME = { N: 'Norte', OP: 'Oriente / Poniente', S: 'Sur' }
+    const NIVEL_LABEL = ['Nivel 1 (Uw ≤ 2.0)', 'Nivel 2 (Uw ≤ 3.5)', 'Nivel 3 (Uw > 3.5)']
+    const getVpctNivExp = uw => { const u = parseFloat(uw); if (!uw || isNaN(u)) return null; return u <= 2.0 ? 0 : u <= 3.5 ? 1 : 2 }
+    const fachadasValidas = (fachadas || []).filter(f => parseFloat(f.areaFachada) > 0)
+    let vpctHtml = ''
+    if (vpctZona && fachadasValidas.length > 0) {
+      const fachadasRows = fachadasValidas.map(f => {
+        const area = parseFloat(f.areaFachada), vanos = parseFloat(f.vanos) || 0
+        const pct = (vanos / area * 100).toFixed(1)
+        const niv = getVpctNivExp(f.uw)
+        const limite = niv !== null && vpctZona[f.orient] ? vpctZona[f.orient][niv] : null
+        const cumple = limite !== null ? parseFloat(pct) <= limite : true
+        return `<tr>
+          <td>${f.nombre || '—'}</td>
+          <td>${ORIENT_NAME[f.orient] || f.orient}</td>
+          <td>${area.toFixed(1)} m²</td>
+          <td>${vanos.toFixed(1)} m²</td>
+          <td><b>${pct}%</b></td>
+          <td>${f.uw ? f.uw + ' W/m²K' : '—'}<br><span style="font-size:8.5pt;color:#64748b">${niv !== null ? NIVEL_LABEL[niv] : '—'}</span></td>
+          <td>${limite !== null ? limite + '%' : '—'}</td>
+          <td><span class="${cumple ? 'badge-ok' : 'badge-no'}">${cumple ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+        </tr>`
+      }).join('')
+      const orientKeys = [...new Set(fachadasValidas.map(f => f.orient))]
+      const summaryRows = orientKeys.map(orient => {
+        const facs = fachadasValidas.filter(f => f.orient === orient)
+        const totalArea = facs.reduce((s, f) => s + (parseFloat(f.areaFachada) || 0), 0)
+        const totalVanos = facs.reduce((s, f) => s + (parseFloat(f.vanos) || 0), 0)
+        const pct = totalArea > 0 ? (totalVanos / totalArea * 100).toFixed(1) : '—'
+        const nivMax = Math.max(...facs.map(f => getVpctNivExp(f.uw)).filter(n => n !== null), 0)
+        const limite = vpctZona[orient] ? vpctZona[orient][nivMax] : null
+        const cumple = limite !== null && pct !== '—' ? parseFloat(pct) <= limite : true
+        return `<tr style="font-weight:600;background:#f8fafc">
+          <td><b>${ORIENT_NAME[orient] || orient}</b></td>
+          <td>${totalArea.toFixed(1)} m²</td>
+          <td>${totalVanos.toFixed(1)} m²</td>
+          <td><b>${pct}%</b></td>
+          <td>${limite !== null ? limite + '%' : '—'}</td>
+          <td>${pct !== '—' && limite !== null ? `<span class="${cumple ? 'badge-ok' : 'badge-no'}">${cumple ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '—'}</td>
+        </tr>`
+      }).join('')
+      vpctHtml = `
+<h2>Módulo 5 — Ventanas y Vanos (VPCT, DS N°15 MINVU)</h2>
+<h3>Detalle por fachada</h3>
 <table>
-  <tr><th>Orientación</th><th>Nivel 1</th><th>Nivel 2</th><th>Nivel 3</th></tr>
+  <tr><th>Fachada</th><th>Orientación</th><th>Área total</th><th>Área vanos</th><th>% vano</th><th>Uw ventana</th><th>VPCT máx</th><th>Estado</th></tr>
+  ${fachadasRows}
+</table>
+<h3>Resumen por orientación</h3>
+<table>
+  <tr><th>Orientación</th><th>Área total</th><th>Área vanos</th><th>% vano total</th><th>Límite VPCT</th><th>Estado</th></tr>
+  ${summaryRows}
+</table>
+<div style="font-size:8.5pt;color:#64748b;margin-top:4px">VPCT = Porcentaje de Vano / Área de Fachada · DS N°15 MINVU Tabla 3 · Zona ${proy.zona} · Nivel VPCT según Uw: Nivel 1 (≤2.0 W/m²K) · Nivel 2 (≤3.5 W/m²K) · Nivel 3 ({'>'}3.5 W/m²K)</div>`
+    } else if (vpctZona) {
+      vpctHtml = `
+<h2>Módulo 5 — Vanos y Ventilación (VPCT, DS N°15)</h2>
+<div class="aviso">Sin fachadas ingresadas en la pestaña Ventana. Los límites VPCT para Zona ${proy.zona} son:</div>
+<table>
+  <tr><th>Orientación</th><th>Nivel 1 (Uw≤2.0)</th><th>Nivel 2 (Uw≤3.5)</th><th>Nivel 3 (Uw>3.5)</th></tr>
   <tr><td><b>Norte</b></td>${vpctZona.N.map(v => `<td>${v}%</td>`).join('')}</tr>
   <tr><td><b>Oriente / Poniente</b></td>${vpctZona.OP.map(v => `<td>${v}%</td>`).join('')}</tr>
   <tr><td><b>Sur</b></td>${vpctZona.S.map(v => `<td>${v}%</td>`).join('')}</tr>
-</table>
-<div style="font-size:9pt;color:#64748b">VPCT = % vano / fachada por orientación · DS N°15 MINVU · Zona ${proy.zona}</div>` : ''
+</table>`
+    }
+
+    // ── Notas del proyectista ─────────────────────────────────────────────────
+    const TAB_NAMES_RPT = { diagnostico:'Diagnóstico', soluciones:'Soluciones', termica:'Térmica', fuego:'Fuego', acustica:'Acústica', calcU:'Cálculo U', ventana:'Ventana', resultados:'Resultados' }
+    const notasEntries = Object.entries(notas || {}).filter(([, v]) => v?.trim())
+    const notasHtml = notasEntries.length > 0 ? `
+<h2>Módulo 6 — Notas y observaciones del proyectista</h2>
+${notasEntries.map(([k, v]) => `
+<div style="margin-bottom:12px">
+  <div style="font-weight:700;color:#1e40af;font-size:10pt;margin-bottom:4px;border-left:3px solid #93c5fd;padding-left:8px">${TAB_NAMES_RPT[k] || k}</div>
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:10pt;white-space:pre-wrap;line-height:1.6;color:#1e293b">${v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+</div>`).join('')}` : ''
 
     const html = `<!DOCTYPE html>
 <html lang="es">
@@ -3027,31 +3100,19 @@ ${glaserHtml}`
 <body>
 
 <!-- ══ PORTADA NORMACHECK ══════════════════════════════════════════════════ -->
-<div style="background:linear-gradient(135deg,#1e40af,#0369a1);color:#fff;padding:28px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start">
-  <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <svg width="44" height="44" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
-        <rect width="56" height="56" rx="14" fill="rgba(255,255,255,0.15)"/>
-        <rect x="13" y="22" width="22" height="22" rx="2" fill="white" opacity="0.95"/>
-        <polygon points="11,23 24,14 35,23" fill="white" opacity="0.7"/>
-        <rect x="17" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
-        <rect x="25" y="27" width="5" height="5" rx="1" fill="#1e40af" opacity="0.5"/>
-        <rect x="21" y="35" width="6" height="9" rx="1" fill="#1e40af" opacity="0.4"/>
-        <circle cx="38" cy="18" r="9" fill="#22c55e"/>
-        <path d="M34 18 L37 21 L43 13" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div>
-        <div style="font-size:22px;font-weight:900;letter-spacing:-0.5px">NormaCheck</div>
-        <div style="font-size:11px;opacity:0.8">Plataforma de Verificación Normativa OGUC</div>
-      </div>
+<div style="background:linear-gradient(135deg,#1e40af,#0369a1);color:#fff;padding:24px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:20px">
+  <div style="display:flex;align-items:center;gap:16px;flex:1">
+    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:80px;width:auto;border-radius:8px;flex-shrink:0" alt="NormaCheck"/>` : '<div style="font-size:24px;font-weight:900">NormaCheck</div>'}
+    <div>
+      <div style="font-size:11px;opacity:0.8;margin-bottom:6px">Plataforma de Verificación Normativa OGUC</div>
+      <div style="font-size:20px;font-weight:800;line-height:1.2;margin-bottom:4px">${proy.nombre || 'Sin nombre de proyecto'}</div>
+      <div style="font-size:12px;opacity:0.85">${proy.comuna ? proy.comuna + ' · ' : ''}Zona Térmica ${proy.zona || '—'} · ${uso || '—'} · ${proy.pisos || '—'} piso(s)</div>
     </div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${proy.nombre || 'Sin nombre de proyecto'}</div>
-    <div style="font-size:12px;opacity:0.85">${proy.comuna ? proy.comuna + ' · ' : ''}Zona Térmica ${proy.zona || '—'} · ${uso || '—'} · ${proy.pisos || '—'} piso(s)</div>
   </div>
-  <div style="text-align:right;font-size:11px;opacity:0.8;min-width:120px">
-    <div style="font-size:13px;font-weight:700;margin-bottom:4px">Memoria de Cálculo DOM</div>
-    <div>Fecha: ${fechaHoy}</div>
-    <div style="margin-top:8px;padding:4px 10px;background:${allOkLocal ? '#22c55e' : '#ef4444'};border-radius:20px;font-weight:800;font-size:12px;display:inline-block">
+  <div style="text-align:right;flex-shrink:0">
+    <div style="font-size:12px;font-weight:700;margin-bottom:4px;opacity:0.9">Memoria de Cálculo DOM</div>
+    <div style="font-size:11px;opacity:0.75;margin-bottom:10px">Fecha: ${fechaHoy}</div>
+    <div style="padding:6px 16px;background:${allOkLocal ? '#22c55e' : '#ef4444'};border-radius:20px;font-weight:800;font-size:13px;display:inline-block;letter-spacing:0.5px">
       ${allOkLocal ? '✓ CUMPLE' : '✗ OBSERVACIONES'}
     </div>
   </div>
@@ -3069,13 +3130,20 @@ ${glaserHtml}`
   <div class="data-item"><label>Fecha emisión</label><span>${fechaHoy}</span></div>
 </div>
 ${zonaData ? `<div class="aviso">Condiciones de diseño Zona ${proy.zona}: Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Exigencias DS N°15: U<sub>muro</sub> ≤ ${zonaData.muro} · U<sub>techo</sub> ≤ ${zonaData.techo} · U<sub>piso</sub> ≤ ${zonaData.piso} W/m²K</div>` : ''}
-${proy.profesional ? `
-<div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;border-left:4px solid #1e40af">
-  <div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px">Profesional Responsable</div>
-  <div style="font-weight:800;font-size:14px;color:#1e293b">${proy.profesional}</div>
-  ${proy.titulo ? `<div style="font-size:12px;color:#475569">${proy.titulo}</div>` : ''}
-  ${proy.registro ? `<div style="font-size:12px;color:#475569">Reg. N° ${proy.registro}</div>` : ''}
-  ${proy.email || proy.telefono ? `<div style="font-size:12px;color:#475569">${[proy.email, proy.telefono].filter(Boolean).join(' · ')}</div>` : ''}
+${(proy.profesional || proy.arq) ? `
+<div style="margin-top:12px;padding:12px 16px;background:#eff6ff;border-radius:8px;border-left:4px solid #1e40af;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+  <div style="flex:1;min-width:180px">
+    <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Profesional Responsable</div>
+    <div style="font-weight:800;font-size:13pt;color:#1e293b">${proy.profesional || proy.arq || '—'}</div>
+    ${proy.titulo ? `<div style="font-size:11pt;color:#475569">${proy.titulo}</div>` : ''}
+    ${proy.registro ? `<div style="font-size:10pt;color:#64748b">Registro MINVU N° ${proy.registro}</div>` : ''}
+  </div>
+  ${proy.email || proy.telefono ? `
+  <div style="flex:1;min-width:140px">
+    <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contacto</div>
+    ${proy.email ? `<div style="font-size:10pt;color:#475569">✉ ${proy.email}</div>` : ''}
+    ${proy.telefono ? `<div style="font-size:10pt;color:#475569">☎ ${proy.telefono}</div>` : ''}
+  </div>` : ''}
 </div>` : ''}
 
 <h2>Resumen ejecutivo — Estado de cumplimiento</h2>
@@ -3121,11 +3189,34 @@ ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${pro
 
 ${vpctHtml}
 
-<p class="nota">
-  Generado por <b>NormaCheck</b> · ${fechaHoy}<br>
-  Normativa aplicada: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV · LOFC Ed.17 2025 · NCh352:2013<br>
-  <b>Nota legal:</b> Esta memoria es de carácter preliminar. El profesional competente es responsable de la revisión, firma y presentación del expediente DOM (OGUC Art. 1.2.2).
-</p>
+${notasHtml}
+
+<div style="margin-top:32px;padding:16px 20px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:48px;width:auto;border-radius:6px;margin-bottom:8px" alt="NormaCheck"/>` : '<b>NormaCheck</b>'}
+      <div style="font-size:8.5pt;color:#64748b;line-height:1.6">
+        Generado: ${fechaHoy}<br>
+        Normativa: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV · LOFC Ed.17 2025 · NCh352:2013
+      </div>
+    </div>
+    ${(proy.profesional || proy.arq) ? `
+    <div style="flex:1;min-width:200px;text-align:right">
+      <div style="font-size:9pt;color:#64748b;margin-bottom:4px">Profesional responsable</div>
+      <div style="font-weight:800;font-size:11pt;color:#1e293b">${proy.profesional || proy.arq}</div>
+      ${proy.titulo ? `<div style="font-size:10pt;color:#475569">${proy.titulo}</div>` : ''}
+      ${proy.registro ? `<div style="font-size:9pt;color:#64748b">Reg. N° ${proy.registro}</div>` : ''}
+      ${proy.email || proy.telefono ? `<div style="font-size:9pt;color:#64748b">${[proy.email, proy.telefono].filter(Boolean).join(' · ')}</div>` : ''}
+      <div style="margin-top:12px;border-top:1px solid #cbd5e1;padding-top:10px">
+        <div style="font-size:8pt;color:#94a3b8">Firma y timbre profesional</div>
+        <div style="height:50px;border-bottom:1px solid #94a3b8;width:160px;margin:0 0 0 auto"></div>
+      </div>
+    </div>` : ''}
+  </div>
+  <div style="margin-top:12px;font-size:8pt;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px">
+    ⚠ Esta memoria de cálculo es de carácter preliminar. El profesional competente es responsable de la revisión técnica, firma y presentación del expediente al DOM (OGUC Art. 1.2.2). Los valores de RF no varían con espesores de capas — requieren ensayo NCh850 para certificación DOM. Los valores Rw estimados requieren ensayo NCh352.
+  </div>
+</div>
 </body></html>`
 
     const w = window.open('', '_blank')
@@ -3540,7 +3631,7 @@ function AppInner() {
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} />}
+            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} />}
             {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
           {showAyuda && ayudaData[tab] && (
