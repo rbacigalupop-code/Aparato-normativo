@@ -1728,7 +1728,7 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
 })
 
 // ─── PANEL CÁLCULO U (componente por elemento) ────────────────────────────────
-function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor }) {
+function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const [collapsed, setCollapsed] = useState(false)
   const [capas, setCapas] = useState([])
@@ -2106,14 +2106,20 @@ ${cambios.length && solucion ? `
                 <div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>{solucion.obs}</div>
                 <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>LOSCAT Ed.13 2025 · Capas cargadas automáticamente · Resultado calculado según NCh853:2021 + ISO 6946</div>
               </div>
-              <button onClick={() => { setSolucion(null); setCapas([]); setRes(null); setCorrec([]) }}
-                style={{ background:'none', border:'1px solid #bfdbfe', borderRadius:5, padding:'3px 10px', cursor:'pointer', fontSize:11, color:'#64748b' }}>
-                ✕ Limpiar
+              <button onClick={() => { setSolucion(null); setCapas([]); setRes(null); setCorrec([]); if (onLimpiarCalcU) onLimpiarCalcU(elemKey) }}
+                style={{ background:'#fff', border:'1px solid #fca5a5', borderRadius:5, padding:'4px 12px', cursor:'pointer', fontSize:11, color:'#dc2626', fontWeight:600 }}>
+                🔄 Cambiar solución
               </button>
             </div>
           )}
           <div style={S.card}>
             <p style={S.h2}>Calculadora U + Condensación (NCh853 / Glaser)</p>
+            {/* ── Hint cuando no hay solución ni capas ───────────────────────── */}
+            {!solucion && capas.length === 0 && (
+              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'8px 14px', marginBottom:10, fontSize:12, color:'#1e40af' }}>
+                💡 Ve a la pestaña <b>Soluciones</b> para aplicar una solución constructiva, o agrega capas manualmente con el botón <b>+ Capa</b>.
+              </div>
+            )}
             <div style={{ ...S.col, fontSize: 12, color: '#64748b', marginBottom: 8 }}>
               <span style={S.label}>Condiciones diseño</span>
               Ti: {ti}°C | Te: {te}°C | HR: {hr}% {umax && `| U máx: ${umax} W/m²K`}
@@ -2527,7 +2533,7 @@ ${cambios.length && solucion ? `
 }
 
 // ─── PESTAÑA CÁLCULO U + GLASER ───────────────────────────────────────────────
-function TabCalcU({ proy, initData, notas, setNotas }) {
+function TabCalcU({ proy, initData, onLimpiarCalcU, notas, setNotas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   return (
     <div>
@@ -2536,6 +2542,7 @@ function TabCalcU({ proy, initData, notas, setNotas }) {
         pasos={[
           'Cada panel corresponde a un elemento constructivo: <b>Muro, Techo, Piso y Tabique</b>. Las condiciones Ti/Te/HR se toman de la zona del proyecto.',
           'Al aplicar una solución constructiva desde la pestaña <b>Soluciones</b>, sus capas se cargan automáticamente en el panel correspondiente.',
+          'Para <b>cambiar una solución</b>: usa el botón 🔄 <b>Cambiar solución</b> en el panel y luego ve a la pestaña Soluciones.',
           'Puedes <b>agregar, editar, mover o eliminar capas</b> manualmente en cada panel y presionar <b>Calcular U</b>.',
           'El sistema calcula U (ISO 6946) y verifica condensación intersticial (Método de Glaser, NCh853:2021).',
           'Si hay incumplimientos, aparecen <b>correcciones sugeridas</b> y el texto de homologación cuando corresponda.',
@@ -2544,10 +2551,10 @@ function TabCalcU({ proy, initData, notas, setNotas }) {
         normativa="NCh853:2021 · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1"
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <PanelCalcU elemKey="muro"    elemTipo="muro"      label="Muro"            umax={zona?.muro}  proy={proy} initData={initData?.muro}    headerColor="#1e40af" />
-        <PanelCalcU elemKey="techo"   elemTipo="techumbre" label="Cubierta / Techo" umax={zona?.techo} proy={proy} initData={initData?.techo}   headerColor="#4f46e5" />
-        <PanelCalcU elemKey="piso"    elemTipo="piso"      label="Piso"            umax={zona?.piso}  proy={proy} initData={initData?.piso}    headerColor="#166534" />
-        <PanelCalcU elemKey="tabique" elemTipo="muro"      label="Tabique"         umax={null}        proy={proy} initData={initData?.tabique} headerColor="#b45309" />
+        <PanelCalcU elemKey="muro"    elemTipo="muro"      label="Muro"            umax={zona?.muro}  proy={proy} initData={initData?.muro}    headerColor="#1e40af" onLimpiarCalcU={onLimpiarCalcU} />
+        <PanelCalcU elemKey="techo"   elemTipo="techumbre" label="Cubierta / Techo" umax={zona?.techo} proy={proy} initData={initData?.techo}   headerColor="#4f46e5" onLimpiarCalcU={onLimpiarCalcU} />
+        <PanelCalcU elemKey="piso"    elemTipo="piso"      label="Piso"            umax={zona?.piso}  proy={proy} initData={initData?.piso}    headerColor="#166534" onLimpiarCalcU={onLimpiarCalcU} />
+        <PanelCalcU elemKey="tabique" elemTipo="muro"      label="Tabique"         umax={null}        proy={proy} initData={initData?.tabique} headerColor="#b45309" onLimpiarCalcU={onLimpiarCalcU} />
       </div>
       <NotasPanel tabKey="calcU" notas={notas} setNotas={setNotas} />
     </div>
@@ -3739,6 +3746,10 @@ function AppInner() {
     setTab(5)
   }
 
+  function onLimpiarCalcU(elemKey) {
+    setCalcUInit(prev => ({ ...prev, [elemKey]: null }))
+  }
+
   return (
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header}>
@@ -3799,7 +3810,7 @@ function AppInner() {
             {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
             {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
-            {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} notas={notas} setNotas={setNotas} />}
+            {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
             {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} />}
             {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
