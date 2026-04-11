@@ -1753,8 +1753,11 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     if (cv.length) {
       const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo)
       setRes(r)
-      const nec = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
-      setCorrec(nec ? generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax) : [])
+      // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
+      if (elemKey !== 'tabique') {
+        const nec = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+        setCorrec(nec ? generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax) : [])
+      }
     } else {
       setRes(null); setCorrec([])
     }
@@ -1787,8 +1790,11 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     if (!cv.length) return
     const r = calcGlaser(cv, ti, te, hr, elemTipo)
     setRes(r)
-    const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
-    setCorrec(necesita ? generarCorrecciones(cv, ti, te, hr, elemTipo, umax) : [])
+    // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
+    if (elemKey !== 'tabique') {
+      const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+      setCorrec(necesita ? generarCorrecciones(cv, ti, te, hr, elemTipo, umax) : [])
+    }
     setShowHomolog(false)
   }
   function calcular() { calcularConCapas(capas) }
@@ -2169,14 +2175,15 @@ ${cambios.length && solucion ? `
         const cumpleU      = !umax || uCalc <= umax
         const tSupExt      = parseFloat(res.temps[res.temps.length-1]).toFixed(2)
         const supExtBajaTd = parseFloat(tSupExt) < parseFloat(res.Tdew)
-        const cumpleTodo   = cumpleU && !res.condInter
+        const esTabique    = elemKey === 'tabique'
+        const cumpleTodo   = cumpleU && (esTabique || !res.condInter)
         const cambios      = detectarCambios()
         const hayModif     = cambios.length > 0
 
         return (
         <div>
           {/* ── Panel de diagnóstico de incumplimiento ──────────────────────── */}
-          {(!cumpleU || res.condInter) && (
+          {(!cumpleU || (!esTabique && res.condInter)) && (
             <div style={{ background:'#fef2f2', border:'1.5px solid #fca5a5', borderRadius:8, padding:'12px 16px', marginBottom:12 }}>
               <div style={{ fontSize:13, fontWeight:700, color:'#991b1b', marginBottom:8 }}>❌ Incumplimiento normativo detectado</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
@@ -2194,16 +2201,16 @@ ${cambios.length && solucion ? `
                     </span>
                   </div>
                 )}
-                {res.condInter && res.ifaces.filter(f=>f.riesgo).map(f=>(
+                {!esTabique && res.condInter && res.ifaces.filter(f=>f.riesgo).map(f=>(
                   <div key={f.i} style={{ fontSize:12 }}>
                     <b style={{ color:'#dc2626' }}>Condensación en Int. {f.i}:</b> T={f.T}°C — Pvreal ({f.pvReal} Pa) {'>'} Pvsat ({f.pvSat} Pa), déficit <b>{Math.abs(f.margen)} Pa</b>.{' '}
                     <span style={{ color:'#374151' }}>Mueva el aislante hacia la cara exterior (↓) y recalcule.</span>
                   </div>
                 ))}
               </div>
-              {(res.condInter || !cumpleU) && (
+              {(!esTabique && res.condInter || !cumpleU) && (
                 <div style={{ marginTop:8, fontSize:11, color:'#7f1d1d', background:'#fff1f2', borderRadius:5, padding:'6px 10px' }}>
-                  💡 Usa los botones <b>↑↓</b> de la tabla para reordenar capas, ajusta espesores y presiona <b>Calcular U</b> para verificar. Cuando cumpla, se habilitará la homologación.
+                  💡 Ajusta espesores y presiona <b>Calcular U</b> para verificar.
                 </div>
               )}
             </div>
@@ -2212,13 +2219,15 @@ ${cambios.length && solucion ? `
           <div style={S.card}>
             {/* ── Cards de resumen ───────────────────────────────────────────── */}
             <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
-              {[
-                { label:'T rocío',      val:`${res.Tdew}°C`,                             bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
-                { label:'T sup. ext.',  val:`${tSupExt}°C`,                              bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
-                { label:'Sup. exterior',val: supExtBajaTd?'Bajo Td':'Sobre Td',          bg: supExtBajaTd?'#fef9c3':'#f0fdf4', border: supExtBajaTd?'#fde047':'#86efac', col: supExtBajaTd?'#854d0e':'#166534' },
-                { label:'Intersticial', val: res.condInter?'RIESGO':'SIN RIESGO',        bg: res.condInter?'#fee2e2':'#dcfce7', border: res.condInter?'#fca5a5':'#86efac', col: res.condInter?'#dc2626':'#166534' },
-                { label:'U calculado',  val:`${res.U} W/m²K`,                            bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
-              ].map(c=>(
+              {(esTabique ? [
+                { label:'U calculado', val:`${res.U} W/m²K`, bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
+              ] : [
+                { label:'T rocío',      val:`${res.Tdew}°C`,                         bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
+                { label:'T sup. ext.',  val:`${tSupExt}°C`,                          bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
+                { label:'Sup. exterior',val: supExtBajaTd?'Bajo Td':'Sobre Td',      bg: supExtBajaTd?'#fef9c3':'#f0fdf4', border: supExtBajaTd?'#fde047':'#86efac', col: supExtBajaTd?'#854d0e':'#166534' },
+                { label:'Intersticial', val: res.condInter?'RIESGO':'SIN RIESGO',    bg: res.condInter?'#fee2e2':'#dcfce7', border: res.condInter?'#fca5a5':'#86efac', col: res.condInter?'#dc2626':'#166534' },
+                { label:'U calculado',  val:`${res.U} W/m²K`,                        bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
+              ]).map(c=>(
                 <div key={c.label} style={{ background:c.bg, border:`1.5px solid ${c.border}`, borderRadius:8, padding:'8px 14px', textAlign:'center', minWidth:100, flex:1 }}>
                   <div style={{ fontSize:10, color:'#64748b', marginBottom:3 }}>{c.label}</div>
                   <div style={{ fontSize:14, fontWeight:800, color:c.col }}>{c.val}</div>
@@ -2227,14 +2236,23 @@ ${cambios.length && solucion ? `
             </div>
             {umax && <div style={{ marginBottom:10 }}><span style={S.badge(cumpleU)}>{cumpleU?`✓ U cumple DS N°15 (máx ${umax} W/m²K)`:`✗ U no cumple DS N°15 (máx ${umax} W/m²K)`}</span></div>}
 
-            {/* ── Gráfico SVG ────────────────────────────────────────────────── */}
-            <GraficoGlaser ref={graphRef} res={res} capas={capas} elemTipo={elemTipo} />
-            <div style={{ fontSize:9, color:'#94a3b8', marginBottom:10 }}>
-              Azul = temperatura · Naranja = punto de rocío · Rojo = interfaz con riesgo
-            </div>
+            {/* ── Nota técnica tabique (sin Glaser) ──────────────────────────── */}
+            {esTabique && (
+              <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#0369a1', marginBottom:8 }}>
+                ℹ <b>Tabique interior</b> — La verificación higrotérmica (Método de Glaser, NCh853:2021) aplica exclusivamente a elementos de la envolvente en contacto con el exterior. No corresponde aplicarla a tabiques interiores.
+              </div>
+            )}
 
-            {/* ── Tabla de interfaces ─────────────────────────────────────────── */}
-            {res.ifaces?.length>0&&(
+            {/* ── Gráfico SVG (solo envolvente) ──────────────────────────────── */}
+            {!esTabique && <>
+              <GraficoGlaser ref={graphRef} res={res} capas={capas} elemTipo={elemTipo} />
+              <div style={{ fontSize:9, color:'#94a3b8', marginBottom:10 }}>
+                Azul = temperatura · Naranja = punto de rocío · Rojo = interfaz con riesgo
+              </div>
+            </>}
+
+            {/* ── Tabla de interfaces (solo envolvente) ──────────────────────── */}
+            {!esTabique && res.ifaces?.length>0&&(
               <>
                 <div style={S.sep}/>
                 <div className="nc-table-scroll">
@@ -2257,7 +2275,8 @@ ${cambios.length && solucion ? `
               </>
             )}
 
-            {/* ── Banners normativos ──────────────────────────────────────────── */}
+            {/* ── Banners normativos (solo envolvente) ───────────────────────── */}
+            {!esTabique && (
             <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:8 }}>
               {!res.condInter&&<div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#166534', fontWeight:600 }}>✓ Sin condensación intersticial — interfaces internas OK.</div>}
               {res.condInter&&<div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#991b1b', fontWeight:600 }}>⚠ Riesgo de condensación intersticial — reordena capas con ↑↓ y recalcula.</div>}
@@ -2274,6 +2293,7 @@ ${cambios.length && solucion ? `
                 </div>
               )}
             </div>
+            )}
 
             {/* ── Correcciones sugeridas ──────────────────────────────────────── */}
             {correc.length>0&&(
@@ -2842,9 +2862,12 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         tablaCapa = `<div class="aviso">Valor U ingresado manualmente: <b>${data.u} W/m²K</b> (sin detalle de capas disponible)</div>`
       }
 
-      // Glaser SVG + tabla de interfaces
+      // Glaser SVG + tabla de interfaces (solo envolvente — no aplica en tabiques)
+      const esTabiqueRpt = el.key === 'tabique'
       let glaserHtml = ''
-      if (res) {
+      if (esTabiqueRpt) {
+        glaserHtml = `<div class="ok-box" style="color:#0369a1;background:#f0f9ff;border-color:#bae6fd">ℹ Tabique interior — verificación higrotérmica (Método de Glaser, NCh853:2021) no aplica. La norma exige esta verificación solo para elementos de la envolvente en contacto con el exterior.</div>`
+      } else if (res) {
         const svgStr = glaserSvgStr(res, capas || [])
         glaserHtml = `
 <h3>${el.label} — Verificación higrotérmica (Método de Glaser, NCh853:2021)</h3>
