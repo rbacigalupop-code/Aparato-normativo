@@ -1739,6 +1739,18 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   const [showHomolog, setShowHomolog] = useState(false)
   const [showInterpret, setShowInterpret] = useState(false)
   const graphRef = useRef(null)
+  const esTabique = elemKey === 'tabique'
+
+  // ── Estado para opciones normativas avanzadas ──────────────────────────────
+  // Piso: tipo de apoyo (ventilado / sobre terreno / sobre espacio no calef.)
+  const [pisoTipo, setPisoTipo] = useState('ventilado') // 'ventilado'|'terreno'|'no_calef'
+  const [pisoAg,   setPisoAg]   = useState('')           // área piso Ag (m²)
+  const [pisoPg,   setPisoPg]   = useState('')           // perímetro expuesto Pg (m)
+  const [pisoLg,   setPisoLg]   = useState('2.0')        // λ suelo (W/mK)
+  // Techo: cubierta ventilada → calcular solo capas bajo cámara (ISO 6946 §6.9.2)
+  const [cubiertaVent, setCubiertaVent] = useState(false)
+  // Corrección puentes térmicos ΔU (ISO 6946 §6.9.3) — suma al U calculado
+  const [deltaU, setDeltaU] = useState('')
 
   useEffect(() => {
     if (!initData?.capas?.length) return
@@ -2106,6 +2118,69 @@ ${cambios.length && solucion ? `
               <span style={S.label}>Condiciones diseño</span>
               Ti: {ti}°C | Te: {te}°C | HR: {hr}% {umax && `| U máx: ${umax} W/m²K`}
             </div>
+            {/* ── Tipo de piso (solo piso) ───────────────────────────────────── */}
+            {elemKey === 'piso' && (
+              <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#166534', marginBottom:6 }}>Tipo de piso</div>
+                <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginBottom:4 }}>
+                  {[['ventilado','🌬 Ventilado (sobramiento)'],['terreno','🏗 Sobre terreno (ISO 13370)'],['no_calef','🏠 Sobre espacio no calef.']].map(([v,l]) => (
+                    <label key={v} style={{ fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
+                      <input type="radio" name={`pisoTipo-${elemKey}`} value={v} checked={pisoTipo===v} onChange={()=>setPisoTipo(v)} style={{ cursor:'pointer' }} />
+                      {l}
+                    </label>
+                  ))}
+                </div>
+                {pisoTipo === 'ventilado' && <div style={{ fontSize:10, color:'#166534' }}>RSi = 0.17 m²K/W · RSe = 0.13 m²K/W (ISO 6946 Tabla 1 — piso expuesto al exterior/sobramiento)</div>}
+                {pisoTipo === 'terreno' && (
+                  <div>
+                    <div style={{ fontSize:10, color:'#166534', marginBottom:6 }}>ISO 13370 simplificado — ingresa geometría para calcular Uf equivalente sobre terreno.</div>
+                    <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'flex-end' }}>
+                      <div><div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>Área piso Ag (m²)</div>
+                        <input style={{ ...ist, width:70 }} value={pisoAg} onChange={e=>setPisoAg(e.target.value)} placeholder="80" /></div>
+                      <div><div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>Perímetro expuesto Pg (m)</div>
+                        <input style={{ ...ist, width:76 }} value={pisoPg} onChange={e=>setPisoPg(e.target.value)} placeholder="36" /></div>
+                      <div><div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>λ suelo W/mK</div>
+                        <input style={{ ...ist, width:58 }} value={pisoLg} onChange={e=>setPisoLg(e.target.value)} placeholder="2.0" /></div>
+                      <div style={{ fontSize:10, color:'#64748b', lineHeight:1.5 }}>B′ = Ag / (0.5·Pg)</div>
+                    </div>
+                  </div>
+                )}
+                {pisoTipo === 'no_calef' && (
+                  <div style={{ fontSize:11, color:'#166534', background:'#dcfce7', borderRadius:4, padding:'5px 8px', marginTop:4 }}>
+                    ℹ Piso sobre espacio no calefaccionado (subterráneo, estacionamiento, etc.). Usar U calculado por ISO 6946 con RSi=0.17 m²K/W. No aplica corrección ISO 13370.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Cubierta ventilada (solo techo) ────────────────────────────── */}
+            {elemKey === 'techo' && (
+              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
+                <label style={{ fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                  <input type="checkbox" checked={cubiertaVent} onChange={e=>setCubiertaVent(e.target.checked)} style={{ cursor:'pointer' }} />
+                  <b style={{ color:'#1e40af' }}>Cubierta ventilada</b>
+                  <span style={{ fontSize:11, color:'#64748b' }}>(cámara de aire ventilada sobre el aislante)</span>
+                </label>
+                {cubiertaVent && (
+                  <div style={{ marginTop:6, fontSize:11, color:'#1e40af', background:'#dbeafe', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
+                    <b>ISO 6946 §6.9.2:</b> Para cubierta con cámara ventilada, introduce sólo las capas <b>bajo</b> la cámara. Las capas superiores (p.ej. teja, tablero exterior) no contribuyen. Usa RSe = 0.13 m²K/W para la cara que da a la cámara. El U resultante aplica al modelo energético.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Corrección puentes térmicos ΔU (ISO 6946 §6.9.3) ──────────── */}
+            {!esTabique && (
+              <div style={{ background:'#fafafa', border:'1px solid #e2e8f0', borderRadius:6, padding:'7px 12px', marginBottom:8, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                <span style={{ fontSize:11, color:'#64748b', fontWeight:600 }}>ΔU puentes térmicos (ISO 6946 §6.9.3)</span>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <input style={{ ...ist, width:66 }} value={deltaU} onChange={e=>setDeltaU(e.target.value)} placeholder="0.00" />
+                  <span style={{ fontSize:11, color:'#64748b' }}>W/m²K</span>
+                </div>
+                <span style={{ fontSize:10, color:'#94a3b8' }}>Corrección por estructuras, perfiles metálicos o juntas (opcional)</span>
+              </div>
+            )}
+
             <div style={S.sep} />
         <p style={S.h3}>Capas (interior → exterior)</p>
         <div className="nc-table-scroll">
@@ -2171,12 +2246,37 @@ ${cambios.length && solucion ? `
       </div>
 
       {res && (()=>{
-        const uCalc        = parseFloat(res.U)
+        // ΔU corrección puentes térmicos (ISO 6946 §6.9.3)
+        const dU    = parseFloat(deltaU) || 0
+        const uCalc = parseFloat(res.U) + dU
+        const uCorrStr = uCalc.toFixed(3)
         const cumpleU      = !umax || uCalc <= umax
         const tSupExt      = parseFloat(res.temps[res.temps.length-1]).toFixed(2)
         const supExtBajaTd = parseFloat(tSupExt) < parseFloat(res.Tdew)
-        const esTabique    = elemKey === 'tabique'
         const cumpleTodo   = cumpleU && (esTabique || !res.condInter)
+
+        // ── fRsi — factor de temperatura superficial interior (NCh853:2021 §6) ──
+        const RSi_val = elemTipo === 'techumbre' ? 0.10 : elemTipo === 'piso' ? 0.17 : 0.13
+        const Rtot_val = parseFloat(res.Rtot) || 0
+        const fRsi      = Rtot_val > 0 ? 1 - RSi_val / Rtot_val : 1
+        const Tsi_int   = Rtot_val > 0 ? ti - (RSi_val / Rtot_val) * (ti - te) : ti
+        const Tdew_v    = parseFloat(res.Tdew)
+        const fRsi_min  = (ti - te) > 0 ? (Tdew_v - te) / (ti - te) : 0
+        const cumpleFRsi = Tsi_int >= Tdew_v
+
+        // ── ISO 13370 — piso sobre terreno ──────────────────────────────────────
+        let iso13370 = null
+        if (elemKey === 'piso' && pisoTipo === 'terreno' && parseFloat(pisoAg)>0 && parseFloat(pisoPg)>0) {
+          const Ag = parseFloat(pisoAg), Pg = parseFloat(pisoPg), lg = parseFloat(pisoLg)||2.0
+          const Rf_m2K = parseFloat(res.Rtot) - RSi_val - 0.04 // R capas (sin Rs)
+          const Bp   = Ag / (0.5 * Pg)
+          const w    = 0.20 // espesor muro perimetral supuesto 0.20 m
+          const dt   = w + lg * (RSi_val + (Rf_m2K > 0 ? Rf_m2K : 0))
+          const Uf   = dt < Bp
+            ? (2 * lg) / (Math.PI * Bp + dt) * Math.log(Math.PI * Bp / dt + 1)
+            : lg / (0.457 * Bp + dt)
+          iso13370 = { Uf: Uf.toFixed(3), Bp: Bp.toFixed(2), dt: dt.toFixed(3), cumple: !umax || Uf <= umax }
+        }
         const cambios      = detectarCambios()
         const hayModif     = cambios.length > 0
 
@@ -2220,13 +2320,15 @@ ${cambios.length && solucion ? `
             {/* ── Cards de resumen ───────────────────────────────────────────── */}
             <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
               {(esTabique ? [
-                { label:'U calculado', val:`${res.U} W/m²K`, bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
+                { label:'U calculado', val:`${uCorrStr} W/m²K`, bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
               ] : [
-                { label:'T rocío',      val:`${res.Tdew}°C`,                         bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
-                { label:'T sup. ext.',  val:`${tSupExt}°C`,                          bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
-                { label:'Sup. exterior',val: supExtBajaTd?'Bajo Td':'Sobre Td',      bg: supExtBajaTd?'#fef9c3':'#f0fdf4', border: supExtBajaTd?'#fde047':'#86efac', col: supExtBajaTd?'#854d0e':'#166534' },
-                { label:'Intersticial', val: res.condInter?'RIESGO':'SIN RIESGO',    bg: res.condInter?'#fee2e2':'#dcfce7', border: res.condInter?'#fca5a5':'#86efac', col: res.condInter?'#dc2626':'#166534' },
-                { label:'U calculado',  val:`${res.U} W/m²K`,                        bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
+                { label:'T rocío',      val:`${res.Tdew}°C`,                          bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
+                { label:'T sup. ext.',  val:`${tSupExt}°C`,                           bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
+                { label:'T sup. int.',  val:`${Tsi_int.toFixed(1)}°C`,                bg: cumpleFRsi?'#f0fdf4':'#fee2e2', border: cumpleFRsi?'#86efac':'#fca5a5', col: cumpleFRsi?'#166534':'#dc2626' },
+                { label:'fRsi',         val:`${fRsi.toFixed(3)}`,                     bg: cumpleFRsi?'#f0fdf4':'#fee2e2', border: cumpleFRsi?'#86efac':'#fca5a5', col: cumpleFRsi?'#166534':'#dc2626' },
+                { label:'Sup. exterior',val: supExtBajaTd?'Bajo Td':'Sobre Td',       bg: supExtBajaTd?'#fef9c3':'#f0fdf4', border: supExtBajaTd?'#fde047':'#86efac', col: supExtBajaTd?'#854d0e':'#166534' },
+                { label:'Intersticial', val: res.condInter?'RIESGO':'SIN RIESGO',     bg: res.condInter?'#fee2e2':'#dcfce7', border: res.condInter?'#fca5a5':'#86efac', col: res.condInter?'#dc2626':'#166534' },
+                { label:'U calculado',  val:`${uCorrStr} W/m²K`,                      bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
               ]).map(c=>(
                 <div key={c.label} style={{ background:c.bg, border:`1.5px solid ${c.border}`, borderRadius:8, padding:'8px 14px', textAlign:'center', minWidth:100, flex:1 }}>
                   <div style={{ fontSize:10, color:'#64748b', marginBottom:3 }}>{c.label}</div>
@@ -2234,7 +2336,10 @@ ${cambios.length && solucion ? `
                 </div>
               ))}
             </div>
-            {umax && <div style={{ marginBottom:10 }}><span style={S.badge(cumpleU)}>{cumpleU?`✓ U cumple DS N°15 (máx ${umax} W/m²K)`:`✗ U no cumple DS N°15 (máx ${umax} W/m²K)`}</span></div>}
+            {umax && <div style={{ marginBottom:10 }}>
+              <span style={S.badge(cumpleU)}>{cumpleU?`✓ U cumple DS N°15 (máx ${umax} W/m²K)`:`✗ U no cumple DS N°15 (máx ${umax} W/m²K)`}</span>
+              {dU > 0 && <span style={{ fontSize:11, color:'#64748b', marginLeft:8 }}>U ISO 6946: {res.U} + ΔU: {dU.toFixed(3)} = {uCorrStr} W/m²K</span>}
+            </div>}
 
             {/* ── Nota técnica tabique (sin Glaser) ──────────────────────────── */}
             {esTabique && (
@@ -2293,6 +2398,48 @@ ${cambios.length && solucion ? `
                 </div>
               )}
             </div>
+            )}
+
+            {/* ── fRsi — condensación superficial interior (NCh853:2021 §6) ──── */}
+            {!esTabique && (
+              <div style={{ marginTop:8, background: cumpleFRsi?'#f0fdf4':'#fef2f2', border:`1px solid ${cumpleFRsi?'#86efac':'#fca5a5'}`, borderRadius:6, padding:'8px 14px', fontSize:12 }}>
+                <div style={{ fontWeight:700, color: cumpleFRsi?'#166534':'#991b1b', marginBottom:4 }}>
+                  {cumpleFRsi ? '✓ Sin condensación superficial interior (fRsi OK)' : '⚠ Riesgo de condensación superficial interior'}
+                </div>
+                <div style={{ display:'flex', gap:16, flexWrap:'wrap', color:'#374151' }}>
+                  <span>T sup. int. = <b>{Tsi_int.toFixed(2)}°C</b></span>
+                  <span>T rocío = <b>{res.Tdew}°C</b></span>
+                  <span>fRsi = <b>{fRsi.toFixed(4)}</b></span>
+                  <span>fRsi mín requerido = <b>{fRsi_min.toFixed(4)}</b></span>
+                </div>
+                {!cumpleFRsi && <div style={{ marginTop:4, fontSize:11, color:'#991b1b' }}>
+                  La temperatura superficial interior ({Tsi_int.toFixed(1)}°C) está bajo el punto de rocío ({res.Tdew}°C). Riesgo de condensación o moho en la cara interior. Mejora el aislamiento (aumenta Rtot) o reduce la HR interior.
+                </div>}
+                <div style={{ marginTop:4, fontSize:10, color:'#64748b' }}>
+                  NCh853:2021 §6 · fRsi = 1 − RSi/Rtot · Tsi = Ti − (RSi/Rtot)·(Ti−Te) · RSi = {RSi_val} m²K/W · Rtot = {res.Rtot} m²K/W
+                </div>
+              </div>
+            )}
+
+            {/* ── ISO 13370 — piso sobre terreno ─────────────────────────────── */}
+            {iso13370 && (
+              <div style={{ marginTop:8, background:'#fefce8', border:'1px solid #fde047', borderRadius:6, padding:'8px 14px', fontSize:12 }}>
+                <div style={{ fontWeight:700, color:'#713f12', marginBottom:4 }}>
+                  📐 Transmitancia térmica piso sobre terreno — ISO 13370 (simplificado)
+                </div>
+                <div style={{ display:'flex', gap:16, flexWrap:'wrap', color:'#374151', marginBottom:4 }}>
+                  <span>Uf = <b>{iso13370.Uf} W/m²K</b></span>
+                  <span>B′ = <b>{iso13370.Bp} m</b></span>
+                  <span>dt = <b>{iso13370.dt} m</b></span>
+                  {umax && <span>Límite DS N°15 = <b>{umax} W/m²K</b> → <b style={{ color: iso13370.cumple?'#166534':'#dc2626' }}>{iso13370.cumple?'CUMPLE':'NO CUMPLE'}</b></span>}
+                </div>
+                <div style={{ fontSize:11, color:'#92400e' }}>
+                  ⚠ Para verificación energética DS N°15, usar <b>Uf (ISO 13370)</b> en lugar del U por ISO 6946. El análisis Glaser sigue siendo válido para verificar condensación intersticial en las capas.
+                </div>
+                <div style={{ fontSize:10, color:'#64748b', marginTop:3 }}>
+                  ISO 13370 §9.1 · B′ = Ag/(0.5·Pg) · dt = w + λg·(RSi + Rf) · Ag = {pisoAg} m² · Pg = {pisoPg} m · λg = {pisoLg} W/mK
+                </div>
+              </div>
             )}
 
             {/* ── Correcciones sugeridas ──────────────────────────────────────── */}
