@@ -6,6 +6,7 @@ import NotasPanel from './NotasPanel.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST,
+  ACERO_PROT, PERFILES_ACERO,
   ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
   VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
@@ -1315,6 +1316,288 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
   )
 }
 
+// ─── CALCULADOR RF ACERO ──────────────────────────────────────────────────────
+function CalcRFAcero({ rfReq }) {
+  const [familia,     setFamilia]     = useState('HEB')
+  const [serie,       setSerie]       = useState('200')
+  const [caras,       setCaras]       = useState('3')   // '3'=viga, '4'=columna
+  const [modoManual,  setModoManual]  = useState(false)
+  const [hpManual,    setHpManual]    = useState('')
+  const [prot,        setProt]        = useState('hormigon')
+  const [mu0,         setMu0]         = useState('0.65')
+
+  // Factor de sección
+  const perfData = PERFILES_ACERO[familia]?.[serie]
+  const hpAuto   = perfData ? (caras === '4' ? perfData.Hp4 : perfData.Hp3) : null
+  const hpA      = modoManual ? (parseFloat(hpManual) || null) : hpAuto
+
+  // Temperatura crítica EN 1993-1-2 §4.2.4
+  const mu0v     = Math.max(0.02, Math.min(0.98, parseFloat(mu0) || 0.65))
+  const thetaCr  = 39.19 * Math.log(1 / (0.9674 * Math.pow(mu0v, 3.833)) - 1) + 482
+
+  // Sistema de protección
+  const protSys  = ACERO_PROT.find(p => p.id === prot)
+  const rfLevels = ['F30', 'F60', 'F90', 'F120']
+
+  function getMinProt(rfTarget) {
+    if (!protSys || !hpA || protSys.requiereCertificado) return null
+    // Filas que aplican para este rfTarget y donde hpMax >= hpA
+    const filas = protSys.tabla
+      .filter(r => r.rf === rfTarget && r.hpMax >= hpA)
+      .sort((a, b) => a.hpMax - b.hpMax)  // menor hpMax primero = más restrictivo aplicable
+    if (!filas.length) return null
+    const f = filas[0]
+    if (protSys.tipo === 'capas') return { text: `${f.capas} cap. × ${f.e} mm`, total: f.capas * f.e }
+    return { text: `${f.e} mm`, total: f.e }
+  }
+
+  const tdStyle  = { ...S.td, verticalAlign:'middle' }
+
+  return (
+    <div style={{ ...S.card, marginTop:14, borderColor:'#fbbf24', background:'#fffbeb' }}>
+      <p style={{ ...S.h2, color:'#92400e', marginBottom:8 }}>
+        🔥 Calculador RF — Estructura de Acero
+      </p>
+      <div style={{ fontSize:11, color:'#78350f', marginBottom:12, background:'#fef3c7',
+        border:'1px solid #fcd34d', borderRadius:5, padding:'7px 11px', lineHeight:1.5 }}>
+        ⚠ El acero estructural <b>no tiene resistencia al fuego intrínseca (F0)</b>.
+        Requiere protección ignífuga para cumplir la exigencia según <b>LOFC Ed.17 Annex B</b>.
+        {rfReq && <span> &nbsp;RF requerida para este proyecto: <b style={{ color:'#dc2626' }}>{rfReq}</b>.</span>}
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+
+        {/* ── Paso 1: Factor de sección ──────────────────────────────────── */}
+        <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:6, padding:'10px 12px' }}>
+          <div style={{ fontWeight:700, fontSize:12, color:'#374151', marginBottom:8 }}>
+            📐 Paso 1 — Factor de sección (Hp/A)
+          </div>
+
+          {/* Toggle manual / tabla */}
+          <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+            {[['tabla','Perfil tabla'],['manual','Manual']].map(([v,lbl]) => (
+              <button key={v} onClick={() => setModoManual(v==='manual')}
+                style={{ flex:1, padding:'4px 6px', fontSize:11, borderRadius:4, cursor:'pointer',
+                  background: (modoManual===(v==='manual')) ? '#f59e0b' : '#f1f5f9',
+                  color:      (modoManual===(v==='manual')) ? '#fff'    : '#374151',
+                  border:`1px solid ${(modoManual===(v==='manual')) ? '#f59e0b' : '#e2e8f0'}`,
+                  fontWeight: (modoManual===(v==='manual')) ? 700 : 400 }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+
+          {!modoManual ? (
+            <>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
+                <div>
+                  <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>Familia</label>
+                  <select style={ist} value={familia} onChange={e => {
+                    const f = e.target.value
+                    setFamilia(f)
+                    setSerie(Object.keys(PERFILES_ACERO[f] || {})[0] || '')
+                  }}>
+                    {Object.keys(PERFILES_ACERO).map(f => <option key={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>Serie</label>
+                  <select style={ist} value={serie} onChange={e => setSerie(e.target.value)}>
+                    {Object.keys(PERFILES_ACERO[familia] || {}).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom:6 }}>
+                <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>Exposición al fuego</label>
+                <select style={ist} value={caras} onChange={e => setCaras(e.target.value)}>
+                  <option value="3">3 caras — viga (cara inferior sobre losa)</option>
+                  <option value="4">4 caras — columna (exposición total)</option>
+                </select>
+              </div>
+              {perfData && (
+                <div style={{ background:'#f8fafc', borderRadius:4, padding:'5px 8px', fontSize:10, color:'#64748b' }}>
+                  A = <b>{perfData.A} cm²</b> &nbsp;·&nbsp;
+                  Hp/A 4c = <b>{perfData.Hp4} m⁻¹</b> &nbsp;·&nbsp;
+                  Hp/A 3c = <b>{perfData.Hp3} m⁻¹</b>
+                </div>
+              )}
+            </>
+          ) : (
+            <div>
+              <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                Hp/A manual (m⁻¹)
+              </label>
+              <input type="number" style={{ ...ist, maxWidth:120 }} value={hpManual}
+                onChange={e => setHpManual(e.target.value)} placeholder="ej: 250" min="1" />
+              <div style={{ fontSize:10, color:'#94a3b8', marginTop:3 }}>
+                Hp = perímetro expuesto (m) · A = área sección (m²)
+              </div>
+            </div>
+          )}
+
+          {hpA && (
+            <div style={{ marginTop:8, background:'#fef9c3', border:'1px solid #fde68a',
+              borderRadius:4, padding:'6px 10px', textAlign:'center' }}>
+              <span style={{ fontSize:14, fontWeight:700, color:'#78350f' }}>Hp/A = {hpA} m⁻¹</span>
+              <div style={{ fontSize:10, color:'#92400e', marginTop:2 }}>
+                {hpA <= 80  ? 'Sección robusta / maciza — favorable'
+               : hpA <= 160 ? 'Factor bajo a medio'
+               : hpA <= 250 ? 'Factor medio — protección estándar'
+               : hpA <= 350 ? 'Factor alto — mayor espesor requerido'
+               : '⚠ Factor muy alto — consultar fabricante'}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Temperatura crítica (EN 1993-1-2) ─────────────────────────── */}
+        <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:6, padding:'10px 12px' }}>
+          <div style={{ fontWeight:700, fontSize:12, color:'#374151', marginBottom:8 }}>
+            🌡️ Temperatura crítica (EN 1993-1-2 §4.2.4)
+          </div>
+          <div style={{ fontSize:11, color:'#64748b', marginBottom:6, lineHeight:1.6 }}>
+            θ<sub>cr</sub> = 39,19 · ln[1/(0,9674 · μ₀<sup>3,833</sup>) − 1] + 482
+          </div>
+          <div style={{ marginBottom:8 }}>
+            <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+              Grado de utilización μ₀
+            </label>
+            <input type="number" style={{ ...ist, maxWidth:110 }} value={mu0}
+              onChange={e => setMu0(e.target.value)}
+              step="0.05" min="0.05" max="0.95" />
+            <div style={{ fontSize:10, color:'#94a3b8', marginTop:3 }}>
+              μ₀ = E<sub>fi,d</sub> / R<sub>fi,d,0</sub> — relación carga incendio / resistencia a T° ambiente.
+              Valor conservador: 0,65.
+            </div>
+          </div>
+          {thetaCr && (
+            <div style={{ background: thetaCr >= 520 ? '#f0fdf4' : thetaCr >= 470 ? '#fffbeb' : '#fff1f2',
+              border:`1px solid ${thetaCr>=520?'#86efac':thetaCr>=470?'#fcd34d':'#fecaca'}`,
+              borderRadius:4, padding:'8px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:15, fontWeight:700,
+                color: thetaCr>=520?'#166534':thetaCr>=470?'#78350f':'#9f1239' }}>
+                θ<sub>cr</sub> = {thetaCr.toFixed(0)} °C
+              </div>
+              <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
+                {thetaCr >= 550 ? 'Baja utilización — sección favorable'
+               : thetaCr >= 520 ? 'Temperatura crítica adecuada'
+               : thetaCr >= 470 ? 'Moderada — verificar protección mínima'
+               : 'Alta utilización — considerar reducir carga o aumentar protección'}
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop:8, fontSize:10, color:'#94a3b8', lineHeight:1.5 }}>
+            El acero pierde ~50% de su resistencia a <b>500 °C</b> y colapsa entre 600–700 °C.
+            La protección debe mantener T° acero &lt; θ<sub>cr</sub> durante el período RF requerido.
+          </div>
+        </div>
+      </div>
+
+      {/* ── Paso 2: Sistema de protección + tabla resultados ──────────────── */}
+      <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:6, padding:'10px 12px' }}>
+        <div style={{ fontWeight:700, fontSize:12, color:'#374151', marginBottom:8 }}>
+          🛡️ Paso 2 — Sistema de protección ignífuga
+        </div>
+
+        <div style={{ marginBottom:10 }}>
+          <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+            Sistema de protección
+          </label>
+          <select style={{ ...ist, maxWidth:420 }} value={prot} onChange={e => setProt(e.target.value)}>
+            {ACERO_PROT.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          </select>
+          {protSys?.norma && (
+            <span style={{ marginLeft:8, fontSize:10, color:'#94a3b8' }}>
+              Ref.: {protSys.norma}
+            </span>
+          )}
+          {protSys?.desc && (
+            <div style={{ fontSize:10, color:'#64748b', marginTop:3, lineHeight:1.4 }}>{protSys.desc}</div>
+          )}
+        </div>
+
+        {protSys?.requiereCertificado ? (
+          <div style={{ background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:5,
+            padding:'8px 12px', fontSize:11, color:'#78350f', lineHeight:1.5 }}>
+            ⚠ <b>Pintura intumescente:</b> El espesor de película seca (DFT) <u>no puede calcularse
+            con tablas genéricas</u> — depende del producto específico, número de capas y sistema
+            de imprimación. El proyectista debe:
+            <ol style={{ margin:'6px 0 0 16px', paddingLeft:0 }}>
+              <li>Seleccionar un producto con <b>ETA (Aprobación Técnica Europea)</b> vigente.</li>
+              <li>Ingresar Hp/A = <b>{hpA ? `${hpA} m⁻¹` : '?'}</b> y RF objetivo en el software del fabricante.</li>
+              <li>Adjuntar <b>certificado de aplicación</b> con verificación de DFT en terreno (NCh1156).</li>
+            </ol>
+            <div style={{ marginTop:6, fontSize:10 }}>
+              DFT orientativos (WB, dependen del fabricante):
+              F30 ≈ 400–800 µm · F60 ≈ 800–1.500 µm · F90 ≈ 1.500–3.000 µm.
+            </div>
+          </div>
+        ) : (
+          <>
+            {!hpA && (
+              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:5,
+                padding:'6px 10px', fontSize:11, color:'#1e40af', marginBottom:8 }}>
+                ℹ️ Ingresa el factor de sección (Paso 1) para ver los espesores requeridos.
+              </div>
+            )}
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>RF objetivo</th>
+                  <th style={S.th}>Protección mínima ({protSys?.unidad || 'mm'})</th>
+                  <th style={S.th}>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rfLevels.map(rf => {
+                  const result     = hpA ? getMinProt(rf) : null
+                  const esReq      = rf === rfReq
+                  const factible   = result !== null
+                  const rowBg      = esReq ? '#fef9c3' : undefined
+                  return (
+                    <tr key={rf} style={{ background: rowBg }}>
+                      <td style={{ ...tdStyle, fontWeight: esReq ? 700 : 400,
+                        color: esReq ? '#78350f' : undefined }}>
+                        {rf}{esReq ? <span style={{ fontSize:10, marginLeft:4, color:'#dc2626' }}>← requerido</span> : ''}
+                      </td>
+                      <td style={tdStyle}>
+                        {!hpA ? (
+                          <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>
+                        ) : result ? (
+                          <b style={{ color: esReq ? '#78350f' : '#374151' }}>{result.text}</b>
+                        ) : (
+                          <span style={{ fontSize:11, color:'#dc2626' }}>
+                            ⚠ Hp/A fuera de rango — consultar fabricante
+                          </span>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        {hpA
+                          ? (factible
+                              ? <span style={S.badge(true)}>FACTIBLE</span>
+                              : <span style={S.badge(false)}>CONSULTAR</span>)
+                          : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+
+      <div style={{ marginTop:8, fontSize:10, color:'#78350f', background:'#fef9c3',
+        borderRadius:4, padding:'6px 9px', lineHeight:1.5 }}>
+        <b>⚠ Nota normativa:</b> Los espesores son orientativos según LOFC Ed.17 Annex B y EN 13381.
+        Para la memoria de cálculo definitiva, verificar con el fabricante del sistema de protección y
+        adjuntar ficha técnica, DOP (Declaración de Prestaciones) y ETA. La RF debe respaldarse con
+        ensayo NCh850 o clasificación equivalente. LOFC Ed.17 — Capítulo B.
+      </div>
+    </div>
+  )
+}
+
 // ─── PESTAÑA FUEGO ────────────────────────────────────────────────────────────
 function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
   const uso = proy.uso || ''
@@ -1477,6 +1760,12 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
           </div>
         )
       })}
+      {/* ── Calculador RF Acero — aparece si la estructura es acero ────── */}
+      {(proy.estructura === 'Estructura de acero' ||
+        (proy.estructuras || []).some(e => e.tipo === 'Estructura de acero')) && (
+        <CalcRFAcero rfReq={proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura} />
+      )}
+
       <NotasPanel tabKey="fuego" notas={notas} setNotas={setNotas} />
     </div>
   )
@@ -3530,6 +3819,24 @@ ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${pro
   <tr><th>Categoría</th><th>RF propuesta</th><th>RF mínima requerida</th><th>Estado</th></tr>
   ${rfRows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Sin datos de resistencia al fuego</td></tr>'}
 </table>
+${(proy.estructura === 'Estructura de acero' || (proy.estructuras || []).some(e => e.tipo === 'Estructura de acero')) ? `
+<h3 style="color:#92400e;margin-top:14px">🔥 Protección ignífuga requerida — Estructura de Acero</h3>
+<div class="aviso" style="border-color:#fcd34d;background:#fffbeb;color:#78350f">
+  <b>RF intrínseca del acero estructural: F0.</b> Se requiere protección ignífuga para toda clase de RF.
+  RF estructural exigida: <b>${RF_PISOS(uso, proy.pisos) || RF_DEF[uso]?.estructura || '—'}</b>
+  (${proy.pisos} pisos · uso ${uso}).
+</div>
+<table>
+  <tr><th>Sistema de protección</th><th>Espesores orientativos por RF (Hp/A ≤ 200 m⁻¹)</th><th>Norma</th></tr>
+  <tr><td>Hormigón proyectado / encamisado (f'c ≥ 20 MPa)</td><td>F30 → 25 mm · F60 → 35 mm · F120 → 50 mm</td><td>LOFC Ed.17 B.1.2</td></tr>
+  <tr><td>Yeso proyectado / vermiculita (ρ ≥ 650 kg/m³)</td><td>F30 → 20 mm · F60 → 25 mm · F90 → 35 mm · F120 → 50 mm</td><td>LOFC Ed.17 B.1.3 / EN 13381-4</td></tr>
+  <tr><td>Lana de roca / silicato cálcico (ρ ≥ 100 kg/m³)</td><td>F30 → 25 mm · F60 → 35 mm · F90 → 50 mm · F120 → 65 mm</td><td>EN 13381-4 / ETA fabricante</td></tr>
+  <tr><td>Planchas yeso-cartón tipo F (multicapa)</td><td>F30 → 1×15 mm · F60 → 2×15 mm · F90 → 3×15 mm</td><td>EN 520 / EN 13501-2</td></tr>
+  <tr><td>Pintura intumescente (WB/SB)</td><td>DFT según ETA fabricante + Hp/A. F30 ≈ 400–800 µm · F60 ≈ 800–1.500 µm</td><td>EN 13381-8 / ETA</td></tr>
+</table>
+<div style="font-size:9pt;color:#78350f;margin-top:6px;padding:6px 10px;background:#fef9c3;border-radius:4px">
+  ⚠ Espesores orientativos LOFC Ed.17 Annex B para Hp/A ≤ 200 m⁻¹. Verificar con el calculador de acero en la aplicación (factor Hp/A específico del perfil). Los valores definitivos requieren ficha técnica del fabricante, DOP y ETA vigente. RF debe respaldarse con ensayo NCh850 o clasificación equivalente.
+</div>` : ''}
 
 <h2>Módulo 4 — Aislamiento Acústico (OGUC Art. 4.1.6 / NCh352:2013)</h2>
 <table>

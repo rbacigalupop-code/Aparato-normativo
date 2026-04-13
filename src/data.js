@@ -42,10 +42,91 @@ export const RF_ELEM_REQ=(id,uso,pisos)=>{
     default: return '';
   }
 };
-export const OBS_EST={"Hormigon armado":"LOFC Ed.17 A.1.3: H.A. 100mm=F90, 150mm=F150, 200mm=F180. Verificar recubrimiento segun NCh430.","Albanileria confinada":"LOFC Ed.17 A.2.2: Ladrillo Santiago 7 (140mm)=F240, Santiago 9 (140mm)=F180. Verificar pilares y cadenas de HA.","Albanileria armada":"LOFC Ed.17: similar a confinada. Albañileria ceramica 140mm cumple F180 min. Verificar armadura interior.","Estructura de acero":"El acero pierde resistencia a ~500°C. LOFC Ed.17 B.1.3: requiere proteccion ignifuga (hormigon fino 25mm=F30, 35mm=F60, 50mm=F120).","Estructura de madera":"LOFC Ed.17 A.1.5: madera maciza 45mm=F30, 90mm=F60, 140mm=F90. Carbonizacion ~0.7mm/min. Calcular seccion residual segun NCh1198.","Mixta HA + albanileria":"Verificar elemento a elemento. LOFC Ed.17: HA 150mm=F150, albañileria ceramica 140mm=F180+. Determinar elemento critico."};
+export const OBS_EST={"Hormigon armado":"LOFC Ed.17 A.1.3: H.A. 100mm=F90, 150mm=F150, 200mm=F180. Verificar recubrimiento segun NCh430.","Albanileria confinada":"LOFC Ed.17 A.2.2: Ladrillo Santiago 7 (140mm)=F240, Santiago 9 (140mm)=F180. Verificar pilares y cadenas de HA.","Albanileria armada":"LOFC Ed.17: similar a confinada. Albañileria ceramica 140mm cumple F180 min. Verificar armadura interior.","Estructura de acero":"RF0 intrínseca — requiere protección ignífuga para todo nivel RF. LOFC Ed.17 Annex B: hormigón proy. 25mm=F30 / 35mm=F60 / 50mm=F120; yeso proy. y lana de roca según factor Hp/A. Usa el calculador de acero en la pestaña Fuego.","Estructura de madera":"LOFC Ed.17 A.1.5: madera maciza 45mm=F30, 90mm=F60, 140mm=F90. Carbonizacion ~0.7mm/min. Calcular seccion residual segun NCh1198.","Mixta HA + albanileria":"Verificar elemento a elemento. LOFC Ed.17: HA 150mm=F150, albañileria ceramica 140mm=F180+. Determinar elemento critico."};
 // RF intrínseca por sistema estructural — configuración estándar (LOFC Ed.17 2025)
 // HA 150mm, albañilería cerámica 140mm, madera maciza 90mm
 export const RF_EST={"Hormigon armado":"F150","Albanileria confinada":"F180","Albanileria armada":"F180","Estructura de acero":"F0","Estructura de madera":"F60","Mixta HA + albanileria":"F150"};
+
+// ─── ACERO ESTRUCTURAL — Factor de sección y protección ignífuga ──────────────
+// Hp/A (m⁻¹): perímetro expuesto / área sección transversal
+// Hp4 = 4 caras expuestas (columna), Hp3 = 3 caras (viga, cara inferior protegida por losa)
+// Datos representativos según EN 10034 / tablas del fabricante; verificar con tablas oficiales
+export const PERFILES_ACERO = {
+  HEB: {
+    '100':{ A:26.0,  Hp4:422, Hp3:320 }, '120':{ A:34.0,  Hp4:508, Hp3:382 },
+    '140':{ A:43.0,  Hp4:580, Hp3:440 }, '160':{ A:54.3,  Hp4:648, Hp3:494 },
+    '180':{ A:65.3,  Hp4:714, Hp3:547 }, '200':{ A:78.1,  Hp4:768, Hp3:590 },
+    '240':{ A:106,   Hp4:964, Hp3:740 }, '260':{ A:118,   Hp4:1020,Hp3:786 },
+    '300':{ A:149,   Hp4:1142,Hp3:880 }, '320':{ A:161,   Hp4:1214,Hp3:935 },
+    '360':{ A:181,   Hp4:1358,Hp3:1047},'400':{ A:198,   Hp4:1502,Hp3:1159},
+  },
+  IPE: {
+    '100':{ A:10.3,  Hp4:382, Hp3:294 }, '120':{ A:13.2,  Hp4:440, Hp3:338 },
+    '140':{ A:16.4,  Hp4:498, Hp3:382 }, '160':{ A:20.1,  Hp4:554, Hp3:426 },
+    '180':{ A:23.9,  Hp4:610, Hp3:470 }, '200':{ A:28.5,  Hp4:678, Hp3:522 },
+    '240':{ A:39.1,  Hp4:808, Hp3:622 }, '270':{ A:45.9,  Hp4:900, Hp3:694 },
+    '300':{ A:53.8,  Hp4:994, Hp3:766 }, '360':{ A:72.7,  Hp4:1176,Hp3:908 },
+    '400':{ A:84.5,  Hp4:1298,Hp3:1002},'450':{ A:98.8,  Hp4:1462,Hp3:1130},
+    '500':{ A:116,   Hp4:1618,Hp3:1250},'600':{ A:156,   Hp4:1934,Hp3:1496},
+  },
+}
+
+// Sistemas de protección ignífuga — tablas LOFC Ed.17 Annex B / EN 13381
+// tipo 'espesor': tabla = [{hpMax, e_mm, rf}]  (hpMax=999 → independiente de Hp/A)
+// tipo 'capas':   tabla = [{hpMax, capas, e_mm, rf}]
+// tipo 'dft':     requiereCertificado=true → solo orientación genérica
+export const ACERO_PROT = [
+  {
+    id:'hormigon', nombre:'Hormigón proyectado / encamisado (f\'c ≥ 20 MPa)',
+    norma:'LOFC Ed.17 B.1.2', tipo:'espesor', unidad:'mm',
+    desc:'Independiente del factor de sección para perfiles con Hp/A < 300 m⁻¹. Verificar adherencia y curado húmedo 7 días.',
+    tabla:[
+      { hpMax:999, e:25, rf:'F30' },
+      { hpMax:999, e:35, rf:'F60' },
+      { hpMax:999, e:50, rf:'F120' },
+    ]
+  },
+  {
+    id:'yeso_proy', nombre:'Yeso proyectado / vermiculita (ρ ≥ 650 kg/m³)',
+    norma:'LOFC Ed.17 B.1.3 / EN 13381-4', tipo:'espesor', unidad:'mm',
+    desc:'Espesor nominal mínimo. Verificar DFT con medición en malla NCh1156. Aplicación en capas de máx. 10 mm cada una.',
+    tabla:[
+      { hpMax:100, e:15, rf:'F30'  }, { hpMax:200, e:20, rf:'F30'  }, { hpMax:300, e:25, rf:'F30'  },
+      { hpMax:100, e:20, rf:'F60'  }, { hpMax:200, e:25, rf:'F60'  }, { hpMax:300, e:35, rf:'F60'  },
+      { hpMax:100, e:30, rf:'F90'  }, { hpMax:200, e:35, rf:'F90'  }, { hpMax:300, e:45, rf:'F90'  },
+      { hpMax:100, e:40, rf:'F120' }, { hpMax:200, e:50, rf:'F120' }, { hpMax:300, e:60, rf:'F120' },
+    ]
+  },
+  {
+    id:'lana_roca', nombre:'Planchas lana de roca / silicato cálcico (ρ ≥ 100 kg/m³)',
+    norma:'EN 13381-4 / ETA fabricante', tipo:'espesor', unidad:'mm',
+    desc:'Planchas rígidas fijadas mecánicamente. Verificar ETA específico del fabricante. Juntas escalonadas en multicapa.',
+    tabla:[
+      { hpMax:100, e:20, rf:'F30'  }, { hpMax:200, e:25, rf:'F30'  }, { hpMax:300, e:30, rf:'F30'  },
+      { hpMax:100, e:30, rf:'F60'  }, { hpMax:200, e:35, rf:'F60'  }, { hpMax:300, e:45, rf:'F60'  },
+      { hpMax:100, e:40, rf:'F90'  }, { hpMax:200, e:50, rf:'F90'  }, { hpMax:300, e:60, rf:'F90'  },
+      { hpMax:100, e:50, rf:'F120' }, { hpMax:200, e:65, rf:'F120' }, { hpMax:300, e:80, rf:'F120' },
+    ]
+  },
+  {
+    id:'yeso_carton', nombre:'Planchas yeso-cartón tipo F (multicapa)',
+    norma:'EN 520 / EN 13501-2', tipo:'capas', unidad:'capas × mm/capa',
+    desc:'Planchas tipo F (especial fuego). Juntas escalonadas entre capas. Fijación cada 200 mm. Verificar marca CE.',
+    tabla:[
+      { hpMax:200, capas:2, e:12.5, rf:'F30'  }, { hpMax:200, capas:1, e:15,   rf:'F30'  },
+      { hpMax:250, capas:3, e:12.5, rf:'F60'  }, { hpMax:250, capas:2, e:15,   rf:'F60'  },
+      { hpMax:300, capas:4, e:12.5, rf:'F90'  }, { hpMax:300, capas:3, e:15,   rf:'F90'  },
+      { hpMax:200, capas:4, e:15,   rf:'F120' },
+    ]
+  },
+  {
+    id:'intumescente', nombre:'Pintura intumescente (WB / SB)',
+    norma:'EN 13381-8 / ETA fabricante', tipo:'dft', unidad:'µm DFT',
+    requiereCertificado: true,
+    desc:'DFT orientativo: F30 ≈ 400–800 µm · F60 ≈ 800–1.500 µm · F90 ≈ 1.500–3.000 µm. El espesor exacto depende del producto específico, Hp/A y RF. Exige ETA vigente y certificado de aplicación NCh1198.',
+    tabla:[]
+  },
+]
 
 // ─── MATERIALES ───────────────────────────────────────────────────────────────
 export const MATS=[
