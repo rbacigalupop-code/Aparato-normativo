@@ -1728,7 +1728,7 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
 })
 
 // ─── PANEL CÁLCULO U (componente por elemento) ────────────────────────────────
-function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU }) {
+function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU, onCalcUChange }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const [collapsed, setCollapsed] = useState(false)
   const [capas, setCapas] = useState([])
@@ -1808,6 +1808,8 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       setCorrec(necesita ? generarCorrecciones(cv, ti, te, hr, elemTipo, umax) : [])
     }
     setShowHomolog(false)
+    // Notificar al padre con las capas actualizadas y el resultado calculado
+    if (onCalcUChange) onCalcUChange(elemKey, { capas: cs, res: r })
   }
   function calcular() { calcularConCapas(capas) }
 
@@ -1930,6 +1932,8 @@ ${'='.repeat(60)}`
     const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
     setCorrec(necesita ? generarCorrecciones(corr.capasCorregidas, ti, te, hr, elemTipo, umax) : [])
     setShowHomolog(false)
+    // Propagar corrección aplicada al padre
+    if (onCalcUChange) onCalcUChange(elemKey, { capas: nuevas, res: r })
   }
 
   function getSvgString() {
@@ -2533,7 +2537,7 @@ ${cambios.length && solucion ? `
 }
 
 // ─── PESTAÑA CÁLCULO U + GLASER ───────────────────────────────────────────────
-function TabCalcU({ proy, initData, onLimpiarCalcU, notas, setNotas }) {
+function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNotas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   return (
     <div>
@@ -2551,10 +2555,10 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, notas, setNotas }) {
         normativa="NCh853:2021 · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1"
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <PanelCalcU elemKey="muro"    elemTipo="muro"      label="Muro"            umax={zona?.muro}  proy={proy} initData={initData?.muro}    headerColor="#1e40af" onLimpiarCalcU={onLimpiarCalcU} />
-        <PanelCalcU elemKey="techo"   elemTipo="techumbre" label="Cubierta / Techo" umax={zona?.techo} proy={proy} initData={initData?.techo}   headerColor="#4f46e5" onLimpiarCalcU={onLimpiarCalcU} />
-        <PanelCalcU elemKey="piso"    elemTipo="piso"      label="Piso"            umax={zona?.piso}  proy={proy} initData={initData?.piso}    headerColor="#166534" onLimpiarCalcU={onLimpiarCalcU} />
-        <PanelCalcU elemKey="tabique" elemTipo="muro"      label="Tabique"         umax={null}        proy={proy} initData={initData?.tabique} headerColor="#b45309" onLimpiarCalcU={onLimpiarCalcU} />
+        <PanelCalcU elemKey="muro"    elemTipo="muro"      label="Muro"            umax={zona?.muro}  proy={proy} initData={initData?.muro}    headerColor="#1e40af" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
+        <PanelCalcU elemKey="techo"   elemTipo="techumbre" label="Cubierta / Techo" umax={zona?.techo} proy={proy} initData={initData?.techo}   headerColor="#4f46e5" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
+        <PanelCalcU elemKey="piso"    elemTipo="piso"      label="Piso"            umax={zona?.piso}  proy={proy} initData={initData?.piso}    headerColor="#166534" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
+        <PanelCalcU elemKey="tabique" elemTipo="muro"      label="Tabique"         umax={null}        proy={proy} initData={initData?.tabique} headerColor="#b45309" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
       </div>
       <NotasPanel tabKey="calcU" notas={notas} setNotas={setNotas} />
     </div>
@@ -2919,11 +2923,17 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const checks = useMemo(() => {
     if (!zona || !uso) return []
     const rfReqEstr = RF_PISOS(uso, proy.pisos)
+    // Usar U calculado desde PanelCalcU (calcUInit.res.U) si está disponible,
+    // de lo contrario usar el U certificado del LOSCAT (termica[elem].u)
+    const uMuro  = calcUInit?.muro?.res?.U    ?? termica.muro?.u
+    const uTecho = calcUInit?.techo?.res?.U   ?? termica.techo?.u
+    const uPiso  = calcUInit?.piso?.res?.U    ?? termica.piso?.u
+    const uPuerta = termica.puerta?.u
     return [
-      { label:'Muro U',            val: termica.muro?.u,            max:`≤ ${zona.muro} W/m²K`,       ok: !termica.muro?.u            || parseFloat(termica.muro.u)            <= zona.muro },
-      { label:'Techo U',           val: termica.techo?.u,           max:`≤ ${zona.techo} W/m²K`,      ok: !termica.techo?.u           || parseFloat(termica.techo.u)           <= zona.techo },
-      { label:'Piso U',            val: termica.piso?.u,            max:`≤ ${zona.piso} W/m²K`,       ok: !termica.piso?.u            || parseFloat(termica.piso.u)            <= zona.piso },
-      { label:'Puerta U',          val: termica.puerta?.u,          max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !termica.puerta?.u || !PUERTA_U[proy.zona] || parseFloat(termica.puerta.u) <= PUERTA_U[proy.zona] },
+      { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${zona.muro} W/m²K`,  ok: !uMuro  || parseFloat(uMuro)  <= zona.muro },
+      { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${zona.techo} W/m²K`, ok: !uTecho || parseFloat(uTecho) <= zona.techo },
+      { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${zona.piso} W/m²K`,  ok: !uPiso  || parseFloat(uPiso)  <= zona.piso },
+      { label:'Puerta U',          val: uPuerta,                    max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !uPuerta || !PUERTA_U[proy.zona] || parseFloat(uPuerta) <= PUERTA_U[proy.zona] },
       { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr) },
       { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0') },
       { label:'RF Escaleras',      val: termica.rf_escaleras?.rf,   max:`≥ ${RF_DEF[uso]?.escaleras}`,ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(RF_DEF[uso]?.escaleras||'F0') },
@@ -2933,7 +2943,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
       { label:"L'n,w impacto pisos", val: termica.ac_impacto_pisos?.lnw ? termica.ac_impacto_pisos.lnw+' dB':null, max:`≤ ${AC_IMPACT_DEF[uso]?.entre_pisos} dB`, ok: !termica.ac_impacto_pisos?.lnw || parseFloat(termica.ac_impacto_pisos.lnw) <= (AC_IMPACT_DEF[uso]?.entre_pisos||99) },
     ].filter(c => c.val)
-  }, [proy, termica, zona, uso])
+  }, [proy, termica, calcUInit, zona, uso])
 
   const allOk = checks.every(c => c.ok)
 
@@ -2971,19 +2981,30 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     // ── Sección térmica por elemento ──────────────────────────────────────────
     const seccionesTermicas = ELEMS_DEF.map(el => {
       const data = termica[el.key]
-      if (!data?.u && !data?.solucion) return ''
+      if (!data?.u && !data?.solucion && !calcUInit?.[el.key]) return ''
       const sc = data?.solucion
-      const capas = sc ? getCapasParaSC(sc) : null
+
+      // Preferir capas modificadas por el usuario en PanelCalcU (calcUInit) sobre las originales LOSCAT
+      const calcUData = calcUInit?.[el.key]
+      const capasModif = calcUData?.capas    // capas modificadas (si las hay)
+      const resModif   = calcUData?.res      // resultado precalculado (si existe)
+      const capasOriginal = sc ? getCapasParaSC(sc) : null
+      const capas = capasModif?.length ? capasModif : capasOriginal
+
       const cv = capas ? capas.map(c => c.esCamara
         ? { esCamara: true }
         : { mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu || 1) }
       ).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0)) : null
 
-      const res = (cv?.length && zonaData) ? calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo) : null
+      // Preferir resultado ya calculado sobre recalcular desde cero
+      const res = resModif || ((cv?.length && zonaData) ? calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo) : null)
       const uCalc = res ? parseFloat(res.U) : (data?.u ? parseFloat(data.u) : null)
       const tbPct = parseFloat(data?.tb || 0)
       const uCalcCorr = (uCalc != null && tbPct > 0) ? uCalc * (1 + tbPct/100) : uCalc
       const cumpleU = el.umax ? (uCalcCorr != null && uCalcCorr <= el.umax) : true
+
+      // Indicador de si hay diferencia con las capas originales del LOSCAT
+      const hayModifCapas = !!(capasModif?.length && capasOriginal?.length)
 
       // Tabla de capas con R por capa
       let tablaCapa = ''
@@ -3060,13 +3081,14 @@ ${sc ? `<div class="data-row">
   <div class="data-item"><label>Descripción</label><span>${sc.desc}</span></div>
   ${sc.obs ? `<div class="data-item" style="flex-basis:100%"><label>Observaciones técnicas</label><span style="font-weight:normal;font-size:10pt">${sc.obs}</span></div>` : ''}
 </div>` : ''}
+${hayModifCapas ? `<div class="aviso" style="background:#fff7ed;border-color:#fed7aa;color:#92400e">⚙ Capas modificadas en Cálculo U respecto a la solución original LOSCAT ${sc?.cod}. El cálculo de U y la verificación higrotérmica reflejan la configuración modificada.</div>` : ''}
 
 ${tablaCapa}
 
 <table>
   <tr><th>Criterio normativo</th><th>Valor de diseño</th><th>Exigencia mínima</th><th>Norma / Fuente</th><th>Estado</th></tr>
   ${el.umax ? `<tr>
-    <td>Transmitancia térmica U${tbPct > 0 ? ` <span style="font-size:9pt;color:#b45309">(+${tbPct}% puente térmico)</span>` : ''}</td>
+    <td>Transmitancia térmica U${tbPct > 0 ? ` <span style="font-size:9pt;color:#b45309">(+${tbPct}% puente térmico)</span>` : ''}${hayModifCapas ? ' <span style="font-size:9pt;color:#92400e">(capas modificadas)</span>' : ''}</td>
     <td><b>${uCalcCorr != null ? uCalcCorr.toFixed(4) + ' W/m²K' : data?.u ? data.u + ' W/m²K' : '—'}</b>${tbPct > 0 && uCalc != null ? ` <span style="font-size:9pt;color:#64748b">(base ${uCalc.toFixed(4)})</span>` : ''}</td>
     <td>≤ ${el.umax} W/m²K</td>
     <td>DS N°15 MINVU · Zona ${proy.zona} · ${el.label}</td>
@@ -3750,6 +3772,19 @@ function AppInner() {
     setCalcUInit(prev => ({ ...prev, [elemKey]: null }))
   }
 
+  function onCalcUChange(elemKey, { capas, res }) {
+    // Actualizar calcUInit con las capas modificadas y el resultado calculado.
+    // Así exportarInforme y los checks siempre usan el U más reciente del usuario.
+    setCalcUInit(prev => ({
+      ...prev,
+      [elemKey]: {
+        ...(prev[elemKey] || {}),
+        capas,
+        res,  // resultado calcGlaser: { U, Rtot, condInter, ifaces, Tdew, ... }
+      }
+    }))
+  }
+
   return (
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header}>
@@ -3810,7 +3845,7 @@ function AppInner() {
             {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
             {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
-            {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} notas={notas} setNotas={setNotas} />}
+            {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
             {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} />}
             {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
