@@ -1317,7 +1317,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
 }
 
 // ─── CALCULADOR RF ACERO ──────────────────────────────────────────────────────
-function CalcRFAcero({ rfReq }) {
+function CalcRFAcero({ rfReq, tipo, sector }) {
   const [familia,     setFamilia]     = useState('HEB')
   const [serie,       setSerie]       = useState('200')
   const [caras,       setCaras]       = useState('3')   // '3'=viga, '4'=columna
@@ -1356,12 +1356,14 @@ function CalcRFAcero({ rfReq }) {
   return (
     <div style={{ ...S.card, marginTop:14, borderColor:'#fbbf24', background:'#fffbeb' }}>
       <p style={{ ...S.h2, color:'#92400e', marginBottom:8 }}>
-        🔥 Calculador RF — Estructura de Acero
+        🔥 Calculador RF — {tipo || 'Estructura de Acero'}
+        {sector && <span style={{ marginLeft:8, fontSize:12, fontWeight:400, color:'#92400e' }}>· {sector}</span>}
       </p>
       <div style={{ fontSize:11, color:'#78350f', marginBottom:12, background:'#fef3c7',
         border:'1px solid #fcd34d', borderRadius:5, padding:'7px 11px', lineHeight:1.5 }}>
-        ⚠ El acero estructural <b>no tiene resistencia al fuego intrínseca (F0)</b>.
-        Requiere protección ignífuga para cumplir la exigencia según <b>LOFC Ed.17 Annex B</b>.
+        ⚠ {tipo === 'Metalframe (acero liviano)'
+          ? <>Los perfiles de acero galvanizado del <b>metalframe</b> pierden resistencia a ~500°C igual que el acero estructural. <b>RF intrínseca: F0</b> — requiere protección ignífuga (DS N°76 / LOFC Ed.17 Annex B).</>
+          : <>El acero estructural <b>no tiene resistencia al fuego intrínseca (F0)</b>. Requiere protección ignífuga según <b>LOFC Ed.17 Annex B</b>.</>}
         {rfReq && <span> &nbsp;RF requerida para este proyecto: <b style={{ color:'#dc2626' }}>{rfReq}</b>.</span>}
       </div>
 
@@ -1760,11 +1762,25 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
           </div>
         )
       })}
-      {/* ── Calculador RF Acero — aparece si la estructura es acero ────── */}
-      {(proy.estructura === 'Estructura de acero' ||
-        (proy.estructuras || []).some(e => e.tipo === 'Estructura de acero')) && (
-        <CalcRFAcero rfReq={proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura} />
-      )}
+      {/* ── Calculador RF Acero/Metalframe — uno por cada sistema que lo requiera ── */}
+      {(() => {
+        const tiposConRF0 = ['Estructura de acero', 'Metalframe (acero liviano)']
+        const rfReq = proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura
+        const sistemas = (proy.estructuras || []).filter(e => tiposConRF0.includes(e.tipo))
+        // Si no hay estructuras[] pero proy.estructura coincide (retrocompat)
+        const fallback = sistemas.length === 0 && tiposConRF0.some(t => proy.estructura?.includes(t))
+        if (sistemas.length === 0 && !fallback) return null
+        return (
+          <>
+            {sistemas.length > 0
+              ? sistemas.map(s => (
+                  <CalcRFAcero key={s.id} rfReq={rfReq} tipo={s.tipo} sector={s.sector} />
+                ))
+              : <CalcRFAcero rfReq={rfReq} tipo={proy.estructura} sector="" />
+            }
+          </>
+        )
+      })()}
 
       <NotasPanel tabKey="fuego" notas={notas} setNotas={setNotas} />
     </div>
@@ -3819,10 +3835,11 @@ ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${pro
   <tr><th>Categoría</th><th>RF propuesta</th><th>RF mínima requerida</th><th>Estado</th></tr>
   ${rfRows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Sin datos de resistencia al fuego</td></tr>'}
 </table>
-${(proy.estructura === 'Estructura de acero' || (proy.estructuras || []).some(e => e.tipo === 'Estructura de acero')) ? `
-<h3 style="color:#92400e;margin-top:14px">🔥 Protección ignífuga requerida — Estructura de Acero</h3>
+${(['Estructura de acero','Metalframe (acero liviano)'].some(t => proy.estructura?.includes(t)) || (proy.estructuras || []).some(e => ['Estructura de acero','Metalframe (acero liviano)'].includes(e.tipo))) ? `
+<h3 style="color:#92400e;margin-top:14px">🔥 Protección ignífuga requerida — Sistemas con RF intrínseca F0</h3>
 <div class="aviso" style="border-color:#fcd34d;background:#fffbeb;color:#78350f">
-  <b>RF intrínseca del acero estructural: F0.</b> Se requiere protección ignífuga para toda clase de RF.
+  <b>RF intrínseca F0 — requiere protección ignífuga en todos los elementos.</b><br>
+  Sistemas afectados: <b>${(proy.estructuras||[]).filter(e=>['Estructura de acero','Metalframe (acero liviano)'].includes(e.tipo)).map(e=>e.tipo+(e.sector?` (${e.sector})`:'') ).join(', ') || proy.estructura}</b><br>
   RF estructural exigida: <b>${RF_PISOS(uso, proy.pisos) || RF_DEF[uso]?.estructura || '—'}</b>
   (${proy.pisos} pisos · uso ${uso}).
 </div>

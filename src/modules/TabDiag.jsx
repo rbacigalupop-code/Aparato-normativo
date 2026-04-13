@@ -218,14 +218,18 @@ function rfNum(rf) {
   return m ? parseInt(m[0]) : 0
 }
 
-// ─── Componente: editor de sistemas estructurales por tramo de piso ───────────
+// ─── Componente: editor de sistemas estructurales por tramo de piso / sector ──
+// Permite múltiples sistemas en el mismo piso siempre que tengan sector distinto
+// (útil para proyectos mixtos en un mismo nivel: albañilería + metalframe + acero)
 function EstructuraMixta({ estructuras, pisos, onChange }) {
-  const total = parseInt(pisos) || 1
+  const total    = parseInt(pisos) || 1
+  const unPiso   = total === 1  // cuando sólo hay 1 piso, ocultar los rangos
 
   function agregar() {
+    // Buscar primer piso libre, o 1 si todos están usados (en proyectos mixtos está bien)
     const usados = new Set(estructuras.flatMap(e => pisoRange(e.desde, e.hasta)))
-    const libre = Array.from({ length: total }, (_, i) => i + 1).find(p => !usados.has(p)) || 1
-    onChange([...estructuras, { id: Date.now(), tipo: '', desde: String(libre), hasta: String(libre) }])
+    const libre  = Array.from({ length: total }, (_, i) => i + 1).find(p => !usados.has(p)) || 1
+    onChange([...estructuras, { id: Date.now(), tipo: '', sector: '', desde: String(libre), hasta: String(libre) }])
   }
 
   function actualizar(id, campo, valor) {
@@ -236,18 +240,29 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
     onChange(estructuras.filter(e => e.id !== id))
   }
 
-  // Validación de cobertura y solapamientos
-  const todos = Array.from({ length: total }, (_, i) => i + 1)
-  const asignados = new Set(estructuras.flatMap(e => pisoRange(e.desde, e.hasta)))
-  const sinCubrir = todos.filter(p => !asignados.has(p))
-  const solapados = estructuras.some((e, i) =>
-    estructuras.some((f, j) => i !== j && pisoRange(e.desde, e.hasta).some(p => pisoRange(f.desde, f.hasta).includes(p)))
+  // Solapamiento REAL: mismo rango de pisos Y mismo sector (o ambos sin sector)
+  // — Si tienen sectores distintos en el mismo piso → es mixto válido
+  const solapados = !unPiso && estructuras.some((e, i) =>
+    estructuras.some((f, j) => {
+      if (i === j) return false
+      const mismoRango = pisoRange(e.desde, e.hasta).some(p => pisoRange(f.desde, f.hasta).includes(p))
+      const mismoSector = (!e.sector?.trim() && !f.sector?.trim()) ||
+                          (e.sector?.trim() && e.sector.trim() === f.sector?.trim())
+      return mismoRango && mismoSector
+    })
   )
 
-  const selStyle = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', minWidth: 180 }
-  const numStyle = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', width: 52, textAlign: 'center' }
-  const btnDel   = { background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }
-  const btnAdd   = { background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
+  // Pisos sin cubrir (solo advierte cuando hay múltiples pisos)
+  const todos      = Array.from({ length: total }, (_, i) => i + 1)
+  const asignados  = new Set(estructuras.flatMap(e => pisoRange(e.desde, e.hasta)))
+  const sinCubrir  = !unPiso ? todos.filter(p => !asignados.has(p)) : []
+  const todosOk    = estructuras.length > 0 && estructuras.every(e => e.tipo) && !solapados
+
+  const selStyle  = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', minWidth: 175 }
+  const numStyle  = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', width: 52, textAlign: 'center' }
+  const txtStyle  = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', width: 148 }
+  const btnDel    = { background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }
+  const btnAdd    = { background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
 
   return (
     <div>
@@ -257,11 +272,14 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
         </div>
       )}
 
-      {estructuras.map((e, idx) => {
+      {estructuras.map((e) => {
         const rfReal = RF_EST[e.tipo]
+        const rfColor = rfNum(rfReal) === 0 ? '#dc2626' : rfNum(rfReal) >= 150 ? '#166534' : '#1e40af'
         return (
-          <div key={e.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-            {/* Tipo */}
+          <div key={e.id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap',
+            background: '#f8fafc', borderRadius: 6, padding: '6px 8px', border: '1px solid #e2e8f0' }}>
+
+            {/* Tipo de estructura */}
             <select style={selStyle} value={e.tipo} onChange={ev => actualizar(e.id, 'tipo', ev.target.value)}>
               <option value="">Tipo de estructura...</option>
               {ESTRUCTURAS.filter(t => t !== 'Mixta HA + albanileria').map(t => (
@@ -269,24 +287,33 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
               ))}
             </select>
 
-            {/* Tramo */}
-            <span style={{ fontSize: 11, color: '#64748b' }}>Pisos</span>
+            {/* Sector / zona de planta (siempre visible, requerido si hay 2+ sistemas en el mismo piso) */}
             <input
-              style={numStyle} type="number" min={1} max={total}
-              value={e.desde}
-              onChange={ev => actualizar(e.id, 'desde', ev.target.value)}
-            />
-            <span style={{ fontSize: 11, color: '#64748b' }}>al</span>
-            <input
-              style={numStyle} type="number" min={1} max={total}
-              value={e.hasta}
-              onChange={ev => actualizar(e.id, 'hasta', ev.target.value)}
+              style={{ ...txtStyle, borderColor: (estructuras.length > 1 && !e.sector?.trim()) ? '#fca5a5' : '#cbd5e1' }}
+              value={e.sector || ''}
+              placeholder={unPiso && estructuras.length > 1 ? 'Sector (requerido)' : 'Sector / zona (opcional)'}
+              onChange={ev => actualizar(e.id, 'sector', ev.target.value)}
+              title="Identifica la zona o cuerpo de la edificación: 'Cuerpo norte', 'Muro adosamiento', 'Zona metalframe', etc."
             />
 
-            {/* RF real del sistema */}
-            {rfReal && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: rfNum(rfReal) >= 150 ? '#166534' : rfNum(rfReal) >= 60 ? '#1e40af' : '#dc2626', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, padding: '2px 7px' }}>
-                RF real: {rfReal}
+            {/* Tramo de pisos — solo si hay más de 1 piso */}
+            {!unPiso && (
+              <>
+                <span style={{ fontSize: 11, color: '#64748b' }}>Pisos</span>
+                <input style={numStyle} type="number" min={1} max={total}
+                  value={e.desde} onChange={ev => actualizar(e.id, 'desde', ev.target.value)} />
+                <span style={{ fontSize: 11, color: '#64748b' }}>al</span>
+                <input style={numStyle} type="number" min={1} max={total}
+                  value={e.hasta} onChange={ev => actualizar(e.id, 'hasta', ev.target.value)} />
+              </>
+            )}
+
+            {/* Badge RF real */}
+            {e.tipo && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: rfColor,
+                background: '#fff', border: `1px solid ${rfColor}20`, borderRadius: 4, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+                RF real: {rfReal || '—'}
+                {rfReal === 'F0' && <span style={{ marginLeft:4, fontSize:10 }}>⚠ proteger</span>}
               </span>
             )}
 
@@ -298,17 +325,29 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
 
       <button style={btnAdd} onClick={agregar}>+ Agregar sistema</button>
 
-      {/* Advertencias */}
+      {/* Advertencias y estado */}
       {solapados && (
-        <div style={{ ...S.err, marginTop: 6 }}>⚠ Hay pisos con más de un sistema asignado. Corrige los tramos.</div>
+        <div style={{ ...S.err, marginTop: 6 }}>
+          ⚠ Hay pisos con el mismo sector asignado a más de un sistema. Define sectores distintos o corrige los tramos.
+        </div>
       )}
-      {!solapados && sinCubrir.length > 0 && estructuras.length > 0 && (
+      {!unPiso && !solapados && sinCubrir.length > 0 && estructuras.length > 0 && (
         <div style={{ ...S.warn, marginTop: 6 }}>
           ⚠ Pisos sin sistema estructural asignado: {sinCubrir.join(', ')}
         </div>
       )}
-      {!solapados && sinCubrir.length === 0 && estructuras.length > 0 && estructuras.every(e => e.tipo) && (
-        <div style={{ ...S.ok, marginTop: 6, fontSize: 10 }}>✓ Todos los pisos cubiertos</div>
+      {todosOk && (unPiso || sinCubrir.length === 0) && (
+        <div style={{ ...S.ok, marginTop: 6, fontSize: 10 }}>
+          ✓ {unPiso
+            ? `${estructuras.length} sistema${estructuras.length > 1 ? 's' : ''} definido${estructuras.length > 1 ? 's' : ''} — planta única`
+            : 'Todos los pisos cubiertos'}
+          {estructuras.length > 1 && <span style={{ marginLeft: 4 }}>· Proyecto con estructura mixta por sectores</span>}
+        </div>
+      )}
+      {estructuras.length > 1 && estructuras.some(e => e.sector?.trim()) && (
+        <div style={{ marginTop: 4, fontSize: 10, color: '#1e40af' }}>
+          💡 Múltiples sistemas en el mismo piso: cada sector se evaluará independientemente en la pestaña Fuego.
+        </div>
       )}
     </div>
   )
@@ -383,7 +422,9 @@ export default function TabDiag({ proy, setProy }) {
   // Sincroniza estructuras[] y deriva estructura (string) para retrocompatibilidad
   function setEstruct(newArr) {
     const tipos = [...new Set(newArr.map(e => e.tipo).filter(Boolean))]
-    const derived = tipos.length === 1 ? tipos[0] : tipos.length > 1 ? 'Mixta HA + albanileria' : ''
+    // Mantener tipos reales cuando hay múltiples — no colapsar a 'Mixta HA + albanileria'
+    // para que CalcRFAcero pueda detectar acero/metalframe por nombre de tipo
+    const derived = tipos.length === 1 ? tipos[0] : tipos.length > 1 ? tipos.join(' + ') : ''
     setProy(p => ({ ...p, estructuras: newArr, estructura: derived }))
   }
 
@@ -399,7 +440,7 @@ export default function TabDiag({ proy, setProy }) {
           'Si necesitas otra zona (proyecto en altura, override), cámbiala manualmente en el selector de zona.',
           'Selecciona el <b>uso del edificio</b>: determina las exigencias de RF, Rw y riesgo de incendio.',
           'Ingresa el <b>N° de pisos sobre terreno</b>: define la RF mínima de la estructura (RF_PISOS).',
-          'Define el <b>sistema estructural</b> por tramo de pisos con "+ Agregar sistema". Puedes combinar tipos (ej: albañilería piso 1, madera pisos 2–3).',
+          'Define el <b>sistema estructural</b> con "+ Agregar sistema". Puedes combinar tipos por tramo de pisos (ej: albañilería piso 1, acero pisos 2–3) o por <b>sector dentro del mismo piso</b> (ej: albañilería confinada + metalframe + acero en piso único). Usa el campo <b>Sector</b> para identificar cada zona.',
           'La <b>ficha normativa</b> se genera en tiempo real con todos los parámetros exigidos (U, RF, Rw, infiltración, sobrecimiento).',
         ]}
         normativa="DS N°15 MINVU (vigente 28/11/2025) · OGUC Título 4 · NCh1079:2019 · LOFC Ed.17 2025 · NCh352"
@@ -525,7 +566,7 @@ export default function TabDiag({ proy, setProy }) {
               pisos={proy.pisos}
               onChange={setEstruct}
             />
-            <span style={S.norm}>Permite sistemas distintos por tramo de pisos — LOFC Ed.17 2025</span>
+            <span style={S.norm}>Permite múltiples sistemas por sector de planta o tramo de pisos — LOFC Ed.17 2025</span>
           </div>
         </div>
 
