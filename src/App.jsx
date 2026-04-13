@@ -88,6 +88,104 @@ function fichaLayerColor(nombre) {
   return { fill: '#f8fafc', stroke: '#cbd5e1', pat: 'plain' }
 }
 
+// ── Diagrama de sección constructiva para el informe (funciona con capas arbitrarias) ──
+function capasSeccionSvgStr(capas, opts = {}) {
+  if (!capas?.length) return ''
+  const { titulo = 'Sección constructiva (int → ext)', uCalc, uMax, label = '' } = opts
+  const W = 600, H = 290
+  const PL = 44, PR = 12, PT = 46, PB = 110
+  const gW = W - PL - PR, gH = H - PT - PB
+
+  const nCam = capas.filter(c => c.esCamara).length
+  const realEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + Math.max(parseFloat(c.esp || 0), 1), 0)
+  const CAM_FRAC = Math.min(0.06, 0.35 / Math.max(nCam, 1))
+  const realFrac = 1 - nCam * CAM_FRAC
+  const rawW = capas.map(c => c.esCamara
+    ? gW * CAM_FRAC
+    : realEsp > 0 ? gW * realFrac * (Math.max(parseFloat(c.esp || 0), 1) / realEsp) : gW / capas.length)
+
+  const defs = `<defs>
+<pattern id="cs-insul" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
+<pattern id="cs-conc"  patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
+<pattern id="cs-wood"  patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/><line x1="0" y1="4" x2="4" y2="4" stroke="#d97706" stroke-width="0.7" opacity="0.3"/></pattern>
+<pattern id="cs-brick" patternUnits="userSpaceOnUse" width="16" height="10"><rect x="0" y="0" width="16" height="10" fill="none" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="8" y1="0" x2="8" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="0" y1="5" x2="16" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/></pattern>
+<pattern id="cs-air"   patternUnits="userSpaceOnUse" width="10" height="10"><circle cx="5" cy="5" r="1.5" fill="#7dd3fc" opacity="0.4"/></pattern>
+<pattern id="cs-mem"   patternUnits="userSpaceOnUse" width="6" height="4"><line x1="0" y1="2" x2="6" y2="2" stroke="#a78bfa" stroke-width="2" opacity="0.6"/></pattern>
+<pattern id="cs-metal" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
+</defs>`
+
+  let xCur = PL
+  const layerParts = capas.map((c, i) => {
+    const w = rawW[i]
+    const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.name || c.n || '—')
+    const col = fichaLayerColor(name)
+    const patKey = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat) ? col.pat : null
+    const mx = xCur + w / 2
+    const espStr  = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))} mm`
+    const lamStr  = c.esCamara ? '' : (parseFloat(c.lam) > 0 ? `λ=${parseFloat(c.lam).toFixed(3)}` : '')
+    const Ri = c.esCamara ? 0.13 : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp)/1000)/parseFloat(c.lam) : 0)
+    const rStr = Ri > 0 ? `R=${Ri.toFixed(3)}` : ''
+    const shortN = name.length > 18 ? name.slice(0, 17) + '…' : name
+
+    // Tick lines at top+bottom of layer block
+    const tickT = `<line x1="${xCur.toFixed(1)}" x2="${xCur.toFixed(1)}" y1="${PT - 6}" y2="${PT}" stroke="#94a3b8" stroke-width="0.8"/>`
+    const tickB = `<line x1="${xCur.toFixed(1)}" x2="${xCur.toFixed(1)}" y1="${PT+gH}" y2="${PT+gH+6}" stroke="#94a3b8" stroke-width="0.8"/>`
+    // espesor label top, centrado
+    const espLblT = w > 24 ? `<text x="${mx.toFixed(1)}" y="${PT - 8}" text-anchor="middle" font-size="8" fill="#1e293b" font-weight="700">${espStr}</text>` : ''
+    // capa number badge
+    const numBadge = `<rect x="${(mx - 6).toFixed(1)}" y="${(PT + 4).toFixed(1)}" width="12" height="12" rx="3" fill="${col.stroke}" opacity="0.85"/>
+<text x="${mx.toFixed(1)}" y="${(PT + 13).toFixed(1)}" text-anchor="middle" font-size="8" fill="white" font-weight="bold">${i + 1}</text>`
+    // λ and R inside block (only if wide enough)
+    const lamLbl = (w > 44 && lamStr) ? `<text x="${mx.toFixed(1)}" y="${(PT + gH/2 + 4).toFixed(1)}" text-anchor="middle" font-size="8" fill="#374151">${lamStr}</text>` : ''
+    const rLbl   = (w > 44 && rStr)   ? `<text x="${mx.toFixed(1)}" y="${(PT + gH/2 + 14).toFixed(1)}" text-anchor="middle" font-size="8" fill="#64748b">${rStr}</text>` : ''
+    // Rotated label at bottom
+    const lY = PT + gH + 14
+    const nameLabel = `<text x="${mx.toFixed(1)}" y="${lY}" text-anchor="start" font-size="8.5" fill="#1e293b" font-weight="600"
+      transform="rotate(40 ${mx.toFixed(1)} ${lY})">${shortN}</text>`
+
+    const out = [
+      `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${gH}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2"/>`,
+      patKey ? `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${gH}" fill="url(#cs-${patKey})" stroke="none"/>` : '',
+      tickT, tickB, espLblT, numBadge, lamLbl, rLbl, nameLabel,
+    ].filter(Boolean).join('\n')
+    xCur += w
+    return out
+  })
+  // Closing tick at right edge
+  const tickEnd = `<line x1="${(PL+gW).toFixed(1)}" x2="${(PL+gW).toFixed(1)}" y1="${PT-6}" y2="${PT}" stroke="#94a3b8" stroke-width="0.8"/>
+<line x1="${(PL+gW).toFixed(1)}" x2="${(PL+gW).toFixed(1)}" y1="${PT+gH}" y2="${PT+gH+6}" stroke="#94a3b8" stroke-width="0.8"/>`
+
+  const totalEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0)
+  const cumpleU  = uMax && uCalc != null ? parseFloat(uCalc) <= uMax : null
+  const uBadge   = uCalc != null ? `<text x="${W/2}" y="${H - 6}" text-anchor="middle" font-size="9" fill="${cumpleU === false ? '#dc2626' : '#166534'}" font-weight="700">
+    U = ${parseFloat(uCalc).toFixed(4)} W/m²K${uMax ? ` — Límite DS N°15: ≤ ${uMax} W/m²K — ${cumpleU ? '✓ CUMPLE' : '✗ NO CUMPLE'}` : ''}</text>` : ''
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+${defs}
+<rect width="${W}" height="${H}" fill="white" rx="6" stroke="#e2e8f0" stroke-width="1.5"/>
+<text x="${W/2}" y="16" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="700">${titulo}</text>
+<text x="${W/2}" y="28" text-anchor="middle" font-size="8.5" fill="#64748b">${label} · ${capas.length} capas · Espesor total: ${totalEsp.toFixed(0)} mm</text>
+<text x="${PL - 4}" y="${PT + gH/2 + 4}" text-anchor="end" font-size="9" fill="#475569" font-weight="700">INT</text>
+<text x="${PL + gW + 4}" y="${PT + gH/2 + 4}" text-anchor="start" font-size="9" fill="#475569" font-weight="700">EXT</text>
+<line x1="${PL}" y1="${PT-2}" x2="${PL}" y2="${PT+gH+2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
+<line x1="${PL+gW}" y1="${PT-2}" x2="${PL+gW}" y2="${PT+gH+2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
+${layerParts.join('\n')}
+${tickEnd}
+<rect x="${PL}" y="${H-22}" width="${gW}" height="14" fill="#f1f5f9" rx="2"/>
+${uBadge}
+</svg>`
+}
+
+// ── Diagrama comparativo original vs modificado ────────────────────────────────
+function capasComparacionSvgStr(capasOrig, capasModif, opts = {}) {
+  const { label = '', uCalcOrig, uCalcModif, uMax } = opts
+  const svgOrig  = capasSeccionSvgStr(capasOrig,  { titulo: `Configuración original — ${label}`, uCalc: uCalcOrig, uMax, label })
+  const svgModif = capasSeccionSvgStr(capasModif, { titulo: `Configuración modificada — ${label}`, uCalc: uCalcModif, uMax, label })
+  const W = 600, H = 290
+  // Devolver ambos SVGs como HTML para mostrarlos apilados en el informe
+  return { svgOrig, svgModif }
+}
+
 function fichaScSvgStr(s, capas, opts = {}) {
   const W = 560, H = 270
   const PL = 38, PR = 38, PT = 38, PB = 96
@@ -3074,6 +3172,41 @@ ${res.condInter
       const rwNum = parseInt(data?.rw || 0)
       const cumpleRw = !el.rwReq || !rwNum || rwNum >= el.rwReq
 
+      // ── Diagrama SVG de sección ──────────────────────────────────────────
+      let seccionHtml = ''
+      if (capas?.length) {
+        const uParaDiag = uCalcCorr != null ? uCalcCorr : (uCalc != null ? uCalc : null)
+        if (hayModifCapas && capasOriginal?.length) {
+          // Mostrar ambas secciones: original arriba, modificada abajo
+          const uOrigCalc = (() => {
+            const cvO = capasOriginal.map(c => c.esCamara ? { esCamara:true } : { mat:c.mat, lam:parseFloat(c.lam), esp:parseFloat(c.esp)/1000, mu:parseFloat(c.mu||1) }).filter(c => c.esCamara||(c.lam>0&&c.esp>0))
+            if (!cvO.length || !zonaData) return null
+            const rO = calcGlaser(cvO, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo)
+            return rO ? parseFloat(rO.U) : null
+          })()
+          const svgOrig  = capasSeccionSvgStr(capasOriginal, { titulo:`Configuración original LOSCAT ${sc?.cod} (int → ext)`, uCalc: uOrigCalc, uMax: el.umax, label: el.label })
+          const svgModif = capasSeccionSvgStr(capas,         { titulo:`Configuración modificada — ${el.label} (int → ext)`,   uCalc: uParaDiag,  uMax: el.umax, label: el.label })
+          seccionHtml = `
+<h3>📐 Diagrama de sección — original vs. modificado</h3>
+<div class="fig" style="margin-bottom:8px">
+  ${svgOrig}
+  <div class="fig-cap">Sección original — LOSCAT ${sc?.cod}${uOrigCalc != null ? ` · U = ${uOrigCalc.toFixed(4)} W/m²K` : ''}</div>
+</div>
+<div class="fig">
+  ${svgModif}
+  <div class="fig-cap">Sección modificada — ${el.label}${uParaDiag != null ? ` · U = ${parseFloat(uParaDiag).toFixed(4)} W/m²K` : ''}</div>
+</div>`
+        } else {
+          const svgSec = capasSeccionSvgStr(capas, { titulo:`${el.label}${sc ? ` — LOSCAT ${sc.cod}` : ''} (int → ext)`, uCalc: uParaDiag, uMax: el.umax, label: el.label })
+          seccionHtml = `
+<h3>📐 Diagrama de sección constructiva</h3>
+<div class="fig">
+  ${svgSec}
+  <div class="fig-cap">${el.label}${sc ? ` — LOSCAT ${sc.cod}` : ''} · Sección transversal (int → ext) · ISO 6946</div>
+</div>`
+        }
+      }
+
       return `
 <h3>${el.label}${sc ? ` — LOSCAT ${sc.cod}` : ''}</h3>
 ${sc ? `<div class="data-row">
@@ -3082,6 +3215,8 @@ ${sc ? `<div class="data-row">
   ${sc.obs ? `<div class="data-item" style="flex-basis:100%"><label>Observaciones técnicas</label><span style="font-weight:normal;font-size:10pt">${sc.obs}</span></div>` : ''}
 </div>` : ''}
 ${hayModifCapas ? `<div class="aviso" style="background:#fff7ed;border-color:#fed7aa;color:#92400e">⚙ Capas modificadas en Cálculo U respecto a la solución original LOSCAT ${sc?.cod}. El cálculo de U y la verificación higrotérmica reflejan la configuración modificada.</div>` : ''}
+
+${seccionHtml}
 
 ${tablaCapa}
 
