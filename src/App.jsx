@@ -3440,6 +3440,7 @@ ${notasEntries.map(([k, v]) => `
     <div>
       <div style="font-size:11px;opacity:0.8;margin-bottom:6px">Plataforma de Verificación Normativa OGUC</div>
       <div style="font-size:20px;font-weight:800;line-height:1.2;margin-bottom:4px">${proy.nombre || 'Sin nombre de proyecto'}</div>
+      ${proy.direccion ? `<div style="font-size:11px;opacity:0.85;margin-bottom:2px">📍 ${proy.direccion}${proy.rolAvaluo ? ` &nbsp;·&nbsp; Rol: ${proy.rolAvaluo}` : ''}</div>` : ''}
       <div style="font-size:12px;opacity:0.85">${proy.comuna ? proy.comuna + ' · ' : ''}Zona Térmica ${proy.zona || '—'} · ${uso || '—'} · ${proy.pisos || '—'} piso(s)</div>
     </div>
   </div>
@@ -3455,6 +3456,10 @@ ${notasEntries.map(([k, v]) => `
 <!-- Datos del proyecto y profesional -->
 <div class="data-row">
   <div class="data-item"><label>Proyecto</label><span>${proy.nombre || '[sin nombre]'}</span></div>
+  ${proy.propietario ? `<div class="data-item"><label>Propietario / Mandante</label><span>${proy.propietario}</span></div>` : ''}
+  ${proy.rutPropietario ? `<div class="data-item"><label>RUT propietario</label><span>${proy.rutPropietario}</span></div>` : ''}
+  ${proy.direccion ? `<div class="data-item"><label>Dirección</label><span>${proy.direccion}</span></div>` : ''}
+  ${proy.rolAvaluo ? `<div class="data-item"><label>Rol de avalúo</label><span>${proy.rolAvaluo}</span></div>` : ''}
   <div class="data-item"><label>Arquitecto / Proyectista</label><span>${proy.arq || '[sin nombre]'}</span></div>
   <div class="data-item"><label>Comuna</label><span>${proy.comuna || '—'}</span></div>
   <div class="data-item"><label>Zona térmica</label><span>${proy.zona || '—'} — ${ZONAS[proy.zona]?.n || '—'}</span></div>
@@ -3464,8 +3469,16 @@ ${notasEntries.map(([k, v]) => `
   <div class="data-item"><label>Fecha emisión</label><span>${fechaHoy}</span></div>
 </div>
 ${zonaData ? `<div class="aviso">Condiciones de diseño Zona ${proy.zona}: Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Exigencias DS N°15: U<sub>muro</sub> ≤ ${zonaData.muro} · U<sub>techo</sub> ≤ ${zonaData.techo} · U<sub>piso</sub> ≤ ${zonaData.piso} W/m²K</div>` : ''}
-${(proy.profesional || proy.arq) ? `
+${(proy.profesional || proy.arq || proy.propietario) ? `
 <div style="margin-top:12px;padding:12px 16px;background:#eff6ff;border-radius:8px;border-left:4px solid #1e40af;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+  ${proy.propietario ? `
+  <div style="flex:1;min-width:180px;padding-right:16px;border-right:1px solid #bfdbfe">
+    <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Propietario / Mandante</div>
+    <div style="font-weight:700;font-size:12pt;color:#1e293b">${proy.propietario}</div>
+    ${proy.rutPropietario ? `<div style="font-size:10pt;color:#475569">RUT: ${proy.rutPropietario}</div>` : ''}
+    ${proy.direccion ? `<div style="font-size:10pt;color:#475569">📍 ${proy.direccion}</div>` : ''}
+    ${proy.rolAvaluo ? `<div style="font-size:10pt;color:#64748b">Rol de avalúo: ${proy.rolAvaluo}</div>` : ''}
+  </div>` : ''}
   <div style="flex:1;min-width:180px">
     <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Profesional Responsable</div>
     <div style="font-weight:800;font-size:13pt;color:#1e293b">${proy.profesional || proy.arq || '—'}</div>
@@ -3491,6 +3504,10 @@ ${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complet
 <h2>Módulo 1 — Diagnóstico del proyecto</h2>
 <table>
   <tr><th>Ítem</th><th>Valor</th><th>Fuente / Norma</th></tr>
+  <tr><td>Nombre del proyecto</td><td><b>${proy.nombre || '—'}</b></td><td>Expediente DOM</td></tr>
+  ${proy.propietario ? `<tr><td>Propietario / Mandante</td><td><b>${proy.propietario}</b>${proy.rutPropietario ? ` &nbsp;·&nbsp; RUT: ${proy.rutPropietario}` : ''}</td><td>Expediente DOM</td></tr>` : ''}
+  ${proy.direccion ? `<tr><td>Dirección de la obra</td><td><b>${proy.direccion}</b></td><td>Expediente DOM</td></tr>` : ''}
+  ${proy.rolAvaluo ? `<tr><td>Rol de avalúo</td><td><b>${proy.rolAvaluo}</b></td><td>SII — Expediente DOM</td></tr>` : ''}
   <tr><td>Zona térmica</td><td><b>${proy.zona || '—'} — ${ZONAS[proy.zona]?.n || '—'}</b>${ZONAS[proy.zona]?.ej ? ` (${ZONAS[proy.zona].ej})` : ''}</td><td>DS N°15 MINVU Tabla 1</td></tr>
   <tr><td>Uso del edificio</td><td><b>${uso || '—'}</b></td><td>OGUC Art. 4.5.1</td></tr>
   <tr><td>N° de pisos</td><td><b>${proy.pisos || '—'}</b></td><td>RF_PISOS(uso, pisos) → ${RF_PISOS(uso, proy.pisos) || '—'}</td></tr>
@@ -3624,7 +3641,7 @@ export default function App() {
 function AppInner() {
   const tokenCtx = useToken()
   const [tab, setTab] = useState(0)
-  const [proy, setProy] = useState({ nombre: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', estructura: '', estructuras: [], profesional: '', titulo: '', registro: '', email: '', telefono: '' })
+  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', estructura: '', estructuras: [], profesional: '', titulo: '', registro: '', email: '', telefono: '' })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')

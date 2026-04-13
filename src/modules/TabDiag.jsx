@@ -146,11 +146,13 @@ function ComunaSearch({ value, onChange, overrides }) {
 // ─── Componente: barra de progreso del formulario ────────────────────────────
 function ProgresoForm({ proy }) {
   const campos = [
-    { key: 'nombre',     label: 'Nombre proyecto',  check: () => !!proy.nombre },
-    { key: 'zona',       label: 'Zona térmica',     check: () => !!proy.zona },
-    { key: 'uso',        label: 'Uso del edificio', check: () => !!proy.uso },
-    { key: 'pisos',      label: 'N° de pisos',      check: () => !!proy.pisos },
-    { key: 'estructura', label: 'Estructura',        check: () => (proy.estructuras?.length > 0 && proy.estructuras.every(e => e.tipo)) },
+    { key: 'nombre',        label: 'Nombre proyecto',   check: () => !!proy.nombre },
+    { key: 'propietario',   label: 'Propietario',       check: () => !!proy.propietario },
+    { key: 'direccion',     label: 'Dirección',         check: () => !!proy.direccion },
+    { key: 'zona',          label: 'Zona térmica',      check: () => !!proy.zona },
+    { key: 'uso',           label: 'Uso del edificio',  check: () => !!proy.uso },
+    { key: 'pisos',         label: 'N° de pisos',       check: () => !!proy.pisos },
+    { key: 'estructura',    label: 'Estructura',         check: () => (proy.estructuras?.length > 0 && proy.estructuras.every(e => e.tipo)) },
   ]
   const completados = campos.filter(c => c.check()).length
   const pct = Math.round((completados / campos.length) * 100)
@@ -407,18 +409,39 @@ export default function TabDiag({ proy, setProy }) {
         <p style={S.h2}>Datos del proyecto</p>
         <ProgresoForm proy={proy} />
 
-        {/* Fila 1: datos generales */}
+        {/* Fila 1: identificación del proyecto */}
         <div style={{ marginBottom: 6, fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Identificación
+          Identificación del proyecto
         </div>
-        <div style={{ ...S.row, marginBottom: 14 }}>
+        <div style={{ ...S.row, marginBottom: 10 }}>
           <div style={S.col}>
             <label style={S.label(false)}>Nombre del proyecto</label>
-            <input style={S.input(false)} value={proy.nombre} onChange={e => setPr('nombre', e.target.value)} placeholder="Ej: Edificio Los Olmos" />
+            <input style={S.input(false)} value={proy.nombre || ''} onChange={e => setPr('nombre', e.target.value)} placeholder="Ej: Edificio Los Olmos" />
+          </div>
+          <div style={S.col}>
+            <label style={S.label(false)}>Dirección</label>
+            <input style={S.input(false)} value={proy.direccion || ''} onChange={e => setPr('direccion', e.target.value)} placeholder="Calle N° / Lote / Parcela" />
+          </div>
+          <div style={S.col}>
+            <label style={S.label(false)}>Rol de avalúo</label>
+            <input style={{ ...S.input(false), width: 130 }} value={proy.rolAvaluo || ''} onChange={e => setPr('rolAvaluo', e.target.value)} placeholder="Ej: 123-45" />
+            <span style={S.norm}>SII — para expediente DOM</span>
+          </div>
+        </div>
+
+        {/* Fila 1b: propietario */}
+        <div style={{ ...S.row, marginBottom: 14 }}>
+          <div style={S.col}>
+            <label style={S.label(false)}>Propietario / Mandante</label>
+            <input style={S.input(false)} value={proy.propietario || ''} onChange={e => setPr('propietario', e.target.value)} placeholder="Nombre completo o razón social" />
+          </div>
+          <div style={S.col}>
+            <label style={S.label(false)}>RUT propietario</label>
+            <input style={{ ...S.input(false), width: 130 }} value={proy.rutPropietario || ''} onChange={e => setPr('rutPropietario', e.target.value)} placeholder="12.345.678-9" />
           </div>
           <div style={S.col}>
             <label style={S.label(false)}>Arquitecto responsable</label>
-            <input style={S.input(false)} value={proy.arq} onChange={e => setPr('arq', e.target.value)} placeholder="Nombre + N° colegiado" />
+            <input style={S.input(false)} value={proy.arq || ''} onChange={e => setPr('arq', e.target.value)} placeholder="Nombre + N° colegiado" />
           </div>
         </div>
 
