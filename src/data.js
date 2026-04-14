@@ -16,7 +16,141 @@ export const getUIdx=u=>{const i=U_NIVELES.findIndex(v=>u<=v);return i<0?11:i;};
 export const TIPOS=["Vivienda","Educacion","Salud","Oficina","Comercio","Industrial"];
 export const USOS_RT=["Vivienda","Educacion","Salud"];
 export const ESTRUCTURAS=["Hormigon armado","Albanileria confinada","Albanileria armada","Estructura de acero","Metalframe (acero liviano)","Estructura de madera","Mixta HA + albanileria"];
+// RF_DEF: valores de respaldo para destinos no cubiertos por Tabla 1 OGUC (Educación, Industrial)
+// o cuando no se ha ingresado superficie edificada.
 export const RF_DEF={Vivienda:{estructura:"F30",muros_sep:"F60",escaleras:"F60",cubierta:"F15"},Educacion:{estructura:"F60",muros_sep:"F60",escaleras:"F90",cubierta:"F30"},Salud:{estructura:"F90",muros_sep:"F90",escaleras:"F120",cubierta:"F30"},Oficina:{estructura:"F60",muros_sep:"F60",escaleras:"F90",cubierta:"F30"},Comercio:{estructura:"F60",muros_sep:"F60",escaleras:"F90",cubierta:"F30"},Industrial:{estructura:"F90",muros_sep:"F90",escaleras:"F120",cubierta:"F60"}};
+
+// ─── OGUC Tít. 4 Cap. 3 — Tabla de elementos de construcción ─────────────────
+// Cada letra (a/b/c/d) define los RF mínimos por tipo de elemento constructivo:
+// col 1: Soporte cargas subterráneo
+// col 2: Soporte cargas sobre terreno (estructura principal, pilares, vigas, muros portantes)
+// col 3: Muros separación entre distintos propietarios o destinos
+// col 4: Cajas de escalera, ascensores y ductos
+// col 5: Muros separación entre unidades del mismo destino
+// col 6: Paredes interiores divisorias no estructurales de una unidad
+// col 7: Cubierta (cuando separa recintos habitables de recintos no habitables)
+// col 8: Entrepisos / Cubierta sin función de separación
+// col 9: Escaleras
+export const OGUC_RF_LETRAS = {
+  a: { 1:'F180', 2:'F120', 3:'F120', 4:'F120', 5:'F120', 6:'F30',  7:'F60',  8:'F120', 9:'F60'  },
+  b: { 1:'F150', 2:'F120', 3:'F90',  4:'F90',  5:'F90',  6:'F15',  7:'F30',  8:'F90',  9:'F60'  },
+  c: { 1:'F120', 2:'F90',  3:'F60',  4:'F60',  5:'F60',  6:null,   7:'F15',  8:'F60',  9:'F30'  },
+  d: { 1:'F120', 2:'F60',  3:'F60',  4:'F60',  5:'F30',  6:null,   7:null,   8:'F30',  9:'F15'  },
+}
+
+// Mapeo elemento del proyecto → columna OGUC
+export const OGUC_ELEM_COL = {
+  estructura:   2,  // soporte de cargas sobre terreno
+  muros_sep:    3,  // muros entre distintos propietarios o destinos
+  cajas_esc:    4,  // cajas de escalera, ascensores y ductos
+  muros_mismo:  5,  // muros entre unidades del mismo destino
+  paredes_div:  6,  // paredes divisorias no estructurales
+  cubierta:     7,  // cubierta con función de separación
+  entrepisos:   8,  // entrepisos / cubierta sin función de separación
+  escaleras:    9,  // escaleras
+}
+
+// ─── OGUC Tít. 4 Cap. 3 — Tabla 1: Destino + Superficie + N° Pisos → Letra ──
+// Cada entrada: { m2Min, m2Max, letras: [piso1, piso2, ..., piso6, piso7+] }
+// Fuente: OGUC Tabla 1, Tít. 4 Cap. 3 (Condiciones de Seguridad contra Incendio)
+export const OGUC_TABLA1 = {
+  Habitacional: [
+    { m2Min: 0, m2Max: Infinity, letras: ['d','d','c','c','b','a','a'] },
+  ],
+  'Hoteles o similares': [
+    { m2Min: 5001, m2Max: Infinity, letras: ['c','b','a','a','a','a','a'] },
+    { m2Min: 1501, m2Max: 5000,     letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['c','c','b','b','a','a','a'] },
+    { m2Min: 0,    m2Max: 500,      letras: ['d','c','b','b','a','a','a'] },
+  ],
+  Oficinas: [
+    { m2Min: 1501, m2Max: Infinity, letras: ['c','c','b','b','a','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['c','c','c','b','b','a','a'] },
+    { m2Min: 0,    m2Max: 500,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  Museos: [
+    { m2Min: 1501, m2Max: Infinity, letras: ['c','c','b','b','b','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['c','c','c','b','b','a','a'] },
+    { m2Min: 0,    m2Max: 500,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  'Salud (clínica, hospital, laboratorio)': [
+    { m2Min: 1001, m2Max: Infinity, letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 1000,     letras: ['c','c','b','b','a','a','a'] },
+  ],
+  'Salud (policlínico)': [
+    { m2Min: 401,  m2Max: Infinity, letras: ['c','c','b','b','b','a','a'] },
+    { m2Min: 0,    m2Max: 400,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  'Restaurantes y fuentes de soda': [
+    { m2Min: 501,  m2Max: Infinity, letras: ['b','a','a','a','a','a','a'] },
+    { m2Min: 251,  m2Max: 500,      letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 250,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  'Locales comerciales': [
+    { m2Min: 501,  m2Max: Infinity, letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 201,  m2Max: 500,      letras: ['c','c','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 200,      letras: ['d','c','b','b','b','a','a'] },
+  ],
+  Bibliotecas: [
+    { m2Min: 1501, m2Max: Infinity, letras: ['b','b','a','a','a','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['b','b','b','a','a','a','a'] },
+    { m2Min: 251,  m2Max: 500,      letras: ['c','b','b','b','a','a','a'] },
+    { m2Min: 0,    m2Max: 250,      letras: ['d','c','b','b','a','a','a'] },
+  ],
+  'Centro reparación automotor': [
+    { m2Min: 0, m2Max: Infinity, letras: ['d','c','c','b','b','b','a'] },
+  ],
+  'Edificios de estacionamiento': [
+    { m2Min: 0, m2Max: Infinity, letras: ['d','c','c','c','b','b','a'] },
+  ],
+}
+
+// Mapeo uso (app) → destino(s) OGUC Tabla 1
+// Cuando un uso puede calificar en varios destinos OGUC, el usuario elige
+// Educación e Industrial se rigen por Tabla 2 (ocupantes) — se usa RF_DEF como respaldo
+export const USO_TO_OGUC = {
+  Vivienda:   ['Habitacional'],
+  Salud:      ['Salud (clínica, hospital, laboratorio)', 'Salud (policlínico)'],
+  Oficina:    ['Oficinas'],
+  Comercio:   ['Locales comerciales', 'Restaurantes y fuentes de soda'],
+  Educacion:  [],   // Tabla 2 (ocupantes) — no cubierto por Tabla 1
+  Industrial: [],   // Tabla 2 (ocupantes) — no cubierto por Tabla 1
+}
+
+// Obtiene la letra OGUC (a/b/c/d) para un destino, superficie y N° de pisos
+// Retorna null si el destino no está en Tabla 1 o los datos son insuficientes
+export function getLetraOGUC(destinoOGUC, m2, pisos) {
+  const tabla = OGUC_TABLA1[destinoOGUC]
+  if (!tabla || !m2 || !pisos) return null
+  const m2n = parseFloat(m2)
+  const pisosN = parseInt(pisos) || 1
+  const rango = tabla.find(r => m2n >= r.m2Min && m2n <= r.m2Max)
+  if (!rango) return null
+  const idx = Math.min(pisosN - 1, 6)  // máx índice 6 para 7+ pisos
+  return rango.letras[idx] || null
+}
+
+// Obtiene el RF (string) para una letra OGUC y una columna de elemento
+// Retorna null si no aplica exigencia (guión en la tabla)
+export function getRFDeLetra(letra, colElem) {
+  return OGUC_RF_LETRAS[letra]?.[colElem] ?? null
+}
+
+// Función principal: dado uso de app, destino OGUC elegido, m², pisos y elemento → RF
+// Retorna objeto { letra, rf, fuente } donde fuente indica si viene de Tabla 1 o RF_DEF fallback
+export function getRFOGUC(uso, destinoOGUC, m2, pisos, elemId) {
+  const col = OGUC_ELEM_COL[elemId]
+  if (destinoOGUC && m2 && pisos && col) {
+    const letra = getLetraOGUC(destinoOGUC, m2, pisos)
+    if (letra) {
+      const rf = getRFDeLetra(letra, col)
+      return { letra, rf, fuente: 'oguc_tabla1' }
+    }
+  }
+  // Fallback a RF_DEF cuando no hay datos suficientes o destino en Tabla 2
+  const rfFallback = RF_DEF[uso]?.[elemId] || null
+  return { letra: null, rf: rfFallback, fuente: 'rf_def_approx' }
+}
 export const AC_DEF={Vivienda:{entre_unidades:45,fachada:30,entre_pisos:45},Educacion:{entre_unidades:40,fachada:35,entre_pisos:40},Salud:{entre_unidades:50,fachada:40,entre_pisos:50},Oficina:{entre_unidades:40,fachada:30,entre_pisos:40},Comercio:{entre_unidades:40,fachada:30,entre_pisos:40},Industrial:{entre_unidades:50,fachada:35,entre_pisos:45}};
 // Nivel máximo de ruido de impacto normalizado L'n,w (dB) — MENOR valor = MEJOR aislación
 // NCh352:2013 / DS N°594 — entre_pisos para uso habitable

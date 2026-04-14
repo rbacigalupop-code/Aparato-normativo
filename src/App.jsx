@@ -6,6 +6,7 @@ import NotasPanel from './NotasPanel.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST, CATEG_FUEGO,
+  OGUC_RF_LETRAS, OGUC_TABLA1, OGUC_ELEM_COL, USO_TO_OGUC, getLetraOGUC, getRFDeLetra, getRFOGUC,
   ACERO_PROT, PERFILES_ACERO,
   ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
@@ -1608,6 +1609,19 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
 
   const VALID_RF = ['F0','F15','F30','F60','F90','F120','F150','F180']
 
+  // ── Resolución RF según OGUC Tabla 1 cuando hay m² y destino OGUC ──────────
+  const destinoOGUC = proy.destinoOGUC || (USO_TO_OGUC[uso]?.length === 1 ? USO_TO_OGUC[uso][0] : '')
+  const letraOGUC   = getLetraOGUC(destinoOGUC, proy.superficie, proy.pisos)
+  // Si hay letra OGUC, usar Tabla de elementos; si no, fallback a RF_DEF/RF_PISOS
+  const rfReqFromOGUC = (elemId) => {
+    if (letraOGUC) {
+      const col = OGUC_ELEM_COL[elemId]
+      return col ? (getRFDeLetra(letraOGUC, col) || null) : null
+    }
+    return null
+  }
+  const usaTablaOGUC = !!letraOGUC
+
   // RF desde soluciones constructivas aplicadas
   const rfFromSol = {
     estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
@@ -1623,14 +1637,18 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
   }
 
   const elems = [
-    { id:'estructura', label:'Estructura principal',       rfReq: proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura,
-      obs: 'RF según material, pisos y uso. LOFC Ed.17 A.1–A.4.' },
-    { id:'muros_sep',  label:'Muros de separación',        rfReq: rfDef.muros_sep,
-      obs: 'Muros entre unidades y entre piso/techo de escape. OGUC Art. 4.5.4.' },
-    { id:'escaleras',  label:'Escaleras / Vías de escape', rfReq: rfDef.escaleras,
-      obs: 'Verificar ensayo NCh850 específico. No hay soluciones SC predefinidas para escaleras.' },
-    { id:'cubierta',   label:'Cubierta',                   rfReq: rfDef.cubierta,
-      obs: 'Cubierta y estructura de techumbre. OGUC Art. 4.5.5.' },
+    { id:'estructura', label:'Estructura principal',
+      rfReq: rfReqFromOGUC('estructura') || (proy.pisos ? RF_PISOS(uso, proy.pisos) : rfDef.estructura),
+      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (2) soporte de cargas sobre terreno` : 'RF según uso y pisos. LOFC Ed.17 A.1–A.4. Ingresa superficie m² para aplicar Tabla 1 OGUC.' },
+    { id:'muros_sep',  label:'Muros de separación entre propietarios / destinos',
+      rfReq: rfReqFromOGUC('muros_sep') || rfDef.muros_sep,
+      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (3) muros entre distintos propietarios o destinos` : 'OGUC Art. 4.5.4. Ingresa superficie m² para aplicar Tabla 1 OGUC.' },
+    { id:'escaleras',  label:'Escaleras / Vías de escape',
+      rfReq: rfReqFromOGUC('escaleras') || rfDef.escaleras,
+      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (9) escaleras` : 'OGUC Art. 4.5.7. Verificar ensayo NCh850 específico.' },
+    { id:'cubierta',   label:'Cubierta',
+      rfReq: rfReqFromOGUC('cubierta') || rfDef.cubierta,
+      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (7) cubierta` : 'OGUC Art. 4.5.5.' },
   ]
 
   return (
@@ -1678,8 +1696,99 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
         {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
         {uso && !proy.pisos && (
           <div style={{ ...S.warn, marginBottom:8 }}>
-            ⚠ <b>Número de pisos no definido</b> — completa el campo en Diagnóstico para calcular la RF de estructura exacta.
-            La RF mostrada usa el valor por defecto del uso.
+            ⚠ <b>Número de pisos no definido</b> — completa en Diagnóstico para calcular la RF exacta.
+          </div>
+        )}
+
+        {/* ── Selector destino OGUC + superficie + indicador de fuente ────── */}
+        {uso && (
+          <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:6,
+            padding:'10px 14px', marginBottom:12 }}>
+            <div style={{ fontWeight:700, fontSize:11, color:'#374151', marginBottom:8 }}>
+              📐 OGUC Tít. 4 Cap. 3 — Tabla 1: datos para determinar la letra (a/b/c/d)
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
+              {/* Superficie edificada */}
+              <div>
+                <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                  Superficie edificada total (m²)
+                </label>
+                <input type="number" style={{ ...ist, width:110 }}
+                  value={proy.superficie || ''}
+                  onChange={() => {}}
+                  placeholder="ej: 320"
+                  readOnly
+                  title="Ingresa la superficie en la pestaña Diagnóstico"
+                />
+                {!proy.superficie && (
+                  <div style={{ fontSize:10, color:'#d97706', marginTop:2 }}>
+                    → Ingresa en pestaña Diagnóstico
+                  </div>
+                )}
+              </div>
+              {/* Destino OGUC */}
+              {USO_TO_OGUC[uso]?.length > 1 && (
+                <div>
+                  <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                    Destino OGUC (Tabla 1)
+                  </label>
+                  <select style={{ ...ist, minWidth:260 }}
+                    value={proy.destinoOGUC || ''}
+                    onChange={() => {}}>
+                    <option value="">— seleccionar —</option>
+                    {USO_TO_OGUC[uso].map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  {!proy.destinoOGUC && (
+                    <div style={{ fontSize:10, color:'#d97706', marginTop:2 }}>
+                      → Selecciona destino en pestaña Diagnóstico
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Letra resultante */}
+              <div style={{ flex:'0 0 auto' }}>
+                {letraOGUC ? (
+                  <div style={{ background:'#1e40af', color:'#fff', borderRadius:8,
+                    padding:'6px 16px', textAlign:'center', fontWeight:900, fontSize:20,
+                    letterSpacing:'0.05em', lineHeight:1 }}>
+                    {letraOGUC.toUpperCase()}
+                    <div style={{ fontSize:10, fontWeight:400, opacity:0.85, marginTop:2 }}>
+                      Letra OGUC
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ background:'#f1f5f9', color:'#94a3b8', borderRadius:8,
+                    padding:'6px 16px', textAlign:'center', fontWeight:700, fontSize:13,
+                    border:'1px dashed #cbd5e1', lineHeight:1.4 }}>
+                    ?
+                    <div style={{ fontSize:10, marginTop:2 }}>Sin datos m²</div>
+                  </div>
+                )}
+              </div>
+              {/* Fuente */}
+              <div style={{ flex:'1 1 200px', fontSize:10, color:'#64748b', lineHeight:1.5 }}>
+                {letraOGUC ? (
+                  <div style={{ background:'#dcfce7', border:'1px solid #86efac',
+                    borderRadius:4, padding:'4px 8px', color:'#166534' }}>
+                    ✓ <b>RF desde OGUC Tabla 1</b> — {destinoOGUC} ·
+                    superficie {proy.superficie} m² · {proy.pisos} piso(s)
+                    → <b>Letra {letraOGUC.toUpperCase()}</b>
+                  </div>
+                ) : USO_TO_OGUC[uso]?.length === 0 ? (
+                  <div style={{ background:'#fffbeb', border:'1px solid #fcd34d',
+                    borderRadius:4, padding:'4px 8px', color:'#78350f' }}>
+                    ⚠ Destino <b>{uso}</b> se rige por <b>Tabla 2 OGUC</b> (máximo de ocupantes).
+                    RF mostrada es aproximación basada en RF_DEF — ingresa datos de ocupantes para exactitud.
+                  </div>
+                ) : (
+                  <div style={{ background:'#fffbeb', border:'1px solid #fcd34d',
+                    borderRadius:4, padding:'4px 8px', color:'#78350f' }}>
+                    ⚠ <b>RF aproximada</b> (RF_DEF fallback) — ingresa superficie edificada
+                    para usar la Tabla 1 OGUC Tít. 4 Cap. 3 y obtener la letra (a/b/c/d) exacta.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -3578,12 +3687,16 @@ ${tablaCapa}
 ${glaserHtml}`
     }).filter(Boolean).join('<hr class="sep">')
 
-    // ── Tabla RF por categoría estructural ────────────────────────────────────
-    const rfElems = [
-      { id: 'estructura', label: 'Estructura principal', req: RF_PISOS(uso, proy.pisos) },
-      { id: 'muros_sep',  label: 'Muros de separación',  req: RF_DEF[uso]?.muros_sep },
-      { id: 'escaleras',  label: 'Escaleras / Vías de escape', req: RF_DEF[uso]?.escaleras },
-      { id: 'cubierta',   label: 'Cubierta',              req: RF_DEF[uso]?.cubierta },
+    // ── Tabla RF — aplicando OGUC Tít. 4 Cap. 3 Tabla 1 cuando hay m² ─────────
+    const _destOGUCRpt = proy.destinoOGUC || (USO_TO_OGUC[uso]?.length===1 ? USO_TO_OGUC[uso][0] : '')
+    const _letraRpt    = getLetraOGUC(_destOGUCRpt, proy.superficie, proy.pisos)
+    const rfElemDefsRpt = [
+      { id:'estructura', label:'Estructura principal (sobre terreno)',  col:2, colLabel:'(2)' },
+      { id:'muros_sep',  label:'Muros separación entre propietarios',   col:3, colLabel:'(3)' },
+      { id:'cajas_esc',  label:'Cajas de escalera / ascensores',        col:4, colLabel:'(4)' },
+      { id:'escaleras',  label:'Escaleras / Vías de escape',            col:9, colLabel:'(9)' },
+      { id:'cubierta',   label:'Cubierta',                              col:7, colLabel:'(7)' },
+      { id:'entrepisos', label:'Entrepisos / Losas de separación',      col:8, colLabel:'(8)' },
     ]
     const rfFromSol = {
       estructura: termica.muro?.rf || termica.techo?.rf || termica.piso?.rf || '',
@@ -3591,15 +3704,27 @@ ${glaserHtml}`
       muros_sep:  termica.tabique?.rf || termica.muro?.rf || '',
       escaleras:  '',
     }
-    const rfRows = rfElems.map(e => {
+    const rfRows = rfElemDefsRpt.map(e => {
+      // RF requerida: Tabla 1 OGUC si hay letra; si no, fallback a RF_DEF/RF_PISOS
+      let req = null
+      let fuenteReq = ''
+      if (_letraRpt) {
+        req = getRFDeLetra(_letraRpt, e.col)
+        fuenteReq = `Tabla 1 · Letra ${_letraRpt.toUpperCase()} ${e.colLabel}`
+      } else if (e.id === 'estructura') {
+        req = RF_PISOS(uso, proy.pisos); fuenteReq = 'RF_DEF approx'
+      } else {
+        req = RF_DEF[uso]?.[e.id]; fuenteReq = 'RF_DEF approx'
+      }
       const rfP = termica['rf_' + e.id]?.rf || rfFromSol[e.id] || ''
-      const ok = !e.req || !rfP || rfN(rfP) >= rfN(e.req)
+      const ok = !req || !rfP || rfN(rfP) >= rfN(req)
       const src = termica['rf_' + e.id]?.rf ? 'manual' : rfFromSol[e.id] ? 'solución' : ''
       return `<tr>
         <td>${e.label}</td>
         <td><b>${rfP || '—'}</b>${src ? ` <span style="font-size:9pt;color:#64748b">(${src})</span>` : ''}</td>
-        <td style="color:#dc2626;font-weight:700">${e.req || '—'}</td>
-        <td>${rfP && e.req ? `<span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '—'}</td>
+        <td style="color:#dc2626;font-weight:700">${req || '—'}${fuenteReq?`<br><span style="font-size:8pt;font-weight:400;color:#64748b">${fuenteReq}</span>`:''}</td>
+        <td style="color:#64748b;font-size:9pt">${e.colLabel}</td>
+        <td>${rfP && req ? `<span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '—'}</td>
       </tr>`
     }).join('')
 
@@ -3847,6 +3972,9 @@ ${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complet
     <td style="color:#64748b;font-size:9pt"><b>OGUC Tít. 4 Cap. 3</b></td>
   </tr>` : ''}
   <tr><td>N° de pisos</td><td><b>${proy.pisos || '—'}</b></td><td>RF_PISOS(uso, pisos) → ${RF_PISOS(uso, proy.pisos) || '—'}</td></tr>
+  <tr><td>Superficie edificada</td><td><b>${proy.superficie ? `${proy.superficie} m²` : '—'}</b></td><td>OGUC Tít. 4 Cap. 3 Tabla 1</td></tr>
+  ${proy.destinoOGUC || (USO_TO_OGUC[uso]?.length === 1 && USO_TO_OGUC[uso][0]) ? `<tr><td>Destino OGUC (Tabla 1)</td><td><b>${proy.destinoOGUC || USO_TO_OGUC[uso]?.[0] || '—'}</b></td><td>OGUC Tít. 4 Cap. 3</td></tr>` : ''}
+  ${(() => { const d=proy.destinoOGUC||(USO_TO_OGUC[uso]?.length===1?USO_TO_OGUC[uso][0]:''); const l=getLetraOGUC(d,proy.superficie,proy.pisos); return l?`<tr style="background:#dcfce7"><td><b>Letra OGUC (Tabla 1)</b></td><td><b style="font-size:12pt;color:#166534">${l.toUpperCase()}</b> — determina RF por elemento constructivo</td><td>OGUC Tít. 4 Cap. 3 Tabla 1</td></tr>`:'' })()}
   <tr><td>Sistema estructural</td><td><b>${proy.estructura || '—'}</b></td><td>LOFC Ed.17 2025</td></tr>
   ${zonaData ? `<tr><td>Ti diseño / Te diseño / HR diseño</td><td><b>${zonaData.Ti}°C / ${zonaData.Te}°C / ${zonaData.HR}%</b></td><td>DS N°15 Tabla 2</td></tr>` : ''}
   ${RIESGO_INC[uso] ? `<tr><td>Riesgo de incendio</td><td><b>${RIESGO_INC[uso]}</b></td><td>OGUC Tít. 4 Cap. 3 / LOFC Ed.17</td></tr>` : ''}
@@ -3870,9 +3998,18 @@ ${uso && CATEG_FUEGO[uso] ? `
   </div>
 </div>` : ''}
 ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${proy.estructura} → RF base ≈ ${RF_EST?.[proy.estructura] || '—'} · <b>Riesgo:</b> ${RIESGO_INC[uso] || '—'}</div>` : ''}
+${(() => {
+    const d = proy.destinoOGUC || (USO_TO_OGUC[uso]?.length===1 ? USO_TO_OGUC[uso][0] : '')
+    const l = getLetraOGUC(d, proy.superficie, proy.pisos)
+    if (!l) return `<div class="aviso">⚠ <b>RF aproximada (RF_DEF fallback)</b> — para aplicar OGUC Tít. 4 Cap. 3 Tabla 1 exacta, ingresa la superficie edificada (m²) y el destino OGUC en el Diagnóstico.</div>`
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;background:#dcfce7;border:1px solid #86efac;border-radius:6px;margin-bottom:8px">
+      <div style="font-weight:900;font-size:16pt;color:#166534;background:#fff;border:2px solid #86efac;border-radius:6px;padding:2px 12px">${l.toUpperCase()}</div>
+      <div style="font-size:10pt;color:#166534"><b>Letra ${l.toUpperCase()} — OGUC Tít. 4 Cap. 3 Tabla 1</b><br><span style="font-size:9pt;color:#64748b">${d} · ${proy.superficie} m² · ${proy.pisos} piso(s)</span></div>
+    </div>`
+  })()}
 <table>
-  <tr><th>Categoría</th><th>RF propuesta</th><th>RF mínima requerida</th><th>Estado</th></tr>
-  ${rfRows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Sin datos de resistencia al fuego</td></tr>'}
+  <tr><th>Elemento</th><th>RF propuesta</th><th>RF mínima requerida (OGUC Tabla 1)</th><th>Columna OGUC</th><th>Estado</th></tr>
+  ${rfRows || '<tr><td colspan="5" style="color:#94a3b8;text-align:center">Sin datos de resistencia al fuego</td></tr>'}
 </table>
 ${(['Estructura de acero','Metalframe (acero liviano)'].some(t => proy.estructura?.includes(t)) || (proy.estructuras || []).some(e => ['Estructura de acero','Metalframe (acero liviano)'].includes(e.tipo))) ? `
 <h3 style="color:#92400e;margin-top:14px">🔥 Protección ignífuga requerida — Sistemas con RF intrínseca F0</h3>
@@ -4004,7 +4141,7 @@ export default function App() {
 function AppInner() {
   const tokenCtx = useToken()
   const [tab, setTab] = useState(0)
-  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', estructura: '', estructuras: [], profesional: '', titulo: '', registro: '', email: '', telefono: '' })
+  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', titulo: '', registro: '', email: '', telefono: '' })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')

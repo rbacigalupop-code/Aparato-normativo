@@ -6,6 +6,7 @@ import { AyudaPanel } from '../components/Ayuda.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST, RF_EST, CATEG_FUEGO,
+  USO_TO_OGUC, OGUC_TABLA1, getLetraOGUC,
   PERM_V, PUERTA_U, PUERTA_P, SOBR_R, INFILT,
 } from '../data.js'
 import { getOverrides, resolveZona } from '../utils/zonaStorage.js'
@@ -555,6 +556,41 @@ export default function TabDiag({ proy, setProy }) {
             <span style={S.norm}>Determina RF estructura — OGUC Art. 4.5.4</span>
           </div>
 
+          {/* Superficie edificada */}
+          <div style={S.col}>
+            <label style={S.label(!proy.superficie)}>
+              {!proy.superficie && <span style={{ color: '#d97706' }}>* </span>}
+              Superficie edificada (m²)
+            </label>
+            <input
+              style={{ ...S.num(!proy.superficie), width: 90 }}
+              type="number" min={1}
+              value={proy.superficie || ''}
+              onChange={e => setPr('superficie', e.target.value)}
+              placeholder="ej: 320"
+            />
+            <span style={S.norm}>Requerido para aplicar Tabla 1 OGUC Tít. 4 Cap. 3</span>
+          </div>
+
+          {/* Destino OGUC — solo si el uso tiene múltiples opciones en Tabla 1 */}
+          {proy.uso && USO_TO_OGUC[proy.uso]?.length > 1 && (
+            <div style={S.col}>
+              <label style={S.label(!proy.destinoOGUC)}>
+                {!proy.destinoOGUC && <span style={{ color: '#d97706' }}>* </span>}
+                Destino OGUC (Tabla 1)
+              </label>
+              <select
+                style={{ ...S.sel(!proy.destinoOGUC), minWidth: 260 }}
+                value={proy.destinoOGUC || ''}
+                onChange={e => setPr('destinoOGUC', e.target.value)}
+              >
+                <option value="">— seleccionar —</option>
+                {USO_TO_OGUC[proy.uso].map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <span style={S.norm}>El uso "{proy.uso}" tiene varios destinos OGUC — elige el que corresponde</span>
+            </div>
+          )}
+
           {/* Estructura (mixta por tramo de piso) */}
           <div style={{ ...S.col, flex: '1 1 320px' }}>
             <label style={S.label(!(proy.estructuras?.length > 0 && proy.estructuras.every(e => e.tipo)))}>
@@ -767,6 +803,34 @@ export default function TabDiag({ proy, setProy }) {
                     {cf.grupo} · <b>OGUC Tít. 4 Cap. 3</b>
                     {' '}— clasifica el destino <b>{proy.uso}</b> para efectos de exigencias de
                     resistencia al fuego, evacuación y compartimentación.
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Letra OGUC — cuando hay m² y destino */}
+          {(() => {
+            const destOGUC = proy.destinoOGUC || (USO_TO_OGUC[proy.uso]?.length === 1 ? USO_TO_OGUC[proy.uso][0] : '')
+            const letraFicha = getLetraOGUC(destOGUC, proy.superficie, proy.pisos)
+            if (!letraFicha) return (
+              <div style={{ ...S.warn, marginBottom:8 }}>
+                ⚠ <b>RF aproximada</b> — ingresa la <b>superficie edificada (m²)</b> en el formulario para determinar
+                la letra (a/b/c/d) según <b>OGUC Tít. 4 Cap. 3 Tabla 1</b> y obtener los RF exactos por elemento.
+                {USO_TO_OGUC[proy.uso]?.length === 0 && <span> · El destino <b>{proy.uso}</b> usa Tabla 2 (máx. ocupantes).</span>}
+              </div>
+            )
+            return (
+              <div style={{ ...S.ok, display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                <div style={{ fontWeight:900, fontSize:18, color:'#166534',
+                  background:'#fff', border:'2px solid #86efac',
+                  borderRadius:6, padding:'2px 12px' }}>{letraFicha.toUpperCase()}</div>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:12 }}>
+                    Letra <b>{letraFicha.toUpperCase()}</b> — OGUC Tít. 4 Cap. 3 Tabla 1
+                  </div>
+                  <div style={{ fontSize:10, color:'#166534' }}>
+                    {destOGUC} · {proy.superficie} m² · {proy.pisos} piso(s) → RF por elemento según columnas (2)–(9)
                   </div>
                 </div>
               </div>
