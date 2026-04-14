@@ -5,7 +5,7 @@ import { AyudaPanel } from './components/Ayuda.jsx'
 import NotasPanel from './NotasPanel.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
-  RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST,
+  RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST, CATEG_FUEGO,
   ACERO_PROT, PERFILES_ACERO,
   ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
@@ -1638,17 +1638,43 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
       <AyudaPanel
         titulo="Cómo usar — Resistencia al Fuego"
         pasos={[
-          'Define primero el <b>uso y número de pisos</b> en Diagnóstico: determinan las exigencias RF mínimas.',
-          'Las columnas <b>RF mínima</b> se calculan automáticamente según OGUC Art. 4.5.4 y RF_PISOS(uso, pisos).',
+          'El <b>uso del edificio</b> determina la <b>Categoría de riesgo de incendio</b> según <b>OGUC Tít. 4 Cap. 3</b> (R1–R4). Esta categoría se muestra en el banner superior.',
+          'Las columnas <b>RF mínima</b> se calculan automáticamente según OGUC Art. 4.5.4 y la función RF_PISOS(uso, pisos).',
           'La columna <b>Solución SC</b> muestra el RF de la solución LOSCAT aplicada si corresponde al elemento.',
           'Ingresa la <b>RF propuesta</b> manualmente si difiere de la solución o si el elemento no tiene solución aplicada.',
           '<b>Escaleras:</b> No existen soluciones SC predefinidas — la RF debe respaldarse con ensayo NCh850 específico.',
           'La RF intrínseca del sistema estructural se muestra a continuación de la tabla como referencia.',
         ]}
-        normativa="OGUC Art. 4.5.4 y 4.5.7 · LOFC Ed.17 2025 · NCh850"
+        normativa="OGUC Tít. 4 Cap. 3 (Categoría de riesgo) · Art. 4.5.4 y 4.5.7 · LOFC Ed.17 2025 · NCh850"
       />
       <div style={S.card}>
         <p style={S.h2}>Resistencia al fuego — {uso || 'sin uso definido'}</p>
+
+        {/* ── Categoría OGUC Tít. 4 Cap. 3 ─────────────────────────────── */}
+        {uso && CATEG_FUEGO[uso] && (() => {
+          const cf = CATEG_FUEGO[uso]
+          return (
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12,
+              background: cf.bgColor, border:`1px solid ${cf.borderColor}`, borderRadius:6, padding:'8px 12px' }}>
+              <div style={{ fontWeight:900, fontSize:16, color: cf.color,
+                background:'#fff', border:`2px solid ${cf.borderColor}`,
+                borderRadius:6, padding:'3px 12px', letterSpacing:'0.04em', flexShrink:0 }}>
+                {cf.cat}
+              </div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:12, color:'#374151' }}>
+                  {cf.desc} — <span style={{ color:'#374151' }}>{cf.grupo}</span>
+                </div>
+                <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
+                  Clasificación del destino <b>{uso}</b> según <b>OGUC Tít. 4 Cap. 3</b>.
+                  Determina las exigencias de RF, compartimentación y evacuación aplicables a este proyecto.
+                  Riesgo de incendio: {RIESGO_INC[uso] || '—'}.
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
         {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
         {uso && !proy.pisos && (
           <div style={{ ...S.warn, marginBottom:8 }}>
@@ -3815,10 +3841,15 @@ ${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complet
   ${proy.rolAvaluo ? `<tr><td>Rol de avalúo</td><td><b>${proy.rolAvaluo}</b></td><td>SII — Expediente DOM</td></tr>` : ''}
   <tr><td>Zona térmica</td><td><b>${proy.zona || '—'} — ${ZONAS[proy.zona]?.n || '—'}</b>${ZONAS[proy.zona]?.ej ? ` (${ZONAS[proy.zona].ej})` : ''}</td><td>DS N°15 MINVU Tabla 1</td></tr>
   <tr><td>Uso del edificio</td><td><b>${uso || '—'}</b></td><td>OGUC Art. 4.5.1</td></tr>
+  ${CATEG_FUEGO[uso] ? `<tr style="background:${CATEG_FUEGO[uso].bgColor}">
+    <td><b>Categoría de riesgo de incendio</b></td>
+    <td><b style="color:${CATEG_FUEGO[uso].color};font-size:11pt">${CATEG_FUEGO[uso].cat}</b> — ${CATEG_FUEGO[uso].desc} · ${CATEG_FUEGO[uso].grupo}</td>
+    <td style="color:#64748b;font-size:9pt"><b>OGUC Tít. 4 Cap. 3</b></td>
+  </tr>` : ''}
   <tr><td>N° de pisos</td><td><b>${proy.pisos || '—'}</b></td><td>RF_PISOS(uso, pisos) → ${RF_PISOS(uso, proy.pisos) || '—'}</td></tr>
   <tr><td>Sistema estructural</td><td><b>${proy.estructura || '—'}</b></td><td>LOFC Ed.17 2025</td></tr>
   ${zonaData ? `<tr><td>Ti diseño / Te diseño / HR diseño</td><td><b>${zonaData.Ti}°C / ${zonaData.Te}°C / ${zonaData.HR}%</b></td><td>DS N°15 Tabla 2</td></tr>` : ''}
-  ${RIESGO_INC[uso] ? `<tr><td>Riesgo de incendio</td><td><b>${RIESGO_INC[uso]}</b></td><td>OGUC / LOFC Ed.17</td></tr>` : ''}
+  ${RIESGO_INC[uso] ? `<tr><td>Riesgo de incendio</td><td><b>${RIESGO_INC[uso]}</b></td><td>OGUC Tít. 4 Cap. 3 / LOFC Ed.17</td></tr>` : ''}
   ${proy.estructura && OBS_EST[proy.estructura] ? `<tr><td>RF intrínseca estimada</td><td colspan="2" style="font-size:9pt">${OBS_EST[proy.estructura]}</td></tr>` : ''}
 </table>
 
@@ -3829,7 +3860,15 @@ ${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complet
 </div>
 ${seccionesTermicas || '<div class="aviso">Sin soluciones constructivas aplicadas. Aplica soluciones desde la pestaña Soluciones.</div>'}
 
-<h2>Módulo 3 — Resistencia al Fuego (OGUC Art. 4.5.4 / LOFC Ed.17 2025)</h2>
+<h2>Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
+${uso && CATEG_FUEGO[uso] ? `
+<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:${CATEG_FUEGO[uso].bgColor};border:1px solid ${CATEG_FUEGO[uso].borderColor};border-radius:6px;margin-bottom:10px">
+  <div style="font-weight:900;font-size:16pt;color:${CATEG_FUEGO[uso].color};background:#fff;border:2px solid ${CATEG_FUEGO[uso].borderColor};border-radius:6px;padding:2px 12px;letter-spacing:0.04em">${CATEG_FUEGO[uso].cat}</div>
+  <div>
+    <div style="font-weight:700;font-size:11pt;color:#374151">${CATEG_FUEGO[uso].desc} — ${CATEG_FUEGO[uso].grupo}</div>
+    <div style="font-size:9pt;color:#64748b">Clasificación del destino <b>${uso}</b> según <b>OGUC Tít. 4 Cap. 3</b>. Determina exigencias de RF, compartimentación y evacuación para este proyecto.</div>
+  </div>
+</div>` : ''}
 ${uso && proy.estructura ? `<div class="aviso"><b>Sistema estructural:</b> ${proy.estructura} → RF base ≈ ${RF_EST?.[proy.estructura] || '—'} · <b>Riesgo:</b> ${RIESGO_INC[uso] || '—'}</div>` : ''}
 <table>
   <tr><th>Categoría</th><th>RF propuesta</th><th>RF mínima requerida</th><th>Estado</th></tr>

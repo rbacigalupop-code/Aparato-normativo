@@ -29,6 +29,21 @@ export const AC_IMPACT_DEF={
   Industrial: { entre_pisos: 65 },
 };
 export const RIESGO_INC={Vivienda:"R2 - Riesgo moderado",Educacion:"R2 - Riesgo moderado",Salud:"R2 - Riesgo moderado (R1 en algunos recintos)",Oficina:"R2 - Riesgo moderado",Comercio:"R3 - Riesgo alto",Industrial:"R3/R4 - Riesgo alto/muy alto"};
+// Categoría de riesgo de incendio por destino — OGUC Tít. 4 Cap. 3
+// El Tít. 4 Cap. 3 de la OGUC clasifica los edificios según su destino en categorías
+// que determinan las exigencias de resistencia al fuego, evacuación y compartimentación.
+// cat:   código de categoría de riesgo de incendio (R1–R4)
+// grupo: agrupación de destinos equivalentes para efectos del Cap. 3
+// desc:  descripción completa para informe y ficha normativa
+// color: representación visual del nivel de riesgo
+export const CATEG_FUEGO = {
+  Vivienda:   { cat:'R2', grupo:'Habitacional',        desc:'Categoría R2 — Riesgo Moderado',                  color:'#f59e0b', bgColor:'#fffbeb', borderColor:'#fcd34d' },
+  Educacion:  { cat:'R2', grupo:'Educacional',          desc:'Categoría R2 — Riesgo Moderado',                  color:'#f59e0b', bgColor:'#fffbeb', borderColor:'#fcd34d' },
+  Salud:      { cat:'R1', grupo:'Asistencial / Salud',  desc:'Categoría R1 — Riesgo Bajo (R2 en zonas comunes)',color:'#22c55e', bgColor:'#f0fdf4', borderColor:'#86efac' },
+  Oficina:    { cat:'R2', grupo:'Servicios / Oficinas', desc:'Categoría R2 — Riesgo Moderado',                  color:'#f59e0b', bgColor:'#fffbeb', borderColor:'#fcd34d' },
+  Comercio:   { cat:'R3', grupo:'Comercial',            desc:'Categoría R3 — Riesgo Alto',                      color:'#ef4444', bgColor:'#fff1f2', borderColor:'#fecaca' },
+  Industrial: { cat:'R4', grupo:'Industrial / Bodegaje',desc:'Categoría R4 — Riesgo Muy Alto',                  color:'#dc2626', bgColor:'#fef2f2', borderColor:'#fca5a5' },
+};
 export const RF_PISOS=(tipo,pisos)=>{const n=parseInt(pisos)||1;if(tipo==="Industrial")return n<=1?"F90":"F120";if(["Salud","Educacion"].includes(tipo))return n<=2?"F60":n<=4?"F90":"F120";if(tipo==="Vivienda")return n<=2?"F30":n<=5?"F60":"F90";return n<=2?"F60":"F90";};
 // RF requerida por elemento constructivo (OGUC Art. 4.5.4 / LOFC Ed.17)
 // id: 'muro' | 'techo' | 'piso' | 'tabique' | 'ventana' | 'puerta'

@@ -5,7 +5,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { AyudaPanel } from '../components/Ayuda.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
-  RF_DEF, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST, RF_EST,
+  RF_DEF, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST, RF_EST, CATEG_FUEGO,
   PERM_V, PUERTA_U, PUERTA_P, SOBR_R, INFILT,
 } from '../data.js'
 import { getOverrides, resolveZona } from '../utils/zonaStorage.js'
@@ -747,7 +747,32 @@ export default function TabDiag({ proy, setProy }) {
 
           {/* ── Sección 3: Resistencia al fuego ── */}
           <div style={S.sep} />
-          <p style={S.h3}>3. Resistencia al fuego — OGUC Art. 4.5.4 · LOCF Ed.17 2025</p>
+          <p style={S.h3}>3. Resistencia al fuego — OGUC Tít. 4 Cap. 3 · Art. 4.5.4 · LOCF Ed.17 2025</p>
+
+          {/* Categoría de riesgo de incendio — OGUC Tít. 4 Cap. 3 */}
+          {CATEG_FUEGO[proy.uso] && (() => {
+            const cf = CATEG_FUEGO[proy.uso]
+            return (
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10,
+                background: cf.bgColor, border:`1px solid ${cf.borderColor}`,
+                borderRadius:6, padding:'8px 12px' }}>
+                <div style={{ fontWeight:800, fontSize:15, color: cf.color,
+                  background:'#fff', border:`2px solid ${cf.borderColor}`,
+                  borderRadius:6, padding:'2px 10px', letterSpacing:'0.03em' }}>
+                  {cf.cat}
+                </div>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:12, color:'#374151' }}>{cf.desc}</div>
+                  <div style={{ fontSize:10, color:'#64748b', marginTop:1 }}>
+                    {cf.grupo} · <b>OGUC Tít. 4 Cap. 3</b>
+                    {' '}— clasifica el destino <b>{proy.uso}</b> para efectos de exigencias de
+                    resistencia al fuego, evacuación y compartimentación.
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           <table style={S.table}>
             <thead>
               <tr>
@@ -763,7 +788,7 @@ export default function TabDiag({ proy, setProy }) {
                   <div style={{ fontSize: 10, color: '#94a3b8' }}>Calculado para {proy.uso} · {proy.pisos} piso(s)</div>
                 </td>
                 <td style={S.td}><span style={{ ...S.val(null), color: '#dc2626', fontSize: 14 }}>{ficha.rfEstructura}</span></td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>OGUC Art. 4.5.4 · RF_PISOS</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>OGUC Tít. 4 Cap. 3 · Art. 4.5.4</td>
               </tr>
               {ficha.segmentos.map((seg, i) => (
                 <tr key={i} style={{ background: seg.cumple ? '#f0fdf4' : '#fef2f2' }}>
