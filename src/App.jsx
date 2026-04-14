@@ -4147,7 +4147,7 @@ function AppInner() {
   const [exportError, setExportError] = useState('')
   const [notas, setNotas] = useState({})
 
-  const proyectos = useProjects()
+  const proyectos = useProjects(tokenCtx?.tokenData?.token)
   const [proyectoActual, setProyectoActual] = useState(null)
   const [showProjects, setShowProjects] = useState(false)
   const [hasUnsaved, setHasUnsaved] = useState(false)

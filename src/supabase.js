@@ -48,3 +48,49 @@ export async function usarProyecto(tokenStr) {
 
   return !updError
 }
+
+// ─── Proyectos en Supabase ─────────────────────────────────────────────────────
+export async function listarProyectosDB(token) {
+  const { data, error } = await supabase
+    .from('proyectos')
+    .select('id, token, nombre, saved_at, updated_at, snapshots, data')
+    .eq('token', token.trim().toUpperCase())
+    .order('updated_at', { ascending: false })
+  if (error) { console.warn('listarProyectosDB error:', error); return null }
+  return data
+}
+
+export async function guardarProyectoDB(token, id, nombre, data, snapshots = []) {
+  const tok = token.trim().toUpperCase()
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('proyectos')
+    .upsert(
+      { id, token: tok, nombre, data, snapshots, updated_at: now, saved_at: now },
+      { onConflict: 'id,token' }
+    )
+  if (error) { console.warn('guardarProyectoDB error:', error); return false }
+  return true
+}
+
+export async function sobrescribirProyectoDB(token, id, nombre, data, snapshots = []) {
+  const tok = token.trim().toUpperCase()
+  const { error } = await supabase
+    .from('proyectos')
+    .update({ nombre, data, snapshots, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('token', tok)
+  if (error) { console.warn('sobrescribirProyectoDB error:', error); return false }
+  return true
+}
+
+export async function eliminarProyectoDB(token, id) {
+  const tok = token.trim().toUpperCase()
+  const { error } = await supabase
+    .from('proyectos')
+    .delete()
+    .eq('id', id)
+    .eq('token', tok)
+  if (error) { console.warn('eliminarProyectoDB error:', error); return false }
+  return true
+}
