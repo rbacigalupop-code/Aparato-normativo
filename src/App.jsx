@@ -752,7 +752,29 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
   // ── Lista ordenada ────────────────────────────────────────────────────────
   const soluciones = useMemo(() => {
-    let list = SC.filter(s => s.elem === elem).map(s => ({ ...s, ev: evaluar(s) }))
+    // evaluar inline para evitar closure stale (uMax/rfReq/acReq dependen de elem)
+    const _uMax  = elem==='muro'      ? ZONAS[zona]?.muro   :
+                   elem==='techumbre' ? ZONAS[zona]?.techo  :
+                   elem==='piso'      ? ZONAS[zona]?.piso   :
+                   elem==='puerta'    ? PUERTA_U[zona]      : null
+    const _rfReq = elem==='muro'      ? RF_PISOS(uso, pisos)          :
+                   elem==='tabique'   ? RF_DEF[uso]?.muros_sep ?? null :
+                   elem==='techumbre' ? RF_DEF[uso]?.cubierta  ?? null :
+                   elem==='piso'      ? RF_DEF[uso]?.estructura ?? null :
+                   elem==='puerta'    ? RF_DEF[uso]?.muros_sep ?? null : null
+    const _acReq = (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[uso]?.entre_unidades ?? null :
+                   (elem==='techumbre'||elem==='piso')                 ? AC_DEF[uso]?.entre_pisos    ?? null :
+                   elem==='ventana'                                    ? AC_DEF[uso]?.fachada        ?? null : null
+
+    function ev(s) {
+      const aplica = s.zonas.includes(zona) && s.usos.includes(uso)
+      const tOk = !_uMax  || s.u <= _uMax
+      const fOk = !_rfReq || !s.rf || rfN(s.rf) >= rfN(_rfReq)
+      const aOk = !_acReq || !s.ac_rw || s.ac_rw >= _acReq
+      return { aplica, tOk, fOk, aOk, total: (tOk?1:0)+(fOk?1:0)+(aOk?1:0) }
+    }
+
+    let list = SC.filter(s => s.elem === elem).map(s => ({ ...s, ev: ev(s) }))
     // Filtro por sistema estructural: s.sistemas===null → sin restricción (aplica a todo)
     if (filtroSistema) list = list.filter(s => !s.sistemas || s.sistemas.includes(filtroSistema))
     if (soloOk) list = list.filter(s => s.ev.aplica && s.ev.total === 3)
@@ -773,7 +795,6 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
       return 0
     })
     return list
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elem, zona, uso, pisos, soloOk, orden, busqueda, filtroRF, filtroSistema])
 
   const totalAplica = soluciones.filter(s => s.ev.aplica).length
@@ -5309,22 +5330,26 @@ function AppInner() {
 
     if (targetId) {
       // Asignar solución a un sistema estructural específico
+      // Guard: p.estructuras puede ser undefined en proyectos cargados de versiones anteriores
       setProy(p => ({
         ...p,
-        estructuras: p.estructuras.map(e =>
+        estructuras: (p.estructuras || []).map(e =>
           e.id === targetId
             ? { ...e, soluciones: { ...(e.soluciones || {}), [elem]: solData } }
             : e
         ),
       }))
-    } else {
-      // Comportamiento global original
-      setTermica(t => ({
-        ...t,
-        [elem]: { ...t[elem], ...solData, rw: sc.ac_rw ? String(sc.ac_rw) : (t[elem]?.rw || '') },
-      }))
+      // Al asignar a sistema, NO actualizar calcUInit ni navegar — el usuario sigue asignando slots
+      return
     }
-    // Pre-cargar capas en Cálculo U: SC_CAPAS → BH → parse de sc.capas
+
+    // Comportamiento global original
+    setTermica(t => ({
+      ...t,
+      [elem]: { ...t[elem], ...solData, rw: sc.ac_rw ? String(sc.ac_rw) : (t[elem]?.rw || '') },
+    }))
+
+    // Pre-cargar capas en Cálculo U solo para asignación global
     const rawCapas = buildCapas(sc.cod)
     const bhItem   = BH.find(b => b.cod === sc.cod)
     let calcUCapas = null
@@ -5359,13 +5384,11 @@ function AppInner() {
       if (parsed.length) calcUCapas = parsed
     }
 
-    // Siempre actualizar calcUInit para reflejar la solución seleccionada
     setCalcUInit(prev => ({
       ...prev,
       [elem]: calcUCapas?.length ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u } } : null,
     }))
-    // Solo navegar a Térmica cuando es asignación global; si es por sistema, el usuario continúa asignando slots
-    if (!targetId) setTab(2)
+    setTab(2)
   }
 
   function onEnviarCalcU(data) {
