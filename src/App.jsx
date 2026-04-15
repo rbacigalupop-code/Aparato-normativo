@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import TokenGate, { useToken } from './TokenGate.jsx'
 import { usarProyecto } from './supabase.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
@@ -694,7 +694,7 @@ function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
 const ELEM_LABELS = { muro:'Muro', tabique:'Tabique', techumbre:'Techumbre', piso:'Piso', ventana:'Ventana', puerta:'Puerta' }
 const ELEM_LIST   = ['muro','tabique','techumbre','piso','ventana','puerta']
 
-function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
+function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNotas }) {
   const [elem,      setElem]      = useState('muro')
   const [expandido, setExpandido] = useState(null)
   const [soloOk,    setSoloOk]    = useState(false)
@@ -5440,7 +5440,7 @@ function AppInner() {
                 </div>
               </div>
             )}
-            {tab === 1 && <TabSoluciones proy={proy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
+            {tab === 1 && <TabSoluciones proy={proy} setProy={setProy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
             {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
             {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
