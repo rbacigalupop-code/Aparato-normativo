@@ -1107,11 +1107,18 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         Homologable
                       </span>
                     )}
-                    {!ev.aplica && (
-                      <span style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8' }}>
-                        Fuera de zona/uso
-                      </span>
-                    )}
+                    {!ev.aplica && (() => {
+                      const faltaZona = !s.zonas.includes(zona)
+                      const faltaUso  = !s.usos.includes(uso)
+                      const msg = faltaZona && faltaUso ? `No aplica zona ${zona} ni uso ${uso}`
+                               : faltaZona ? `No aplica zona ${zona} (aplica: ${s.zonas.join(', ')})`
+                               : `No aplica uso ${uso}`
+                      return (
+                        <span title={msg} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
+                          Fuera de zona/uso ⓘ
+                        </span>
+                      )
+                    })()}
                   </div>
                   {/* Capas y código */}
                   <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4 }}>
@@ -1122,29 +1129,29 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     {/* Térmico — siempre visible */}
                     <span style={{
                       fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px',
-                      color: ev.tOk ? '#166534' : '#dc2626',
-                      background: ev.tOk ? '#dcfce7' : '#fee2e2',
+                      color:      !ev.aplica ? '#94a3b8' : ev.tOk ? '#166534' : '#dc2626',
+                      background: !ev.aplica ? '#f1f5f9' : ev.tOk ? '#dcfce7' : '#fee2e2',
                     }}>
-                      T {ev.tOk ? '✓' : '✗'} U={s.u}{uMax ? ` (≤${uMax})` : ''}
+                      T {ev.aplica ? (ev.tOk ? '✓' : '✗') : '–'} U={s.u}{uMax ? ` (≤${uMax})` : ''}
                     </span>
                     {/* Fuego — solo si hay exigencia */}
                     {rfReq && (
                       <span style={{
                         fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px',
-                        color: ev.fOk ? '#166534' : '#dc2626',
-                        background: ev.fOk ? '#dcfce7' : '#fee2e2',
+                        color:      !ev.aplica ? '#94a3b8' : ev.fOk ? '#166534' : '#dc2626',
+                        background: !ev.aplica ? '#f1f5f9' : ev.fOk ? '#dcfce7' : '#fee2e2',
                       }}>
-                        F {ev.fOk ? '✓' : '✗'} {s.rf || '—'}{` (≥${rfReq})`}
+                        F {ev.aplica ? (ev.fOk ? '✓' : '✗') : '–'} {s.rf || '—'}{` (≥${rfReq})`}
                       </span>
                     )}
                     {/* Acústica — solo si hay exigencia */}
                     {acReq && (
                       <span style={{
                         fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px',
-                        color: ev.aOk ? '#166534' : '#dc2626',
-                        background: ev.aOk ? '#dcfce7' : '#fee2e2',
+                        color:      !ev.aplica ? '#94a3b8' : ev.aOk ? '#166534' : '#dc2626',
+                        background: !ev.aplica ? '#f1f5f9' : ev.aOk ? '#dcfce7' : '#fee2e2',
                       }}>
-                        A {ev.aOk ? '✓' : '✗'} Rw {s.ac_rw ?? '—'}{acReq ? ` (≥${acReq}dB)` : ''}
+                        A {ev.aplica ? (ev.aOk ? '✓' : '✗') : '–'} Rw {s.ac_rw ?? '—'}{acReq ? ` (≥${acReq}dB)` : ''}
                       </span>
                     )}
                   </div>
