@@ -733,8 +733,8 @@ export default function TabDiag({ proy, setProy }) {
               <input style={S.input(false)} value={proy.titulo || ''} onChange={e => setPr('titulo', e.target.value)} placeholder="Arquitecto / Ingeniero Civil / etc." />
             </div>
             <div style={S.col}>
-              <label style={S.label(false)}>N° Registro MINVU / Colegio</label>
-              <input style={S.input(false)} value={proy.registro || ''} onChange={e => setPr('registro', e.target.value)} placeholder="Ej: 12345" />
+              <label style={S.label(false)}>Rol</label>
+              <input style={S.input(false)} value={proy.rol || ''} onChange={e => setPr('rol', e.target.value)} placeholder="Proyectista / Calculista / ITO / etc." />
             </div>
             <div style={S.col}>
               <label style={S.label(false)}>Email</label>

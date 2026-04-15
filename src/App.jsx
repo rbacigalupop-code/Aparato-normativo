@@ -4792,7 +4792,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Profesional Responsable</div>
     <div style="font-weight:800;font-size:13pt;color:#1e293b">${proy.profesional || proy.arq || '—'}</div>
     ${proy.titulo ? `<div style="font-size:11pt;color:#475569">${proy.titulo}</div>` : ''}
-    ${proy.registro ? `<div style="font-size:10pt;color:#64748b">Registro MINVU N° ${proy.registro}</div>` : ''}
+    ${proy.rol ? `<div style="font-size:10pt;color:#64748b">${proy.rol}</div>` : ''}
   </div>
   ${proy.email || proy.telefono ? `
   <div style="flex:1;min-width:140px">
@@ -4993,7 +4993,7 @@ ${notasHtml}
           <tr><td style="padding:4px 0;color:#64748b;width:40%">Nombre</td><td style="font-weight:700">${proy.profesional || proy.arq || '[No ingresado]'}</td></tr>
           <tr><td style="padding:4px 0;color:#64748b">Profesión / Título</td><td>${proy.titulo || '[No ingresado]'}</td></tr>
           <tr><td style="padding:4px 0;color:#64748b">RUT</td><td>${proy.rutProfesional || '[No ingresado]'}</td></tr>
-          <tr><td style="padding:4px 0;color:#64748b">N° Registro</td><td>${proy.registro ? `N° ${proy.registro}` : '[No ingresado]'}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b">Rol</td><td>${proy.rol || '[No ingresado]'}</td></tr>
           ${proy.email ? `<tr><td style="padding:4px 0;color:#64748b">Email</td><td>${proy.email}</td></tr>` : ''}
           ${proy.telefono ? `<tr><td style="padding:4px 0;color:#64748b">Teléfono</td><td>${proy.telefono}</td></tr>` : ''}
           <tr><td style="padding:4px 0;color:#64748b">Fecha de emisión</td><td><b>${fechaHoy}</b></td></tr>
@@ -5101,7 +5101,7 @@ export default function App() {
 function AppInner() {
   const tokenCtx = useToken()
   const [tab, setTab] = useState(0)
-  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', registro: '', email: '', telefono: '', ocupantes: '' })
+  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
