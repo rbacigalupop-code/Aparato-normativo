@@ -8,6 +8,7 @@ import {
   RF_DEF, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST, RF_EST, CATEG_FUEGO,
   USO_TO_OGUC, OGUC_TABLA1, getLetraOGUC,
   PERM_V, PUERTA_U, PUERTA_P, SOBR_R, INFILT,
+  CARGA_OCUP_DENSIDAD, OGUC_TABLA2_EDUC, getLetraOGUC_T2_Educ,
 } from '../data.js'
 import { getOverrides, resolveZona } from '../utils/zonaStorage.js'
 
@@ -201,6 +202,91 @@ function ChipsZona({ zona }) {
           <div style={S.norm}>{ref}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Componente: carga de ocupación ──────────────────────────────────────────
+function CarOcupBox({ uso, superficie, ocupantes, setOcupantes }) {
+  const densInfo = CARGA_OCUP_DENSIDAD[uso]
+  const supN     = parseFloat(superficie) || 0
+  const coAuto   = densInfo && supN > 0 ? Math.ceil(supN / densInfo.factor) : null
+  const coFinal  = parseInt(ocupantes) > 0 ? parseInt(ocupantes) : coAuto
+
+  return (
+    <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', marginBottom: 10 }}>
+        Carga de ocupación — OGUC Art. 4.2.4
+      </div>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+
+        {/* Densidad de uso */}
+        {densInfo ? (
+          <div style={{ minWidth: 160 }}>
+            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>Densidad de uso</div>
+            <div style={{ fontWeight: 700, color: '#0c4a6e', fontSize: 13 }}>{densInfo.factor} m²/persona</div>
+            <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{densInfo.desc}</div>
+            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{densInfo.ref}</div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>Selecciona el uso del edificio.</div>
+        )}
+
+        {/* CO calculada automáticamente */}
+        {coAuto != null && (
+          <div style={{ minWidth: 130 }}>
+            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>CO calculada (auto)</div>
+            <div style={{ fontWeight: 700, color: '#0369a1', fontSize: 15 }}>{coAuto} pers.</div>
+            <div style={{ fontSize: 10, color: '#94a3b8' }}>{supN} m² ÷ {densInfo.factor}</div>
+          </div>
+        )}
+
+        {/* Ingreso manual */}
+        <div>
+          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>
+            N° ocupantes (manual)
+            <span style={{ color: '#94a3b8' }}> — opcional, sobreescribe auto</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="number" min={1}
+              style={{ border: '1.5px solid #7dd3fc', borderRadius: 6, padding: '4px 8px', fontSize: 12, width: 90, background: '#fff' }}
+              value={ocupantes || ''}
+              onChange={e => setOcupantes(e.target.value)}
+              placeholder={coAuto ? String(coAuto) : 'ej: 350'}
+            />
+            {parseInt(ocupantes) > 0 && (
+              <button
+                style={{ fontSize: 10, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                onClick={() => setOcupantes('')}
+              >✕</button>
+            )}
+          </div>
+          {parseInt(ocupantes) > 0 && (
+            <div style={{ fontSize: 9, color: '#d97706', marginTop: 3, fontWeight: 600 }}>★ Valor ingresado manualmente</div>
+          )}
+        </div>
+
+        {/* Resultado final */}
+        {coFinal && (
+          <div style={{
+            background: '#fff', border: '2px solid #0369a1', borderRadius: 10,
+            padding: '8px 18px', textAlign: 'center', minWidth: 110,
+          }}>
+            <div style={{ fontSize: 9, color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>CO aplicada</div>
+            <div style={{ fontWeight: 900, fontSize: 22, color: '#0369a1', lineHeight: 1.1 }}>{coFinal}</div>
+            <div style={{ fontSize: 10, color: '#64748b' }}>personas</div>
+          </div>
+        )}
+      </div>
+
+      {/* Nota normativa */}
+      <div style={{ fontSize: 10, color: '#64748b', marginTop: 10, borderTop: '1px solid #bae6fd', paddingTop: 6 }}>
+        <b>Fuente:</b> OGUC Art. 4.2.4 — La CO determina la letra (a/b/c/d) para Educación (Tabla 2) e informa
+        el dimensionamiento de salidas de evacuación (OGUC Art. 4.2.5).
+        {uso === 'Educacion' && <span> <b>Para este destino se aplica Tabla 2 OGUC</b> en lugar de Tabla 1.</span>}
+        {uso === 'Industrial' && <span> <b>Para Industrial</b> use la CO para verificar vías de evacuación (OGUC Art. 4.2.5).</span>}
+      </div>
     </div>
   )
 }
@@ -572,6 +658,28 @@ export default function TabDiag({ proy, setProy }) {
             <span style={S.norm}>Requerido para aplicar Tabla 1 OGUC Tít. 4 Cap. 3</span>
           </div>
 
+          {/* Carga de ocupación — campo compacto inline */}
+          {proy.uso && (
+            <div style={S.col}>
+              <label style={S.label(false)}>
+                N° ocupantes
+                <span style={{ fontWeight: 400, color: '#94a3b8' }}> (opcional)</span>
+              </label>
+              <input
+                style={{ ...S.num(false), width: 90 }}
+                type="number" min={1}
+                value={proy.ocupantes || ''}
+                onChange={e => setPr('ocupantes', e.target.value)}
+                placeholder={(() => {
+                  const d = CARGA_OCUP_DENSIDAD[proy.uso]
+                  const s = parseFloat(proy.superficie) || 0
+                  return d && s > 0 ? String(Math.ceil(s / d.factor)) : 'auto'
+                })()}
+              />
+              <span style={S.norm}>Tabla 2 OGUC / evacuación</span>
+            </div>
+          )}
+
           {/* Destino OGUC — solo si el uso tiene múltiples opciones en Tabla 1 */}
           {proy.uso && USO_TO_OGUC[proy.uso]?.length > 1 && (
             <div style={S.col}>
@@ -615,6 +723,10 @@ export default function TabDiag({ proy, setProy }) {
             <div style={S.col}>
               <label style={S.label(false)}>Nombre completo</label>
               <input style={S.input(false)} value={proy.profesional || ''} onChange={e => setPr('profesional', e.target.value)} placeholder="Nombre del profesional" />
+            </div>
+            <div style={S.col}>
+              <label style={S.label(false)}>RUT profesional</label>
+              <input style={S.input(false)} value={proy.rutProfesional || ''} onChange={e => setPr('rutProfesional', e.target.value)} placeholder="12.345.678-9" />
             </div>
             <div style={S.col}>
               <label style={S.label(false)}>Título</label>
@@ -809,28 +921,56 @@ export default function TabDiag({ proy, setProy }) {
             )
           })()}
 
-          {/* Letra OGUC — cuando hay m² y destino */}
+          {/* ── Carga de ocupación ── */}
+          <CarOcupBox
+            uso={proy.uso}
+            superficie={proy.superficie}
+            ocupantes={proy.ocupantes}
+            setOcupantes={v => setPr('ocupantes', v)}
+          />
+
+          {/* Letra OGUC — Tabla 1 (m²) o Tabla 2 (ocupantes) según destino */}
           {(() => {
-            const destOGUC = proy.destinoOGUC || (USO_TO_OGUC[proy.uso]?.length === 1 ? USO_TO_OGUC[proy.uso][0] : '')
-            const letraFicha = getLetraOGUC(destOGUC, proy.superficie, proy.pisos)
+            const destOGUC   = proy.destinoOGUC || (USO_TO_OGUC[proy.uso]?.length === 1 ? USO_TO_OGUC[proy.uso][0] : '')
+            const letraT1    = getLetraOGUC(destOGUC, proy.superficie, proy.pisos)
+
+            // Cálculo de CO para Tabla 2
+            const densInfo   = CARGA_OCUP_DENSIDAD[proy.uso]
+            const supN       = parseFloat(proy.superficie) || 0
+            const coFinal    = parseInt(proy.ocupantes) > 0
+              ? parseInt(proy.ocupantes)
+              : (densInfo && supN > 0 ? Math.ceil(supN / densInfo.factor) : 0)
+            const letraT2    = proy.uso === 'Educacion' ? getLetraOGUC_T2_Educ(coFinal, proy.pisos) : null
+            const letraFicha = letraT1 || letraT2
+
+            // Sin datos suficientes
             if (!letraFicha) return (
-              <div style={{ ...S.warn, marginBottom:8 }}>
-                ⚠ <b>RF aproximada</b> — ingresa la <b>superficie edificada (m²)</b> en el formulario para determinar
-                la letra (a/b/c/d) según <b>OGUC Tít. 4 Cap. 3 Tabla 1</b> y obtener los RF exactos por elemento.
-                {USO_TO_OGUC[proy.uso]?.length === 0 && <span> · El destino <b>{proy.uso}</b> usa Tabla 2 (máx. ocupantes).</span>}
+              <div style={{ ...S.warn, marginBottom: 8, marginTop: 8 }}>
+                {USO_TO_OGUC[proy.uso]?.length === 0
+                  ? <>⚠ <b>Destino {proy.uso}</b> se rige por <b>Tabla 2 OGUC</b> (máximo de ocupantes).
+                      RF mostrada es aproximación basada en RF_DEF — ingresa datos de ocupantes para exactitud.</>
+                  : <>⚠ <b>RF aproximada</b> — ingresa la <b>superficie edificada (m²)</b> en el formulario
+                      para determinar la letra (a/b/c/d) según <b>OGUC Tít. 4 Cap. 3 Tabla 1</b>.</>
+                }
               </div>
             )
+
+            const esTablaDos = !!letraT2 && !letraT1
             return (
-              <div style={{ ...S.ok, display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+              <div style={{ ...S.ok, display:'flex', alignItems:'center', gap:10, marginBottom:8, marginTop:8 }}>
                 <div style={{ fontWeight:900, fontSize:18, color:'#166534',
                   background:'#fff', border:'2px solid #86efac',
                   borderRadius:6, padding:'2px 12px' }}>{letraFicha.toUpperCase()}</div>
                 <div>
                   <div style={{ fontWeight:700, fontSize:12 }}>
-                    Letra <b>{letraFicha.toUpperCase()}</b> — OGUC Tít. 4 Cap. 3 Tabla 1
+                    Letra <b>{letraFicha.toUpperCase()}</b> — OGUC Tít. 4 Cap. 3{' '}
+                    {esTablaDos ? 'Tabla 2 (ocupantes)' : 'Tabla 1 (superficie)'}
                   </div>
                   <div style={{ fontSize:10, color:'#166534' }}>
-                    {destOGUC} · {proy.superficie} m² · {proy.pisos} piso(s) → RF por elemento según columnas (2)–(9)
+                    {esTablaDos
+                      ? <>{proy.uso} · {coFinal} ocupantes · {proy.pisos} piso(s) → RF por elemento según columnas (2)–(9)</>
+                      : <>{destOGUC} · {proy.superficie} m² · {proy.pisos} piso(s) → RF por elemento según columnas (2)–(9)</>
+                    }
                   </div>
                 </div>
               </div>

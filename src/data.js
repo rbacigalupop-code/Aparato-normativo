@@ -196,6 +196,38 @@ export const OBS_EST={"Hormigon armado":"LOFC Ed.17 A.1.3: H.A. 100mm=F90, 150mm
 // HA 150mm, albañilería cerámica 140mm, madera maciza 90mm
 export const RF_EST={"Hormigon armado":"F150","Albanileria confinada":"F180","Albanileria armada":"F180","Estructura de acero":"F0","Metalframe (acero liviano)":"F0","Estructura de madera":"F60","Mixta HA + albanileria":"F150"};
 
+// ─── CARGA DE OCUPACIÓN — OGUC Art. 4.2.4 ────────────────────────────────────
+// Factor: m² de superficie útil por persona (densidad de ocupación)
+// Fuente: OGUC Art. 4.2.4 Tabla — valores representativos por destino
+export const CARGA_OCUP_DENSIDAD = {
+  Vivienda:   { factor: 18,   desc: 'Habitacional — 18 m²/pers.',           ref: 'OGUC Art. 4.2.4' },
+  Educacion:  { factor: 2,    desc: 'Educación — 2 m²/pers. (aulas)',        ref: 'OGUC Art. 4.2.4' },
+  Salud:      { factor: 10,   desc: 'Salud — 10 m²/pers.',                   ref: 'OGUC Art. 4.2.4' },
+  Oficina:    { factor: 9.3,  desc: 'Oficinas — 9.3 m²/pers.',               ref: 'OGUC Art. 4.2.4' },
+  Comercio:   { factor: 2.8,  desc: 'Comercio — 2.8 m²/pers. (locales)',     ref: 'OGUC Art. 4.2.4' },
+  Industrial: { factor: 9.3,  desc: 'Industrial — 9.3 m²/pers.',             ref: 'OGUC Art. 4.2.4' },
+}
+
+// OGUC Tít. 4 Cap. 3 — Tabla 2: Establecimientos educacionales
+// Letra (a–d) según N° de ocupantes × N° de pisos
+// Fuente: OGUC Tít. 4 Cap. 3 Tabla 2
+export const OGUC_TABLA2_EDUC = [
+  { ocMin: 1001, ocMax: Infinity, letras: ['b','a','a','a','a','a','a'] },
+  { ocMin:  251, ocMax: 1000,     letras: ['c','b','a','a','a','a','a'] },
+  { ocMin:   51, ocMax:  250,     letras: ['d','c','b','b','a','a','a'] },
+  { ocMin:    0, ocMax:   50,     letras: ['d','d','c','c','b','a','a'] },
+]
+
+export function getLetraOGUC_T2_Educ(ocupantes, pisos) {
+  const oc = parseInt(ocupantes) || 0
+  if (!oc) return null
+  const pisosN = parseInt(pisos) || 1
+  const rango = OGUC_TABLA2_EDUC.find(r => oc >= r.ocMin && oc <= r.ocMax)
+  if (!rango) return null
+  const idx = Math.min(pisosN - 1, 6)
+  return rango.letras[idx] || null
+}
+
 // ─── ACERO ESTRUCTURAL — Factor de sección y protección ignífuga ──────────────
 // Hp/A (m⁻¹): perímetro expuesto / área sección transversal
 // Hp4 = 4 caras expuestas (columna), Hp3 = 3 caras (viga, cara inferior protegida por losa)
@@ -272,8 +304,16 @@ export const ACERO_PROT = [
     id:'intumescente', nombre:'Pintura intumescente (WB / SB)',
     norma:'EN 13381-8 / ETA fabricante', tipo:'dft', unidad:'µm DFT',
     requiereCertificado: true,
-    desc:'DFT orientativo: F30 ≈ 400–800 µm · F60 ≈ 800–1.500 µm · F90 ≈ 1.500–3.000 µm. El espesor exacto depende del producto específico, Hp/A y RF. Exige ETA vigente y certificado de aplicación NCh1198.',
-    tabla:[]
+    desc:'DFT orientativo según rangos de mercado EN 13381-8. El espesor exacto (DFT nominal) debe obtenerse del software del fabricante con ETA vigente para el Hp/A y RF específicos. Exige certificado de aplicación NCh1198 con medición DFT en terreno.',
+    // Rangos orientativos DFT mínimo (µm) según Hp/A y RF — fuente: EN 13381-8, rangos típicos WB
+    // Los valores exactos requieren ETA del fabricante — estos son límites inferiores de referencia
+    tabla:[
+      { hpMax: 80,  rf:'F30', dftMin: 200 }, { hpMax: 80,  rf:'F60', dftMin: 450  }, { hpMax: 80,  rf:'F90', dftMin: 800  }, { hpMax: 80,  rf:'F120', dftMin: 1400 },
+      { hpMax:150,  rf:'F30', dftMin: 380 }, { hpMax:150,  rf:'F60', dftMin: 780  }, { hpMax:150,  rf:'F90', dftMin: 1400 }, { hpMax:150,  rf:'F120', dftMin: 2400 },
+      { hpMax:200,  rf:'F30', dftMin: 500 }, { hpMax:200,  rf:'F60', dftMin:1000  }, { hpMax:200,  rf:'F90', dftMin: 1800 }, { hpMax:200,  rf:'F120', dftMin: 3200 },
+      { hpMax:300,  rf:'F30', dftMin: 700 }, { hpMax:300,  rf:'F60', dftMin:1400  }, { hpMax:300,  rf:'F90', dftMin: 2500 },
+      { hpMax:400,  rf:'F30', dftMin:1000 }, { hpMax:400,  rf:'F60', dftMin:2000  },
+    ]
   },
 ]
 

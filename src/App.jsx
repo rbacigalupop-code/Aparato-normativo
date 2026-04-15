@@ -1326,6 +1326,12 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
   const [hpManual,    setHpManual]    = useState('')
   const [prot,        setProt]        = useState('hormigon')
   const [mu0,         setMu0]         = useState('0.65')
+  // Inputs de acreditación para sistemas calculables
+  const [espAplicado, setEspAplicado] = useState('')
+  // Inputs para pintura intumescente
+  const [dftNominal,  setDftNominal]  = useState('')
+  const [etaRef,      setEtaRef]      = useState('')
+  const [fabricante,  setFabricante]  = useState('')
 
   // Factor de sección
   const perfData = PERFILES_ACERO[familia]?.[serie]
@@ -1342,15 +1348,36 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
 
   function getMinProt(rfTarget) {
     if (!protSys || !hpA || protSys.requiereCertificado) return null
-    // Filas que aplican para este rfTarget y donde hpMax >= hpA
     const filas = protSys.tabla
       .filter(r => r.rf === rfTarget && r.hpMax >= hpA)
-      .sort((a, b) => a.hpMax - b.hpMax)  // menor hpMax primero = más restrictivo aplicable
+      .sort((a, b) => a.hpMax - b.hpMax)
     if (!filas.length) return null
     const f = filas[0]
     if (protSys.tipo === 'capas') return { text: `${f.capas} cap. × ${f.e} mm`, total: f.capas * f.e }
     return { text: `${f.e} mm`, total: f.e }
   }
+
+  // DFT mínimo orientativo para pintura intumescente
+  function getDFTMin(rfTarget) {
+    if (!hpA) return null
+    const filas = (protSys?.tabla || [])
+      .filter(r => r.rf === rfTarget && r.hpMax >= hpA)
+      .sort((a, b) => a.hpMax - b.hpMax)
+    return filas.length ? filas[0].dftMin : null
+  }
+
+  // Protección requerida para rfReq (sistemas calculables)
+  const protReq   = rfReq ? getMinProt(rfReq) : null
+  const dftMinReq = rfReq ? getDFTMin(rfReq)  : null
+
+  // Cumplimiento por espesor real ingresado (sistemas calculables)
+  const espNum    = parseFloat(espAplicado) || 0
+  const cumpleEsp = protReq && espNum > 0 ? espNum >= protReq.total : null
+
+  // Cumplimiento por DFT (pintura intumescente)
+  const dftNum       = parseFloat(dftNominal) || 0
+  const cumpleDFT    = dftMinReq && dftNum > 0 ? dftNum >= dftMinReq : null
+  const tieneETA     = etaRef.trim().length > 0
 
   const tdStyle  = { ...S.td, verticalAlign:'middle' }
 
@@ -1520,27 +1547,143 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
         </div>
 
         {protSys?.requiereCertificado ? (
-          <div style={{ background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:5,
-            padding:'8px 12px', fontSize:11, color:'#78350f', lineHeight:1.5 }}>
-            ⚠ <b>Pintura intumescente:</b> El espesor de película seca (DFT) <u>no puede calcularse
-            con tablas genéricas</u> — depende del producto específico, número de capas y sistema
-            de imprimación. El proyectista debe:
-            <ol style={{ margin:'6px 0 0 16px', paddingLeft:0 }}>
-              <li>Seleccionar un producto con <b>ETA (Aprobación Técnica Europea)</b> vigente.</li>
-              <li>Ingresar Hp/A = <b>{hpA ? `${hpA} m⁻¹` : '?'}</b> y RF objetivo en el software del fabricante.</li>
-              <li>Adjuntar <b>certificado de aplicación</b> con verificación de DFT en terreno (NCh1156).</li>
-            </ol>
-            <div style={{ marginTop:6, fontSize:10 }}>
-              DFT orientativos (WB, dependen del fabricante):
-              F30 ≈ 400–800 µm · F60 ≈ 800–1.500 µm · F90 ≈ 1.500–3.000 µm.
+          // ── Pintura intumescente — flujo de acreditación por DFT ──────────
+          <>
+            {/* Tabla orientativa DFT */}
+            {!hpA && (
+              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:5,
+                padding:'6px 10px', fontSize:11, color:'#1e40af', marginBottom:8 }}>
+                ℹ Ingresa el factor de sección (Paso 1) para ver los DFT orientativos.
+              </div>
+            )}
+            {hpA && (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:5 }}>
+                  DFT mínimo orientativo para Hp/A = {hpA} m⁻¹ (EN 13381-8, rangos típicos WB)
+                </div>
+                <table style={S.table}>
+                  <thead><tr>
+                    <th style={S.th}>RF objetivo</th>
+                    <th style={S.th}>DFT mín. orientativo (µm)</th>
+                    <th style={S.th}>Nota</th>
+                  </tr></thead>
+                  <tbody>
+                    {rfLevels.map(rf => {
+                      const dmin = getDFTMin(rf)
+                      const esReq = rf === rfReq
+                      return (
+                        <tr key={rf} style={{ background: esReq ? '#fef9c3' : undefined }}>
+                          <td style={{ ...tdStyle, fontWeight: esReq?700:400, color: esReq?'#78350f':undefined }}>
+                            {rf}{esReq && <span style={{ fontSize:10, marginLeft:4, color:'#dc2626' }}>← requerido</span>}
+                          </td>
+                          <td style={tdStyle}>
+                            {dmin
+                              ? <b style={{ color: esReq?'#78350f':'#374151' }}>≥ {dmin.toLocaleString()} µm</b>
+                              : <span style={{ color:'#94a3b8' }}>Hp/A fuera de rango — consultar fabricante</span>}
+                          </td>
+                          <td style={{ ...tdStyle, fontSize:10, color:'#94a3b8' }}>
+                            Rango típico · valor exacto según ETA fabricante
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Formulario de acreditación */}
+            <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:7,
+              padding:'12px 14px', marginTop:8 }}>
+              <div style={{ fontWeight:700, fontSize:12, color:'#166534', marginBottom:8 }}>
+                ✅ Acreditar cumplimiento — Pintura intumescente
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:8 }}>
+                <div>
+                  <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                    DFT nominal certificado (µm)
+                  </label>
+                  <input type="number" style={{ ...ist, width:'100%' }}
+                    value={dftNominal} onChange={e => setDftNominal(e.target.value)}
+                    placeholder={`ej: ${dftMinReq || 800}`} min="0" />
+                  {dftMinReq && dftNum > 0 && (
+                    <div style={{ fontSize:10, marginTop:2,
+                      color: cumpleDFT ? '#166534' : '#dc2626', fontWeight:700 }}>
+                      {cumpleDFT ? `✓ ${dftNum} ≥ ${dftMinReq} µm` : `✗ ${dftNum} < ${dftMinReq} µm mín.`}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                    Fabricante / producto
+                  </label>
+                  <input type="text" style={{ ...ist, width:'100%' }}
+                    value={fabricante} onChange={e => setFabricante(e.target.value)}
+                    placeholder="ej: Nullifire S707" />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                    N° ETA / certificado
+                  </label>
+                  <input type="text" style={{ ...ist, width:'100%' }}
+                    value={etaRef} onChange={e => setEtaRef(e.target.value)}
+                    placeholder="ej: ETA-04/0074" />
+                </div>
+              </div>
+
+              {/* Resultado de cumplimiento */}
+              {rfReq && (
+                <div style={{ padding:'8px 12px', borderRadius:6, marginTop:4,
+                  background: cumpleDFT && tieneETA ? '#dcfce7' : cumpleDFT ? '#fef9c3' : dftNum > 0 ? '#fee2e2' : '#f8fafc',
+                  border: `1.5px solid ${cumpleDFT && tieneETA ? '#86efac' : cumpleDFT ? '#fcd34d' : dftNum > 0 ? '#fca5a5' : '#e2e8f0'}` }}>
+                  {!dftNum ? (
+                    <span style={{ fontSize:11, color:'#94a3b8' }}>
+                      Ingresa el DFT nominal del fabricante para determinar cumplimiento de RF {rfReq}.
+                    </span>
+                  ) : cumpleDFT && tieneETA ? (
+                    <div>
+                      <span style={{ ...S.badge(true), fontSize:12 }}>✓ CUMPLE — RF {rfReq}</span>
+                      <div style={{ fontSize:10, color:'#166534', marginTop:4, lineHeight:1.5 }}>
+                        DFT {dftNum} µm ≥ {dftMinReq} µm orientativo · {fabricante && <b>{fabricante}</b>} · ETA: {etaRef}<br/>
+                        <b>Documentación requerida:</b> ETA vigente + certificado de aplicación (medición DFT en terreno según NCh1198).
+                      </div>
+                    </div>
+                  ) : cumpleDFT && !tieneETA ? (
+                    <div>
+                      <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:12,
+                        fontWeight:700, background:'#fef9c3', color:'#713f12' }}>
+                        ⚠ CUMPLE CONDICIONAL
+                      </span>
+                      <div style={{ fontSize:10, color:'#713f12', marginTop:4, lineHeight:1.5 }}>
+                        DFT ingresado cumple el rango orientativo, pero falta <b>N° ETA / certificado</b> del fabricante.
+                        Agrega la referencia ETA para acreditar cumplimiento.
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span style={S.badge(false)}>✗ NO CUMPLE — RF {rfReq}</span>
+                      <div style={{ fontSize:10, color:'#991b1b', marginTop:4 }}>
+                        DFT {dftNum} µm {'<'} {dftMinReq} µm mínimo orientativo para Hp/A {hpA} m⁻¹.
+                        Aumentar DFT o consultar ETA de un producto con mayor rendimiento.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div style={{ fontSize:10, color:'#64748b', marginTop:6, lineHeight:1.5 }}>
+                ⚠ Los DFT orientativos son rangos típicos según EN 13381-8. El valor exacto (DFT nominal)
+                debe provenir del software del fabricante para el Hp/A y RF específicos con ETA vigente.
+                El inspector DOM puede exigir verificación de DFT en terreno (NCh1198).
+              </div>
             </div>
-          </div>
+          </>
         ) : (
+          // ── Sistemas con espesor calculable ──────────────────────────────
           <>
             {!hpA && (
               <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:5,
                 padding:'6px 10px', fontSize:11, color:'#1e40af', marginBottom:8 }}>
-                ℹ️ Ingresa el factor de sección (Paso 1) para ver los espesores requeridos.
+                ℹ Ingresa el factor de sección (Paso 1) para ver los espesores requeridos.
               </div>
             )}
             <table style={S.table}>
@@ -1553,21 +1696,19 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
               </thead>
               <tbody>
                 {rfLevels.map(rf => {
-                  const result     = hpA ? getMinProt(rf) : null
-                  const esReq      = rf === rfReq
-                  const factible   = result !== null
-                  const rowBg      = esReq ? '#fef9c3' : undefined
+                  const result   = hpA ? getMinProt(rf) : null
+                  const esReq    = rf === rfReq
+                  const factible = result !== null
                   return (
-                    <tr key={rf} style={{ background: rowBg }}>
-                      <td style={{ ...tdStyle, fontWeight: esReq ? 700 : 400,
-                        color: esReq ? '#78350f' : undefined }}>
-                        {rf}{esReq ? <span style={{ fontSize:10, marginLeft:4, color:'#dc2626' }}>← requerido</span> : ''}
+                    <tr key={rf} style={{ background: esReq ? '#fef9c3' : undefined }}>
+                      <td style={{ ...tdStyle, fontWeight: esReq?700:400, color: esReq?'#78350f':undefined }}>
+                        {rf}{esReq && <span style={{ fontSize:10, marginLeft:4, color:'#dc2626' }}>← requerido</span>}
                       </td>
                       <td style={tdStyle}>
                         {!hpA ? (
                           <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>
                         ) : result ? (
-                          <b style={{ color: esReq ? '#78350f' : '#374151' }}>{result.text}</b>
+                          <b style={{ color: esReq?'#78350f':'#374151' }}>{result.text}</b>
                         ) : (
                           <span style={{ fontSize:11, color:'#dc2626' }}>
                             ⚠ Hp/A fuera de rango — consultar fabricante
@@ -1575,17 +1716,72 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
                         )}
                       </td>
                       <td style={tdStyle}>
-                        {hpA
-                          ? (factible
-                              ? <span style={S.badge(true)}>FACTIBLE</span>
-                              : <span style={S.badge(false)}>CONSULTAR</span>)
-                          : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
+                        {!hpA ? (
+                          <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>
+                        ) : esReq ? (
+                          factible
+                            ? <span style={S.badge(true)}>✓ CUMPLE si aplica ≥ {result?.text}</span>
+                            : <span style={S.badge(false)}>✗ NO CUMPLE — Hp/A fuera de rango</span>
+                        ) : (
+                          factible
+                            ? <span style={{ fontSize:11, color:'#64748b' }}>Factible</span>
+                            : <span style={{ fontSize:11, color:'#dc2626' }}>Fuera de rango</span>
+                        )}
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+
+            {/* Formulario de acreditación del espesor real */}
+            {rfReq && protReq && hpA && (
+              <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:7,
+                padding:'12px 14px', marginTop:10 }}>
+                <div style={{ fontWeight:700, fontSize:12, color:'#166534', marginBottom:8 }}>
+                  ✅ Acreditar cumplimiento — espesor de protección a aplicar
+                </div>
+                <div style={{ display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap' }}>
+                  <div>
+                    <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
+                      Espesor de protección a aplicar ({protSys?.unidad || 'mm'})
+                    </label>
+                    <input type="number" style={{ ...ist, width:110 }}
+                      value={espAplicado} onChange={e => setEspAplicado(e.target.value)}
+                      placeholder={`≥ ${protReq.total}`} min="0" />
+                  </div>
+                  <div style={{ flex:1, minWidth:200 }}>
+                    {espNum > 0 ? (
+                      cumpleEsp ? (
+                        <div style={{ padding:'8px 12px', background:'#dcfce7',
+                          border:'1.5px solid #86efac', borderRadius:6 }}>
+                          <span style={{ ...S.badge(true), fontSize:12 }}>✓ CUMPLE — RF {rfReq}</span>
+                          <div style={{ fontSize:10, color:'#166534', marginTop:4, lineHeight:1.5 }}>
+                            {espNum} {protSys?.unidad||'mm'} ≥ {protReq.total} {protSys?.unidad||'mm'} mín. · {protSys?.nombre}<br/>
+                            <b>Documentación:</b> Adjuntar ficha técnica + DOP del fabricante. {protSys?.norma && `Norma: ${protSys.norma}.`}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ padding:'8px 12px', background:'#fee2e2',
+                          border:'1.5px solid #fca5a5', borderRadius:6 }}>
+                          <span style={S.badge(false)}>✗ NO CUMPLE — RF {rfReq}</span>
+                          <div style={{ fontSize:10, color:'#991b1b', marginTop:4 }}>
+                            {espNum} {protSys?.unidad||'mm'} {'<'} {protReq.total} {protSys?.unidad||'mm'} mínimo requerido.
+                            Aumentar espesor hasta ≥ {protReq.total} {protSys?.unidad||'mm'}.
+                          </div>
+                        </div>
+                      )
+                    ) : (
+                      <div style={{ padding:'7px 12px', background:'#eff6ff',
+                        border:'1px solid #bfdbfe', borderRadius:6, fontSize:11, color:'#1e40af' }}>
+                        Espesor mínimo requerido: <b>{protReq.text}</b> de {protSys?.nombre?.toLowerCase()}.
+                        Ingresa el espesor que se aplicará para confirmar cumplimiento.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1596,6 +1792,236 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
         Para la memoria de cálculo definitiva, verificar con el fabricante del sistema de protección y
         adjuntar ficha técnica, DOP (Declaración de Prestaciones) y ETA. La RF debe respaldarse con
         ensayo NCh850 o clasificación equivalente. LOFC Ed.17 — Capítulo B.
+      </div>
+    </div>
+  )
+}
+
+// ─── CALCULADOR RF ESCALERAS (OGUC Art. 4.5.7) ────────────────────────────────
+const MAT_ESCAL = [
+  { id:'ha',     label:'Hormigón armado (recub. ≥ 20 mm)',  rfBase:'F120', nota:'NCh430 / LOFC Ed.17 Tabla A4. Recubrimiento mínimo 20 mm garantiza F120.' },
+  { id:'ha_pref',label:'HA prefabricado (losa/peldaño)',    rfBase:'F90',  nota:'RF depende del recubrimiento. Con ≥ 20 mm → F90–F120. Verificar ficha fabricante.' },
+  { id:'acero',  label:'Estructura metálica sin protección',rfBase:'F0',   nota:'RF intrínseca F0. Requiere protección ignífuga para alcanzar RF exigida.' },
+  { id:'acero_p',label:'Acero con protección ignífuga',     rfBase:null,   nota:'RF según sistema de protección aplicado (pintura intumescente, yeso, lana de roca). Ver LOFC Ed.17 Annex B.' },
+  { id:'madera', label:'Madera maciza (sección ≥ 90 mm)',   rfBase:'F30',  nota:'LOFC Ed.17. Sección ≥ 90 mm → F30. Secciones menores → F15 o menos. No recomendado en edificios de alta ocupación.' },
+  { id:'clt',    label:'CLT / madera en masa (e ≥ 90 mm)',  rfBase:'F60',  nota:'LOFC Ed.17 Tabla A6. CLT con e ≥ 90 mm → aprox. F60 sin protección adicional.' },
+  { id:'mamp',   label:'Mampostería de ladrillo/bloque',    rfBase:'F60',  nota:'RF intrínseca ≥ F60 según espesor (e ≥ 110 mm). Ver LOFC Ed.17 Tabla A2.' },
+]
+
+// OGUC Art. 4.5.7: condición de caja de escalera cerrada (enclosure) según uso y pisos
+function requiereCajaEscalera(uso, pisos) {
+  const n = parseInt(pisos) || 0
+  if (n <= 1) return false
+  if (uso === 'Salud' || uso === 'Educacion') return n >= 2
+  if (uso === 'Industrial') return n >= 2
+  if (uso === 'Comercio' || uso === 'Oficina') return n >= 3
+  return n >= 4   // Vivienda y otros: ≥ 4 pisos
+}
+
+function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja }) {
+  const [matId, setMatId] = useState('ha')
+  const uso = proy.uso || ''
+  const pisos = parseInt(proy.pisos) || 0
+
+  const mat = MAT_ESCAL.find(m => m.id === matId)
+  const necesitaCaja = requiereCajaEscalera(uso, pisos)
+  const rfBase = mat?.rfBase || null
+  const rfBaseN = rfBase ? rfN(rfBase) : 0
+
+  // Cumplimiento escalera propia
+  const cumpleEscal = !rfReqEscalera || !rfBase || rfBaseN >= rfN(rfReqEscalera)
+  // Caja (mampostería/hormigón generalmente): se asume HA o mampostería con RF ≥ F60
+  const matCajaOk = rfBase !== 'F0' && rfBase !== null
+
+  const badgeOk  = { display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:700, background:'#dcfce7', color:'#166534' }
+  const badgeNo  = { display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:700, background:'#fee2e2', color:'#991b1b' }
+  const badgeWarn= { display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:700, background:'#fef9c3', color:'#713f12' }
+
+  return (
+    <div style={{ background:'#fff', border:'1.5px solid #e0f2fe', borderRadius:10, padding:16, marginTop:14 }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14,
+        background:'linear-gradient(90deg,#0369a1,#0284c7)', color:'#fff',
+        borderRadius:7, padding:'8px 14px', margin:'-16px -16px 14px' }}>
+        <span style={{ fontSize:20 }}>🚶</span>
+        <div>
+          <div style={{ fontWeight:800, fontSize:13 }}>Escaleras de evacuación — OGUC Art. 4.5.7</div>
+          <div style={{ fontSize:10, opacity:0.85 }}>
+            Análisis de RF para escaleras y cajas de escalera · LOFC Ed.17 2025 · NCh850
+          </div>
+        </div>
+      </div>
+
+      {/* Banda normativa */}
+      <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:6,
+        padding:'8px 12px', marginBottom:12, fontSize:11, lineHeight:1.6 }}>
+        <b style={{ color:'#0369a1' }}>OGUC Art. 4.5.7 — Escaleras de evacuación:</b> Todo edificio con más de un piso debe
+        contar con escaleras de evacuación. Las escaleras deben ser construidas con materiales cuya RF
+        cumpla lo señalado en la Tabla 1 del Tít. 4 Cap. 3, columna (9). La <b>caja de escalera</b> (recinto
+        de protección) se exige según uso y número de pisos, con RF según columna (4) de la misma tabla.
+        <br/>
+        <b style={{ color:'#0369a1' }}>Referencia de columnas OGUC Tabla 1:</b>{' '}
+        Col. (4) → Cajas de escalera, ascensores y ductos &nbsp;·&nbsp; Col. (9) → Escaleras
+      </div>
+
+      {/* Resumen de exigencias */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+        {/* Escalera propia — Col. 9 */}
+        <div style={{ background: rfReqEscalera ? '#fef2f2' : '#f8fafc',
+          border:`1.5px solid ${rfReqEscalera ? '#fca5a5' : '#e2e8f0'}`,
+          borderRadius:7, padding:'10px 12px' }}>
+          <div style={{ fontSize:10, color:'#64748b', fontWeight:700, textTransform:'uppercase',
+            letterSpacing:'0.05em', marginBottom:4 }}>Escalera — Col. (9)</div>
+          <div style={{ fontSize:18, fontWeight:900, color: rfReqEscalera ? '#dc2626' : '#94a3b8' }}>
+            {rfReqEscalera ? `≥ ${rfReqEscalera}` : '—'}
+          </div>
+          <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
+            {letraOGUC
+              ? `Letra ${letraOGUC.toUpperCase()} · OGUC Tabla 1 Col. (9)`
+              : 'Ingresa m² y destino para calcular con Tabla 1'}
+          </div>
+        </div>
+        {/* Caja de escalera — Col. 4 */}
+        <div style={{ background: necesitaCaja ? '#fff7ed' : '#f0fdf4',
+          border:`1.5px solid ${necesitaCaja ? '#fed7aa' : '#86efac'}`,
+          borderRadius:7, padding:'10px 12px' }}>
+          <div style={{ fontSize:10, color:'#64748b', fontWeight:700, textTransform:'uppercase',
+            letterSpacing:'0.05em', marginBottom:4 }}>Caja de escalera — Col. (4)</div>
+          <div style={{ fontSize:18, fontWeight:900, color: necesitaCaja ? '#d97706' : '#166534' }}>
+            {necesitaCaja ? (rfReqCaja ? `≥ ${rfReqCaja}` : '—') : 'No exigida'}
+          </div>
+          <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
+            {necesitaCaja
+              ? (letraOGUC
+                  ? `Letra ${letraOGUC.toUpperCase()} · OGUC Tabla 1 Col. (4)`
+                  : 'OGUC Art. 4.5.7 — obligatoria por uso/pisos')
+              : `${pisos} piso(s) · uso ${uso || '—'} → no requiere caja cerrada`}
+          </div>
+        </div>
+      </div>
+
+      {/* Condición de caja según uso/pisos */}
+      <div style={{ marginBottom:12, fontSize:11, padding:'7px 11px',
+        background: necesitaCaja ? '#fffbeb' : '#f0fdf4',
+        border:`1px solid ${necesitaCaja ? '#fcd34d' : '#86efac'}`,
+        borderRadius:6, color: necesitaCaja ? '#713f12' : '#166534' }}>
+        {necesitaCaja ? (
+          <>
+            ⚠ <b>Caja de escalera cerrada obligatoria</b> — {pisos} piso(s) · uso {uso} · OGUC Art. 4.5.7.
+            La caja debe ser un recinto cerrado, con paredes de RF ≥ {rfReqCaja || '—'} y puertas cortafuego
+            según OGUC Art. 4.5.4 (PUERTA_RF: {proy.zona ? (RF_DEF[uso]?.muros_sep || '—') : '—'}).
+          </>
+        ) : (
+          <>
+            ✓ Para {pisos} piso(s) y uso {uso || '—'}, la <b>caja de escalera cerrada no es exigida</b> por OGUC Art. 4.5.7.
+            La escalera debe igualmente cumplir la RF requerida para sus elementos.
+          </>
+        )}
+      </div>
+
+      {/* Selector de material */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ fontSize:11, fontWeight:700, color:'#374151', display:'block', marginBottom:5 }}>
+          Material / sistema constructivo de la escalera
+        </label>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+          {MAT_ESCAL.map(m => (
+            <button key={m.id}
+              onClick={() => setMatId(m.id)}
+              style={{ padding:'5px 11px', borderRadius:6, border:`1.5px solid ${matId===m.id?'#0369a1':'#e2e8f0'}`,
+                background: matId===m.id ? '#e0f2fe' : '#f8fafc',
+                color: matId===m.id ? '#0369a1' : '#374151',
+                fontWeight: matId===m.id ? 700 : 400, fontSize:11, cursor:'pointer' }}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Resultado del material seleccionado */}
+      {mat && (
+        <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:7,
+          padding:'10px 14px', marginBottom:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontSize:10, color:'#64748b', fontWeight:700, marginBottom:2 }}>RF intrínseca del material</div>
+              <div style={{ fontSize:20, fontWeight:900,
+                color: mat.rfBase === 'F0' ? '#dc2626' : mat.rfBase === null ? '#d97706' : '#166534' }}>
+                {mat.rfBase || '—'}
+              </div>
+            </div>
+            <div style={{ flex:1, minWidth:180 }}>
+              <div style={{ fontSize:10, color:'#64748b', fontWeight:700, marginBottom:2 }}>Cumplimiento RF escalera</div>
+              {mat.rfBase === null ? (
+                <span style={badgeWarn}>Verificar con fabricante</span>
+              ) : mat.rfBase === 'F0' ? (
+                <span style={badgeNo}>F0 — requiere protección ignífuga</span>
+              ) : rfReqEscalera ? (
+                cumpleEscal
+                  ? <span style={badgeOk}>✓ {mat.rfBase} ≥ {rfReqEscalera} — CUMPLE</span>
+                  : <span style={badgeNo}>✗ {mat.rfBase} {'<'} {rfReqEscalera} — NO CUMPLE</span>
+              ) : (
+                <span style={badgeWarn}>Sin RF requerida calculada</span>
+              )}
+            </div>
+            {necesitaCaja && (
+              <div style={{ flex:1, minWidth:180 }}>
+                <div style={{ fontSize:10, color:'#64748b', fontWeight:700, marginBottom:2 }}>RF caja de escalera</div>
+                <span style={badgeWarn}>⚠ Caja debe construirse con HA o mampostería ≥ RF {rfReqCaja || '—'}</span>
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize:10, color:'#64748b', marginTop:8, borderTop:'1px solid #e2e8f0',
+            paddingTop:6, lineHeight:1.5 }}>
+            <b>Nota técnica:</b> {mat.nota}
+          </div>
+        </div>
+      )}
+
+      {/* Tabla orientativa de RF por tipo de escalera */}
+      <div>
+        <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:6 }}>
+          Tabla orientativa — RF de escaleras por material (LOFC Ed.17 2025)
+        </div>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <thead>
+            <tr style={{ background:'#f1f5f9' }}>
+              <th style={{ padding:'5px 8px', textAlign:'left', borderBottom:'2px solid #e2e8f0', fontWeight:700 }}>Material</th>
+              <th style={{ padding:'5px 8px', textAlign:'left', borderBottom:'2px solid #e2e8f0', fontWeight:700 }}>RF intrínseca</th>
+              <th style={{ padding:'5px 8px', textAlign:'left', borderBottom:'2px solid #e2e8f0', fontWeight:700 }}>Norma de referencia</th>
+              <th style={{ padding:'5px 8px', textAlign:'left', borderBottom:'2px solid #e2e8f0', fontWeight:700 }}>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MAT_ESCAL.map((m, i) => (
+              <tr key={m.id} style={{ background: i%2===0 ? '#fff' : '#f8fafc',
+                outline: matId===m.id ? '2px solid #0369a1' : 'none' }}>
+                <td style={{ padding:'5px 8px', borderBottom:'1px solid #f1f5f9', fontWeight: matId===m.id?700:400 }}>{m.label}</td>
+                <td style={{ padding:'5px 8px', borderBottom:'1px solid #f1f5f9',
+                  fontWeight:700, color: m.rfBase==='F0'?'#dc2626': m.rfBase===null?'#d97706':'#166534' }}>
+                  {m.rfBase || 'Variable'}
+                </td>
+                <td style={{ padding:'5px 8px', borderBottom:'1px solid #f1f5f9', fontSize:10, color:'#64748b' }}>
+                  {m.id==='ha'?'NCh430 / LOFC Ed.17 Tabla A4':
+                   m.id==='ha_pref'?'LOFC Ed.17 Tabla A4 / Ficha fabricante':
+                   m.id==='acero'||m.id==='acero_p'?'EN 13381-8 / LOFC Ed.17 Annex B':
+                   m.id==='madera'||m.id==='clt'?'LOFC Ed.17 Tabla A6 / NCh850':'LOFC Ed.17 Tabla A2'}
+                </td>
+                <td style={{ padding:'5px 8px', borderBottom:'1px solid #f1f5f9', fontSize:10, color:'#64748b' }}>
+                  {m.nota.length > 70 ? m.nota.slice(0,70)+'…' : m.nota}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ fontSize:10, color:'#64748b', marginTop:10, padding:'6px 10px',
+        background:'#f8fafc', borderRadius:5, lineHeight:1.5 }}>
+        ⚠ <b>Importante:</b> La RF certificada de la escalera debe respaldarse con ensayo según NCh850 o
+        clasificación equivalente vigente (LOFC Ed.17). El proyectista es responsable de verificar que el
+        sistema constructivo cumple la RF exigida y cuenta con la documentación técnica correspondiente.
+        Ancho mínimo de escalera: 1.10 m (vivienda) / 1.20 m (otros usos) · OGUC Art. 4.5.7.3.
       </div>
     </div>
   )
@@ -1627,12 +2053,14 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
     estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
     cubierta:   termica.techo?.solucion?.rf || '',
     muros_sep:  termica.tabique?.solucion?.rf || termica.muro?.solucion?.rf || '',
+    cajas_esc:  '',
     escaleras:  '',
   }
   const solForElem = {
     estructura: [termica.muro?.solucion, termica.techo?.solucion, termica.piso?.solucion].filter(Boolean)[0],
     cubierta:   termica.techo?.solucion,
     muros_sep:  termica.tabique?.solucion || termica.muro?.solucion,
+    cajas_esc:  null,
     escaleras:  null,
   }
 
@@ -1643,6 +2071,9 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
     { id:'muros_sep',  label:'Muros de separación entre propietarios / destinos',
       rfReq: rfReqFromOGUC('muros_sep') || rfDef.muros_sep,
       obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (3) muros entre distintos propietarios o destinos` : 'OGUC Art. 4.5.4. Ingresa superficie m² para aplicar Tabla 1 OGUC.' },
+    { id:'cajas_esc',  label:'Cajas de escalera / ascensores / ductos',
+      rfReq: rfReqFromOGUC('cajas_esc'),
+      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (4) cajas de escalera` : requiereCajaEscalera(uso, proy.pisos) ? 'OGUC Art. 4.5.7 — caja de escalera exigida según uso y pisos.' : 'OGUC Art. 4.5.7 — caja de escalera no exigida para este uso/pisos.' },
     { id:'escaleras',  label:'Escaleras / Vías de escape',
       rfReq: rfReqFromOGUC('escaleras') || rfDef.escaleras,
       obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (9) escaleras` : 'OGUC Art. 4.5.7. Verificar ensayo NCh850 específico.' },
@@ -1864,7 +2295,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
         const rp = termica['rf_' + e.id]?.rf || rfFromSol[e.id] || ''
         return e.rfReq && rp && rfN(rp) < rfN(e.rfReq)
       }).map(e => {
-        const elemSC = { estructura:'muro', muros_sep:'muro', escaleras:null, cubierta:'techumbre' }[e.id]
+        const elemSC = { estructura:'muro', muros_sep:'muro', cajas_esc:null, escaleras:null, cubierta:'techumbre' }[e.id]
         const alts = elemSC ? SC.filter(s => s.elem===elemSC && s.zonas.includes(proy.zona||'D') && s.usos.includes(uso||'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,4) : []
         return (
           <div key={e.id} style={{ ...S.card, borderColor:'#fca5a5', background:'#fff5f5' }}>
@@ -1897,6 +2328,16 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
           </div>
         )
       })}
+      {/* ── Calculador RF Escaleras — OGUC Art. 4.5.7 ────────────────────── */}
+      {uso && proy.pisos && (
+        <CalcRFEscalera
+          proy={proy}
+          letraOGUC={letraOGUC}
+          rfReqEscalera={rfReqFromOGUC('escaleras') || rfDef.escaleras || null}
+          rfReqCaja={rfReqFromOGUC('cajas_esc') || null}
+        />
+      )}
+
       {/* ── Calculador RF Acero/Metalframe — uno por cada sistema que lo requiera ── */}
       {(() => {
         const tiposConRF0 = ['Estructura de acero', 'Metalframe (acero liviano)']
@@ -3473,8 +3914,9 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${zona.piso} W/m²K`,  ok: !uPiso  || parseFloat(uPiso)  <= zona.piso },
       { label:'Puerta U',          val: uPuerta,                    max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !uPuerta || !PUERTA_U[proy.zona] || parseFloat(uPuerta) <= PUERTA_U[proy.zona] },
       { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr) },
-      { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0') },
-      { label:'RF Escaleras',      val: termica.rf_escaleras?.rf,   max:`≥ ${RF_DEF[uso]?.escaleras}`,ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(RF_DEF[uso]?.escaleras||'F0') },
+      { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
+      { label:'RF Caja escalera',  val: termica.rf_cajas_esc?.rf,   max: getRFOGUC(uso, proy.destinoOGUC||(USO_TO_OGUC[uso]?.length===1?USO_TO_OGUC[uso][0]:''), proy.superficie, proy.pisos, 'cajas_esc') ? `≥ ${getRFOGUC(uso, proy.destinoOGUC||(USO_TO_OGUC[uso]?.length===1?USO_TO_OGUC[uso][0]:''), proy.superficie, proy.pisos, 'cajas_esc')?.rf}` : '—', ok: !termica.rf_cajas_esc?.rf || true, norma:'OGUC Art. 4.5.7 Col.(4)' },
+      { label:'RF Escaleras',      val: termica.rf_escaleras?.rf,   max:`≥ ${RF_DEF[uso]?.escaleras}`,ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(RF_DEF[uso]?.escaleras||'F0'), norma:'OGUC Art. 4.5.7 Col.(9)' },
       { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${RF_DEF[uso]?.cubierta}`, ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(RF_DEF[uso]?.cubierta||'F0') },
       { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
       { label:'Rw fachada',        val: termica.ac_fachada?.rw      ? termica.ac_fachada.rw+'  dB':null,      max:`≥ ${AC_DEF[uso]?.fachada} dB`,        ok: !termica.ac_fachada?.rw       || parseFloat(termica.ac_fachada.rw)       >= (AC_DEF[uso]?.fachada||0) },
@@ -3502,6 +3944,21 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   }
 
   async function exportarInforme() {
+    // ── Validación de completitud ──────────────────────────────────────────────
+    const faltantes = []
+    if (!proy.nombre?.trim())   faltantes.push('Nombre del proyecto')
+    if (!proy.zona)             faltantes.push('Zona térmica')
+    if (!proy.uso)              faltantes.push('Uso del edificio')
+    if (!proy.pisos)            faltantes.push('Número de pisos')
+    const tieneTermica = Object.keys(termica).some(k => termica[k]?.u || termica[k]?.solucion)
+    const tieneCalcU   = Object.keys(calcUInit || {}).some(k => calcUInit[k]?.res)
+    if (!tieneTermica && !tieneCalcU) faltantes.push('Datos térmicos (Térmica o Cálculo U)')
+    if (faltantes.length > 0) {
+      const continuar = window.confirm(
+        `⚠ El informe tiene datos incompletos:\n\n${faltantes.map(f => `  • ${f}`).join('\n')}\n\n¿Desea exportar el informe de todas formas?`
+      )
+      if (!continuar) return
+    }
     // Verificar y consumir crédito de proyecto antes de generar
     if (onExportar) {
       const permitido = await onExportar()
@@ -3553,6 +4010,8 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         const rows = capas.map((c, i) => {
           const rC = c.esCamara ? RCAMARA : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000) / parseFloat(c.lam) : 0)
           Racum += rC
+          const matNorm = c.esCamara ? null : ALL_MATS.find(m => m.n?.toLowerCase() === (c.mat||'').toLowerCase())
+          const fuenteLam = c.esCamara ? '—' : (matNorm ? 'NCh853:2021 Anexo / LOSCAT Ed.13' : (c.lam ? 'Dato fabricante / LOSCAT' : '—'))
           return `<tr>
             <td>${i + 1}</td>
             <td>${c.esCamara ? '<i>Cámara de aire</i>' : (c.mat || '—')}</td>
@@ -3560,16 +4019,17 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
             <td>${c.esCamara ? '—' : (c.esp ?? '—')}</td>
             <td>${c.esCamara ? '≈ 1' : (c.mu ?? '—')}</td>
             <td>${c.esCamara ? '= ' + RCAMARA : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000 / parseFloat(c.lam)).toFixed(4) : '—')}</td>
+            <td style="font-size:8.5pt;color:#64748b">${fuenteLam}</td>
           </tr>`
         }).join('')
         const Rtot = RSi + Racum + RSe
         tablaCapa = `<table>
-          <tr><th>#</th><th>Material</th><th>λ (W/mK)</th><th>e (mm)</th><th>μ</th><th>R (m²K/W)</th></tr>
+          <tr><th>#</th><th>Material</th><th>λ (W/mK)</th><th>e (mm)</th><th>μ</th><th>R (m²K/W)</th><th>Fuente dato λ</th></tr>
           ${rows}
-          <tr class="subtotal"><td colspan="2"><b>RSi — Resistencia sup. interior</b></td><td colspan="3">${rsiKey} (NCh853 Tabla)</td><td><b>${RSi}</b></td></tr>
-          <tr class="subtotal"><td colspan="2"><b>RSe — Resistencia sup. exterior</b></td><td colspan="3"></td><td><b>${RSe}</b></td></tr>
-          <tr class="total"><td colspan="2"><b>R<sub>total</sub> = RSi + ΣR<sub>i</sub> + RSe</b></td><td colspan="3"></td><td><b>${Rtot.toFixed(4)} m²K/W</b></td></tr>
-          <tr class="total"><td colspan="2"><b>U = 1 / R<sub>total</sub></b></td><td colspan="3"></td><td><b>${(1 / Rtot).toFixed(4)} W/m²K</b></td></tr>
+          <tr class="subtotal"><td colspan="2"><b>RSi — Resistencia sup. interior</b></td><td colspan="3">${rsiKey} (NCh853 Tabla)</td><td><b>${RSi}</b></td><td style="font-size:8.5pt;color:#64748b">NCh853:2021 Tabla E.1</td></tr>
+          <tr class="subtotal"><td colspan="2"><b>RSe — Resistencia sup. exterior</b></td><td colspan="3"></td><td><b>${RSe}</b></td><td style="font-size:8.5pt;color:#64748b">NCh853:2021 Tabla E.1</td></tr>
+          <tr class="total"><td colspan="2"><b>R<sub>total</sub> = RSi + ΣR<sub>i</sub> + RSe</b></td><td colspan="3"></td><td><b>${Rtot.toFixed(4)} m²K/W</b></td><td></td></tr>
+          <tr class="total"><td colspan="2"><b>U = 1 / R<sub>total</sub></b></td><td colspan="3"></td><td><b>${(1 / Rtot).toFixed(4)} W/m²K</b></td><td></td></tr>
         </table>`
       } else if (data?.u) {
         tablaCapa = `<div class="aviso">Valor U ingresado manualmente: <b>${data.u} W/m²K</b> (sin detalle de capas disponible)</div>`
@@ -3647,6 +4107,25 @@ ${res.condInter
         }
       }
 
+      // ── Memoria descriptiva automática ────────────────────────────────────
+      const tipoSistema = sc ? sc.desc : (capas?.length ? 'sistema constructivo personalizado' : 'solución ingresada manualmente')
+      const capasDescr = capas?.filter(c => !c.esCamara).map(c => `${c.mat} (${Math.round(parseFloat(c.esp||0))} mm)`).join(', ')
+      const espTotal = capas ? capas.filter(c=>!c.esCamara).reduce((a,c)=>a+parseFloat(c.esp||0),0).toFixed(0) : null
+      const uValDescr = uCalcCorr != null ? parseFloat(uCalcCorr).toFixed(4) : (data?.u ? parseFloat(data.u).toFixed(4) : null)
+      const funciones = { muro:'aislación térmica de la envolvente exterior, control higrotérmico y soporte de cargas laterales', techo:'protección frente a precipitaciones, aislación térmica superior y control de condensación', piso:'aislación térmica del piso ventilado respecto al subsuelo o exterior', tabique:'separación interior entre recintos con control acústico y eventual RF', ventana:'transmisión de luz natural con control de pérdidas térmicas y ganancias solares' }
+      const funcion = funciones[el.key] || 'desempeño energético y normativo'
+      let memoriaDescriptiva = ''
+      if (uValDescr) {
+        const margenPct = el.umax ? (((el.umax - parseFloat(uValDescr)) / el.umax) * 100).toFixed(1) : null
+        const cumpleTexto = el.umax ? (parseFloat(uValDescr) <= el.umax ? `cumple con la exigencia térmica` : `no cumple con la exigencia térmica`) : `no tiene límite U asignado para esta zona`
+        memoriaDescriptiva = `<div class="mem-desc">
+  <div class="mem-desc-title">📄 Memoria descriptiva — ${el.label}</div>
+  <p>El sistema de <b>${el.label.toLowerCase()}</b> corresponde a ${tipoSistema}${sc ? ` (LOSCAT ${sc.cod})` : ''}${capasDescr ? `, compuesto por las siguientes capas desde interior a exterior: <b>${capasDescr}</b>` : ''}. ${espTotal ? `El espesor total de capas sólidas es de <b>${espTotal} mm</b>.` : ''}</p>
+  <p>Este sistema cumple la función de ${funcion}${hayModifCapas ? ' (configuración modificada respecto al LOSCAT original)' : ''}.</p>
+  <p><b>Resultado térmico:</b> El coeficiente de transmitancia térmica calculado es <b>U = ${uValDescr} W/m²K</b>${tbPct>0?` (incluyendo corrección por puente térmico de ${tbPct}%)`:''}${el.umax?`, inferior al máximo permitido de <b>${el.umax} W/m²K</b> según <b>DS N°15 MINVU</b> para Zona Térmica ${proy.zona}, por lo que <b>${cumpleTexto}</b>`:''}. ${margenPct !== null ? `El margen de cumplimiento es de <b>${Math.abs(parseFloat(margenPct))}%</b> ${parseFloat(margenPct)>=0?'sobre':'bajo'} el límite exigido.` : ''}</p>
+</div>`
+      }
+
       return `
 <h3>${el.label}${sc ? ` — LOSCAT ${sc.cod}` : ''}</h3>
 ${sc ? `<div class="data-row">
@@ -3654,6 +4133,7 @@ ${sc ? `<div class="data-row">
   <div class="data-item"><label>Descripción</label><span>${sc.desc}</span></div>
   ${sc.obs ? `<div class="data-item" style="flex-basis:100%"><label>Observaciones técnicas</label><span style="font-weight:normal;font-size:10pt">${sc.obs}</span></div>` : ''}
 </div>` : ''}
+${memoriaDescriptiva}
 ${hayModifCapas ? `<div class="aviso" style="background:#fff7ed;border-color:#fed7aa;color:#92400e">⚙ Capas modificadas en Cálculo U respecto a la solución original LOSCAT ${sc?.cod}. El cálculo de U y la verificación higrotérmica reflejan la configuración modificada.</div>` : ''}
 
 ${seccionHtml}
@@ -3762,12 +4242,70 @@ ${glaserHtml}`
 
     // ── Resumen ejecutivo ─────────────────────────────────────────────────────
     const allOkLocal = checks.every(c => c.ok)
-    const resumenRows = checks.map(c => `<tr>
-      <td><b>${c.label}</b></td>
-      <td>${c.val}</td>
-      <td>${c.max}</td>
-      <td><span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
-    </tr>`).join('')
+
+    // Agregar condensación y VPCT al resumen
+    const checksExtendido = [...checks]
+
+    // Condensación intersticial por elemento
+    const condRows = []
+    ELEMS_DEF.forEach(el => {
+      if (el.key === 'tabique') return
+      const calcUData = calcUInit?.[el.key]
+      const data = termica[el.key]
+      const sc = data?.solucion
+      const capasModif = calcUData?.capas
+      const capasOriginal = sc ? getCapasParaSC(sc) : null
+      const capas = capasModif?.length ? capasModif : capasOriginal
+      const resModif = calcUData?.res
+      if (!capas?.length || !zonaData) return
+      const cv = capas.map(c => c.esCamara ? { esCamara:true } : { mat:c.mat, lam:parseFloat(c.lam), esp:parseFloat(c.esp)/1000, mu:parseFloat(c.mu||1) }).filter(c => c.esCamara||(c.lam>0&&c.esp>0))
+      if (!cv.length) return
+      const res = resModif || calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo)
+      if (!res) return
+      const estado = res.condInter ? 'RIESGO' : 'OK'
+      checksExtendido.push({
+        label: `Cond. intersticial — ${el.label}`,
+        val: res.condInter ? 'Condensación detectada' : 'Sin condensación',
+        max: 'Sin condensación (NCh853)',
+        ok: !res.condInter,
+        norma: 'NCh853:2021 / EN ISO 13788',
+        estado
+      })
+    })
+
+    // VPCT fachadas
+    const vpctZona2 = zonaData ? VPCT[proy.zona] : null
+    if (vpctZona2 && (fachadas||[]).filter(f=>parseFloat(f.areaFachada)>0).length > 0) {
+      let vpctCumpleTodo = true
+      ;(fachadas||[]).filter(f=>parseFloat(f.areaFachada)>0).forEach(f => {
+        const niv = (() => { const u=parseFloat(f.uw); if(!f.uw||isNaN(u)) return null; return u<=2.0?0:u<=3.5?1:2 })()
+        const limite = niv!==null && vpctZona2[f.orient] ? vpctZona2[f.orient][niv] : null
+        const pct = parseFloat(f.vanos||0) / parseFloat(f.areaFachada) * 100
+        if (limite!==null && pct>limite) vpctCumpleTodo = false
+      })
+      checksExtendido.push({
+        label: 'VPCT — Porcentaje de vanos',
+        val: 'Ver detalle por fachada',
+        max: 'DS N°15 MINVU Tabla 3',
+        ok: vpctCumpleTodo,
+        norma: 'DS N°15 MINVU'
+      })
+    }
+
+    const resumenRows = checksExtendido.map(c => {
+      const categoria = c.label.startsWith('Muro') || c.label.startsWith('Techo') || c.label.startsWith('Piso') || c.label.startsWith('Puerta') ? 'Térmico' :
+        c.label.startsWith('RF') ? 'Incendio' :
+        c.label.startsWith('Rw') || c.label.startsWith("L'n,w") ? 'Acústico' :
+        c.label.startsWith('Cond.') ? 'Higrotérmico' : 'Otro'
+      const catColor = categoria === 'Térmico' ? '#1e40af' : categoria === 'Incendio' ? '#dc2626' : categoria === 'Acústico' ? '#0369a1' : categoria === 'Higrotérmico' ? '#7c3aed' : '#64748b'
+      return `<tr>
+        <td><span style="font-size:8pt;color:${catColor};font-weight:700;background:${catColor}15;border-radius:3px;padding:1px 5px;margin-right:4px">${categoria}</span><b>${c.label}</b></td>
+        <td>${c.val || '—'}</td>
+        <td>${c.max || '—'}</td>
+        <td>${c.norma ? `<span style="font-size:8pt;color:#64748b">${c.norma}</span>` : ''}</td>
+        <td>${c.val ? `<span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '<span style="color:#94a3b8;font-size:9pt">Sin datos</span>'}</td>
+      </tr>`
+    }).join('')
 
     // ── VPCT — análisis por fachada ───────────────────────────────────────────
     const vpctZona = zonaData ? VPCT[proy.zona] : null
@@ -3879,6 +4417,15 @@ ${notasEntries.map(([k, v]) => `
   .resumen-no  { background: #fee2e2; border: 2px solid #fca5a5; border-radius: 8px; padding: 12px 16px; font-size: 13pt; font-weight: 700; color: #991b1b; margin: 12px 0 }
   hr.sep { margin: 24px 0; border: none; border-top: 1px dashed #cbd5e1 }
   .nota { font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 10px; text-align: center; line-height: 1.6 }
+  .mem-desc { background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0369a1; border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 9.5pt; line-height: 1.7 }
+  .mem-desc-title { font-weight: 700; color: #0369a1; font-size: 10pt; margin-bottom: 6px }
+  .mem-desc p { margin: 4px 0 }
+  .traz-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 16px; margin: 8px 0; font-size: 9pt }
+  .traz-box table { font-size: 9pt; margin: 0 }
+  .traz-box th { background: #f1f5f9; font-size: 8.5pt }
+  .traz-box td { padding: 3px 6px }
+  .firma-box { border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 16px 20px; margin: 10px 0; page-break-inside: avoid }
+  .firma-linea { border-bottom: 1px solid #94a3b8; height: 52px; margin: 8px 0 2px }
   @media print {
     body { margin: 10px; padding: 0 12px }
     h2 { page-break-before: always }
@@ -3950,10 +4497,13 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
 </div>` : ''}
 
 <h2>Resumen ejecutivo — Estado de cumplimiento</h2>
-${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complete los módulos Térmica, Fuego y Acústica.</div>' : `
+<div style="font-size:8.5pt;color:#64748b;margin-bottom:8px">
+  Consolidación automática de todas las verificaciones normativas realizadas. Los elementos sin datos ingresados se muestran como "Sin datos" y no afectan el estado general.
+</div>
+${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complete los módulos Térmica, Fuego y Acústica.</div>' : `
 <div class="${allOkLocal ? 'resumen-ok' : 'resumen-no'}">${allOkLocal ? '✅ El proyecto CUMPLE con todos los parámetros verificados.' : '❌ El proyecto NO CUMPLE con uno o más requisitos — ver detalle a continuación.'}</div>
 <table>
-  <tr><th>Parámetro</th><th>Valor propuesto</th><th>Exigencia normativa</th><th>Estado</th></tr>
+  <tr><th>Módulo / Elemento</th><th>Valor calculado</th><th>Exigencia normativa</th><th>Norma / Tabla</th><th>Estado</th></tr>
   ${resumenRows}
 </table>`}
 
@@ -3982,13 +4532,36 @@ ${checks.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complet
 </table>
 
 <h2>Módulo 2 — Verificación Térmica (DS N°15 MINVU / NCh853:2021 / ISO 6946)</h2>
+<div class="traz-box">
+  <table>
+    <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
+    <tr><td><b>DS N°15 MINVU</b></td><td>Reglamento de instalaciones térmicas — establece U máx. por elemento y zona</td></tr>
+    <tr><td><b>NCh853:2021</b></td><td>Acondicionamiento térmico — cálculo de transmitancia y verificación higrotérmica</td></tr>
+    <tr><td><b>ISO 6946:2017</b></td><td>Resistencias térmicas en componentes de edificación — método de cálculo</td></tr>
+    <tr><td><b>EN ISO 13788</b></td><td>Método de Glaser — verificación de condensación intersticial</td></tr>
+    <tr><td><b>Zona térmica aplicada</b></td><td>${proy.zona || '—'} — ${ZONAS[proy.zona]?.n || '—'} · Ti = ${zonaData?.Ti ?? '—'}°C · Te = ${zonaData?.Te ?? '—'}°C · HR interior = ${zonaData?.HR ?? '—'}%</td></tr>
+    <tr><td><b>U máx. muro</b></td><td>${zonaData?.muro ? `≤ ${zonaData.muro} W/m²K (DS N°15 Tabla 3)` : '—'}</td></tr>
+    <tr><td><b>U máx. techo</b></td><td>${zonaData?.techo ? `≤ ${zonaData.techo} W/m²K (DS N°15 Tabla 3)` : '—'}</td></tr>
+    <tr><td><b>U máx. piso</b></td><td>${zonaData?.piso ? `≤ ${zonaData.piso} W/m²K (DS N°15 Tabla 3)` : '—'}</td></tr>
+  </table>
+</div>
 <div style="font-size:9.5pt;color:#64748b;margin-bottom:8px">
-  Método: Resistencias en serie ISO 6946 · Condensación intersticial: Método de Glaser (NCh853:2021 / EN ISO 13788) ·
+  Método de cálculo: Resistencias en serie ISO 6946 · Condensación intersticial: Método de Glaser (NCh853:2021 / EN ISO 13788) ·
   Ti = ${zonaData?.Ti ?? '—'}°C · Te = ${zonaData?.Te ?? '—'}°C · HR = ${zonaData?.HR ?? '—'}%
 </div>
 ${seccionesTermicas || '<div class="aviso">Sin soluciones constructivas aplicadas. Aplica soluciones desde la pestaña Soluciones.</div>'}
 
 <h2>Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
+<div class="traz-box">
+  <table>
+    <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
+    <tr><td><b>OGUC Tít. 4 Cap. 3</b></td><td>Clasificación de destinos y categorías de riesgo de incendio (R1–R4)</td></tr>
+    <tr><td><b>OGUC Art. 4.5.4</b></td><td>Exigencias de RF por elemento constructivo según destino, superficie y pisos</td></tr>
+    <tr><td><b>LOFC Ed.17 2025</b></td><td>Lista Oficial de Soluciones Constructivas (RF certificada por elemento)</td></tr>
+    <tr><td><b>NCh850</b></td><td>Ensayo de resistencia al fuego de elementos de construcción</td></tr>
+    <tr><td><b>Método aplicado</b></td><td>${_letraRpt ? `OGUC Tabla 1 — Letra ${_letraRpt.toUpperCase()} (destino ${_destOGUCRpt || uso} · ${proy.superficie||'—'} m² · ${proy.pisos||'—'} pisos)` : 'Tabla RF_DEF por uso/pisos (fallback — sin superficie/destino ingresado)'}</td></tr>
+  </table>
+</div>
 ${uso && CATEG_FUEGO[uso] ? `
 <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:${CATEG_FUEGO[uso].bgColor};border:1px solid ${CATEG_FUEGO[uso].borderColor};border-radius:6px;margin-bottom:10px">
   <div style="font-weight:900;font-size:16pt;color:${CATEG_FUEGO[uso].color};background:#fff;border:2px solid ${CATEG_FUEGO[uso].borderColor};border-radius:6px;padding:2px 12px;letter-spacing:0.04em">${CATEG_FUEGO[uso].cat}</div>
@@ -4032,6 +4605,15 @@ ${(['Estructura de acero','Metalframe (acero liviano)'].some(t => proy.estructur
 </div>` : ''}
 
 <h2>Módulo 4 — Aislamiento Acústico (OGUC Art. 4.1.6 / NCh352:2013)</h2>
+<div class="traz-box">
+  <table>
+    <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
+    <tr><td><b>OGUC Art. 4.1.6</b></td><td>Aislamiento acústico entre recintos en edificios de uso habitacional y mixto</td></tr>
+    <tr><td><b>NCh352:2013</b></td><td>Aislamiento acústico — requisitos mínimos de Rw y L'n,w según tipo de separación</td></tr>
+    <tr><td><b>ISO 15712</b></td><td>Estimación de desempeño acústico de elementos de edificación</td></tr>
+    <tr><td><b>Uso evaluado</b></td><td>${uso || '—'} · Exigencia Rw entre unidades: ≥ ${AC_DEF[uso]?.entre_unidades || '—'} dB · Rw fachada: ≥ ${AC_DEF[uso]?.fachada || '—'} dB</td></tr>
+  </table>
+</div>
 <table>
   <tr><th>Tipo de separación</th><th>Rw propuesto</th><th>Rw mínimo NCh352</th><th>Estado</th></tr>
   ${rwRows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Sin datos de aislamiento acústico</td></tr>'}
@@ -4042,30 +4624,54 @@ ${vpctHtml}
 
 ${notasHtml}
 
-<div style="margin-top:32px;padding:16px 20px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
-    <div style="flex:1;min-width:200px">
-      ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:48px;width:auto;border-radius:6px;margin-bottom:8px" alt="NormaCheck"/>` : '<b>NormaCheck</b>'}
-      <div style="font-size:8.5pt;color:#64748b;line-height:1.6">
-        Generado: ${fechaHoy}<br>
-        Normativa: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV · LOFC Ed.17 2025 · NCh352:2013
-      </div>
+<!-- ══ MÓDULO 7 — RESPONSABILIDAD PROFESIONAL ══════════════════════════════ -->
+<h2>Módulo 7 — Responsabilidad Profesional</h2>
+<div style="font-size:9pt;color:#64748b;margin-bottom:10px">
+  Según OGUC Art. 1.2.2, el profesional competente es responsable de la revisión técnica, firma y presentación del expediente al DOM.
+  Esta memoria de cálculo es un documento de apoyo técnico que debe ser revisado, firmado y timbrado por el profesional responsable antes de su presentación oficial.
+</div>
+<div class="firma-box">
+  <table style="width:100%;font-size:10pt">
+    <tr>
+      <td style="width:50%;padding-right:20px;border-right:1px solid #e2e8f0;vertical-align:top">
+        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Profesional Responsable</div>
+        <table style="font-size:10pt;width:100%">
+          <tr><td style="padding:4px 0;color:#64748b;width:40%">Nombre</td><td style="font-weight:700">${proy.profesional || proy.arq || '[No ingresado]'}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b">Profesión / Título</td><td>${proy.titulo || '[No ingresado]'}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b">RUT</td><td>${proy.rutProfesional || '[No ingresado]'}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b">N° Registro</td><td>${proy.registro ? `N° ${proy.registro}` : '[No ingresado]'}</td></tr>
+          ${proy.email ? `<tr><td style="padding:4px 0;color:#64748b">Email</td><td>${proy.email}</td></tr>` : ''}
+          ${proy.telefono ? `<tr><td style="padding:4px 0;color:#64748b">Teléfono</td><td>${proy.telefono}</td></tr>` : ''}
+          <tr><td style="padding:4px 0;color:#64748b">Fecha de emisión</td><td><b>${fechaHoy}</b></td></tr>
+        </table>
+      </td>
+      <td style="width:50%;padding-left:20px;vertical-align:top">
+        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Firma y Timbre</div>
+        <div style="height:90px;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px">
+          <span style="font-size:8pt;color:#94a3b8">Firma, timbre y sello del profesional responsable</span>
+        </div>
+        <div style="margin-top:12px;height:40px;border:1px dashed #e2e8f0;border-radius:4px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px">
+          <span style="font-size:8pt;color:#94a3b8">Nombre y RUT (letra de imprenta)</span>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+<div style="margin-top:10px;font-size:8.5pt;color:#64748b;background:#f8fafc;border-radius:6px;padding:10px 14px;line-height:1.7">
+  <b>Declaración de responsabilidad:</b> El profesional que firma el presente documento declara haber revisado los cálculos contenidos en esta memoria y asume la responsabilidad técnica de los resultados obtenidos, en conformidad con la OGUC y la normativa vigente aplicable. Los valores de RF requieren respaldo mediante ensayo NCh850 o clasificación LOFC para certificación DOM. Los valores Rw estimados requieren ensayo NCh352.
+</div>
+
+<!-- ══ PIE DE PÁGINA ════════════════════════════════════════════════════════ -->
+<div style="margin-top:32px;padding:14px 20px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+  <div style="flex:1;min-width:200px">
+    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:40px;width:auto;border-radius:5px;margin-bottom:6px" alt="NormaCheck"/>` : '<b style="color:#1e40af">NormaCheck</b>'}
+    <div style="font-size:8pt;color:#94a3b8;line-height:1.6">
+      Generado: ${fechaHoy} · Plataforma NormaCheck — Verificación Normativa OGUC<br>
+      Normativas: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Tít. IV · LOFC Ed.17 2025 · NCh352:2013 · EN ISO 13788
     </div>
-    ${(proy.profesional || proy.arq) ? `
-    <div style="flex:1;min-width:200px;text-align:right">
-      <div style="font-size:9pt;color:#64748b;margin-bottom:4px">Profesional responsable</div>
-      <div style="font-weight:800;font-size:11pt;color:#1e293b">${proy.profesional || proy.arq}</div>
-      ${proy.titulo ? `<div style="font-size:10pt;color:#475569">${proy.titulo}</div>` : ''}
-      ${proy.registro ? `<div style="font-size:9pt;color:#64748b">Reg. N° ${proy.registro}</div>` : ''}
-      ${proy.email || proy.telefono ? `<div style="font-size:9pt;color:#64748b">${[proy.email, proy.telefono].filter(Boolean).join(' · ')}</div>` : ''}
-      <div style="margin-top:12px;border-top:1px solid #cbd5e1;padding-top:10px">
-        <div style="font-size:8pt;color:#94a3b8">Firma y timbre profesional</div>
-        <div style="height:50px;border-bottom:1px solid #94a3b8;width:160px;margin:0 0 0 auto"></div>
-      </div>
-    </div>` : ''}
   </div>
-  <div style="margin-top:12px;font-size:8pt;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px">
-    ⚠ Esta memoria de cálculo es de carácter preliminar. El profesional competente es responsable de la revisión técnica, firma y presentación del expediente al DOM (OGUC Art. 1.2.2). Los valores de RF no varían con espesores de capas — requieren ensayo NCh850 para certificación DOM. Los valores Rw estimados requieren ensayo NCh352.
+  <div style="font-size:7.5pt;color:#94a3b8;text-align:right;flex-shrink:0">
+    ⚠ Documento preliminar — sujeto a revisión profesional<br>OGUC Art. 1.2.2 · Responsabilidad del proyectista competente
   </div>
 </div>
 </body></html>`
@@ -4141,7 +4747,7 @@ export default function App() {
 function AppInner() {
   const tokenCtx = useToken()
   const [tab, setTab] = useState(0)
-  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', titulo: '', registro: '', email: '', telefono: '' })
+  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', registro: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
