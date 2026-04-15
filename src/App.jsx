@@ -702,8 +702,12 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
   const [busqueda,       setBusqueda]       = useState('')
   const [filtroRF,       setFiltroRF]       = useState('')
   const [filtroSistema,  setFiltroSistema]  = useState('')
-  const [selComp,   setSelComp]   = useState([])
-  const [showComp,  setShowComp]  = useState(false)
+  const [selComp,       setSelComp]       = useState([])
+  const [showComp,      setShowComp]      = useState(false)
+  // targetSistema: null = global, id = estructura específica (local a esta pestaña)
+  const [targetSistema, setTargetSistema] = useState(null)
+  // catalogRef: para hacer scroll al catálogo cuando el usuario elige un slot
+  const catalogRef = React.useRef(null)
 
   const zona  = proy.zona  || 'D'
   const uso   = proy.uso   || 'Vivienda'
@@ -807,9 +811,164 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
         ]}
         normativa="LOSCAT Ed.13 2025 (DITEC-MINVU) · LOFC Ed.17 2025 · DS N°15 Tabla 1 y 3 · OGUC Art. 4.5.4 · NCh352 · NCh853:2021"
       />
+      {/* ── Panel de sistemas estructurales ─────────────────────────────────── */}
+      {(proy.estructuras?.length > 0) && (() => {
+        const SLOTS = [
+          { key:'muro',    label:'Muro',     catElem:'muro'      },
+          { key:'techo',   label:'Techo',    catElem:'techumbre' },
+          { key:'piso',    label:'Piso',     catElem:'piso'      },
+          { key:'tabique', label:'Tabique',  catElem:'tabique'   },
+        ]
+        const tipoCorto = t => t
+          .replace('Albanileria confinada','Alb. confinada')
+          .replace('Albanileria armada','Alb. armada')
+          .replace('Hormigon armado','H.A.')
+          .replace('Estructura de acero','Acero estructural')
+          .replace('Metalframe (acero liviano)','Metalframe')
+          .replace('Estructura de madera','Madera')
+          .replace('Mixta HA + albanileria','Mixta HA+alb.')
+
+        return (
+          <div style={{ ...S.card, border:'1.5px solid #bfdbfe', background:'#f8faff' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+              <p style={{ ...S.h2, marginBottom:0, color:'#1e40af' }}>
+                Soluciones por sistema estructural
+              </p>
+              {targetSistema && (
+                <button onClick={() => { setTargetSistema(null); setFiltroSistema('') }}
+                  style={{ fontSize:11, color:'#64748b', background:'#f1f5f9', border:'1px solid #e2e8f0', borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
+                  ✕ Deseleccionar sistema
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize:11, color:'#64748b', marginBottom:12 }}>
+              Para cada sistema, haz clic en <b>Asignar</b> → el catálogo se filtra automáticamente → presiona <b>Aplicar</b>.
+            </p>
+
+            {proy.estructuras.map(est => {
+              const soles = est.soluciones || {}
+              const isActive = targetSistema === est.id
+              return (
+                <div key={est.id} style={{
+                  border: isActive ? '2px solid #166534' : '1px solid #e2e8f0',
+                  borderRadius:10, padding:'12px 16px', marginBottom:10,
+                  background: isActive ? '#f0fdf4' : '#fff',
+                  transition:'border-color 0.15s',
+                }}>
+                  {/* Cabecera del sistema */}
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                    <div style={{ fontWeight:800, fontSize:13, color: isActive ? '#166534' : '#1e40af' }}>
+                      {tipoCorto(est.tipo)}
+                    </div>
+                    {est.sector && (
+                      <span style={{ background:'#f1f5f9', border:'1px solid #e2e8f0', borderRadius:4, padding:'1px 7px', fontSize:11, color:'#64748b' }}>
+                        {est.sector}
+                      </span>
+                    )}
+                    {est.desde && (
+                      <span style={{ fontSize:11, color:'#94a3b8' }}>
+                        Pisos {est.desde}{est.hasta !== est.desde ? `–${est.hasta}` : ''}
+                      </span>
+                    )}
+                    {isActive && (
+                      <span style={{ marginLeft:'auto', fontSize:11, color:'#166534', fontWeight:700, background:'#dcfce7', borderRadius:20, padding:'2px 10px' }}>
+                        ← Selecciona una solución abajo
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Slots por elemento */}
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:8 }}>
+                    {SLOTS.map(slot => {
+                      const d = soles[slot.key]
+                      const isActiveSlot = isActive && elem === slot.catElem
+                      return (
+                        <div key={slot.key} style={{
+                          border: isActiveSlot ? '2px solid #166534' : d ? '1px solid #86efac' : '1.5px dashed #cbd5e1',
+                          borderRadius:8, padding:'8px 10px',
+                          background: isActiveSlot ? '#dcfce7' : d ? '#f0fdf4' : '#fafafa',
+                        }}>
+                          <div style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>
+                            {slot.label}
+                          </div>
+
+                          {d ? (
+                            <>
+                              <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{d.solucion?.cod}</div>
+                              <div style={{ fontSize:10, color:'#374151', marginBottom:4, lineHeight:1.3 }}>{d.solucion?.desc}</div>
+                              <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:6 }}>
+                                {d.u && <span style={{ fontSize:9, background:'#dbeafe', color:'#1e40af', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>U {d.u}</span>}
+                                {d.rf && <span style={{ fontSize:9, background:'#fee2e2', color:'#991b1b', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>{d.rf}</span>}
+                                {d.rw && <span style={{ fontSize:9, background:'#eff6ff', color:'#1d4ed8', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>Rw {d.rw}dB</span>}
+                              </div>
+                              <div style={{ display:'flex', gap:4 }}>
+                                <button
+                                  onClick={() => {
+                                    setTargetSistema(est.id)
+                                    setElem(slot.catElem)
+                                    setFiltroSistema(est.tipo)
+                                    setTimeout(() => catalogRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 50)
+                                  }}
+                                  style={{ fontSize:10, color:'#1e40af', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'2px 7px', cursor:'pointer' }}>
+                                  Cambiar
+                                </button>
+                                <button
+                                  onClick={() => setProy(p => ({
+                                    ...p,
+                                    estructuras: p.estructuras.map(e => e.id === est.id
+                                      ? { ...e, soluciones: Object.fromEntries(Object.entries(e.soluciones||{}).filter(([k]) => k !== slot.key)) }
+                                      : e
+                                    )
+                                  }))}
+                                  style={{ fontSize:10, color:'#dc2626', background:'#fff', border:'1px solid #fca5a5', borderRadius:4, padding:'2px 7px', cursor:'pointer' }}>
+                                  ✕
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setTargetSistema(est.id)
+                                setElem(slot.catElem)
+                                setFiltroSistema(est.tipo)
+                                setTimeout(() => catalogRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 50)
+                              }}
+                              style={{
+                                width:'100%', padding:'5px 0', fontSize:11, fontWeight:600,
+                                background: isActiveSlot ? '#166534' : '#fff',
+                                color: isActiveSlot ? '#fff' : '#64748b',
+                                border:`1.5px dashed ${isActiveSlot ? '#166534' : '#94a3b8'}`,
+                                borderRadius:6, cursor:'pointer',
+                              }}>
+                              {isActiveSlot ? '← Elige del catálogo ↓' : '+ Asignar'}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {/* ── Cabecera de filtros ──────────────────────────────────────────────── */}
-      <div style={S.card}>
-        <p style={S.h2}>Soluciones constructivas — LOSCAT Ed.13 2025 · LOFC Ed.17 2025</p>
+      <div ref={catalogRef} style={S.card}>
+        <p style={S.h2}>
+          {targetSistema
+            ? `Catálogo — asignando a: ${proy.estructuras?.find(e=>e.id===targetSistema)?.tipo?.replace('Metalframe (acero liviano)','Metalframe') || ''}`
+            : 'Soluciones constructivas — LOSCAT Ed.13 2025 · LOFC Ed.17 2025'
+          }
+        </p>
+        {targetSistema && (
+          <div style={{ background:'#dcfce7', border:'1px solid #86efac', borderRadius:6, padding:'6px 12px', marginBottom:8, fontSize:11, color:'#166534', fontWeight:600 }}>
+            ★ La solución que apliques se guardará en <b>{proy.estructuras?.find(e=>e.id===targetSistema)?.tipo}</b>
+            {proy.estructuras?.find(e=>e.id===targetSistema)?.sector && ` — ${proy.estructuras.find(e=>e.id===targetSistema).sector}`}
+            {' '}· Elemento: <b>{ELEM_LABELS[elem]}</b>
+          </div>
+        )}
 
         {/* Contexto del proyecto */}
         <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginBottom:10, fontSize:11, color:'#64748b' }}>
@@ -1063,7 +1222,7 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
                               <span style={{ fontSize:10, background:'#dcfce7', color:'#166534', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>U={x.u}</span>
                               {x.rf&&<span style={{ fontSize:10, background:'#fee2e2', color:'#991b1b', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>RF={x.rf}</span>}
                               {x.ac_rw&&<span style={{ fontSize:10, background:'#dbeafe', color:'#1e40af', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>Rw={x.ac_rw}dB</span>}
-                              <button onClick={()=>onAplicar(x)}
+                              <button onClick={()=>onAplicar(x, targetSistema)}
                                 style={{ background:'#166534', color:'#fff', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                                 Aplicar →
                               </button>
@@ -1085,8 +1244,8 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
                     onEnviarCalcU={onEnviarCalcU}
                   />
                   <div style={{ marginTop:12 }}>
-                    <button style={S.btn('#166534')} onClick={() => onAplicar(s)}>
-                      Aplicar al proyecto →
+                    <button style={S.btn('#166534')} onClick={() => onAplicar(s, targetSistema)}>
+                      {targetSistema ? `Aplicar a ${proy.estructuras?.find(e=>e.id===targetSistema)?.tipo?.split(' ')[0] || 'sistema'} →` : 'Aplicar al proyecto →'}
                     </button>
                   </div>
                 </div>
@@ -1147,7 +1306,7 @@ function TabSoluciones({ proy, onAplicar, onEnviarCalcU, notas, setNotas }) {
               </table>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 {selComp.map((sc, i) => (
-                  <button key={i} onClick={() => { onAplicar(sc); setShowComp(false) }} style={{ flex: 1, padding: '10px 0', background: i === 0 ? '#1e40af' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+                  <button key={i} onClick={() => { onAplicar(sc, targetSistema); setShowComp(false) }} style={{ flex: 1, padding: '10px 0', background: i === 0 ? '#1e40af' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
                     Usar {sc.cod}
                   </button>
                 ))}
@@ -1195,7 +1354,93 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
 
       {/* ── Soluciones aplicadas (resumen visual) ─────────────────────────── */}
       {(() => {
-        const conSol = ['muro','techo','piso','tabique'].filter(k => termica[k]?.solucion)
+        const multiSistema = (proy.estructuras?.length > 1)
+        const ELEMS_SOL = ['muro','techo','piso','tabique']
+
+        // ── Vista multi-sistema ──────────────────────────────────────────────
+        if (multiSistema) {
+          const tieneAlgo = proy.estructuras.some(e => e.soluciones && Object.keys(e.soluciones).length > 0)
+            || ELEMS_SOL.some(k => termica[k]?.solucion)
+          if (!tieneAlgo) return null
+
+          return (
+            <div style={S.card}>
+              <p style={S.h3}>Soluciones constructivas por sistema estructural</p>
+              <p style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
+                Asigna soluciones desde la pestaña <b>Soluciones</b> seleccionando el sistema destino.
+              </p>
+              {proy.estructuras.map(est => {
+                const soles = est.soluciones || {}
+                const tiene = Object.keys(soles).length > 0
+                return (
+                  <div key={est.id} style={{
+                    border: tiene ? '1.5px solid #86efac' : '1px dashed #cbd5e1',
+                    borderRadius:8, padding:'10px 14px', marginBottom:8,
+                  }}>
+                    {/* Cabecera del sistema */}
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom: tiene ? 8 : 0 }}>
+                      <span style={{ fontWeight:700, fontSize:12, color:'#374151' }}>{est.tipo}</span>
+                      {est.sector && <span style={{ fontSize:11, color:'#64748b', background:'#f1f5f9', borderRadius:4, padding:'1px 6px' }}>{est.sector}</span>}
+                      {est.desde && <span style={{ fontSize:10, color:'#94a3b8' }}>Pisos {est.desde}–{est.hasta}</span>}
+                      {!tiene && <span style={{ fontSize:11, color:'#94a3b8', marginLeft:'auto' }}>Sin soluciones asignadas</span>}
+                    </div>
+                    {/* Chips de soluciones por elemento */}
+                    {tiene && (
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                        {ELEMS_SOL.map(k => {
+                          const d = soles[k]
+                          if (!d) return null
+                          const um = ELEMS.find(e=>e.id===k)?.umax
+                          const ok = !um || parseFloat(d.u||99) <= um
+                          return (
+                            <div key={k} style={{ background: ok?'#f0fdf4':'#fff5f5', border:`1px solid ${ok?'#86efac':'#fca5a5'}`, borderRadius:6, padding:'6px 10px', minWidth:160 }}>
+                              <div style={{ fontSize:9, color:'#64748b', textTransform:'uppercase', letterSpacing:1 }}>{k}</div>
+                              <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{d.solucion?.cod}</div>
+                              <div style={{ fontSize:10 }}>{d.solucion?.desc}</div>
+                              <div style={{ fontSize:11, marginTop:2 }}>
+                                U = <b>{d.u} W/m²K</b>
+                                {um && <> <span style={{ fontWeight:700, color: ok?'#166534':'#dc2626' }}>{ok?'✓':'✗'}</span></>}
+                              </div>
+                              {d.rf && <div style={{ fontSize:10, color:'#374151' }}>RF {d.rf}{d.rw ? ` · Rw ${d.rw}dB` : ''}</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {/* Global (fallback) si existe */}
+              {ELEMS_SOL.some(k => termica[k]?.solucion) && (
+                <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 14px' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#64748b', marginBottom:6 }}>
+                    Soluciones globales (aplican a todos los sistemas sin asignación específica)
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {ELEMS_SOL.filter(k => termica[k]?.solucion).map(k => {
+                      const sol = termica[k].solucion
+                      const up = parseFloat(termica[k]?.u || 99)
+                      const um = ELEMS.find(e=>e.id===k)?.umax
+                      const ok = !um || up <= um
+                      return (
+                        <div key={k} style={{ background: ok?'#f0fdf4':'#fff5f5', border:`1px solid ${ok?'#86efac':'#fca5a5'}`, borderRadius:6, padding:'6px 10px', minWidth:160 }}>
+                          <div style={{ fontSize:9, color:'#64748b', textTransform:'uppercase', letterSpacing:1 }}>{k}</div>
+                          <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{sol.cod}</div>
+                          <div style={{ fontSize:10 }}>{sol.desc}</div>
+                          <div style={{ fontSize:11, marginTop:2 }}>U = <b>{termica[k]?.u} W/m²K</b>{um && <> <span style={{ fontWeight:700, color: ok?'#166534':'#dc2626' }}>{ok?'✓':'✗'}</span></>}</div>
+                          {sol.rf && <div style={{ fontSize:10, color:'#374151' }}>RF {sol.rf}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        // ── Vista sistema único (comportamiento original) ────────────────────
+        const conSol = ELEMS_SOL.filter(k => termica[k]?.solucion)
         if (!conSol.length) return null
         return (
           <div style={S.card}>
@@ -1252,11 +1497,17 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
               const cumpleRF = !rfReq || !rfProp || rfN(rfProp) >= rfN(rfReq)
               const cumpleTodo = cumpleU && cumpleRF
               const uInvalid = uRaw !== '' && (isNaN(up) || up <= 0)
+              // Sub-filas por sistema estructural
+              const sistemasSolElem = (proy.estructuras?.length > 1)
+                ? proy.estructuras.filter(e => e.soluciones?.[id])
+                : []
               return (
-                <tr key={id} style={{ background: uDisplay&&!cumpleTodo?'#fff5f5':'transparent' }}>
+                <React.Fragment key={id}>
+                <tr style={{ background: uDisplay&&!cumpleTodo?'#fff5f5':'transparent' }}>
                   <td style={S.td}>
                     <b>{label}</b>
                     {sol && <div style={{ fontSize:10, color:'#1e40af', marginTop:2 }}>📋 {sol.cod}</div>}
+                    {sistemasSolElem.length > 0 && <div style={{ fontSize:9, color:'#64748b', marginTop:2 }}>+ {sistemasSolElem.length} sistema(s) con solución específica ↓</div>}
                   </td>
                   <td style={S.td}>
                     <input type="number" step="0.01" min="0" max="10" style={{ ...ist, width:75 }}
@@ -1291,6 +1542,33 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                       : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
                   </td>
                 </tr>
+                {/* Sub-filas por sistema estructural */}
+                {sistemasSolElem.map(est => {
+                  const d = est.soluciones[id]
+                  const uS = parseFloat(d.u || 0)
+                  const okU = !umax || uS <= umax
+                  const rfS = d.rf || ''
+                  const okRF = !rfReq || !rfS || rfN(rfS) >= rfN(rfReq)
+                  const okTodo = okU && okRF
+                  return (
+                    <tr key={est.id} style={{ background: okTodo ? '#f0fdf4' : '#fff5f5' }}>
+                      <td style={{ ...S.td, paddingLeft:24, fontSize:11 }}>
+                        <span style={{ color:'#64748b' }}>↳ {est.tipo.replace('Albanileria','Alb.').replace('Hormigon armado','H.A.').replace('Estructura de acero','Acero')}</span>
+                        {est.sector && <span style={{ marginLeft:4, color:'#94a3b8', fontSize:10 }}>{est.sector}</span>}
+                        {est.desde && <span style={{ marginLeft:4, color:'#94a3b8', fontSize:10 }}>P{est.desde}{est.hasta !== est.desde ? `–${est.hasta}` : ''}</span>}
+                        {d.solucion && <div style={{ fontSize:10, color:'#1e40af' }}>📋 {d.solucion.cod} — {d.solucion.desc}</div>}
+                      </td>
+                      <td style={{ ...S.td, fontWeight:700 }}>{d.u}</td>
+                      <td style={S.td}><span style={{ color:'#94a3b8', fontSize:10 }}>—</span></td>
+                      <td style={{ ...S.td, fontWeight:700, color: okU ? '#166534' : '#dc2626' }}>{d.u || '—'}</td>
+                      <td style={{ ...S.td, color:'#dc2626', fontWeight:700 }}>{umax ? `≤ ${umax}` : <span style={{ color:'#94a3b8' }}>—</span>}</td>
+                      <td style={{ ...S.td, fontWeight:700 }}>{rfS || <span style={{ color:'#94a3b8' }}>—</span>}</td>
+                      <td style={{ ...S.td, color: rfReq?'#dc2626':'#94a3b8', fontWeight: rfReq?700:'normal' }}>{rfReq || '—'}</td>
+                      <td style={S.td}><span style={S.badge(okTodo)}>{okTodo ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+                    </tr>
+                  )
+                })}
+                </React.Fragment>
               )
             })}
           </tbody>
@@ -4551,6 +4829,54 @@ ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados
 </div>
 ${seccionesTermicas || '<div class="aviso">Sin soluciones constructivas aplicadas. Aplica soluciones desde la pestaña Soluciones.</div>'}
 
+${(() => {
+  const ests = (proy.estructuras || []).filter(e => e.soluciones && Object.keys(e.soluciones).length > 0)
+  if (ests.length < 2 && !ests.length) return ''
+  const ELEMS_RPT = ['muro','techo','piso','tabique']
+  const zonaD = ZONAS[proy.zona] || {}
+  const umaxMap = { muro: zonaD.muro, techo: zonaD.techo, piso: zonaD.piso, tabique: null }
+  return `
+<h2>Módulo 2b — Soluciones constructivas por sistema estructural</h2>
+<p style="font-size:9.5pt;color:#64748b;margin-bottom:10px">
+  El proyecto define <b>${proy.estructuras.length} sistemas estructurales</b> con soluciones asignadas individualmente.
+  La siguiente tabla resume las propiedades térmicas y de resistencia al fuego por sistema y elemento constructivo.
+</p>
+<table>
+  <tr>
+    <th>Sistema estructural</th>
+    <th>Sector / Pisos</th>
+    <th>Elemento</th>
+    <th>Solución (LOSCAT)</th>
+    <th>U propuesta (W/m²K)</th>
+    <th>U máx DS N°15</th>
+    <th>RF</th>
+    <th>Estado</th>
+  </tr>
+  ${ests.flatMap(est =>
+    ELEMS_RPT.filter(k => est.soluciones[k]).map(k => {
+      const d = est.soluciones[k]
+      const umax = umaxMap[k]
+      const uV = parseFloat(d.u || 0)
+      const okU = !umax || uV <= umax
+      const rfReqMap = { muro: RF_PISOS(uso, proy.pisos), techo: RF_DEF[uso]?.cubierta, piso: RF_PISOS(uso, proy.pisos), tabique: RF_DEF[uso]?.muros_sep }
+      const rfReqK = rfReqMap[k] || ''
+      const okRF = !rfReqK || !d.rf || rfN(d.rf) >= rfN(rfReqK)
+      const ok = okU && okRF
+      return `<tr style="background:${ok ? '#f0fdf4' : '#fff5f5'}">
+        <td><b>${est.tipo}</b></td>
+        <td>${est.sector || ''}${est.desde ? ` P${est.desde}${est.hasta !== est.desde ? `–${est.hasta}` : ''}` : ''}</td>
+        <td>${k.charAt(0).toUpperCase() + k.slice(1)}</td>
+        <td>${d.solucion ? `<b>${d.solucion.cod}</b><br/><span style="font-size:8.5pt">${d.solucion.desc || ''}</span>` : '—'}</td>
+        <td style="font-weight:700;color:${okU ? '#166534' : '#dc2626'}">${d.u || '—'}</td>
+        <td>${umax ? `≤ ${umax}` : '—'}</td>
+        <td>${d.rf || '—'}</td>
+        <td><span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+      </tr>`
+    })
+  ).join('')}
+</table>`
+})()}
+
 <h2>Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
 <div class="traz-box">
   <table>
@@ -4965,18 +5291,32 @@ function AppInner() {
     setHasUnsaved(false)
   }
 
-  function onAplicar(sc) {
+  function onAplicar(sc, targetId = null) {
     const elem = sc.elem === 'techumbre' ? 'techo' : sc.elem
-    setTermica(t => ({
-      ...t,
-      [elem]: {
-        ...t[elem],
-        u:       String(sc.u),
-        rf:      sc.rf      || '',
-        rw:      sc.ac_rw   ? String(sc.ac_rw) : (t[elem]?.rw || ''),
-        solucion: sc,          // objeto SC completo para mostrar en todos los módulos
-      },
-    }))
+    const solData = {
+      u:       String(sc.u),
+      rf:      sc.rf    || '',
+      rw:      sc.ac_rw ? String(sc.ac_rw) : '',
+      solucion: sc,
+    }
+
+    if (targetId) {
+      // Asignar solución a un sistema estructural específico
+      setProy(p => ({
+        ...p,
+        estructuras: p.estructuras.map(e =>
+          e.id === targetId
+            ? { ...e, soluciones: { ...(e.soluciones || {}), [elem]: solData } }
+            : e
+        ),
+      }))
+    } else {
+      // Comportamiento global original
+      setTermica(t => ({
+        ...t,
+        [elem]: { ...t[elem], ...solData, rw: sc.ac_rw ? String(sc.ac_rw) : (t[elem]?.rw || '') },
+      }))
+    }
     // Pre-cargar capas en Cálculo U: SC_CAPAS → BH → parse de sc.capas
     const rawCapas = buildCapas(sc.cod)
     const bhItem   = BH.find(b => b.cod === sc.cod)
@@ -5017,7 +5357,8 @@ function AppInner() {
       ...prev,
       [elem]: calcUCapas?.length ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u } } : null,
     }))
-    setTab(2)
+    // Solo navegar a Térmica cuando es asignación global; si es por sistema, el usuario continúa asignando slots
+    if (!targetId) setTab(2)
   }
 
   function onEnviarCalcU(data) {
