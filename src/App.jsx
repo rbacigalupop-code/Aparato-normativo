@@ -4193,9 +4193,31 @@ ${capaLabels}
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
+
+  // ── Determinar qué módulos son requeridos normativamente ─────────────────
+  const reqTermica   = !!proy.zona
+  const reqFuego     = !!(RF_DEF[uso] && Object.values(RF_DEF[uso]).some(v => v))
+  const reqAcustica  = !!(AC_DEF[uso] && (AC_DEF[uso].entre_unidades || AC_DEF[uso].entre_pisos || AC_DEF[uso].fachada))
+  const haySistemas  = (proy.estructuras?.length || 0) > 1
+  const hayVentanas  = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
+  const hayNotas     = Object.values(notas || {}).some(v => v?.toString().trim())
+
+  // Valor efectivo de cada módulo: modulosInforme sobreescribe el default
+  const mods = {
+    termica:  modulosInforme?.termica  ?? true,
+    fuego:    modulosInforme?.fuego    ?? reqFuego,
+    acustica: modulosInforme?.acustica ?? reqAcustica,
+    sistemas: modulosInforme?.sistemas ?? haySistemas,
+    ventanas: modulosInforme?.ventanas ?? hayVentanas,
+    notas:    modulosInforme?.notas    ?? hayNotas,
+  }
+  function toggleMod(key) {
+    setModulosInforme(prev => ({ ...(prev || mods), [key]: !(prev?.[key] ?? mods[key]) }))
+  }
+  function resetMods() { setModulosInforme(null) }
 
   const ELEMS_DEF = [
     { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: zona?.muro,  rfReq: RF_DEF[uso]?.muros_sep, rwReq: AC_DEF[uso]?.entre_unidades },
@@ -4250,6 +4272,23 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   }
 
   async function exportarInforme() {
+    // ── Módulos activos (respeta selección manual o usa defaults) ─────────────
+    const _uso = proy.uso || ''
+    const _reqTermica  = !!proy.zona
+    const _reqFuego    = !!(RF_DEF[_uso] && Object.values(RF_DEF[_uso]).some(v => v))
+    const _reqAcustica = !!(AC_DEF[_uso] && (AC_DEF[_uso].entre_unidades || AC_DEF[_uso].entre_pisos || AC_DEF[_uso].fachada))
+    const _haySistemas = (proy.estructuras?.length || 0) > 1
+    const _hayVentanas = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
+    const _hayNotas    = Object.values(notas || {}).some(v => v?.toString().trim())
+    const mods = {
+      termica:  modulosInforme?.termica  ?? true,
+      fuego:    modulosInforme?.fuego    ?? _reqFuego,
+      acustica: modulosInforme?.acustica ?? _reqAcustica,
+      sistemas: modulosInforme?.sistemas ?? _haySistemas,
+      ventanas: modulosInforme?.ventanas ?? _hayVentanas,
+      notas:    modulosInforme?.notas    ?? _hayNotas,
+    }
+
     // ── Validación de completitud ──────────────────────────────────────────────
     const faltantes = []
     if (!proy.nombre?.trim())   faltantes.push('Nombre del proyecto')
@@ -4837,7 +4876,7 @@ ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados
   ${proy.estructura && OBS_EST[proy.estructura] ? `<tr><td>RF intrínseca estimada</td><td colspan="2" style="font-size:9pt">${OBS_EST[proy.estructura]}</td></tr>` : ''}
 </table>
 
-<h2>Módulo 2 — Verificación Térmica (DS N°15 MINVU / NCh853:2021 / ISO 6946)</h2>
+${mods.termica ? `<h2>Módulo 2 — Verificación Térmica (DS N°15 MINVU / NCh853:2021 / ISO 6946)</h2>
 <div class="traz-box">
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
@@ -4855,11 +4894,11 @@ ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados
   Método de cálculo: Resistencias en serie ISO 6946 · Condensación intersticial: Método de Glaser (NCh853:2021 / EN ISO 13788) ·
   Ti = ${zonaData?.Ti ?? '—'}°C · Te = ${zonaData?.Te ?? '—'}°C · HR = ${zonaData?.HR ?? '—'}%
 </div>
-${seccionesTermicas || '<div class="aviso">Sin soluciones constructivas aplicadas. Aplica soluciones desde la pestaña Soluciones.</div>'}
+${seccionesTermicas || '<div class="aviso">Sin soluciones constructivas aplicadas. Aplica soluciones desde la pestaña Soluciones.</div>'}` : ''}
 
-${(() => {
+${mods.sistemas ? (() => {
   const ests = (proy.estructuras || []).filter(e => e.soluciones && Object.keys(e.soluciones).length > 0)
-  if (ests.length < 2 && !ests.length) return ''
+  if (!ests.length) return ''
   const ELEMS_RPT = ['muro','techo','piso','tabique']
   const zonaD = ZONAS[proy.zona] || {}
   const umaxMap = { muro: zonaD.muro, techo: zonaD.techo, piso: zonaD.piso, tabique: null }
@@ -4903,9 +4942,9 @@ ${(() => {
     })
   ).join('')}
 </table>`
-})()}
+})() : ''}
 
-<h2>Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
+${mods.fuego ? `<h2>Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
 <div class="traz-box">
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
@@ -4956,9 +4995,9 @@ ${(['Estructura de acero','Metalframe (acero liviano)'].some(t => proy.estructur
 </table>
 <div style="font-size:9pt;color:#78350f;margin-top:6px;padding:6px 10px;background:#fef9c3;border-radius:4px">
   ⚠ Espesores orientativos LOFC Ed.17 Annex B para Hp/A ≤ 200 m⁻¹. Verificar con el calculador de acero en la aplicación (factor Hp/A específico del perfil). Los valores definitivos requieren ficha técnica del fabricante, DOP y ETA vigente. RF debe respaldarse con ensayo NCh850 o clasificación equivalente.
-</div>` : ''}
+</div>` : ''}` : ''}
 
-<h2>Módulo 4 — Aislamiento Acústico (OGUC Art. 4.1.6 / NCh352:2013)</h2>
+${mods.acustica ? `<h2>Módulo 4 — Aislamiento Acústico (OGUC Art. 4.1.6 / NCh352:2013)</h2>
 <div class="traz-box">
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
@@ -4972,11 +5011,11 @@ ${(['Estructura de acero','Metalframe (acero liviano)'].some(t => proy.estructur
   <tr><th>Tipo de separación</th><th>Rw propuesto</th><th>Rw mínimo NCh352</th><th>Estado</th></tr>
   ${rwRows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Sin datos de aislamiento acústico</td></tr>'}
   ${lnwRow}
-</table>
+</table>` : ''}
 
-${vpctHtml}
+${mods.ventanas ? vpctHtml : ''}
 
-${notasHtml}
+${mods.notas ? notasHtml : ''}
 
 <!-- ══ MÓDULO 7 — RESPONSABILIDAD PROFESIONAL ══════════════════════════════ -->
 <h2>Módulo 7 — Responsabilidad Profesional</h2>
@@ -5049,6 +5088,91 @@ ${notasHtml}
         ]}
         normativa="DS N°15 MINVU · OGUC Título 4 · NCh853:2021 · NCh352 · LOSCAT Ed.13 2025 · LOFC Ed.17 2025"
       />
+
+      {/* ── Panel de configuración del informe ──────────────────────────────── */}
+      <div style={{ ...S.card, border:'1.5px solid #bfdbfe', background:'#f8faff' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <p style={{ ...S.h2, marginBottom:0 }}>📋 Módulos del informe</p>
+          {modulosInforme && (
+            <button onClick={resetMods}
+              style={{ fontSize:11, color:'#64748b', background:'#f1f5f9', border:'1px solid #e2e8f0', borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
+              ↺ Restablecer automático
+            </button>
+          )}
+        </div>
+        <p style={{ fontSize:11, color:'#64748b', marginBottom:12 }}>
+          Los módulos <b>requeridos</b> se determinan automáticamente según el uso y zona del proyecto.
+          Puedes activar o desactivar módulos opcionales antes de exportar.
+        </p>
+        {!proy.uso && <div style={{ ...S.warn, marginBottom:10 }}>Define el uso del proyecto en Diagnóstico para ver los módulos requeridos.</div>}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px,1fr))', gap:8 }}>
+          {[
+            {
+              key: 'termica', icon: '🌡', label: 'Verificación Térmica',
+              norma: 'DS N°15 MINVU · NCh853',
+              req: reqTermica, reqMsg: reqTermica ? `Zona ${proy.zona} definida` : 'Sin zona — no aplica DS N°15',
+            },
+            {
+              key: 'fuego', icon: '🔥', label: 'Resistencia al Fuego',
+              norma: 'OGUC Art. 4.5.4 · LOFC Ed.17',
+              req: reqFuego, reqMsg: reqFuego ? `RF requerido para uso ${uso}` : `Uso ${uso||'—'} sin exigencia RF`,
+            },
+            {
+              key: 'acustica', icon: '🔊', label: 'Aislamiento Acústico',
+              norma: 'OGUC Art. 4.1.6 · NCh352',
+              req: reqAcustica, reqMsg: reqAcustica ? `Acústica exigible para uso ${uso}` : `Uso ${uso||'—'} sin exigencia acústica`,
+            },
+            {
+              key: 'sistemas', icon: '🏗', label: 'Soluciones por sistema estructural',
+              norma: 'LOSCAT Ed.13 / LOFC Ed.17',
+              req: false, reqMsg: haySistemas ? `${proy.estructuras.length} sistemas definidos` : 'Sin múltiples sistemas',
+            },
+            {
+              key: 'ventanas', icon: '🪟', label: 'Ventanas y Vanos (VPCT)',
+              norma: 'DS N°15 Tabla 3 · OGUC Art. 4.1.10',
+              req: false, reqMsg: hayVentanas ? 'Datos de fachadas completados' : 'Sin datos de fachadas',
+            },
+            {
+              key: 'notas', icon: '📝', label: 'Notas del proyectista',
+              norma: '',
+              req: false, reqMsg: hayNotas ? 'Hay notas ingresadas' : 'Sin notas',
+            },
+          ].map(({ key, icon, label, norma, req, reqMsg }) => {
+            const activo = mods[key]
+            return (
+              <div key={key} style={{
+                border: activo ? (req ? '2px solid #166534' : '1.5px solid #1e40af') : '1px solid #e2e8f0',
+                borderRadius:8, padding:'10px 12px',
+                background: activo ? (req ? '#f0fdf4' : '#eff6ff') : '#fafafa',
+                opacity: activo ? 1 : 0.65,
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                  <span style={{ fontSize:16 }}>{icon}</span>
+                  <span style={{ fontWeight:700, fontSize:12, flex:1, color: activo ? '#1e293b' : '#94a3b8' }}>{label}</span>
+                  <label style={{ display:'flex', alignItems:'center', gap:5, cursor:'pointer' }}>
+                    <input type="checkbox" checked={activo} onChange={() => toggleMod(key)}
+                      style={{ width:15, height:15, cursor:'pointer', accentColor: req ? '#166534' : '#1e40af' }} />
+                  </label>
+                </div>
+                {norma && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4 }}>{norma}</div>}
+                <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                  {req ? (
+                    <span style={{ fontSize:10, background:'#dcfce7', color:'#166534', borderRadius:12, padding:'1px 8px', fontWeight:700 }}>
+                      ✓ Requerido
+                    </span>
+                  ) : (
+                    <span style={{ fontSize:10, background:'#f1f5f9', color:'#64748b', borderRadius:12, padding:'1px 8px' }}>
+                      Opcional
+                    </span>
+                  )}
+                  <span style={{ fontSize:10, color:'#94a3b8' }}>{reqMsg}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <div style={S.card}>
         <p style={S.h2}>Resumen de verificación</p>
         {(!zona || !uso) && <div style={S.warn}>Completa Diagnóstico primero.</div>}
@@ -5106,6 +5230,8 @@ function AppInner() {
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
   const [notas, setNotas] = useState({})
+  // modulosInforme: null = auto (determinado por uso/zona), o {termica,fuego,acustica,ventanas,notas,sistemas}
+  const [modulosInforme, setModulosInforme] = useState(null)
 
   const proyectos = useProjects(tokenCtx?.tokenData?.token)
   const [proyectoActual, setProyectoActual] = useState(null)
@@ -5476,7 +5602,7 @@ function AppInner() {
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} />}
+            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} />}
             {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
           {showAyuda && ayudaData[tab] && (
