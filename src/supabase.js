@@ -49,6 +49,39 @@ export async function usarProyecto(tokenStr) {
   return !updError
 }
 
+// ─── Admin: gestión de tokens ─────────────────────────────────────────────────
+export async function listarTokens() {
+  const { data, error } = await supabase
+    .from('tokens')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) return null
+  return data
+}
+
+export async function crearToken({ token, descripcion, max_proyectos, expires_at }) {
+  const { error } = await supabase
+    .from('tokens')
+    .insert([{ token: token.toUpperCase(), descripcion, max_proyectos, expires_at, proyectos_usados: 0, activo: true }])
+  return !error ? { ok: true } : { ok: false, msg: error.message }
+}
+
+export async function actualizarToken(token, campos) {
+  const { error } = await supabase
+    .from('tokens')
+    .update(campos)
+    .eq('token', token.toUpperCase())
+  return !error ? { ok: true } : { ok: false, msg: error.message }
+}
+
+export async function eliminarToken(token) {
+  const { error } = await supabase
+    .from('tokens')
+    .delete()
+    .eq('token', token.toUpperCase())
+  return !error
+}
+
 // ─── Proyectos en Supabase ─────────────────────────────────────────────────────
 export async function listarProyectosDB(token) {
   const { data, error } = await supabase
