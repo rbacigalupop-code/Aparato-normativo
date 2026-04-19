@@ -335,6 +335,15 @@ export const RSE_MAP={muro:0.04,techo:0.04,piso:0.13};
 export const RSE=0.04; // valor por defecto (muro/techo)
 export const RCAMARA=0.18;
 
+// ─── Materiales de estructura integrada (ISO 6946 / NCh853 — Puentes térmicos) ──
+// λ_Pino Radiata ≈ 0.13 W/mK  (NCh433:1993 / EN ISO 10456 Tabla B.4)
+// λ_Acero gal.   ≈ 50.0 W/mK  (EN ISO 10456:2007 Tabla 3 — aceros al carbono)
+// μ_Acero ≈ 1e6  → barrera de vapor total (irrelevante para Glaser — solo térmica)
+export const STRUCT_MATS = {
+  madera: { label: 'Madera (Pino Radiata)',        lam: 0.13, mu: 3,       color: '#92400e' },
+  acero:  { label: 'Acero (Metalcon / Perfil C)',  lam: 50.0, mu: 1000000, color: '#334155' },
+};
+
 // ─── CAPAS DETALLADAS POR SOLUCION (NCh853 / LOSCAT Ed.13) ───────────────────
 export const SC_CAPAS={
   "1.2.M.A25.1":[{mat:"Hormigon armado",lam:2.50,esp:150,mu:130},{mat:"PU proyectado",lam:0.027,esp:60,mu:50},{mat:"Pasta elastomerica",lam:0.70,esp:2,mu:25}],
@@ -413,6 +422,97 @@ export const calcU_SC=(cod,elem)=>{
   }
   return parseFloat((1/R).toFixed(4));
 };
+
+// ─── ISO 6946:2017 / NCh853:2021 — Método Combinado ─────────────────────────────
+// Calcula R_T con la técnica de límites superior e inferior para elementos
+// con puentes térmicos de montantes (madera o acero). Es el método que
+// exige un certificador energético o la DOM para entramados.
+//
+// cv: array de capas con `esp` en METROS (igual que en calcGlaser).
+// Cada capa puede llevar `estructura_integrada: { tipo, lam, ancho_mm, distancia_mm }`.
+//
+// Algoritmo (ISO 6946:2017 §6.4-6.6):
+//   R_T,upper → planos isotérmicos: capa mixta tratada en paralelo
+//   R_T,lower → caminos paralelos completos int → ext
+//   R_T = (R_T,upper + R_T,lower) / 2   →  U_T = 1 / R_T
+function calcR_ISO6946_helper(cv, elemTipo) {
+  const rsiKey = elemTipo === 'techumbre' ? 'techo' : elemTipo === 'piso' ? 'piso' : 'muro';
+  const rsi = RSI_MAP[rsiKey] || 0.13;
+  const rse = RSE_MAP[rsiKey] || 0.04;
+
+  // R efectivo por capa (planos isotérmicos — mezcla paralela para capa mixta)
+  function Reff(c) {
+    if (c.esCamara || c.camara) return RCAMARA;
+    if (c.estructura_integrada) {
+      const eb = c.estructura_integrada;
+      const fa = Math.min(Math.max(eb.ancho_mm / eb.distancia_mm, 0.01), 0.99);
+      const Rs = c.esp / eb.lam;    // R montante  [m²K/W]
+      const Ri = c.esp / c.lam;     // R aislante  [m²K/W]
+      return 1 / (fa / Rs + (1 - fa) / Ri);   // ISO 6946 Ec. 6.4 — paralelo
+    }
+    return c.esp / c.lam;
+  }
+
+  // Buscar primera capa con estructura integrada
+  const mixed = cv.find(c => !c.esCamara && !c.camara && c.estructura_integrada);
+  if (!mixed) {
+    // Sin estructura → serie simple
+    const R = rsi + rse + cv.reduce((s, c) => s + Reff(c), 0);
+    return { R_T: R, R_upper: R, R_lower: R, fa: 0, fb: 1, method: 'serie', hasEB: false };
+  }
+
+  // ── R_T,upper — planos isotérmicos (Ec. 6.4) ─────────────────────────────────
+  const R_upper = rsi + rse + cv.reduce((s, c) => s + Reff(c), 0);
+
+  // ── R_T,lower — caminos paralelos int→ext (Ec. 6.5) ─────────────────────────
+  const eb  = mixed.estructura_integrada;
+  const fa  = Math.min(Math.max(eb.ancho_mm / eb.distancia_mm, 0.01), 0.99);
+  const fb  = 1 - fa;
+  const R_struct_lay = mixed.esp / eb.lam;    // R del montante a su espesor
+  const R_ins_lay    = mixed.esp / mixed.lam; // R del aislante a su espesor
+
+  // R común a ambos caminos (capas no mixtas)
+  let R_comun = rsi + rse;
+  for (const c of cv) {
+    if (c === mixed) continue;
+    if (c.esCamara || c.camara) { R_comun += RCAMARA; continue; }
+    R_comun += c.esp / c.lam;
+  }
+  const R_A     = R_comun + R_struct_lay;   // camino A: int → montante → ext
+  const R_B     = R_comun + R_ins_lay;      // camino B: int → aislante  → ext
+  const R_lower = 1 / (fa / R_A + fb / R_B);
+
+  // ── R_T final — media aritmética (Ec. 6.6) ───────────────────────────────────
+  const R_T = (R_upper + R_lower) / 2;
+  return { R_T, R_upper, R_lower, fa, fb, method: 'iso6946', hasEB: true };
+}
+
+// Exportado para uso directo desde App.jsx (diagnóstico detallado de puente térmico)
+export function calcU_ISO6946(cv, elemTipo) {
+  if (!cv || !cv.length) return null;
+  const iso = calcR_ISO6946_helper(cv, elemTipo);
+  const U   = parseFloat((1 / iso.R_T).toFixed(4));
+
+  // Alerta cuando la estructura es acero: cuantificar incremento de U
+  const aceroLayer = cv.find(c => c.estructura_integrada?.tipo === 'acero');
+  let aviso_puente = null;
+  if (aceroLayer) {
+    const cvSin  = cv.map(c => c.estructura_integrada ? { ...c, estructura_integrada: null } : c);
+    const R_sin  = calcR_ISO6946_helper(cvSin, elemTipo).R_T;
+    const U_sin  = parseFloat((1 / R_sin).toFixed(4));
+    const pct    = Math.round((U - U_sin) / U_sin * 100);
+    aviso_puente = { tipo: 'acero', U_sin_tb: U_sin, U_con_tb: U, pct };
+  }
+
+  return {
+    U:       U.toFixed(4),
+    R_T:     iso.R_T.toFixed(4),
+    R_upper: iso.R_upper.toFixed(4),
+    R_lower: iso.R_lower.toFixed(4),
+    fa: iso.fa, fb: iso.fb, method: iso.method,
+    aviso_puente,
+  };
+}
 
 export const buildCapas=(cod)=>{
   const src=SC_CAPAS[cod]; if(!src) return null;
@@ -630,36 +730,49 @@ export const dewPoint=(T,HR)=>{const a=17.27,b=237.3,al=(a*T/(b+T))+Math.log(HR/
 export const ist={border:"1.5px solid #cbd5e1",borderRadius:6,padding:"5px 8px",fontSize:12,background:"#fff"};
 export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";
 
-// BUG-03 FIX: calcGlaser recibe el tipo de elemento y usa RSE correcto
+// ─── Glaser (NCh853:2021) + ISO 6946:2017 método combinado ───────────────────────
+// Para capas con `estructura_integrada` (montantes de madera/acero):
+//   · U final = 1/R_T con R_T = (R_upper + R_lower)/2 — valores reales para DOM
+//   · Perfil de temperatura usa R_upper (planos isotérmicos) — análisis Glaser conservador
+//   · Se añade `aviso_puente` y `iso6946` al resultado cuando hay puente térmico
 export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   if(!cv||!cv.length||isNaN(ti)||isNaN(te)||isNaN(hr))return null;
   const rsiKey=elemTipo==="techumbre"?"techo":elemTipo==="piso"?"piso":"muro";
   const rsi=RSI_MAP[rsiKey]||0.13;
   const rse=RSE_MAP[rsiKey]||0.04;
 
-  // BUG-02 FIX: incluir cámaras de aire en el cálculo Glaser
-  const Rtot=rsi+rse+cv.reduce((s,c)=>{
-    if(c.esCamara||c.camara) return s+RCAMARA;
-    return s+(c.esp/c.lam);
-  },0);
+  // R efectivo por capa (planos isotérmicos: mezcla paralela para capa mixta)
+  function Reff(c){
+    if(c.esCamara||c.camara) return RCAMARA;
+    if(c.estructura_integrada){
+      const eb=c.estructura_integrada;
+      const fa=Math.min(Math.max(eb.ancho_mm/eb.distancia_mm,0.01),0.99);
+      const Rs=c.esp/eb.lam, Ri=c.esp/c.lam;
+      return 1/(fa/Rs+(1-fa)/Ri);
+    }
+    return c.esp/c.lam;
+  }
 
+  // ── R_T con método ISO 6946 combinado (superior+inferior)/2 ──────────────────
+  const isoR=calcR_ISO6946_helper(cv,elemTipo);
+  const Rtot=isoR.R_T;  // U certificable = 1/Rtot (NCh853/ISO 6946)
+
+  // ── Perfil de temperaturas (usa R_upper — planos isotérmicos — más conservador) ─
+  const Rtot_temp=isoR.R_upper;
   const temps=[ti];
   let Ra=rsi;
   for(const c of cv){
-    if(c.esCamara||c.camara){Ra+=RCAMARA;}
-    else{Ra+=c.esp/c.lam;}
-    temps.push(ti-(ti-te)*Ra/Rtot);
+    Ra+=Reff(c);
+    temps.push(ti-(ti-te)*Ra/Rtot_temp);
   }
 
+  // ── Presiones de vapor saturado y real (Método Glaser, NCh853:2021 Anexo C) ───
   const Pvsi=satP(ti)*hr/100;
   const Pvse=satP(te)*0.80;
-
-  // BUG-02 FIX: cámaras de aire tienen μ≈1 (resistencia al vapor despreciable)
   const sdTot=cv.reduce((s,c)=>{
     if(c.esCamara||c.camara) return s+(1*(c.esp||0));
     return s+((c.mu||1)*(c.esp*1000));
   },0)||1;
-
   let sdA=0;
   const pv=[Pvsi];
   for(const c of cv){
@@ -669,10 +782,11 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   }
 
   const Tdew=dewPoint(ti,hr);
-  // Acumular Rs por capa para posicionamiento gráfico
+  // Rs por capa para posicionamiento gráfico (usa Reff = R efectivo isotérmico)
   const Rs=[rsi];
-  for(const c of cv){Rs.push(c.esCamara||c.camara?RCAMARA:c.esp/c.lam);}
+  for(const c of cv){Rs.push(Reff(c));}
   Rs.push(rse);
+
   const ifaces=cv.map((_,i)=>{
     const T=temps[i+1],pvSat=satP(T),pvReal=pv[i+1],riesgo=pvReal>pvSat;
     const margen=Math.round(pvSat-pvReal);
@@ -684,7 +798,30 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   if(condInter)caso="intersticial";
   else if(condSup)caso="superficial_piso";
   const U=parseFloat((1/Rtot).toFixed(4));
-  return{temps,pv,ifaces,condInter,condSup,caso,Tdew:Tdew.toFixed(2),U:U.toFixed(4),Rtot,Rs,Pvsi:Pvsi.toFixed(0),Pvse:Pvse.toFixed(0)};
+
+  // ── Alerta puente térmico metálico ────────────────────────────────────────────
+  const aceroLayer=cv.find(c=>c.estructura_integrada?.tipo==='acero');
+  let aviso_puente=null;
+  if(aceroLayer){
+    const cvSin=cv.map(c=>c.estructura_integrada?{...c,estructura_integrada:null}:c);
+    const R_sin=calcR_ISO6946_helper(cvSin,elemTipo).R_T;
+    const U_sin=parseFloat((1/R_sin).toFixed(4));
+    const pct=Math.round((U-U_sin)/U_sin*100);
+    aviso_puente={tipo:'acero',U_sin_tb:U_sin,U_con_tb:U,pct,
+      R_upper:isoR.R_upper.toFixed(4),R_lower:isoR.R_lower.toFixed(4),fa:isoR.fa};
+  }
+
+  return{
+    temps,pv,ifaces,condInter,condSup,caso,
+    Tdew:Tdew.toFixed(2),U:U.toFixed(4),Rtot,Rs,
+    Pvsi:Pvsi.toFixed(0),Pvse:Pvse.toFixed(0),
+    // Datos ISO 6946 (null si no hay estructura integrada)
+    iso6946: isoR.hasEB ? {
+      R_upper:isoR.R_upper.toFixed(4),R_lower:isoR.R_lower.toFixed(4),
+      R_T:Rtot.toFixed(4),fa:isoR.fa,fb:isoR.fb,
+    } : null,
+    aviso_puente,
+  };
 };
 
 // Materiales aislantes candidatos para sustitución/adición (λ ≤ 0.05)
@@ -697,112 +834,371 @@ const AISLS=[
   {n:"Fibra madera",       lam:0.040,mu:5,  esp:0.080},
 ];
 
-export const generarCorrecciones=(cv,ti,te,hr,elemTipo="muro",umaxTarget=null)=>{
+// ── Capas de cierre normativas (terminaciones protectoras) ────────────────────
+// Exportadas para uso eventual en UI
+export const CAPAS_CIERRE_EXT=[
+  {n:"Fibrocemento",              lam:0.23, esp:0.006, mu:50,    desc:"6mm · NC 1270"},
+  {n:"Estuco cemento",            lam:0.87, esp:0.020, mu:15,    desc:"20mm"},
+  {n:"Siding PVC",                lam:0.16, esp:0.012, mu:10000, desc:"1.2mm (equiv.)"},
+  {n:"Ladrillo visto",            lam:0.69, esp:0.070, mu:10,    desc:"70mm · NCh167"},
+];
+export const CAPAS_CIERRE_INT=[
+  {n:"Yeso carton",               lam:0.26, esp:0.013, mu:8,     desc:"13mm · NC 1070"},
+  {n:"Enlucido de yeso",          lam:0.58, esp:0.010, mu:6,     desc:"10mm"},
+  {n:"Terciado ranurado",         lam:0.13, esp:0.009, mu:50,    desc:"9mm"},
+];
+const _BHum ={n:"Barrera de humedad (Tyvek/fieltro)", lam:0.23, esp:0.0003, mu:150};
+const _BVap ={n:"Barrera de vapor (polietileno)",     lam:0.23, esp:0.0002, mu:9999};
+
+// ── Clasificación constructiva de cada capa ───────────────────────────────────
+// Retorna: 'vapor'|'humedad'|'aislante'|'rev_ext'|'rev_int'|'camara'|'estructura'
+function clasificarCapa(c){
+  if(c.esCamara||c.camara) return 'camara';
+  const n=(c.n||c.mat||'').toLowerCase();
+  const lam=parseFloat(c.lam)||1;
+  const mu =parseFloat(c.mu) ||1;
+  // Barreras de vapor: μ extremadamente alto o nombre explícito
+  if(mu>=5000||n.includes('barrera de v')||n.includes('polietileno')||n.includes('polyethylene')) return 'vapor';
+  // Barreras de humedad: transpirables pero impermeables al agua
+  if(n.includes('tyvek')||n.includes('fieltro')||n.includes('barrera de hum')||
+    (n.includes('membrana')&&!n.includes('vapor'))||(n.includes('lamina')&&mu<5000)) return 'humedad';
+  // Aislantes: λ ≤ 0.05 W/mK (excluye fibrocemento que tiene λ=0.23)
+  if(lam<=0.050&&!n.includes('fibrocemento')&&!n.includes('siding')&&!n.includes('acero')) return 'aislante';
+  // Revestimientos exteriores reconocibles
+  if(n.includes('fibrocemento')||n.includes('siding')||n.includes('ladrillo visto')||
+    n.includes('estuco')||n.includes('revoque')||n.includes('ceramica')||
+    n.includes('zinc')||n.includes('acero gal')||n.includes('cladding')) return 'rev_ext';
+  // Revestimientos interiores reconocibles
+  if(n.includes('yeso cart')||n.includes('yeso car')||n.includes('enlucido')||
+    n.includes('terciado')||n.includes('ranurado')||n.includes('tablex')) return 'rev_int';
+  return 'estructura';
+}
+
+// Devuelve true si la capa es técnicamente imposible de dejar expuesta
+function debeProtegerse(c){ const t=clasificarCapa(c); return t==='aislante'||t==='humedad'||t==='vapor'; }
+
+// Asegura que ningún extremo del complejo quede con capa sin protección
+function validarCierre(cv,tipoElem){
+  if(!cv||!cv.length) return cv;
+  let r=[...cv];
+  // Encontrar primera y última capas funcionales (no cámara)
+  const func=r.filter(c=>!c.esCamara&&!c.camara);
+  if(!func.length) return r;
+  // Interior: si la primera capa no puede quedar expuesta → agregar rev_int
+  if(debeProtegerse(func[0])){
+    r=[{...CAPAS_CIERRE_INT[0],_rol:'cierre_int'},...r];
+  }
+  // Recompute después de posible adición interior
+  const funcR=r.filter(c=>!c.esCamara&&!c.camara);
+  const ultima=funcR[funcR.length-1];
+  // Exterior: si la última capa no puede quedar expuesta → agregar rev_ext
+  if(debeProtegerse(ultima)){
+    const ext=tipoElem==='techumbre'
+      ? {n:'Fibrocemento',lam:0.23,esp:0.006,mu:50,_rol:'cierre_ext'}
+      : {...CAPAS_CIERRE_EXT[0],_rol:'cierre_ext'};
+    r=[...r,ext];
+  }
+  return r;
+}
+
+// Inserta una capa justo antes del primer revestimiento exterior (o al final si no hay)
+function insertarAntesRevExt(cv,capa){
+  let idx=-1;
+  for(let i=cv.length-1;i>=0;i--){if(clasificarCapa(cv[i])==='rev_ext'){idx=i;break;}}
+  if(idx>=0) return [...cv.slice(0,idx),capa,...cv.slice(idx)];
+  return [...cv,capa];
+}
+
+// Inserta una capa justo después del primer revestimiento interior (o al inicio si no hay)
+function insertarTrasRevInt(cv,capa){
+  const idx=cv.findIndex(c=>clasificarCapa(c)==='rev_int');
+  if(idx>=0) return [...cv.slice(0,idx+1),capa,...cv.slice(idx+1)];
+  return [capa,...cv];
+}
+
+// ─── Glaser ligero (sin ISO 6946) — SOLO para generarCorrecciones ────────────
+// Las capas construidas con AISLS nunca tienen `estructura_integrada`, así que
+// podemos usar la suma de serie pura y ahorrarnos la doble pasada de ISO 6946.
+function _calcGlaserSimple(cv,ti,te,hr,elemTipo="muro"){
+  if(!cv||!cv.length||isNaN(ti)||isNaN(te)||isNaN(hr))return null;
+  const rsiKey=elemTipo==="techumbre"?"techo":elemTipo==="piso"?"piso":"muro";
+  const rsi=RSI_MAP[rsiKey]||0.13;
+  const rse=RSE_MAP[rsiKey]||0.04;
+  function Rlay(c){
+    if(c.esCamara||c.camara)return RCAMARA;
+    if(!c.lam||c.lam<=0)return 0;
+    return c.esp/c.lam;
+  }
+  const Rtot=rsi+rse+cv.reduce((s,c)=>s+Rlay(c),0);
+  if(Rtot<=0)return null;
+  const temps=[ti];
+  let Ra=rsi;
+  for(const c of cv){Ra+=Rlay(c);temps.push(ti-(ti-te)*Ra/Rtot);}
+  const Pvsi=satP(ti)*hr/100;
+  const Pvse=satP(te)*0.80;
+  const sdTot=cv.reduce((s,c)=>{
+    if(c.esCamara||c.camara)return s+(1*(c.esp||0));
+    return s+((c.mu||1)*(c.esp*1000));
+  },0)||1;
+  let sdA=0;
+  const pv=[Pvsi];
+  for(const c of cv){
+    if(c.esCamara||c.camara){sdA+=1*(c.esp||0);}
+    else{sdA+=(c.mu||1)*(c.esp*1000);}
+    pv.push(Pvsi-(Pvsi-Pvse)*sdA/sdTot);
+  }
+  const Tdew=dewPoint(ti,hr);
+  const ifaces=cv.map((_,i)=>{
+    const T=temps[i+1],pvSat=satP(T),pvReal=pv[i+1],riesgo=pvReal>pvSat;
+    return{i:i+1,T:T.toFixed(2),pvSat:pvSat.toFixed(0),pvReal:pvReal.toFixed(0),margen:Math.round(pvSat-pvReal),riesgo};
+  });
+  const condInter=ifaces.some(x=>x.riesgo);
+  const condSup=temps[temps.length-1]<Tdew;
+  const U=parseFloat((1/Rtot).toFixed(4));
+  return{temps,pv,ifaces,condInter,condSup,caso:condInter?"intersticial":condSup?"superficial_piso":"ok",
+    Tdew:Tdew.toFixed(2),U:U.toFixed(4),Rtot,Pvsi:Pvsi.toFixed(0),Pvse:Pvse.toFixed(0),
+    iso6946:null,aviso_puente:null};
+}
+
+// ─── Caché de correcciones (evita recalcular para la misma configuración) ──────
+const _corrCache=new Map();
+const _MAX_CACHE=40;
+function _cacheKey(cv,ti,te,hr,elemTipo,umaxTarget){
+  const sig=cv.map(c=>c.esCamara?'CAM':`${c.lam}|${Math.round((c.esp||0)*1000)}|${c.mu||1}`);
+  return sig.join('~')+'|'+ti+'|'+te+'|'+hr+'|'+elemTipo+'|'+umaxTarget;
+}
+
+// ─── Búsqueda de espesor mínimo: while + salto grueso 40mm + refinación 10mm ─
+// tryFn(e) → bool. e en mm. Retorna mm óptimo o null.
+// ASYNC: cede el hilo cada 5 iteraciones con setTimeout(0) (macrotarea real,
+// permite al navegador pintar el spinner y atender el mouse).
+// Hard-cap: 50 iter por estrategia.
+const _YIELD = () => new Promise(resolve => setTimeout(resolve, 0));
+const PASO_GRUESO = 40;
+const MAX_ITER = 50;
+
+async function _findMinEsp(minEsp, maxEsp, tryFn) {
+  let iter = 0;
+  let espesorTest = minEsp;
+  let prevFail = null, firstPass = null;
+
+  // ── Fase 1: salto grueso (40 mm) ─────────────────────────────────────────
+  while (espesorTest <= maxEsp && iter < MAX_ITER) {
+    iter++;
+    // 🔥 Yield: cede el hilo principal para que el navegador pinte
+    if (iter % 5 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    if (tryFn(espesorTest)) { firstPass = espesorTest; break; }
+    prevFail = espesorTest;
+    espesorTest += PASO_GRUESO;
+  }
+
+  if (firstPass === null) return null;
+
+  // ── Fase 2: refinación fina (10 mm) entre (prevFail, firstPass) ──────────
+  const fineStart = prevFail === null ? minEsp : prevFail + 10;
+  for (let e = fineStart; e < firstPass && iter < MAX_ITER; e += 10) {
+    iter++;
+    if (iter % 5 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    if (tryFn(e)) return e;
+  }
+  return firstPass;
+}
+
+// ─── generarCorrecciones — ASYNC, chunked, con caché ─────────────────────────
+// Cada estrategia (C1–C6) cede el hilo al navegador con setTimeout(0) (macro-
+// tarea real) antes de ejecutar y cada 15 iteraciones dentro de _findMinEsp,
+// manteniendo la UI fluida y permitiendo mostrar el spinner sin Web Worker.
+// Hard-cap: 100 iter por estrategia (si no converge, break y siguiente).
+export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget=null){
   if(!cv||!cv.length)return[];
-  const correcciones=[];
-  const r0=calcGlaser(cv,ti,te,hr,elemTipo);
+  const r0=_calcGlaserSimple(cv,ti,te,hr,elemTipo);
   const U0=r0?parseFloat(r0.U):null;
-  const idxA=cv.findIndex(c=>!c.esCamara&&!c.camara&&(c.lam||1)<=0.050);
-  const necesitaU=umaxTarget&&U0&&U0>umaxTarget;
-  const necesitaCond=r0?.condInter;
+  const necesitaU=!!(umaxTarget&&U0&&U0>umaxTarget);
+  const necesitaCond=!!r0?.condInter;
+  if(!necesitaU&&!necesitaCond)return[];
 
-  // ── E1: Mover aislante a cara exterior (condensación) ────────────────────
-  if(necesitaCond&&idxA>=0&&idxA<cv.length-1){
-    const cv1=[...cv.filter((_,i)=>i!==idxA),cv[idxA]];
-    const r1=calcGlaser(cv1,ti,te,hr,elemTipo);
-    if(r1&&!r1.condInter){
-      correcciones.push({id:"mover",titulo:"E1 — Reubicar aislante en cara exterior",etiqueta:"Reubicar",color:"#0369a1",compatible_loscat:true,
-        descripcion:"Mover '"+cv[idxA].n+"' a la última posición (cara exterior) elimina la condensación intersticial manteniendo el mismo U.",
-        cambio:"'"+cv[idxA].n+"' → posición exterior",capasCorregidas:cv1,resultado:r1,
-        impactoU:"U "+r1.U+" W/m²K"+(umaxTarget&&parseFloat(r1.U)<=umaxTarget?" ✓ cumple Umax":"")});
-    }
-  }
+  // ── Verificar caché ──────────────────────────────────────────────────────────
+  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget);
+  if(_corrCache.has(ck))return _corrCache.get(ck);
 
-  // ── E2: Barrera de vapor interior (condensación) ─────────────────────────
-  if(necesitaCond){
-    const bv={n:"Lamina impermeable (barrera vapor)",lam:0.23,esp:0.0002,mu:9999};
-    const cv2=[bv,...cv];
-    const r2=calcGlaser(cv2,ti,te,hr,elemTipo);
-    if(r2&&!r2.condInter){
-      correcciones.push({id:"barrera",titulo:"E2 — Barrera de vapor en cara interior",etiqueta:"Barrera vapor",color:"#7c3aed",compatible_loscat:false,
-        descripcion:"Lámina impermeabilizante (μ=9999) en cara interior impide el flujo de vapor hacia la zona de condensación.",
-        cambio:"Agrega lámina impermeable 0.2mm (μ=9999) como primera capa",capasCorregidas:cv2,resultado:r2,
-        impactoU:"U "+r2.U+" W/m²K"});
-    }
-  }
+  const correcciones=[];
+  const idxA=cv.findIndex(c=>clasificarCapa(c)==='aislante');
+  const motivoStr=necesitaCond&&necesitaU?'condensación intersticial y U > Umax DS N°15'
+    :necesitaCond?'condensación intersticial (Glaser NCh853:2021)'
+    :'U = '+U0+' W/m²K > Umax DS N°15 ('+umaxTarget+' W/m²K)';
 
-  // ── E3: Aumentar espesor aislante (condensación + U) ────────────────────
-  if((necesitaCond||necesitaU)&&idxA>=0){
-    const espMinCond=necesitaCond?300:0;
-    for(let extra=5;extra<=300;extra+=5){
-      const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+extra/1000}:c);
-      const rN=calcGlaser(cvN,ti,te,hr,elemTipo);
-      const condOk=!rN?.condInter;
-      const uOk=!umaxTarget||parseFloat(rN?.U||99)<=umaxTarget;
-      if(rN&&condOk&&uOk){
-        const espOrig=Math.round(cv[idxA].esp*1000);
-        correcciones.push({id:"espesor",titulo:"E3 — Aumentar espesor del aislante",etiqueta:"+Espesor",color:"#166534",compatible_loscat:true,
-          descripcion:"Aumentar '"+cv[idxA].n+"' "+espOrig+"mm → "+(espOrig+extra)+"mm resuelve "+( necesitaCond&&necesitaU?"condensación y U":"necesitaCond"?"condensación":"U > Umax")+". Compatible con LOSCAT (mismo material, mayor espesor).",
-          cambio:"'"+cv[idxA].n+"': "+espOrig+"mm → "+(espOrig+extra)+"mm (+"+extra+"mm)",
-          capasCorregidas:cvN,resultado:rN,impactoU:"U "+rN.U+" W/m²K"+(uOk&&umaxTarget?" ✓ ≤"+umaxTarget:"")});
-        break;
-      }
-    }
-  }
+  function pasa(rN){return rN&&!rN.condInter&&(!umaxTarget||parseFloat(rN.U)<=umaxTarget);}
 
-  // ── E4: Sustituir aislante por material de mejor λ (U + condensación) ───
-  if((necesitaCond||necesitaU)&&idxA>=0){
-    const orig=cv[idxA];
-    const mejores=AISLS.filter(a=>a.lam<(orig.lam||0.05)&&a.n!==orig.n);
-    for(const alt of mejores){
-      const cvA=cv.map((c,i)=>i===idxA?{...c,n:alt.n,lam:alt.lam,mu:alt.mu}:c);
-      const rA=calcGlaser(cvA,ti,te,hr,elemTipo);
-      if(rA&&!rA.condInter&&(!umaxTarget||parseFloat(rA.U)<=umaxTarget)){
-        correcciones.push({id:"sustituir_"+alt.n,titulo:"E4 — Sustituir aislante por "+alt.n,etiqueta:"Sustituir",color:"#b45309",compatible_loscat:false,
-          descripcion:"Reemplazar '"+orig.n+"' (λ="+orig.lam+") por '"+alt.n+"' (λ="+alt.lam+") con mismo espesor "+Math.round(orig.esp*1000)+"mm mejora U y elimina condensación.",
-          cambio:"'"+orig.n+"' → '"+alt.n+"' (λ: "+orig.lam+" → "+alt.lam+" W/mK)",
-          capasCorregidas:cvA,resultado:rA,impactoU:"U "+rA.U+" W/m²K ✓"});
-        break;
-      }
-    }
-  }
-
-  // ── E5: Agregar capa de aislante exterior (cuando no hay ninguno) ────────
-  if((necesitaCond||necesitaU)&&idxA<0){
+  // ── C1 — Sistema EIFS/SATE ────────────────────────────────────────────────────
+  await _YIELD();          // cede el hilo → UI puede pintar el spinner
+  if(elemTipo==='muro'||elemTipo==='tabique'){
     for(const alt of AISLS){
-      for(let esp=30;esp<=150;esp+=10){
-        const nuevoAis={n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu};
-        const cvE=[...cv,nuevoAis];
-        const rE=calcGlaser(cvE,ti,te,hr,elemTipo);
-        if(rE&&!rE.condInter&&(!umaxTarget||parseFloat(rE.U)<=umaxTarget)){
-          correcciones.push({id:"agregar_"+alt.n,titulo:"E5 — Agregar "+alt.n+" "+esp+"mm en cara exterior",etiqueta:"Agregar aislante",color:"#be185d",compatible_loscat:false,
-            descripcion:"El elemento no tiene aislante. Agregar "+esp+"mm de '"+alt.n+"' (λ="+alt.lam+") en cara exterior logra U="+rE.U+" W/m²K"+(umaxTarget?" cumpliendo Umax="+umaxTarget:"")+".",
-            cambio:"Agrega '"+alt.n+"' "+esp+"mm (exterior)",
-            capasCorregidas:cvE,resultado:rE,impactoU:"U "+rE.U+" W/m²K ✓"});
-          break;
-        }
+      await _YIELD();      // yield entre alternativas de aislante
+      const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_ext');
+      const esp=await _findMinEsp(30,180,e=>{
+        const cvN=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},{n:'Estuco cemento',lam:0.87,esp:0.015,mu:15}],elemTipo);
+        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
+      });
+      if(esp!==null){
+        const ais={n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu};
+        const cvNuevo=validarCierre([...cvBase,ais,{n:'Estuco cemento',lam:0.87,esp:0.015,mu:15}],elemTipo);
+        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
+        const cierresAgg=cvNuevo.filter(c=>c._rol).map(c=>c.n);
+        correcciones.push({
+          id:'c1_eifs_'+alt.n.replace(/\s/g,'_'),
+          titulo:'C1 — Sistema EIFS/SATE: '+esp+'mm '+alt.n+' + Estuco',
+          etiqueta:'EIFS/SATE',sistema:'EIFS/SATE',color:'#166534',compatible_loscat:false,
+          descripcion:'Para cumplir '+motivoStr+', se propone un complejo tipo EIFS/SATE: '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK) adherido a la estructura + Estuco cemento 15mm como terminación exterior. El aislante queda completamente embebido y protegido; nunca expuesto al exterior.',
+          cambio:'+ '+esp+'mm '+alt.n+' (exterior) + Estuco cemento 15mm',
+          capasCorregidas:cvNuevo,resultado:rN,
+          impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+          advertencias:['El adhesivo y la malla de fibra de vidrio (ETICS) no afectan el cálculo U pero son obligatorios constructivamente (NCh 1938)',
+            ...(cierresAgg.length?['Capas de cierre agregadas automáticamente: '+cierresAgg.join(', ')]:[])]});
+        break;
       }
-      if(correcciones.some(c=>c.id.startsWith("agregar_")))break;
     }
   }
 
-  // ── E6: Espesor mínimo para cumplir solo Umax (sin condensación activa) ──
-  if(necesitaU&&!necesitaCond&&idxA>=0&&!correcciones.some(c=>c.id==="espesor")){
-    const orig=cv[idxA];
-    const dR=1/umaxTarget-1/U0;
-    const dEsp=Math.ceil(dR*(orig.lam||0.04)*1000/5)*5;
-    if(dEsp>0&&dEsp<=300){
-      const cvU=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+dEsp/1000}:c);
-      const rU=calcGlaser(cvU,ti,te,hr,elemTipo);
-      if(rU&&!rU.condInter){
-        const espOrig=Math.round(orig.esp*1000);
-        correcciones.push({id:"espesor_u",titulo:"E6 — Espesor mínimo para cumplir DS N°15 (U ≤ "+umaxTarget+")",etiqueta:"Mínimo U",color:"#0f766e",compatible_loscat:true,
-          descripcion:"Para U ≤ "+umaxTarget+" W/m²K se necesita ΔR="+dR.toFixed(3)+" m²K/W. Con '"+orig.n+"' (λ="+orig.lam+"): +"+dEsp+"mm exactos.",
-          cambio:"'"+orig.n+"': "+espOrig+"mm → "+(espOrig+dEsp)+"mm (+"+dEsp+"mm mínimo)",
-          capasCorregidas:cvU,resultado:rU,impactoU:"U "+rU.U+" W/m²K ✓ ≤"+umaxTarget});
+  // ── C2 — Fachada Ventilada ────────────────────────────────────────────────────
+  await _YIELD();
+  {
+    for(const alt of AISLS){
+      await _YIELD();
+      const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_ext'&&clasificarCapa(c)!=='humedad');
+      const tyvek={..._BHum},camara={esCamara:true},fib={n:'Fibrocemento',lam:0.23,esp:0.006,mu:50};
+      const esp=await _findMinEsp(40,180,e=>{
+        const cvN=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},tyvek,camara,fib],elemTipo);
+        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
+      });
+      if(esp!==null){
+        const cvNuevo=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu},tyvek,camara,fib],elemTipo);
+        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
+        correcciones.push({
+          id:'c2_ventilada_'+alt.n.replace(/\s/g,'_'),
+          titulo:'C2 — Fachada Ventilada: '+esp+'mm '+alt.n+' + Tyvek + cámara + Fibrocemento',
+          etiqueta:'F. Ventilada',sistema:'Fachada Ventilada',color:'#0369a1',compatible_loscat:false,
+          descripcion:'Para cumplir '+motivoStr+', se propone un complejo tipo Fachada Ventilada: '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK) + Barrera de humedad transpirable (Tyvek/fieltro, μ=150) posicionada entre el aislante y la cámara ventilada + Fibrocemento 6mm. La barrera de humedad queda correctamente entre el aislante y la cámara; jamás como capa final expuesta.',
+          cambio:'+ '+esp+'mm '+alt.n+' + Tyvek (barrera humedad) + Cámara ventilada + Fibrocemento 6mm',
+          capasCorregidas:cvNuevo,resultado:rN,
+          impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+          advertencias:['La cámara ventilada requiere entrada de aire en la base y salida en coronamiento (ASHRAE 160 / NCh853:2021 §6.9)',
+            'El fibrocemento debe fijarse a subestructura metálica o de madera — no se adhiere directamente al aislante']});
+        break;
       }
     }
   }
+
+  // ── C3 — Trasdosado Interior ──────────────────────────────────────────────────
+  await _YIELD();
+  if(necesitaCond||necesitaU){
+    for(const alt of AISLS){
+      await _YIELD();
+      const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_int'&&clasificarCapa(c)!=='vapor');
+      const yc={...CAPAS_CIERRE_INT[0]},bv={..._BVap};
+      const esp=await _findMinEsp(30,100,e=>{
+        const cvN=validarCierre([yc,bv,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},...cvBase],elemTipo);
+        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
+      });
+      if(esp!==null){
+        const cvNuevo=validarCierre([yc,bv,{n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu},...cvBase],elemTipo);
+        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
+        correcciones.push({
+          id:'c3_trasdosado_'+alt.n.replace(/\s/g,'_'),
+          titulo:'C3 — Trasdosado Interior: Yeso cartón + Barrera vapor + '+esp+'mm '+alt.n,
+          etiqueta:'Trasdosado',sistema:'Trasdosado Interior',color:'#7c3aed',compatible_loscat:false,
+          descripcion:'Para cumplir '+motivoStr+' sin intervención exterior, se propone un complejo tipo Trasdosado Interior: Yeso cartón 13mm + Barrera de vapor (polietileno μ=9999) posicionada en cara caliente (interior, justo detrás del revestimiento) + '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK). La barrera de vapor bloquea la difusión antes de que el vapor alcance el punto de rocío en el aislante.',
+          cambio:'+ Yeso cartón 13mm + Barrera vapor PE (0.2mm μ=9999) + '+esp+'mm '+alt.n+' (interior)',
+          capasCorregidas:cvNuevo,resultado:rN,
+          impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+          advertencias:['Reduce el ancho libre del recinto en '+(13+esp)+'mm aprox.',
+            'Requiere resolución en aristas, zócalos y marcos para evitar puentes térmicos perimetrales',
+            'El sellado de la barrera de vapor en penetraciones (instalaciones) es crítico (OGUC Art. 4.1.10)']});
+        break;
+      }
+    }
+  }
+
+  // ── C4 — Aumentar espesor del aislante existente ──────────────────────────────
+  await _YIELD();
+  if(idxA>=0){
+    const extra=await _findMinEsp(10,500,e=>{
+      const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+e/1000}:c);
+      const rN=_calcGlaserSimple(validarCierre(cvN,elemTipo),ti,te,hr,elemTipo);
+      return rN&&!rN.condInter&&(!umaxTarget||parseFloat(rN.U||99)<=umaxTarget);
+    });
+    if(extra!==null){
+      const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+extra/1000}:c);
+      const cvCerrado=validarCierre(cvN,elemTipo);
+      const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
+      const espOrig=Math.round(cv[idxA].esp*1000);
+      const nomAis=cv[idxA].n||cv[idxA].mat||'aislante';
+      const cierresAgg=cvCerrado.filter(c=>c._rol);
+      const notaCierre=cierresAgg.length
+        ?' Se agregan automáticamente capas de cierre faltantes: '+cierresAgg.map(c=>'['+c.n+' — '+({cierre_ext:'exterior',cierre_int:'interior'}[c._rol]||'')+']').join(', ')+'.'
+        :'';
+      correcciones.push({
+        id:'c4_espesor',
+        titulo:'C4 — Aumentar espesor '+nomAis+': '+espOrig+'mm → '+(espOrig+extra)+'mm',
+        etiqueta:'+Espesor',sistema:'Mod. LOSCAT',color:'#b45309',compatible_loscat:true,
+        descripcion:'Aumentar \''+nomAis+'\' de '+espOrig+'mm a '+(espOrig+extra)+'mm resuelve '+motivoStr+'. Homologable con LOSCAT (mismo material, mayor espesor).'+notaCierre,
+        cambio:'\''+nomAis+'\': '+espOrig+'mm → '+(espOrig+extra)+'mm (+'+extra+'mm)',
+        capasCorregidas:cvCerrado,resultado:rN,
+        impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+        advertencias:cierresAgg.map(c=>'⚠ Se añadió automáticamente '+c.n+' ('+({cierre_ext:'terminación exterior',cierre_int:'terminación interior'}[c._rol]||'')+') — esta capa no puede quedar expuesta')});
+    }
+  }
+
+  // ── C5 — Barrera de vapor en cara caliente ────────────────────────────────────
+  await _YIELD();
+  if(necesitaCond&&!cv.some(c=>clasificarCapa(c)==='vapor')){
+    const cvCerrado=validarCierre(insertarTrasRevInt(cv,{..._BVap}),elemTipo);
+    const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
+    if(rN&&!rN.condInter&&(!umaxTarget||parseFloat(rN.U||99)<=umaxTarget)){
+      correcciones.push({
+        id:'c5_barrera_vapor',
+        titulo:'C5 — Barrera de vapor en cara caliente (posicionada correctamente)',
+        etiqueta:'Barrera vapor',sistema:'Barrera',color:'#6d28d9',compatible_loscat:false,
+        descripcion:'Se añade lámina de polietileno (μ=9999, 0.2mm) inmediatamente detrás del revestimiento interior (cara caliente), bloqueando la difusión de vapor antes de que alcance la zona de condensación. Posición correcta según NCh853:2021: siempre en la cara caliente (interior), nunca como capa final exterior ni como primera capa desnuda.',
+        cambio:'Agrega Barrera de vapor PE (0.2mm, μ=9999) tras revestimiento interior',
+        capasCorregidas:cvCerrado,resultado:rN,
+        impactoU:'U '+rN.U+' W/m²K'+(umaxTarget&&parseFloat(rN.U)<=umaxTarget?' ✓':''),
+        advertencias:['El sellado perimetral y en penetraciones de instalaciones es obligatorio para garantizar la continuidad de la barrera (OGUC Art. 4.1.10)',
+          'Verificar que no quede ninguna capa de aislante al exterior de la barrera de vapor sin protección']});
+    }
+  }
+
+  // ── C6 — Sustituir aislante por material de mejor λ ──────────────────────────
+  await _YIELD();
+  if(idxA>=0&&(necesitaCond||necesitaU)){
+    const orig=cv[idxA];
+    const mejores=AISLS.filter(a=>a.lam<(parseFloat(orig.lam)||0.05)&&a.n!==(orig.n||orig.mat));
+    for(const alt of mejores){
+      await _YIELD();
+      const cvA=cv.map((c,i)=>i===idxA?{...c,n:alt.n,lam:alt.lam,mu:alt.mu}:c);
+      const cvCerrado=validarCierre(cvA,elemTipo);
+      const rA=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
+      if(rA&&!rA.condInter&&(!umaxTarget||parseFloat(rA.U)<=umaxTarget)){
+        correcciones.push({
+          id:'c6_sustituir_'+alt.n.replace(/\s/g,'_'),
+          titulo:'C6 — Sustituir aislante por '+alt.n+' (λ='+alt.lam+')',
+          etiqueta:'Sustituir',sistema:'Sustitución',color:'#0f766e',compatible_loscat:false,
+          descripcion:'Reemplazar \''+(orig.n||orig.mat)+'\' (λ='+orig.lam+' W/mK) por \''+alt.n+'\' (λ='+alt.lam+' W/mK) con igual espesor '+Math.round(orig.esp*1000)+'mm. Mayor resistencia térmica por unidad de espesor.',
+          cambio:'\''+(orig.n||orig.mat)+'\' → \''+alt.n+'\' (λ: '+orig.lam+' → '+alt.lam+' W/mK)',
+          capasCorregidas:cvCerrado,resultado:rA,
+          impactoU:'U '+rA.U+' W/m²K ✓',
+          advertencias:['Verificar compatibilidad de adhesión entre \''+alt.n+'\' y la estructura existente']});
+        break;
+      }
+    }
+  }
+
+  // ── Escribir caché (LRU simple: descartar el más antiguo si lleno) ───────────
+  if(_corrCache.size>=_MAX_CACHE)_corrCache.delete(_corrCache.keys().next().value);
+  _corrCache.set(ck,correcciones);
 
   return correcciones;
-};
+}

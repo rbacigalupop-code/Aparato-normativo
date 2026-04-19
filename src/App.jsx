@@ -14,10 +14,12 @@ import {
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
   calcU_SC, buildCapas, rfN, colSem, ist,
   calcGlaser, generarCorrecciones,
+  calcU_ISO6946, STRUCT_MATS,
   getUIdx, MATS
 } from './data.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
+import AdminTokens from './modules/AdminTokens.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -296,7 +298,7 @@ function FichaModuloCards({ s, uMax, rfReq, acReq }) {
   )
 }
 
-function FichaSCCompleta({ s, uMax, rfReq, acReq }) {
+const FichaSCCompleta = React.memo(function FichaSCCompleta({ s, uMax, rfReq, acReq }) {
   const capas = capasParaSC(s)
   const svgStr = fichaScSvgStr(s, capas, { uMax, rfReq, acReq })
   const totalEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0)
@@ -319,10 +321,10 @@ function FichaSCCompleta({ s, uMax, rfReq, acReq }) {
       </div>
     </div>
   )
-}
+})
 
 // Mejoras: #2 Enviar a CalcU · #4 Glaser · #5 Vista gráfica · #7 Exportar ficha · #9 Variantes
-function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
+const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
   const bhData = BH.find(b => b.cod === s.cod)
   const scRaw  = SC_CAPAS[s.cod]
 
@@ -357,8 +359,6 @@ function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
     catch { return [] }
   })
   const [varSelIdx, setVarSelIdx] = useState('')
-
-  if (!bhData && !scRaw) return null
 
   // ── Cálculo U (NCh853 / ISO 6946) ─────────────────────────────────────────
   function calcUmod(base, ext) {
@@ -688,7 +688,7 @@ function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
       </div>
     </div>
   )
-}
+})
 
 // ─── PESTAÑA SOLUCIONES ────────────────────────────────────────────────────────
 const ELEM_LABELS = { muro:'Muro', tabique:'Tabique', techumbre:'Techumbre', piso:'Piso', ventana:'Ventana', puerta:'Puerta' }
@@ -708,6 +708,21 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   const [targetSistema, setTargetSistema] = useState(null)
   // catalogRef: para hacer scroll al catálogo cuando el usuario elige un slot
   const catalogRef = React.useRef(null)
+
+  // Aplica la misma solución a TODOS los sistemas (útil para techo/piso de obra única)
+  function onAplicarTodos(sc) {
+    const e = sc.elem === 'techumbre' ? 'techo' : sc.elem
+    const { ev: _ev, ...scClean } = sc
+    const solData = { u: String(sc.u), rf: sc.rf || '', rw: sc.ac_rw ? String(sc.ac_rw) : '', solucion: scClean }
+    setProy(p => ({
+      ...p,
+      estructuras: (p.estructuras || []).map(est => ({
+        ...est,
+        soluciones: { ...(est.soluciones || {}), [e]: solData },
+      }))
+    }))
+    setTargetSistema(null)
+  }
 
   const zona  = proy.zona  || 'D'
   const uso   = proy.uso   || 'Vivienda'
@@ -743,7 +758,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
   // ── Evaluación individual ─────────────────────────────────────────────────
   function evaluar(s) {
-    const aplica = s.zonas.includes(zona) && s.usos.includes(uso)
+    // Blindaje: s.zonas debe ser string; s.usos debe ser array. Fallback defensivo.
+    const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(uso)
     const tOk = !uMax  || s.u <= uMax
     const fOk = !rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq)
     const aOk = !acReq || !s.ac_rw || s.ac_rw >= acReq
@@ -767,7 +783,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                    elem==='ventana'                                    ? AC_DEF[uso]?.fachada        ?? null : null
 
     function ev(s) {
-      const aplica = s.zonas.includes(zona) && s.usos.includes(uso)
+      const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(uso)
       const tOk = !_uMax  || s.u <= _uMax
       const fOk = !_rfReq || !s.rf || rfN(s.rf) >= rfN(_rfReq)
       const aOk = !_acReq || !s.ac_rw || s.ac_rw >= _acReq
@@ -936,7 +952,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                                 <button
                                   onClick={() => setProy(p => ({
                                     ...p,
-                                    estructuras: p.estructuras.map(e => e.id === est.id
+                                    estructuras: (p.estructuras || []).map(e => e.id === est.id
                                       ? { ...e, soluciones: Object.fromEntries(Object.entries(e.soluciones||{}).filter(([k]) => k !== slot.key)) }
                                       : e
                                     )
@@ -1129,10 +1145,10 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       </span>
                     )}
                     {!ev.aplica && (() => {
-                      const faltaZona = !s.zonas.includes(zona)
-                      const faltaUso  = !s.usos.includes(uso)
+                      const faltaZona = !(s.zonas || '').includes(zona)
+                      const faltaUso  = !(s.usos || []).includes(uso)
                       const msg = faltaZona && faltaUso ? `No aplica zona ${zona} ni uso ${uso}`
-                               : faltaZona ? `No aplica zona ${zona} (aplica: ${s.zonas.join(', ')})`
+                               : faltaZona ? `No aplica zona ${zona} (aplica: ${(s.zonas || '').split('').join(', ')})`
                                : `No aplica uso ${uso}`
                       return (
                         <span title={msg} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
@@ -1203,14 +1219,14 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                 <div style={{ padding:'10px 16px', background:'#f8fafc', borderTop:'1px solid #e2e8f0' }}>
                   <div style={{ fontSize:12, color:'#374151', marginBottom:8 }}>{s.obs}</div>
                   <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
-                    Zonas aplicables: {s.zonas} · Usos: {s.usos.join(', ')}
+                    Zonas aplicables: {s.zonas || '—'} · Usos: {(s.usos || []).join(', ')}
                   </div>
 
                   {/* ── Alternativas LOSCAT cuando incumple ──────────────────── */}
                   {!ev.aplica && (
                     <div style={{ background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:6, padding:'10px 14px', marginBottom:10 }}>
                       <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>⚠ Fuera de zona/uso — Alternativas aplicables para {zona}/{uso}</div>
-                      {SC.filter(x => x.elem===elem && x.zonas.includes(zona) && x.usos.includes(uso))
+                      {SC.filter(x => x.elem===elem && (x.zonas || '').includes(zona) && (x.usos || []).includes(uso))
                         .map(x => ({ ...x, ev: evaluar(x) }))
                         .filter(x => x.ev.total===3)
                         .sort((a,b) => a.u - b.u)
@@ -1225,7 +1241,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   )}
 
                   {ev.aplica && ev.total < 3 && (() => {
-                    const alts = SC.filter(x => x.elem===elem && x.zonas.includes(zona) && x.usos.includes(uso) && x.cod!==s.cod)
+                    const alts = SC.filter(x => x.elem===elem && (x.zonas || '').includes(zona) && (x.usos || []).includes(uso) && x.cod!==s.cod)
                       .map(x => ({ ...x, ev: evaluar(x) })).filter(x => x.ev.total===3)
                     const porT = !ev.tOk ? alts.filter(x=>x.u<=uMax).sort((a,b)=>a.u-b.u).slice(0,3) : []
                     const porF = !ev.fOk && rfReq ? alts.filter(x=>x.rf&&rfN(x.rf)>=rfN(rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,3) : []
@@ -1254,6 +1270,13 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                                 style={{ background:'#166534', color:'#fff', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                                 Aplicar →
                               </button>
+                              {targetSistema && (proy.estructuras?.length > 1) && (
+                                <button onClick={()=>onAplicarTodos(x)}
+                                  title="Aplicar a TODOS los sistemas"
+                                  style={{ background:'#0369a1', color:'#fff', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                                  Todos →
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1264,17 +1287,29 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   {/* Ficha gráfica */}
                   <FichaSCCompleta s={s} uMax={uMax} rfReq={rfReq} acReq={acReq} />
 
-                  {/* Simulador de capas */}
-                  <SimuladorCapas
-                    s={s} elem={elem}
-                    uMax={uMax} rfReq={rfReq} acReq={acReq}
-                    proy={proy}
-                    onEnviarCalcU={onEnviarCalcU}
-                  />
-                  <div style={{ marginTop:12 }}>
+                  {/* Simulador de capas — solo cuando hay datos BH o SC_CAPAS (evita la violación de hooks) */}
+                  {(BH.some(b => b.cod === s.cod) || !!SC_CAPAS[s.cod]) && (
+                    <SimuladorCapas
+                      s={s} elem={elem}
+                      uMax={uMax} rfReq={rfReq} acReq={acReq}
+                      proy={proy}
+                      onEnviarCalcU={onEnviarCalcU}
+                    />
+                  )}
+                  <div style={{ marginTop:12, display:'flex', gap:8, flexWrap:'wrap' }}>
                     <button style={S.btn('#166534')} onClick={() => onAplicar(s, targetSistema)}>
                       {targetSistema ? `Aplicar a ${proy.estructuras?.find(e=>e.id===targetSistema)?.tipo?.split(' ')[0] || 'sistema'} →` : 'Aplicar al proyecto →'}
                     </button>
+                    {/* Botón "Aplicar a todos" — cuando hay >1 sistema y se está asignando a uno */}
+                    {targetSistema && (proy.estructuras?.length > 1) && (
+                      <button
+                        style={{ ...S.btn('#0369a1'), display:'flex', alignItems:'center', gap:6 }}
+                        title={`Aplica esta solución de ${ELEM_LABELS[s.elem] || s.elem} a TODOS los sistemas del proyecto`}
+                        onClick={() => onAplicarTodos(s)}
+                      >
+                        Aplicar a TODOS los sistemas →
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1332,11 +1367,18 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   ))}
                 </tbody>
               </table>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap:'wrap' }}>
                 {selComp.map((sc, i) => (
-                  <button key={i} onClick={() => { onAplicar(sc, targetSistema); setShowComp(false) }} style={{ flex: 1, padding: '10px 0', background: i === 0 ? '#1e40af' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
-                    Usar {sc.cod}
-                  </button>
+                  <React.Fragment key={i}>
+                    <button onClick={() => { onAplicar(sc, targetSistema); setShowComp(false) }} style={{ flex: 1, minWidth:120, padding: '10px 0', background: i === 0 ? '#1e40af' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+                      Usar {sc.cod}
+                    </button>
+                    {targetSistema && (proy.estructuras?.length > 1) && (
+                      <button onClick={() => { onAplicarTodos(sc); setShowComp(false) }} style={{ flex: 1, minWidth:120, padding: '10px 0', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
+                        {sc.cod} → todos los sistemas
+                      </button>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
@@ -2602,7 +2644,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
         return e.rfReq && rp && rfN(rp) < rfN(e.rfReq)
       }).map(e => {
         const elemSC = { estructura:'muro', muros_sep:'muro', cajas_esc:null, escaleras:null, cubierta:'techumbre' }[e.id]
-        const alts = elemSC ? SC.filter(s => s.elem===elemSC && s.zonas.includes(proy.zona||'D') && s.usos.includes(uso||'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,4) : []
+        const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.zonas || '').includes(proy.zona||'D') && (s.usos || []).includes(uso||'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,4) : []
         return (
           <div key={e.id} style={{ ...S.card, borderColor:'#fca5a5', background:'#fff5f5' }}>
             <div style={{ fontSize:12, fontWeight:700, color:'#dc2626', marginBottom:6 }}>
@@ -2873,7 +2915,7 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
         return rw && e.req && rw < e.req
       }).map(e => {
         const elemSC = { entre_unidades:'muro', fachada:'muro', entre_pisos:'piso' }[e.id]
-        const alts = elemSC ? SC.filter(s => s.elem===elemSC && s.zonas.includes(proy.zona||'D') && s.usos.includes(uso||'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,4) : []
+        const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.zonas || '').includes(proy.zona||'D') && (s.usos || []).includes(uso||'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,4) : []
         return (
           <div key={e.id} style={{ ...S.card, borderColor:'#bfdbfe', background:'#f0f7ff' }}>
             <div style={{ fontSize:12, fontWeight:700, color:'#1e40af', marginBottom:6 }}>
@@ -3014,17 +3056,25 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
 
 // ─── PANEL CÁLCULO U (componente por elemento) ────────────────────────────────
 function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU, onCalcUChange }) {
+  // elemKey puede ser simple ('muro') o compuesto ('abc123::muro').
+  // elemId es siempre el tipo de elemento para las comprobaciones condicionales.
+  const elemId = elemKey.includes('::') ? elemKey.split('::').pop() : elemKey
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const [collapsed, setCollapsed] = useState(false)
   const [capas, setCapas] = useState([])
   const [res, setRes] = useState(null)
   const [correc, setCorrec] = useState([])
+  const [calcuando, setCalcuando] = useState(false)
   const [solucion, setSolucion] = useState(null)
   const [origCapas, setOrigCapas] = useState(null)
   const [showHomolog, setShowHomolog] = useState(false)
   const [showInterpret, setShowInterpret] = useState(false)
   const graphRef = useRef(null)
-  const esTabique = elemKey === 'tabique'
+  const esTabique = elemId === 'tabique'
+  // Flag para evitar doble cálculo: cuando el propio componente llama a onCalcUChange
+  // (desde calcularConCapas o aplicarCorreccion) el efecto initData se dispara de nuevo.
+  // Con este ref lo saltamos sin borrar correcciones ya en curso.
+  const skipInitEffect = useRef(false)
 
   // ── Estado para opciones normativas avanzadas ──────────────────────────────
   // Piso: tipo de apoyo (ventilado / sobre terreno / sobre espacio no calef.)
@@ -3042,18 +3092,34 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     setCapas(initData.capas)
     setOrigCapas(initData.capas.map(c => ({...c})))
     setSolucion(initData.solucion || null)
+    // Si el propio componente disparó este cambio de initData (vía onCalcUChange),
+    // saltar el recálculo para evitar el doble cálculo que congela la UI.
+    if (skipInitEffect.current) { skipInitEffect.current = false; return }
     // Auto-calcular inmediatamente con las capas de la solución
     const tiZ = zona?.Ti || 20, teZ = zona?.Te || 5, hrZ = zona?.HR || 70
     const cv = initData.capas.map(c => c.esCamara ? { esCamara: true } : {
-      mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu)
+      mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
+      ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
     }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
     if (cv.length) {
       const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo)
       setRes(r)
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
-      if (elemKey !== 'tabique') {
+      if (elemId !== 'tabique') {
         const nec = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
-        setCorrec(nec ? generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax) : [])
+        if (nec) {
+          setCalcuando(true)
+          ;(async () => {
+            try {
+              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax)
+              setCorrec(cr)
+            } catch (e) {
+              console.error('generarCorrecciones error:', e); setCorrec([])
+            } finally {
+              setCalcuando(false)
+            }
+          })()
+        } else { setCorrec([]) }
       }
     } else {
       setRes(null); setCorrec([])
@@ -3071,6 +3137,22 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     setCapas(cs => cs.map(c => c.id === id ? { ...c, [field]: val } : c))
   }
   function delCapa(id) { setCapas(cs => cs.filter(c => c.id !== id)) }
+  // Activa/desactiva o actualiza la estructura integrada de una capa (ISO 6946)
+  function updEstructura(id, campo, valor) {
+    setCapas(cs => cs.map(c => {
+      if (c.id !== id) return c
+      if (!campo) {
+        // toggle on/off
+        return { ...c, estructura_integrada: valor
+          ? { tipo: 'madera', lam: STRUCT_MATS.madera.lam, ancho_mm: 38, distancia_mm: 600 }
+          : null }
+      }
+      const eb = { ...c.estructura_integrada, [campo]: campo === 'tipo' ? valor : (parseFloat(valor) || c.estructura_integrada[campo]) }
+      if (campo === 'tipo') eb.lam = STRUCT_MATS[valor]?.lam ?? eb.lam
+      return { ...c, estructura_integrada: eb }
+    }))
+    setRes(null)
+  }
   function setMat(id, matName) {
     const m = ALL_MATS.find(x => x.n === matName)
     if (m) setCapas(cs => cs.map(c => c.id === id ? { ...c, mat: m.n, lam: String(m.lam), mu: String(m.mu) } : c))
@@ -3080,21 +3162,41 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     setCapas(c => [...c, { id: Date.now(), mat: 'Cámara de aire', lam: '', esp: '', mu: '', esCamara: true }])
   }
 
-  function calcularConCapas(cs) {
-    const cv = cs.map(c => c.esCamara ? { esCamara: true } : {
-      mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu)
-    }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
-    if (!cv.length) return
-    const r = calcGlaser(cv, ti, te, hr, elemTipo)
-    setRes(r)
-    // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
-    if (elemKey !== 'tabique') {
-      const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
-      setCorrec(necesita ? generarCorrecciones(cv, ti, te, hr, elemTipo, umax) : [])
+  async function calcularConCapas(cs) {
+    try {
+      const cv = cs.map(c => c.esCamara ? { esCamara: true } : {
+        mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
+        ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
+      }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
+      if (!cv.length) return
+      const r = calcGlaser(cv, ti, te, hr, elemTipo)
+      setRes(r)
+      setShowHomolog(false)
+      // Notificar al padre con las capas actualizadas y el resultado calculado.
+      // Marcamos el flag para que useEffect([initData]) no vuelva a calcular.
+      if (onCalcUChange) { skipInitEffect.current = true; onCalcUChange(elemKey, { capas: cs, res: r }) }
+      // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
+      if (elemId !== 'tabique') {
+        const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+        if (necesita) {
+          setCalcuando(true)
+          try {
+            // 🔥 Esperamos al motor asíncrono. El spinner se ve porque
+            // generarCorrecciones cede el hilo con setTimeout(0).
+            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, umax)
+            setCorrec(nuevasCorrec)
+          } catch (e) {
+            console.error('Fallo crítico en el motor de cálculo:', e)
+            setCorrec([])
+          } finally {
+            setCalcuando(false)
+          }
+        } else { setCorrec([]) }
+      }
+    } catch(e) {
+      console.error('calcularConCapas error:', e)
+      setRes(null); setCorrec([])
     }
-    setShowHomolog(false)
-    // Notificar al padre con las capas actualizadas y el resultado calculado
-    if (onCalcUChange) onCalcUChange(elemKey, { capas: cs, res: r })
   }
   function calcular() { calcularConCapas(capas) }
 
@@ -3202,7 +3304,7 @@ Normativa aplicable:
 ${'='.repeat(60)}`
   }
 
-  function aplicarCorreccion(corr) {
+  async function aplicarCorreccion(corr) {
     const nuevas = corr.capasCorregidas.map(c => ({
       id: Date.now() + Math.random(),
       mat:      c.n || c.mat || '',
@@ -3214,11 +3316,25 @@ ${'='.repeat(60)}`
     setCapas(nuevas)
     const r = corr.resultado
     setRes(r)
-    const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
-    setCorrec(necesita ? generarCorrecciones(corr.capasCorregidas, ti, te, hr, elemTipo, umax) : [])
     setShowHomolog(false)
-    // Propagar corrección aplicada al padre
-    if (onCalcUChange) onCalcUChange(elemKey, { capas: nuevas, res: r })
+    // Propagar corrección aplicada al padre.
+    // Marcamos el flag para que useEffect([initData]) no vuelva a calcular.
+    if (onCalcUChange) { skipInitEffect.current = true; onCalcUChange(elemKey, { capas: nuevas, res: r }) }
+    const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+    if (necesita) {
+      const cvCorr = corr.capasCorregidas
+      setCalcuando(true)
+      try {
+        // 🔥 Esperamos al motor asíncrono. Cero setTimeouts falsos.
+        const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax)
+        setCorrec(nuevasCorrec)
+      } catch (e) {
+        console.error('Fallo crítico en el motor de cálculo:', e)
+        setCorrec([])
+      } finally {
+        setCalcuando(false)
+      }
+    } else { setCorrec([]) }
   }
 
   function getSvgString() {
@@ -3414,7 +3530,7 @@ ${cambios.length && solucion ? `
               Ti: {ti}°C | Te: {te}°C | HR: {hr}% {umax && `| U máx: ${umax} W/m²K`}
             </div>
             {/* ── Tipo de piso (solo piso) ───────────────────────────────────── */}
-            {elemKey === 'piso' && (
+            {elemId === 'piso' && (
               <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
                 <div style={{ fontSize:11, fontWeight:700, color:'#166534', marginBottom:6 }}>Tipo de piso</div>
                 <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginBottom:4 }}>
@@ -3449,7 +3565,7 @@ ${cambios.length && solucion ? `
             )}
 
             {/* ── Cubierta ventilada (solo techo) ────────────────────────────── */}
-            {elemKey === 'techo' && (
+            {elemId === 'techo' && (
               <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
                 <label style={{ fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
                   <input type="checkbox" checked={cubiertaVent} onChange={e=>setCubiertaVent(e.target.checked)} style={{ cursor:'pointer' }} />
@@ -3497,36 +3613,110 @@ ${cambios.length && solucion ? `
                   {label}
                 </button>
               )
-              return c.esCamara ? (
-                <tr key={c.id} style={{ background:'#eff6ff' }}>
-                  <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>{idx+1}</td>
-                  <td style={S.td} colSpan={3}><i>Cámara de aire (R = {RCAMARA} m²K/W)</i></td>
-                  <td style={S.td}>≈1</td>
-                  <td style={S.td}>{btnMv('↑', ()=>moveUp(c.id), idx===0)}{btnMv('↓', ()=>moveDown(c.id), idx===capas.length-1)}</td>
-                  <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
-                </tr>
-              ) : (
-                <tr key={c.id}>
-                  <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>{idx+1}</td>
-                  <td style={S.td}>
-                    <select style={{ ...ist, width:200 }} value={c.mat} onChange={e=>setMat(c.id,e.target.value)}>
-                      <option value="">Seleccionar material...</option>
-                      {c.mat && !ALL_MATS.find(x=>x.n===c.mat) && (
-                        <option value={c.mat}>{c.mat} *</option>
-                      )}
-                      {MATS.map(g=>(
-                        <optgroup key={g.g} label={g.g}>
-                          {g.items.map(m=><option key={m.n} value={m.n}>{m.n}</option>)}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={S.td}><input style={{ ...ist, width:60 }} value={c.lam} onChange={e=>updCapa(c.id,'lam',e.target.value)} placeholder="0.04"/></td>
-                  <td style={S.td}><input style={{ ...ist, width:70 }} value={c.esp} onChange={e=>updCapa(c.id,'esp',e.target.value)} placeholder="100"/></td>
-                  <td style={S.td}><input style={{ ...ist, width:60 }} value={c.mu} onChange={e=>updCapa(c.id,'mu',e.target.value)} placeholder="1"/></td>
-                  <td style={S.td}>{btnMv('↑', ()=>moveUp(c.id), idx===0)}{btnMv('↓', ()=>moveDown(c.id), idx===capas.length-1)}</td>
-                  <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
-                </tr>
+              // Detectar si la capa es aislante (λ ≤ 0.05) para mostrar el toggle de EB
+              const lamVal = parseFloat(c.lam) || 0
+              const isAislante = !c.esCamara && lamVal > 0 && lamVal <= 0.05
+              const tieneEB    = !!c.estructura_integrada
+              const esAcero    = c.estructura_integrada?.tipo === 'acero'
+              return (
+                <React.Fragment key={c.id}>
+                  {c.esCamara ? (
+                    <tr style={{ background:'#eff6ff' }}>
+                      <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>{idx+1}</td>
+                      <td style={S.td} colSpan={3}><i>Cámara de aire (R = {RCAMARA} m²K/W)</i></td>
+                      <td style={S.td}>≈1</td>
+                      <td style={S.td}>{btnMv('↑', ()=>moveUp(c.id), idx===0)}{btnMv('↓', ()=>moveDown(c.id), idx===capas.length-1)}</td>
+                      <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
+                    </tr>
+                  ) : (
+                    <tr style={tieneEB ? { background: esAcero ? '#fff1f2' : '#fffbeb' } : {}}>
+                      <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>
+                        {idx+1}
+                        {tieneEB && <div style={{ fontSize:9, fontWeight:700, color: esAcero ? '#dc2626' : '#92400e', letterSpacing:0, marginTop:1 }}>{esAcero?'⚡TB':'🪵TB'}</div>}
+                      </td>
+                      <td style={S.td}>
+                        <select style={{ ...ist, width:196 }} value={c.mat} onChange={e=>setMat(c.id,e.target.value)}>
+                          <option value="">Seleccionar material...</option>
+                          {c.mat && !ALL_MATS.find(x=>x.n===c.mat) && (
+                            <option value={c.mat}>{c.mat} *</option>
+                          )}
+                          {MATS.map(g=>(
+                            <optgroup key={g.g} label={g.g}>
+                              {g.items.map(m=><option key={m.n} value={m.n}>{m.n}</option>)}
+                            </optgroup>
+                          ))}
+                        </select>
+                        {isAislante && (
+                          <button
+                            onClick={()=>updEstructura(c.id,null,!tieneEB)}
+                            title="Definir montantes de madera o acero en esta capa (ISO 6946 método combinado)"
+                            style={{ display:'block', marginTop:3, fontSize:10, padding:'1px 7px', borderRadius:3,
+                              border:`1px solid ${tieneEB?(esAcero?'#fca5a5':'#fbbf24'):'#e2e8f0'}`,
+                              background: tieneEB?(esAcero?'#fee2e2':'#fef3c7'):'#f8fafc',
+                              color: tieneEB?(esAcero?'#991b1b':'#92400e'):'#94a3b8', cursor:'pointer' }}>
+                            {tieneEB ? (esAcero ? '⚡ Acero activo' : '🪵 Madera activa') : '⊕ Estructura integrada'}
+                          </button>
+                        )}
+                      </td>
+                      <td style={S.td}><input style={{ ...ist, width:60 }} value={c.lam} onChange={e=>updCapa(c.id,'lam',e.target.value)} placeholder="0.04"/></td>
+                      <td style={S.td}><input style={{ ...ist, width:70 }} value={c.esp} onChange={e=>updCapa(c.id,'esp',e.target.value)} placeholder="100"/></td>
+                      <td style={S.td}><input style={{ ...ist, width:60 }} value={c.mu} onChange={e=>updCapa(c.id,'mu',e.target.value)} placeholder="1"/></td>
+                      <td style={S.td}>{btnMv('↑', ()=>moveUp(c.id), idx===0)}{btnMv('↓', ()=>moveDown(c.id), idx===capas.length-1)}</td>
+                      <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
+                    </tr>
+                  )}
+                  {/* ── Panel de estructura integrada (ISO 6946) ─────────────── */}
+                  {tieneEB && !c.esCamara && (
+                    <tr style={{ background: esAcero ? '#fff1f2' : '#fffbeb' }}>
+                      <td />
+                      <td colSpan={6} style={{ padding:'6px 14px 10px' }}>
+                        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', fontSize:11 }}>
+                          <span style={{ fontWeight:700, color: esAcero?'#dc2626':'#92400e', fontSize:11, whiteSpace:'nowrap' }}>
+                            ⚙ Estructura integrada · ISO 6946:2017 método combinado
+                          </span>
+                          <select
+                            value={c.estructura_integrada.tipo}
+                            onChange={e=>updEstructura(c.id,'tipo',e.target.value)}
+                            style={{ ...ist, fontSize:11 }}
+                          >
+                            {Object.entries(STRUCT_MATS).map(([k,v])=>(
+                              <option key={k} value={k}>{v.label} — λ={v.lam} W/mK</option>
+                            ))}
+                          </select>
+                          <label style={{ display:'flex', alignItems:'center', gap:4, color:'#64748b', whiteSpace:'nowrap' }}>
+                            Ancho montante
+                            <input
+                              style={{ ...ist, width:46, fontSize:11 }}
+                              value={c.estructura_integrada.ancho_mm}
+                              onChange={e=>updEstructura(c.id,'ancho_mm',e.target.value)}
+                            />
+                            mm
+                          </label>
+                          <label style={{ display:'flex', alignItems:'center', gap:4, color:'#64748b', whiteSpace:'nowrap' }}>
+                            Distanciamiento
+                            <input
+                              style={{ ...ist, width:52, fontSize:11 }}
+                              value={c.estructura_integrada.distancia_mm}
+                              onChange={e=>updEstructura(c.id,'distancia_mm',e.target.value)}
+                            />
+                            mm
+                          </label>
+                          {c.estructura_integrada.distancia_mm > 0 && (
+                            <span style={{ fontSize:10, color:'#64748b', fontStyle:'italic', whiteSpace:'nowrap' }}>
+                              f_a={((c.estructura_integrada.ancho_mm/c.estructura_integrada.distancia_mm)*100).toFixed(1)}% estr.
+                              · f_b={((1-c.estructura_integrada.ancho_mm/c.estructura_integrada.distancia_mm)*100).toFixed(1)}% ais.
+                            </span>
+                          )}
+                          <button
+                            onClick={()=>updEstructura(c.id,null,false)}
+                            style={{ marginLeft:'auto', fontSize:10, padding:'2px 8px', background:'#fee2e2', color:'#dc2626', border:'1px solid #fca5a5', borderRadius:4, cursor:'pointer', whiteSpace:'nowrap' }}>
+                            ✕ Quitar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               )
             })}
           </tbody>
@@ -3561,7 +3751,7 @@ ${cambios.length && solucion ? `
 
         // ── ISO 13370 — piso sobre terreno ──────────────────────────────────────
         let iso13370 = null
-        if (elemKey === 'piso' && pisoTipo === 'terreno' && parseFloat(pisoAg)>0 && parseFloat(pisoPg)>0) {
+        if (elemId === 'piso' && pisoTipo === 'terreno' && parseFloat(pisoAg)>0 && parseFloat(pisoPg)>0) {
           const Ag = parseFloat(pisoAg), Pg = parseFloat(pisoPg), lg = parseFloat(pisoLg)||2.0
           const Rf_m2K = parseFloat(res.Rtot) - RSi_val - 0.04 // R capas (sin Rs)
           const Bp   = Ag / (0.5 * Pg)
@@ -3737,21 +3927,86 @@ ${cambios.length && solucion ? `
               </div>
             )}
 
+            {/* ── Puente térmico metálico (alerta ISO 6946) ──────────────────── */}
+            {res.aviso_puente && (
+              <div style={{ background:'#fff1f2', border:'1.5px solid #fca5a5', borderRadius:8, padding:'12px 16px', marginTop:10 }}>
+                <div style={{ fontWeight:700, color:'#dc2626', fontSize:13, marginBottom:6 }}>
+                  ⚡ Puente Térmico Metálico Detectado — Alerta Crítica (ISO 6946:2017)
+                </div>
+                <div style={{ fontSize:12, color:'#991b1b', marginBottom:8 }}>
+                  La transmitancia aumentó un <b>{res.aviso_puente.pct}%</b> respecto a un muro sin
+                  estructura de acero. Los perfiles metálicos cortocircuitan térmicamente el aislante.{' '}
+                  <b>Se recomienda agregar aislación exterior continua (EIFS/SATE) para romper el puente.</b>
+                </div>
+                <div style={{ display:'flex', gap:20, fontSize:12, color:'#64748b', flexWrap:'wrap', marginBottom:6 }}>
+                  <div>U sin puente térmico: <b style={{color:'#166534'}}>{res.aviso_puente.U_sin_tb} W/m²K</b></div>
+                  <div>U con puente térmico: <b style={{color:'#dc2626'}}>{res.aviso_puente.U_con_tb} W/m²K</b></div>
+                  <div>Incremento: <b style={{color:'#dc2626'}}>+{res.aviso_puente.pct}%</b></div>
+                </div>
+                {res.iso6946 && (
+                  <div style={{ fontSize:10, color:'#94a3b8', borderTop:'1px solid #fecaca', paddingTop:6, marginTop:4, fontFamily:'monospace' }}>
+                    ISO 6946 · R_T,upper={res.iso6946.R_upper} m²K/W (planos isotérmicos)
+                    · R_T,lower={res.iso6946.R_lower} m²K/W (caminos paralelos)
+                    · R_T={(parseFloat(res.iso6946.R_upper)/2+parseFloat(res.iso6946.R_lower)/2).toFixed(4)} m²K/W
+                    · f_a={((res.aviso_puente.fa||0)*100).toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Desglose ISO 6946 (madera, sin alerta crítica) ─────────────── */}
+            {res.iso6946 && !res.aviso_puente && (
+              <div style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'8px 14px', marginTop:10, fontSize:11, color:'#92400e' }}>
+                <b>⚙ ISO 6946 Método Combinado</b> · Puente térmico de montantes de madera detectado.
+                <span style={{ color:'#64748b', marginLeft:8, fontFamily:'monospace', fontSize:10 }}>
+                  R_T,upper={res.iso6946.R_upper} · R_T,lower={res.iso6946.R_lower} · R_T={res.iso6946.R_T} m²K/W
+                  · f_a={((res.iso6946.fa||0)*100).toFixed(1)}% estr. / f_b={((res.iso6946.fb||0)*100).toFixed(1)}% ais.
+                </span>
+              </div>
+            )}
+
             {/* ── Correcciones sugeridas ──────────────────────────────────────── */}
-            {correc.length>0&&(
+            {calcuando&&(
+              <div style={{ display:'flex',alignItems:'center',gap:8,color:'#64748b',fontSize:13,padding:'10px 0' }}>
+                <div style={{ width:16,height:16,border:'2px solid #e2e8f0',borderTopColor:'#1e40af',borderRadius:'50%',animation:'spin 0.8s linear infinite',flexShrink:0 }}/>
+                Calculando correcciones normativas…
+              </div>
+            )}
+            {!calcuando&&correc.length>0&&(
               <>
                 <div style={S.sep}/>
                 <p style={S.h3}>Correcciones sugeridas (NCh853)</p>
                 {correc.map(c=>(
-                  <div key={c.id} style={{ border:`1px solid ${c.color}`, borderRadius:6, padding:'8px 12px', marginBottom:6 }}>
+                  <div key={c.id} style={{ border:`1px solid ${c.color}`, borderRadius:6, padding:'10px 12px', marginBottom:8, background: c.compatible_loscat ? '#f0fdf4' : '#fff' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, flexWrap:'wrap' }}>
-                      <div>
-                        <b style={{ color:c.color }}>{c.titulo}</b>
-                        <div style={{ fontSize:12, marginTop:4 }}>{c.descripcion}</div>
-                        <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{c.cambio} → {c.impactoU}</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        {/* Título + badges */}
+                        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:4 }}>
+                          <b style={{ color:c.color }}>{c.titulo}</b>
+                          {c.sistema && (
+                            <span style={{ fontSize:10, background:c.color+'22', color:c.color, borderRadius:4, padding:'1px 7px', fontWeight:700, whiteSpace:'nowrap' }}>
+                              {c.sistema}
+                            </span>
+                          )}
+                          {c.compatible_loscat && (
+                            <span style={{ fontSize:10, background:'#dcfce7', color:'#166534', borderRadius:4, padding:'1px 7px', fontWeight:600, whiteSpace:'nowrap' }}>
+                              ✓ Homologable LOSCAT
+                            </span>
+                          )}
+                        </div>
+                        {/* Descripción */}
+                        <div style={{ fontSize:12, marginTop:2, color:'#1e293b' }}>{c.descripcion}</div>
+                        {/* Cambio → impacto */}
+                        <div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>{c.cambio} → {c.impactoU}</div>
+                        {/* Advertencias constructivas */}
+                        {c.advertencias?.length > 0 && (
+                          <ul style={{ margin:'6px 0 0', padding:'0 0 0 16px', fontSize:11, color:'#92400e', lineHeight:1.5 }}>
+                            {c.advertencias.map((a,i) => <li key={i}>{a}</li>)}
+                          </ul>
+                        )}
                       </div>
                       <button onClick={()=>aplicarCorreccion(c)}
-                        style={{ background:c.color, color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap', flexShrink:0 }}>
+                        style={{ background:c.color, color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap', flexShrink:0, alignSelf:'flex-start' }}>
                         ▶ Aplicar y recalcular
                       </button>
                     </div>
@@ -3822,28 +4077,92 @@ ${cambios.length && solucion ? `
 }
 
 // ─── PESTAÑA CÁLCULO U + GLASER ───────────────────────────────────────────────
+// Configuración fija por tipo de elemento
+const CALC_U_ELEM_CFG = {
+  muro:    { elemTipo:'muro',      label:'Muro',             color:'#1e40af', umaxKey:'muro'  },
+  techo:   { elemTipo:'techumbre', label:'Cubierta / Techo', color:'#4f46e5', umaxKey:'techo' },
+  piso:    { elemTipo:'piso',      label:'Piso',             color:'#166534', umaxKey:'piso'  },
+  tabique: { elemTipo:'muro',      label:'Tabique',          color:'#b45309', umaxKey:null    },
+}
+
 function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNotas }) {
-  const zona = proy.zona ? ZONAS[proy.zona] : null
+  const zona       = proy.zona ? ZONAS[proy.zona] : null
+  const estructuras = proy.estructuras || []
+
+  // Generar la lista de paneles:
+  // · Si hay sistemas con soluciones asignadas → un panel por (sistema × elemento)
+  // · En todos los casos se añade "Tabique" si no está ya cubierto
+  // · Si no hay sistemas con soluciones → 4 paneles fijos globales
+  const panelesSistema = []
+  for (const est of estructuras) {
+    const soles = est.soluciones || {}
+    for (const elemKey of Object.keys(soles)) {
+      const cfg = CALC_U_ELEM_CFG[elemKey]
+      if (!cfg) continue
+      const sector   = est.sector ? ` · ${est.sector}` : ''
+      const tipoCorto = (est.tipo || '').replace('Metalframe (acero liviano)', 'Metalframe')
+      panelesSistema.push({
+        key:         `${est.id}::${elemKey}`,
+        elemKey,
+        elemTipo:    cfg.elemTipo,
+        label:       `${cfg.label} — ${tipoCorto}${sector}`,
+        umax:        cfg.umaxKey ? zona?.[cfg.umaxKey] : null,
+        headerColor: cfg.color,
+      })
+    }
+  }
+
+  // Paneles globales (asignación sin sistema específico, claves simples)
+  const panalesGlobales = Object.entries(CALC_U_ELEM_CFG).map(([elemKey, cfg]) => ({
+    key: elemKey,
+    elemKey,
+    elemTipo:    cfg.elemTipo,
+    label:       cfg.label,
+    umax:        cfg.umaxKey ? zona?.[cfg.umaxKey] : null,
+    headerColor: cfg.color,
+  }))
+
+  // Si hay sistemas con soluciones → mostrar paneles por sistema + tabique global
+  // Si no → mostrar 4 paneles fijos globales
+  let paneles
+  if (panelesSistema.length > 0) {
+    // Añadir Tabique global (no se gestiona por sistema)
+    const tabiquePanelGlobal = panalesGlobales.find(p => p.elemKey === 'tabique')
+    paneles = [...panelesSistema, tabiquePanelGlobal]
+  } else {
+    paneles = panalesGlobales
+  }
+
   return (
     <div>
       <AyudaPanel
         titulo="Cómo usar — Calculadora U y condensación"
         pasos={[
-          'Cada panel corresponde a un elemento constructivo: <b>Muro, Techo, Piso y Tabique</b>. Las condiciones Ti/Te/HR se toman de la zona del proyecto.',
-          'Al aplicar una solución constructiva desde la pestaña <b>Soluciones</b>, sus capas se cargan automáticamente en el panel correspondiente.',
+          'Cada panel corresponde a un elemento constructivo por sistema estructural. Las condiciones Ti/Te/HR se toman de la zona del proyecto.',
+          'Al aplicar una solución desde la pestaña <b>Soluciones</b>, sus capas se cargan automáticamente en el panel correspondiente.',
           'Para <b>cambiar una solución</b>: usa el botón 🔄 <b>Cambiar solución</b> en el panel y luego ve a la pestaña Soluciones.',
           'Puedes <b>agregar, editar, mover o eliminar capas</b> manualmente en cada panel y presionar <b>Calcular U</b>.',
-          'El sistema calcula U (ISO 6946) y verifica condensación intersticial (Método de Glaser, NCh853:2021).',
-          'Si hay incumplimientos, aparecen <b>correcciones sugeridas</b> y el texto de homologación cuando corresponda.',
-          'Usa <b>▼/▲</b> para colapsar paneles que ya estén completos y enfocarte en los pendientes.',
+          'El sistema calcula U (ISO 6946 método combinado si hay estructura integrada) y verifica condensación intersticial (Método Glaser, NCh853:2021).',
+          'Si hay incumplimientos aparecen <b>correcciones sugeridas</b> y el texto de homologación cuando corresponda.',
+          'Usa <b>▼/▲</b> para colapsar paneles ya completos.',
         ]}
         normativa="NCh853:2021 · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1"
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <PanelCalcU elemKey="muro"    elemTipo="muro"      label="Muro"            umax={zona?.muro}  proy={proy} initData={initData?.muro}    headerColor="#1e40af" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
-        <PanelCalcU elemKey="techo"   elemTipo="techumbre" label="Cubierta / Techo" umax={zona?.techo} proy={proy} initData={initData?.techo}   headerColor="#4f46e5" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
-        <PanelCalcU elemKey="piso"    elemTipo="piso"      label="Piso"            umax={zona?.piso}  proy={proy} initData={initData?.piso}    headerColor="#166534" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
-        <PanelCalcU elemKey="tabique" elemTipo="muro"      label="Tabique"         umax={null}        proy={proy} initData={initData?.tabique} headerColor="#b45309" onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} />
+        {paneles.map(p => (
+          <PanelCalcU
+            key={p.key}
+            elemKey={p.key}
+            elemTipo={p.elemTipo}
+            label={p.label}
+            umax={p.umax}
+            proy={proy}
+            initData={initData?.[p.key]}
+            headerColor={p.headerColor}
+            onLimpiarCalcU={onLimpiarCalcU}
+            onCalcUChange={onCalcUChange}
+          />
+        ))}
       </div>
       <NotasPanel tabKey="calcU" notas={notas} setNotas={setNotas} />
     </div>
@@ -4219,6 +4538,9 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   }
   function resetMods() { setModulosInforme(null) }
 
+  // ── Formato de exportación ────────────────────────────────────────────────
+  const [formatoExport, setFormatoExport] = useState('pdf')
+
   const ELEMS_DEF = [
     { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: zona?.muro,  rfReq: RF_DEF[uso]?.muros_sep, rwReq: AC_DEF[uso]?.entre_unidades },
     { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: zona?.techo, rfReq: RF_DEF[uso]?.cubierta,  rwReq: AC_DEF[uso]?.entre_pisos },
@@ -4230,11 +4552,19 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const checks = useMemo(() => {
     if (!zona || !uso) return []
     const rfReqEstr = RF_PISOS(uso, proy.pisos)
-    // Usar U calculado desde PanelCalcU (calcUInit.res.U) si está disponible,
-    // de lo contrario usar el U certificado del LOSCAT (termica[elem].u)
-    const uMuro  = calcUInit?.muro?.res?.U    ?? termica.muro?.u
-    const uTecho = calcUInit?.techo?.res?.U   ?? termica.techo?.u
-    const uPiso  = calcUInit?.piso?.res?.U    ?? termica.piso?.u
+    // Usar U calculado desde PanelCalcU si está disponible.
+    // Busca tanto claves simples ('muro') como compuestas ('estId::muro').
+    // Si hay varios sistemas devuelve el peor caso (U máximo = más exigente).
+    function getCalcUForElem(elemKey) {
+      const vals = Object.entries(calcUInit || {})
+        .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v?.res?.U)
+        .map(([, v]) => parseFloat(v.res.U))
+      if (vals.length === 0) return undefined
+      return String(Math.max(...vals))
+    }
+    const uMuro  = getCalcUForElem('muro')  ?? termica.muro?.u
+    const uTecho = getCalcUForElem('techo') ?? termica.techo?.u
+    const uPiso  = getCalcUForElem('piso')  ?? termica.piso?.u
     const uPuerta = termica.puerta?.u
     return [
       { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${zona.muro} W/m²K`,  ok: !uMuro  || parseFloat(uMuro)  <= zona.muro },
@@ -4318,14 +4648,23 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       .then(b => new Promise(res => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.readAsDataURL(b) }))
       .catch(() => '')
 
+    // Helper: busca calcUData para un elemento en claves simples Y compuestas.
+    // Si hay varios sistemas usa el de peor U (más conservador para el informe).
+    function getCalcUData(elemKey) {
+      const entries = Object.entries(calcUInit || {})
+        .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v)
+      if (!entries.length) return null
+      // Ordenar por U descendente → tomar el peor caso
+      entries.sort((a, b) => parseFloat(b[1]?.res?.U || 0) - parseFloat(a[1]?.res?.U || 0))
+      return entries[0][1]
+    }
+
     // ── Sección térmica por elemento ──────────────────────────────────────────
     const seccionesTermicas = ELEMS_DEF.map(el => {
       const data = termica[el.key]
-      if (!data?.u && !data?.solucion && !calcUInit?.[el.key]) return ''
+      const calcUData = getCalcUData(el.key)
+      if (!data?.u && !data?.solucion && !calcUData) return ''
       const sc = data?.solucion
-
-      // Preferir capas modificadas por el usuario en PanelCalcU (calcUInit) sobre las originales LOSCAT
-      const calcUData = calcUInit?.[el.key]
       const capasModif = calcUData?.capas    // capas modificadas (si las hay)
       const resModif   = calcUData?.res      // resultado precalculado (si existe)
       const capasOriginal = sc ? getCapasParaSC(sc) : null
@@ -4595,7 +4934,7 @@ ${glaserHtml}`
     const condRows = []
     ELEMS_DEF.forEach(el => {
       if (el.key === 'tabique') return
-      const calcUData = calcUInit?.[el.key]
+      const calcUData = getCalcUData(el.key)
       const data = termica[el.key]
       const sc = data?.solucion
       const capasModif = calcUData?.capas
@@ -5069,10 +5408,57 @@ ${mods.notas ? notasHtml : ''}
 </div>
 </body></html>`
 
-    const w = window.open('', '_blank')
-    w.document.write(html)
-    w.document.close()
-    setTimeout(() => w.print(), 1000)
+    const nombreArchivo = (proy.nombre || 'informe').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim().replace(/\s+/g, '-') + '-' + fechaHoy.replace(/\//g, '-')
+
+    if (formatoExport === 'html') {
+      // ── Descarga directa como archivo HTML ──────────────────────────────
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `${nombreArchivo}.html`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+
+    } else if (formatoExport === 'word') {
+      // ── Word (.doc) — HTML con cabecera de namespace Word ───────────────
+      // Word abre archivos HTML con las directivas <!--[if gte mso 9]> nativamente
+      const wordDoc = html
+        .replace('<!DOCTYPE html>', '')
+        .replace('<html lang="es">', `<html xmlns:o='urn:schemas-microsoft-com:office:office'
+  xmlns:w='urn:schemas-microsoft-com:office:word'
+  xmlns='http://www.w3.org/TR/REC-html40' lang="es">`)
+        .replace('<meta charset="UTF-8">', `<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--[if gte mso 9]><xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>90</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+    <w:RelyOnVML/>
+  </w:WordDocument>
+</xml><![endif]-->`)
+
+      const blob = new Blob(['\ufeff', wordDoc], { type: 'application/msword' })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `${nombreArchivo}.doc`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+
+    } else {
+      // ── PDF vía diálogo de impresión del navegador (formato por defecto) ─
+      const w = window.open('', '_blank')
+      if (!w) { alert('El navegador bloqueó la ventana emergente. Permite pop-ups para este sitio y vuelve a intentarlo.'); return }
+      w.document.write(html)
+      w.document.close()
+      setTimeout(() => w.print(), 1000)
+    }
   }
 
   return (
@@ -5200,8 +5586,43 @@ ${mods.notas ? notasHtml : ''}
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 12 }}>
-              <button style={S.btn('#166534')} onClick={exportarInforme}>🖨 Exportar Informe DOM</button>
+            {/* ── Selector de formato + botón exportar ──────────────────── */}
+            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {/* Píldoras de formato */}
+              <div style={{ display: 'flex', gap: 0, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+                {[
+                  { id: 'pdf',  icon: '🖨',  label: 'PDF',  title: 'Abre el diálogo de impresión → Guardar como PDF' },
+                  { id: 'html', icon: '🌐',  label: 'HTML', title: 'Descarga el informe como archivo HTML (se abre en cualquier navegador)' },
+                  { id: 'word', icon: '📄',  label: 'Word', title: 'Descarga el informe como archivo .doc (se abre en Microsoft Word o LibreOffice)' },
+                ].map((f, i) => (
+                  <button key={f.id}
+                    title={f.title}
+                    onClick={() => setFormatoExport(f.id)}
+                    style={{
+                      padding: '6px 14px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      borderLeft: i > 0 ? '1px solid #e2e8f0' : 'none',
+                      background: formatoExport === f.id ? '#1e40af' : '#f8fafc',
+                      color:      formatoExport === f.id ? '#fff'    : '#64748b',
+                      transition: 'background 0.15s',
+                    }}>
+                    {f.icon} {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Botón principal */}
+              <button style={S.btn('#166534')} onClick={exportarInforme}>
+                {formatoExport === 'pdf'  && '🖨 Generar PDF'}
+                {formatoExport === 'html' && '⬇ Descargar HTML'}
+                {formatoExport === 'word' && '⬇ Descargar Word'}
+              </button>
+
+              {/* Descripción breve del formato */}
+              <span style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
+                {formatoExport === 'pdf'  && 'El navegador abre el diálogo de impresión — elige «Guardar como PDF»'}
+                {formatoExport === 'html' && 'Archivo .html — se abre en cualquier navegador, fácil de compartir'}
+                {formatoExport === 'word' && 'Archivo .doc — compatible con Microsoft Word y LibreOffice Writer'}
+              </span>
             </div>
           </>
         )}
@@ -5220,6 +5641,30 @@ const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'C
 
 export default function App() {
   return <TokenGate><AppInner /></TokenGate>
+}
+
+// ─── Panel admin con sub-pestañas ─────────────────────────────────────────────
+function AdminPanel({ onOverridesChanged }) {
+  const [subTab, setSubTab] = useState('zonas')
+  const stBtnStyle = (active) => ({
+    padding: '6px 16px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer',
+    fontSize: 12, fontWeight: active ? 700 : 400,
+    background: active ? '#fff' : 'transparent',
+    color: active ? '#1e40af' : '#64748b',
+  })
+  return (
+    <div>
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 4px 0', borderRadius: '8px 8px 0 0', marginBottom: 0 }}>
+        <button style={stBtnStyle(subTab === 'zonas')}  onClick={() => setSubTab('zonas')}>🗺 Zonas térmicas</button>
+        <button style={stBtnStyle(subTab === 'tokens')} onClick={() => setSubTab('tokens')}>🔑 Tokens</button>
+      </div>
+      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 16 }}>
+        {subTab === 'zonas'  && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
+        {subTab === 'tokens' && <AdminTokens />}
+      </div>
+    </div>
+  )
 }
 
 function AppInner() {
@@ -5447,51 +5892,31 @@ function AppInner() {
 
   function onAplicar(sc, targetId = null) {
     const elem = sc.elem === 'techumbre' ? 'techo' : sc.elem
+    const { ev: _ev, ...scClean } = sc
     const solData = {
       u:       String(sc.u),
       rf:      sc.rf    || '',
       rw:      sc.ac_rw ? String(sc.ac_rw) : '',
-      solucion: sc,
+      solucion: scClean,
     }
 
-    if (targetId) {
-      // Asignar solución a un sistema estructural específico
-      // Guard: p.estructuras puede ser undefined en proyectos cargados de versiones anteriores
-      setProy(p => ({
-        ...p,
-        estructuras: (p.estructuras || []).map(e =>
-          e.id === targetId
-            ? { ...e, soluciones: { ...(e.soluciones || {}), [elem]: solData } }
-            : e
-        ),
-      }))
-      // Al asignar a sistema, NO actualizar calcUInit ni navegar — el usuario sigue asignando slots
-      return
-    }
-
-    // Comportamiento global original
-    setTermica(t => ({
-      ...t,
-      [elem]: { ...t[elem], ...solData, rw: sc.ac_rw ? String(sc.ac_rw) : (t[elem]?.rw || '') },
-    }))
-
-    // Pre-cargar capas en Cálculo U solo para asignación global
-    const rawCapas = buildCapas(sc.cod)
-    const bhItem   = BH.find(b => b.cod === sc.cod)
-    let calcUCapas = null
-
-    if (rawCapas?.length) {
-      calcUCapas = rawCapas.map(c => ({
-        id: Date.now() + Math.random(),
-        mat: c.name || c.mat || '', lam: String(c.lam || ''), esp: String(c.esp || ''), mu: String(c.mu || '1'), esCamara: !!c.esCamara,
-      }))
-    } else if (bhItem?.capas?.length) {
-      calcUCapas = bhItem.capas.map(c => ({
-        id: Date.now() + Math.random(),
-        mat: c.n || '', lam: String(c.lam || ''), esp: String(c.esp || ''), mu: String(c.mu || '1'), esCamara: !!c.esCamara,
-      }))
-    } else {
-      // Fallback: parsear la cadena sc.capas (ej. "H.A. 150 | EPS 60 | ...")
+    // ── Helper compartido: construir capas para el panel Cálculo U ──────────────
+    function buildCalcUCapas() {
+      const rawCapas = buildCapas(sc.cod)
+      const bhItem   = BH.find(b => b.cod === sc.cod)
+      if (rawCapas?.length) {
+        return rawCapas.map(c => ({
+          id: Date.now() + Math.random(),
+          mat: c.name || c.mat || '', lam: String(c.lam || ''), esp: String(c.esp || ''), mu: String(c.mu || '1'), esCamara: !!c.esCamara,
+        }))
+      }
+      if (bhItem?.capas?.length) {
+        return bhItem.capas.map(c => ({
+          id: Date.now() + Math.random(),
+          mat: c.n || '', lam: String(c.lam || ''), esp: String(c.esp || ''), mu: String(c.mu || '1'), esCamara: !!c.esCamara,
+        }))
+      }
+      // Fallback: parsear cadena "H.A. 150 | EPS 60 | ..."
       const parsed = (sc.capas || '').split(' | ').map(part => {
         const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
         if (!m) return null
@@ -5507,9 +5932,36 @@ function AppInner() {
           esCamara: isCamara,
         }
       }).filter(Boolean)
-      if (parsed.length) calcUCapas = parsed
+      return parsed.length ? parsed : null
     }
 
+    if (targetId) {
+      // Asignar solución a un sistema estructural específico
+      setProy(p => ({
+        ...p,
+        estructuras: (p.estructuras || []).map(e =>
+          e.id === targetId
+            ? { ...e, soluciones: { ...(e.soluciones || {}), [elem]: solData } }
+            : e
+        ),
+      }))
+      // Pre-cargar capas con clave compuesta "estId::elemKey" → un panel propio en Cálculo U
+      const calcUCapas = buildCalcUCapas()
+      setCalcUInit(prev => ({
+        ...prev,
+        [`${targetId}::${elem}`]: calcUCapas?.length
+          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u } }
+          : null,
+      }))
+      return
+    }
+
+    // Asignación global (sin sistema estructural específico)
+    setTermica(t => ({
+      ...t,
+      [elem]: { ...t[elem], ...solData, rw: sc.ac_rw ? String(sc.ac_rw) : (t[elem]?.rw || '') },
+    }))
+    const calcUCapas = buildCalcUCapas()
     setCalcUInit(prev => ({
       ...prev,
       [elem]: calcUCapas?.length ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u } } : null,
@@ -5603,7 +6055,7 @@ function AppInner() {
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
             {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} />}
-            {tab === 8 && <AdminZonas onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
+            {tab === 8 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
           {showAyuda && ayudaData[tab] && (
             <div className="nc-sidebar">
