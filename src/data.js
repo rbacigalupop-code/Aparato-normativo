@@ -1008,21 +1008,47 @@ async function _findMinEsp(minEsp, maxEsp, tryFn) {
   return firstPass;
 }
 
-// ─── generarCorrecciones — ASYNC, chunked, con caché ─────────────────────────
+// ─── generarCorrecciones — ASYNC, chunked, con caché + penalty ISO 6946 ──────
 // Cada estrategia (C1–C6) cede el hilo al navegador con setTimeout(0) (macro-
-// tarea real) antes de ejecutar y cada 15 iteraciones dentro de _findMinEsp,
+// tarea real) antes de ejecutar y cada 5 iteraciones dentro de _findMinEsp,
 // manteniendo la UI fluida y permitiendo mostrar el spinner sin Web Worker.
-// Hard-cap: 100 iter por estrategia (si no converge, break y siguiente).
+// Hard-cap: 50 iter por estrategia (si no converge, break y siguiente).
+//
+// FACTOR DE CASTIGO (penalty factor) — evita falsos positivos por puente térmico:
+//   El motor interno usa _calcGlaserSimple (1D, ignora montantes). Si la
+//   composición original incluye `estructura_integrada`, la solución sugerida
+//   podría fallar al re-evaluarse con ISO 6946 (U_eff > U_simple). Por eso
+//   acá se estrecha el target local (umaxPenalizado) y se avisa al usuario.
+//     · estructura_integrada.tipo === 'acero'  → castigo 30 % (×0.70)
+//     · estructura_integrada.tipo === 'madera' → castigo 15 % (×0.85)
+//   El umaxTarget mostrado en textos/etiquetas conserva el valor legal
+//   original; solo la búsqueda interna usa el penalizado.
 export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget=null){
   if(!cv||!cv.length)return[];
+
+  // ── Detectar puente térmico integrado ────────────────────────────────────────
+  const estrLayer = cv.find(c => c?.estructura_integrada?.tipo);
+  const estrTipo  = estrLayer?.estructura_integrada?.tipo || null;   // 'acero' | 'madera' | null
+  const penalty   = estrTipo === 'acero'  ? 0.30
+                  : estrTipo === 'madera' ? 0.15
+                  : 0;
+  const umaxPenalizado = (umaxTarget && penalty>0)
+                          ? +(umaxTarget * (1 - penalty)).toFixed(3)
+                          : umaxTarget;
+  const avisoPenalty = penalty>0
+    ? `Se ha sugerido un espesor mayor para compensar el puente térmico de la estructura de ${estrTipo} (ISO 6946). Target interno ${umaxPenalizado} W/m²K vs. legal ${umaxTarget} W/m²K (castigo ${Math.round(penalty*100)} %).`
+    : null;
+
   const r0=_calcGlaserSimple(cv,ti,te,hr,elemTipo);
   const U0=r0?parseFloat(r0.U):null;
+  // Trigger de necesidad: se compara con umaxTarget LEGAL (no el penalizado),
+  // para no crear correcciones donde la norma no las exige.
   const necesitaU=!!(umaxTarget&&U0&&U0>umaxTarget);
   const necesitaCond=!!r0?.condInter;
   if(!necesitaU&&!necesitaCond)return[];
 
-  // ── Verificar caché ──────────────────────────────────────────────────────────
-  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget);
+  // ── Verificar caché (la key incluye penalty para no colisionar) ─────────────
+  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget)+'|p='+penalty;
   if(_corrCache.has(ck))return _corrCache.get(ck);
 
   const correcciones=[];
@@ -1031,7 +1057,11 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     :necesitaCond?'condensación intersticial (Glaser NCh853:2021)'
     :'U = '+U0+' W/m²K > Umax DS N°15 ('+umaxTarget+' W/m²K)';
 
-  function pasa(rN){return rN&&!rN.condInter&&(!umaxTarget||parseFloat(rN.U)<=umaxTarget);}
+  // pasa() usa umaxPenalizado para la búsqueda interna (target estricto).
+  function pasa(rN){return rN&&!rN.condInter&&(!umaxPenalizado||parseFloat(rN.U)<=umaxPenalizado);}
+
+  // Helper: concatena el aviso de penalty al final de advertencias si aplica.
+  const withPenaltyAviso = arr => avisoPenalty ? [...arr, '⚠ '+avisoPenalty] : arr;
 
   // ── C1 — Sistema EIFS/SATE ────────────────────────────────────────────────────
   await _YIELD();          // cede el hilo → UI puede pintar el spinner
@@ -1056,8 +1086,8 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           cambio:'+ '+esp+'mm '+alt.n+' (exterior) + Estuco cemento 15mm',
           capasCorregidas:cvNuevo,resultado:rN,
           impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
-          advertencias:['El adhesivo y la malla de fibra de vidrio (ETICS) no afectan el cálculo U pero son obligatorios constructivamente (NCh 1938)',
-            ...(cierresAgg.length?['Capas de cierre agregadas automáticamente: '+cierresAgg.join(', ')]:[])]});
+          advertencias:withPenaltyAviso(['El adhesivo y la malla de fibra de vidrio (ETICS) no afectan el cálculo U pero son obligatorios constructivamente (NCh 1938)',
+            ...(cierresAgg.length?['Capas de cierre agregadas automáticamente: '+cierresAgg.join(', ')]:[])])});
         break;
       }
     }
@@ -1085,8 +1115,8 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           cambio:'+ '+esp+'mm '+alt.n+' + Tyvek (barrera humedad) + Cámara ventilada + Fibrocemento 6mm',
           capasCorregidas:cvNuevo,resultado:rN,
           impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
-          advertencias:['La cámara ventilada requiere entrada de aire en la base y salida en coronamiento (ASHRAE 160 / NCh853:2021 §6.9)',
-            'El fibrocemento debe fijarse a subestructura metálica o de madera — no se adhiere directamente al aislante']});
+          advertencias:withPenaltyAviso(['La cámara ventilada requiere entrada de aire en la base y salida en coronamiento (ASHRAE 160 / NCh853:2021 §6.9)',
+            'El fibrocemento debe fijarse a subestructura metálica o de madera — no se adhiere directamente al aislante'])});
         break;
       }
     }
@@ -1114,9 +1144,9 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           cambio:'+ Yeso cartón 13mm + Barrera vapor PE (0.2mm μ=9999) + '+esp+'mm '+alt.n+' (interior)',
           capasCorregidas:cvNuevo,resultado:rN,
           impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
-          advertencias:['Reduce el ancho libre del recinto en '+(13+esp)+'mm aprox.',
+          advertencias:withPenaltyAviso(['Reduce el ancho libre del recinto en '+(13+esp)+'mm aprox.',
             'Requiere resolución en aristas, zócalos y marcos para evitar puentes térmicos perimetrales',
-            'El sellado de la barrera de vapor en penetraciones (instalaciones) es crítico (OGUC Art. 4.1.10)']});
+            'El sellado de la barrera de vapor en penetraciones (instalaciones) es crítico (OGUC Art. 4.1.10)'])});
         break;
       }
     }
@@ -1128,7 +1158,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     const extra=await _findMinEsp(10,500,e=>{
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+e/1000}:c);
       const rN=_calcGlaserSimple(validarCierre(cvN,elemTipo),ti,te,hr,elemTipo);
-      return rN&&!rN.condInter&&(!umaxTarget||parseFloat(rN.U||99)<=umaxTarget);
+      return rN&&!rN.condInter&&(!umaxPenalizado||parseFloat(rN.U||99)<=umaxPenalizado);
     });
     if(extra!==null){
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+extra/1000}:c);
@@ -1148,7 +1178,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         cambio:'\''+nomAis+'\': '+espOrig+'mm → '+(espOrig+extra)+'mm (+'+extra+'mm)',
         capasCorregidas:cvCerrado,resultado:rN,
         impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
-        advertencias:cierresAgg.map(c=>'⚠ Se añadió automáticamente '+c.n+' ('+({cierre_ext:'terminación exterior',cierre_int:'terminación interior'}[c._rol]||'')+') — esta capa no puede quedar expuesta')});
+        advertencias:withPenaltyAviso(cierresAgg.map(c=>'⚠ Se añadió automáticamente '+c.n+' ('+({cierre_ext:'terminación exterior',cierre_int:'terminación interior'}[c._rol]||'')+') — esta capa no puede quedar expuesta'))});
     }
   }
 
@@ -1157,7 +1187,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(necesitaCond&&!cv.some(c=>clasificarCapa(c)==='vapor')){
     const cvCerrado=validarCierre(insertarTrasRevInt(cv,{..._BVap}),elemTipo);
     const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
-    if(rN&&!rN.condInter&&(!umaxTarget||parseFloat(rN.U||99)<=umaxTarget)){
+    if(rN&&!rN.condInter&&(!umaxPenalizado||parseFloat(rN.U||99)<=umaxPenalizado)){
       correcciones.push({
         id:'c5_barrera_vapor',
         titulo:'C5 — Barrera de vapor en cara caliente (posicionada correctamente)',
@@ -1166,8 +1196,8 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         cambio:'Agrega Barrera de vapor PE (0.2mm, μ=9999) tras revestimiento interior',
         capasCorregidas:cvCerrado,resultado:rN,
         impactoU:'U '+rN.U+' W/m²K'+(umaxTarget&&parseFloat(rN.U)<=umaxTarget?' ✓':''),
-        advertencias:['El sellado perimetral y en penetraciones de instalaciones es obligatorio para garantizar la continuidad de la barrera (OGUC Art. 4.1.10)',
-          'Verificar que no quede ninguna capa de aislante al exterior de la barrera de vapor sin protección']});
+        advertencias:withPenaltyAviso(['El sellado perimetral y en penetraciones de instalaciones es obligatorio para garantizar la continuidad de la barrera (OGUC Art. 4.1.10)',
+          'Verificar que no quede ninguna capa de aislante al exterior de la barrera de vapor sin protección'])});
     }
   }
 
@@ -1181,7 +1211,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const cvA=cv.map((c,i)=>i===idxA?{...c,n:alt.n,lam:alt.lam,mu:alt.mu}:c);
       const cvCerrado=validarCierre(cvA,elemTipo);
       const rA=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
-      if(rA&&!rA.condInter&&(!umaxTarget||parseFloat(rA.U)<=umaxTarget)){
+      if(rA&&!rA.condInter&&(!umaxPenalizado||parseFloat(rA.U)<=umaxPenalizado)){
         correcciones.push({
           id:'c6_sustituir_'+alt.n.replace(/\s/g,'_'),
           titulo:'C6 — Sustituir aislante por '+alt.n+' (λ='+alt.lam+')',
@@ -1190,7 +1220,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           cambio:'\''+(orig.n||orig.mat)+'\' → \''+alt.n+'\' (λ: '+orig.lam+' → '+alt.lam+' W/mK)',
           capasCorregidas:cvCerrado,resultado:rA,
           impactoU:'U '+rA.U+' W/m²K ✓',
-          advertencias:['Verificar compatibilidad de adhesión entre \''+alt.n+'\' y la estructura existente']});
+          advertencias:withPenaltyAviso(['Verificar compatibilidad de adhesión entre \''+alt.n+'\' y la estructura existente'])});
         break;
       }
     }
