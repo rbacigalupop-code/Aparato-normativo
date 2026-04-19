@@ -1018,7 +1018,7 @@ async function _findMinEsp(minEsp, maxEsp, tryFn) {
 //   El motor interno usa _calcGlaserSimple (1D, ignora montantes). Si la
 //   composición original incluye `estructura_integrada`, la solución sugerida
 //   podría fallar al re-evaluarse con ISO 6946 (U_eff > U_simple). Por eso
-//   acá se estrecha el target local (umaxPenalizado) y se avisa al usuario.
+//   acá se estrecha el target local (targetAjustado) y se avisa al usuario.
 //     · estructura_integrada.tipo === 'acero'  → castigo 30 % (×0.70)
 //     · estructura_integrada.tipo === 'madera' → castigo 15 % (×0.85)
 //   El umaxTarget mostrado en textos/etiquetas conserva el valor legal
@@ -1027,16 +1027,17 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(!cv||!cv.length)return[];
 
   // ── Detectar puente térmico integrado ────────────────────────────────────────
+  // acero  → ×0.80 (castigo 20 %)   ·   madera → ×0.90 (castigo 10 %)
   const estrLayer = cv.find(c => c?.estructura_integrada?.tipo);
   const estrTipo  = estrLayer?.estructura_integrada?.tipo || null;   // 'acero' | 'madera' | null
-  const penalty   = estrTipo === 'acero'  ? 0.30
-                  : estrTipo === 'madera' ? 0.15
-                  : 0;
-  const umaxPenalizado = (umaxTarget && penalty>0)
-                          ? +(umaxTarget * (1 - penalty)).toFixed(3)
+  const factor    = estrTipo === 'acero'  ? 0.80
+                  : estrTipo === 'madera' ? 0.90
+                  : 1;
+  const targetAjustado = (umaxTarget && factor<1)
+                          ? +(umaxTarget * factor).toFixed(3)
                           : umaxTarget;
-  const avisoPenalty = penalty>0
-    ? `Se ha sugerido un espesor mayor para compensar el puente térmico de la estructura de ${estrTipo} (ISO 6946). Target interno ${umaxPenalizado} W/m²K vs. legal ${umaxTarget} W/m²K (castigo ${Math.round(penalty*100)} %).`
+  const avisoPenalty = factor<1
+    ? 'Nota: Se incrementó la exigencia de cálculo para compensar el puente térmico del entramado (ISO 6946).'
     : null;
 
   const r0=_calcGlaserSimple(cv,ti,te,hr,elemTipo);
@@ -1048,7 +1049,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(!necesitaU&&!necesitaCond)return[];
 
   // ── Verificar caché (la key incluye penalty para no colisionar) ─────────────
-  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget)+'|p='+penalty;
+  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget)+'|f='+factor;
   if(_corrCache.has(ck))return _corrCache.get(ck);
 
   const correcciones=[];
@@ -1057,11 +1058,11 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     :necesitaCond?'condensación intersticial (Glaser NCh853:2021)'
     :'U = '+U0+' W/m²K > Umax DS N°15 ('+umaxTarget+' W/m²K)';
 
-  // pasa() usa umaxPenalizado para la búsqueda interna (target estricto).
-  function pasa(rN){return rN&&!rN.condInter&&(!umaxPenalizado||parseFloat(rN.U)<=umaxPenalizado);}
+  // pasa() usa targetAjustado para la búsqueda interna (target estricto).
+  function pasa(rN){return rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U)<=targetAjustado);}
 
   // Helper: concatena el aviso de penalty al final de advertencias si aplica.
-  const withPenaltyAviso = arr => avisoPenalty ? [...arr, '⚠ '+avisoPenalty] : arr;
+  const withPenaltyAviso = arr => avisoPenalty ? [...arr, avisoPenalty] : arr;
 
   // ── C1 — Sistema EIFS/SATE ────────────────────────────────────────────────────
   await _YIELD();          // cede el hilo → UI puede pintar el spinner
@@ -1158,7 +1159,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     const extra=await _findMinEsp(10,500,e=>{
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+e/1000}:c);
       const rN=_calcGlaserSimple(validarCierre(cvN,elemTipo),ti,te,hr,elemTipo);
-      return rN&&!rN.condInter&&(!umaxPenalizado||parseFloat(rN.U||99)<=umaxPenalizado);
+      return rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado);
     });
     if(extra!==null){
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+extra/1000}:c);
@@ -1187,7 +1188,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(necesitaCond&&!cv.some(c=>clasificarCapa(c)==='vapor')){
     const cvCerrado=validarCierre(insertarTrasRevInt(cv,{..._BVap}),elemTipo);
     const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
-    if(rN&&!rN.condInter&&(!umaxPenalizado||parseFloat(rN.U||99)<=umaxPenalizado)){
+    if(rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado)){
       correcciones.push({
         id:'c5_barrera_vapor',
         titulo:'C5 — Barrera de vapor en cara caliente (posicionada correctamente)',
@@ -1211,7 +1212,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const cvA=cv.map((c,i)=>i===idxA?{...c,n:alt.n,lam:alt.lam,mu:alt.mu}:c);
       const cvCerrado=validarCierre(cvA,elemTipo);
       const rA=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
-      if(rA&&!rA.condInter&&(!umaxPenalizado||parseFloat(rA.U)<=umaxPenalizado)){
+      if(rA&&!rA.condInter&&(!targetAjustado||parseFloat(rA.U)<=targetAjustado)){
         correcciones.push({
           id:'c6_sustituir_'+alt.n.replace(/\s/g,'_'),
           titulo:'C6 — Sustituir aislante por '+alt.n+' (λ='+alt.lam+')',

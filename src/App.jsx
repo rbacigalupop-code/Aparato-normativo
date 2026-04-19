@@ -1219,7 +1219,19 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                 <div style={{ padding:'10px 16px', background:'#f8fafc', borderTop:'1px solid #e2e8f0' }}>
                   <div style={{ fontSize:12, color:'#374151', marginBottom:8 }}>{s.obs}</div>
                   <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
-                    Zonas aplicables: {s.zonas || '—'} · Usos: {(s.usos || []).join(', ')}
+                    {/* Parche de sanitización robusto: `zonas` puede llegar como
+                        string ("ABCDEFGHI") o como array (['A','B',...]).
+                        `usos` análogo. En bundles minificados la diferencia
+                        rompe el render con `k.zonas.join is not a function`. */}
+                    {(() => {
+                      const zonasStr = Array.isArray(s.zonas)
+                        ? s.zonas.join(', ')
+                        : String(s.zonas || '').split('').join(', ')
+                      const usosStr = Array.isArray(s.usos)
+                        ? s.usos.join(', ')
+                        : String(s.usos || '').split('').join(', ')
+                      return <>Zonas aplicables: {zonasStr || '—'} · Usos: {usosStr || '—'}</>
+                    })()}
                   </div>
 
                   {/* ── Alternativas LOSCAT cuando incumple ──────────────────── */}
@@ -5893,10 +5905,20 @@ function AppInner() {
   function onAplicar(sc, targetId = null) {
     const elem = sc.elem === 'techumbre' ? 'techo' : sc.elem
     const { ev: _ev, ...scClean } = sc
+    // ── Inyección explícita de atributos Térmica + Fuego + Acústica ──────────
+    //   u    : valor térmico U (W/m²K)   — siempre presente en SC
+    //   rf   : resistencia al fuego (F15/F30/F60/...)   — usado por TabFuego y PDF
+    //   rw   : acústica Rw (dB)                          — usado por TabAcustica y PDF
+    //   ac_rw: alias numérico para generadores que lo leen directo del catálogo
+    //   solucion: snapshot completo de la fila SC (para poder reconstruir todo)
+    const rfVal   = sc.rf ? String(sc.rf) : ''
+    const rwVal   = sc.ac_rw ? String(sc.ac_rw) : ''
+    const acRwNum = sc.ac_rw != null ? sc.ac_rw : null
     const solData = {
       u:       String(sc.u),
-      rf:      sc.rf    || '',
-      rw:      sc.ac_rw ? String(sc.ac_rw) : '',
+      rf:      rfVal,
+      rw:      rwVal,
+      ac_rw:   acRwNum,
       solucion: scClean,
     }
 
@@ -5945,12 +5967,18 @@ function AppInner() {
             : e
         ),
       }))
+      // También propagar a `termica[elem]` para que las pestañas Fuego / Acústica
+      // y el generador de PDF — que leen de termica — reciban rf, rw y solucion.
+      setTermica(t => ({
+        ...t,
+        [elem]: { ...(t[elem] || {}), ...solData, rw: rwVal || (t[elem]?.rw || '') },
+      }))
       // Pre-cargar capas con clave compuesta "estId::elemKey" → un panel propio en Cálculo U
       const calcUCapas = buildCalcUCapas()
       setCalcUInit(prev => ({
         ...prev,
         [`${targetId}::${elem}`]: calcUCapas?.length
-          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u } }
+          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } }
           : null,
       }))
       return
@@ -5959,12 +5987,12 @@ function AppInner() {
     // Asignación global (sin sistema estructural específico)
     setTermica(t => ({
       ...t,
-      [elem]: { ...t[elem], ...solData, rw: sc.ac_rw ? String(sc.ac_rw) : (t[elem]?.rw || '') },
+      [elem]: { ...t[elem], ...solData, rw: rwVal || (t[elem]?.rw || '') },
     }))
     const calcUCapas = buildCalcUCapas()
     setCalcUInit(prev => ({
       ...prev,
-      [elem]: calcUCapas?.length ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u } } : null,
+      [elem]: calcUCapas?.length ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } } : null,
     }))
     setTab(2)
   }
