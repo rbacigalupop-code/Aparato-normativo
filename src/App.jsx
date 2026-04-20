@@ -8,7 +8,7 @@ import {
   RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST, CATEG_FUEGO,
   OGUC_RF_LETRAS, OGUC_TABLA1, OGUC_ELEM_COL, USO_TO_OGUC, getLetraOGUC, getRFDeLetra, getRFOGUC,
   ACERO_PROT, PERFILES_ACERO,
-  ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA,
+  ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA, filterMatsByElem,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
   VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
@@ -588,7 +588,9 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
         <select value={newMat} onChange={e=>setNewMat(e.target.value)}
           style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11,minWidth:200 }}>
           <option value="">+ Material a agregar...</option>
-          {MATS.map(g=><optgroup key={g.g} label={g.g}>{g.items.map(m=><option key={m.n} value={m.n}>{m.n} (λ={m.lam})</option>)}</optgroup>)}
+          {/* Filtra por elemento: si es techo/techumbre, sólo cubiertas y materiales
+              universales. Evita que aparezcan revestimientos de muro en techumbres. */}
+          {filterMatsByElem(elem).map(g=><optgroup key={g.g} label={g.g}>{g.items.map(m=><option key={m.n} value={m.n}>{m.n} (λ={m.lam})</option>)}</optgroup>)}
         </select>
         <input type="number" min={5} max={300} placeholder="mm" value={newEsp} onChange={e=>setNewEsp(e.target.value)}
           style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11,width:62 }}/>
@@ -3691,7 +3693,10 @@ ${cambios.length && solucion ? `
                           {c.mat && !ALL_MATS.find(x=>x.n===c.mat) && (
                             <option value={c.mat}>{c.mat} *</option>
                           )}
-                          {MATS.map(g=>(
+                          {/* Filtra por elemento: los techos muestran cubiertas (PV4/PV5/
+                              Zincalum/Teja asfáltica/Fibrocemento Gran Onda) + materiales
+                              universales; los muros excluyen cubiertas de techumbre. */}
+                          {filterMatsByElem(elemTipo).map(g=>(
                             <optgroup key={g.g} label={g.g}>
                               {g.items.map(m=><option key={m.n} value={m.n}>{m.n}</option>)}
                             </optgroup>

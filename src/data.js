@@ -318,14 +318,56 @@ export const ACERO_PROT = [
 ]
 
 // ─── MATERIALES ───────────────────────────────────────────────────────────────
+// Convenciones:
+//   · `usos` (opcional): array con los tipos de elemento donde aplica el material.
+//                        Valores válidos: 'muro' | 'techo' | 'piso'.
+//                        Si la propiedad NO existe → material universal (todos los usos).
+//                        Ej.: cubiertas de techumbre llevan usos:['techo']; revestimientos
+//                        exteriores de muro llevan usos:['muro'].
 export const MATS=[
   {g:"Hormigon y mortero",items:[{n:"Hormigon armado",lam:2.50,mu:130},{n:"Hormigon simple",lam:1.63,mu:130},{n:"Mortero cemento",lam:1.40,mu:25},{n:"Mortero yeso",lam:0.40,mu:10}]},
   {g:"Albanileria",items:[{n:"Ladrillo ceramico macizo",lam:0.70,mu:10},{n:"Ladrillo ceramico perforado",lam:0.48,mu:8},{n:"Bloque hormigon",lam:1.00,mu:15},{n:"Bloque ceramico poroso",lam:0.27,mu:5}]},
   {g:"Madera y derivados",items:[{n:"Madera pino/coigue",lam:0.14,mu:50},{n:"OSB/MDF",lam:0.23,mu:200},{n:"Yeso carton",lam:0.26,mu:8},{n:"Fibrocemento",lam:0.23,mu:50},{n:"Contrachapado",lam:0.17,mu:300}]},
   {g:"Aislantes termicos",items:[{n:"EPS 10kg/m3",lam:0.047,mu:40},{n:"EPS 15kg/m3",lam:0.043,mu:40},{n:"EPS 20kg/m3",lam:0.040,mu:60},{n:"XPS extruido",lam:0.036,mu:100},{n:"Lana vidrio 10kg",lam:0.040,mu:1},{n:"Lana vidrio 13kg",lam:0.036,mu:1},{n:"Lana mineral 30kg",lam:0.035,mu:1},{n:"PU proyectado",lam:0.026,mu:50},{n:"Fibra poliester",lam:0.038,mu:2},{n:"Corcho aglomerado",lam:0.045,mu:20},{n:"Lana oveja",lam:0.039,mu:1},{n:"Fibra madera",lam:0.040,mu:5}]},
-  {g:"Revestimientos",items:[{n:"Vidrio monolitico",lam:1.00,mu:9999},{n:"Ceramica/porcelanato",lam:1.30,mu:200},{n:"Pintura/estuco",lam:0.70,mu:25},{n:"Lamina impermeable",lam:0.23,mu:9999}]}
+  {g:"Revestimientos exteriores muro",items:[
+    {n:"Estuco cemento",lam:0.87,mu:15,usos:['muro']},
+    {n:"Ceramica/porcelanato",lam:1.30,mu:200,usos:['muro','piso']},
+    {n:"Pintura/estuco",lam:0.70,mu:25,usos:['muro']},
+    {n:"Vidrio monolitico",lam:1.00,mu:9999},
+    {n:"Lamina impermeable",lam:0.23,mu:9999},
+  ]},
+  {g:"Cubiertas para techumbre",items:[
+    // Planchas onduladas de acero galvanizado (perfil PV). λ nominal acero ≈ 50 W/mK.
+    // Su contribución térmica es despreciable (espesor < 1 mm), pero sí cuentan como
+    // capa hidrófuga (μ=9999).  OGUC Art. 5.5 / NCh184 / NCh218.
+    {n:"Plancha acero PV4 (0.4mm)",lam:50,mu:9999,usos:['techo']},
+    {n:"Plancha acero PV5 (0.5mm)",lam:50,mu:9999,usos:['techo']},
+    {n:"Plancha Zincalum (0.4–0.5mm)",lam:50,mu:9999,usos:['techo']},
+    // Teja asfáltica — producto bituminoso con gránulos minerales. Espesor típico 3 mm.
+    {n:"Teja asfaltica",lam:0.23,mu:1000,usos:['techo']},
+    // Fibrocemento Gran Onda — plancha autosoportante, espesor 6–8 mm, perfil trapezoidal.
+    {n:"Fibrocemento Gran Onda",lam:0.23,mu:50,usos:['techo']},
+    // Teja cerámica (para completar el catálogo de cubiertas tradicionales).
+    {n:"Teja ceramica",lam:1.00,mu:40,usos:['techo']},
+  ]},
 ];
 export const ALL_MATS=MATS.flatMap(g=>g.items);
+
+// ─── Filtro de materiales por tipo de elemento ────────────────────────────────
+// Recibe el listado MATS completo + elemTipo ('muro' | 'techo' | 'techumbre' |
+// 'tabique' | 'piso'). Devuelve un MATS filtrado que conserva la estructura
+// {g, items} pero elimina los items cuyo `usos` excluye explícitamente al
+// elemento. Items sin `usos` se consideran universales y siempre pasan.
+// Si todo el grupo queda vacío se omite.
+export function filterMatsByElem(elemTipo){
+  const elem = (elemTipo==='techumbre') ? 'techo'
+             : (elemTipo==='tabique')   ? 'muro'
+             : elemTipo || null;
+  if(!elem) return MATS;
+  return MATS
+    .map(g => ({ ...g, items: g.items.filter(m => !m.usos || m.usos.includes(elem)) }))
+    .filter(g => g.items.length > 0);
+}
 
 // ─── RESISTENCIAS SUPERFICIALES (NCh853 / ISO 6946) ──────────────────────────
 // BUG-03 FIX: RSE varía según elemento (no es 0.04 para todos)
