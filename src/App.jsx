@@ -2393,6 +2393,17 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
   const rfDef = RF_DEF[uso] || {}
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
+  // ── Lógica de escaleras / cajas de escalera ──────────────────────────────────
+  // OGUC Art. 4.5.7: las escaleras de evacuación son exigibles cuando hay más
+  // de un piso. Para edificaciones de 1 piso se mantienen como OPCIONAL —
+  // el usuario puede habilitarlas manualmente si su proyecto las incluye.
+  const pisosNum = Number(proy.pisos) || 0
+  const escalerasObligatorias = pisosNum >= 2
+  const [incluirEscaleras, setIncluirEscaleras] = useState(escalerasObligatorias)
+  // Si el usuario cambia los pisos a 2+, fuerza incluirEscaleras = true.
+  useEffect(() => { if (escalerasObligatorias && !incluirEscaleras) setIncluirEscaleras(true) }, [escalerasObligatorias])  // eslint-disable-line react-hooks/exhaustive-deps
+  const mostrarEscaleras = escalerasObligatorias || incluirEscaleras
+
   const VALID_RF = ['F0','F15','F30','F60','F90','F120','F150','F180']
 
   // ── Resolución RF según OGUC Tabla 1 cuando hay m² y destino OGUC ──────────
@@ -2431,12 +2442,16 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
     { id:'muros_sep',  label:'Muros de separación entre propietarios / destinos',
       rfReq: rfReqFromOGUC('muros_sep') || rfDef.muros_sep,
       obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (3) muros entre distintos propietarios o destinos` : 'OGUC Art. 4.5.4. Ingresa superficie m² para aplicar Tabla 1 OGUC.' },
-    { id:'cajas_esc',  label:'Cajas de escalera / ascensores / ductos',
-      rfReq: rfReqFromOGUC('cajas_esc'),
-      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (4) cajas de escalera` : requiereCajaEscalera(uso, proy.pisos) ? 'OGUC Art. 4.5.7 — caja de escalera exigida según uso y pisos.' : 'OGUC Art. 4.5.7 — caja de escalera no exigida para este uso/pisos.' },
-    { id:'escaleras',  label:'Escaleras / Vías de escape',
-      rfReq: rfReqFromOGUC('escaleras') || rfDef.escaleras,
-      obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (9) escaleras` : 'OGUC Art. 4.5.7. Verificar ensayo NCh850 específico.' },
+    // Cajas de escalera y Escaleras: sólo aparecen en la tabla cuando corresponde
+    // (edificación ≥ 2 pisos, o 1 piso con habilitación manual del usuario).
+    ...(mostrarEscaleras ? [
+      { id:'cajas_esc',  label:'Cajas de escalera / ascensores / ductos',
+        rfReq: rfReqFromOGUC('cajas_esc'),
+        obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (4) cajas de escalera` : requiereCajaEscalera(uso, proy.pisos) ? 'OGUC Art. 4.5.7 — caja de escalera exigida según uso y pisos.' : 'OGUC Art. 4.5.7 — caja de escalera no exigida para este uso/pisos.' },
+      { id:'escaleras',  label:'Escaleras / Vías de escape',
+        rfReq: rfReqFromOGUC('escaleras') || rfDef.escaleras,
+        obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (9) escaleras` : 'OGUC Art. 4.5.7. Verificar ensayo NCh850 específico.' },
+    ] : []),
     { id:'cubierta',   label:'Cubierta',
       rfReq: rfReqFromOGUC('cubierta') || rfDef.cubierta,
       obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (7) cubierta` : 'OGUC Art. 4.5.5.' },
@@ -2688,8 +2703,32 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
           </div>
         )
       })}
+      {/* ── Toggle escaleras opcional (sólo para edificaciones de 1 piso) ─── */}
+      {!escalerasObligatorias && (
+        <div style={{ ...S.card, background: incluirEscaleras ? '#ecfdf5' : '#f8fafc',
+          borderColor: incluirEscaleras ? '#86efac' : '#e2e8f0',
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+          <div style={{ fontSize:12, color:'#374151', flex:1, minWidth:260 }}>
+            <b>Escaleras / vías de evacuación (opcional)</b><br/>
+            <span style={{ color:'#64748b' }}>
+              Tu proyecto es de <b>{pisosNum || 1} piso</b>. La OGUC Art. 4.5.7 exige escaleras de
+              evacuación sólo para <b>≥ 2 pisos</b>. Si tu proyecto igualmente contempla escaleras
+              (p.ej. acceso a entretecho, rampas con tramos escalonados), puedes incluir el cálculo
+              en el informe.
+            </span>
+          </div>
+          <button
+            onClick={() => setIncluirEscaleras(v => !v)}
+            style={{ background: incluirEscaleras ? '#dc2626' : '#166534', color:'#fff',
+              border:'none', borderRadius:6, padding:'8px 14px', fontSize:12, fontWeight:700,
+              cursor:'pointer', whiteSpace:'nowrap' }}>
+            {incluirEscaleras ? '− Quitar escaleras del informe' : '+ Incluir escaleras (opcional)'}
+          </button>
+        </div>
+      )}
+
       {/* ── Calculador RF Escaleras — OGUC Art. 4.5.7 ────────────────────── */}
-      {uso && proy.pisos && (
+      {uso && proy.pisos && mostrarEscaleras && (
         <CalcRFEscalera
           proy={proy}
           letraOGUC={letraOGUC}
