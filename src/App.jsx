@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
-import TokenGate, { useToken } from './TokenGate.jsx'
-import { usarProyecto } from './supabase.js'
+import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
+import AuthGate from './AuthGate.jsx'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import NotasPanel from './NotasPanel.jsx'
 import {
@@ -19,7 +19,7 @@ import {
 } from './data.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
-import AdminTokens from './modules/AdminTokens.jsx'
+import UserManager from './modules/UserManager.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -5696,7 +5696,13 @@ ${mods.notas ? notasHtml : ''}
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', 'Resultados', '⚙ Admin']
 
 export default function App() {
-  return <TokenGate><AppInner /></TokenGate>
+  return (
+    <AuthProvider>
+      <AuthGate>
+        <AppInner />
+      </AuthGate>
+    </AuthProvider>
+  )
 }
 
 // ─── Panel admin con sub-pestañas ─────────────────────────────────────────────
@@ -5713,18 +5719,18 @@ function AdminPanel({ onOverridesChanged }) {
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 4px 0', borderRadius: '8px 8px 0 0', marginBottom: 0 }}>
         <button style={stBtnStyle(subTab === 'zonas')}  onClick={() => setSubTab('zonas')}>🗺 Zonas térmicas</button>
-        <button style={stBtnStyle(subTab === 'tokens')} onClick={() => setSubTab('tokens')}>🔑 Tokens</button>
+        <button style={stBtnStyle(subTab === 'usuarios')} onClick={() => setSubTab('usuarios')}>👥 Usuarios</button>
       </div>
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 16 }}>
         {subTab === 'zonas'  && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
-        {subTab === 'tokens' && <AdminTokens />}
+        {subTab === 'usuarios' && <UserManager />}
       </div>
     </div>
   )
 }
 
 function AppInner() {
-  const tokenCtx = useToken()
+  const { user, perfil, orgActual, isAdmin } = useAuth()
   const [tab, setTab] = useState(0)
   const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
@@ -5734,7 +5740,7 @@ function AppInner() {
   // modulosInforme: null = auto (determinado por uso/zona), o {termica,fuego,acustica,ventanas,notas,sistemas}
   const [modulosInforme, setModulosInforme] = useState(null)
 
-  const proyectos = useProjects(tokenCtx?.tokenData?.token)
+  const proyectos = useProjects(user?.id, orgActual?.id)
   const [proyectoActual, setProyectoActual] = useState(null)
   const [showProjects, setShowProjects] = useState(false)
   const [hasUnsaved, setHasUnsaved] = useState(false)
@@ -5911,25 +5917,9 @@ function AppInner() {
 
   // Callback que llama TabResultados antes de generar el informe
   async function onExportar() {
-    const td = tokenCtx?.tokenData
-    if (!td) return true  // sin gate (dev) → siempre ok
-
-    // max_proyectos = 0 → ilimitado
-    if (td.max_proyectos > 0 && td.proyectos_usados >= td.max_proyectos) {
-      setExportError('Has alcanzado el límite de proyectos de tu licencia. Contacta al administrador para renovar.')
-      setTimeout(() => setExportError(''), 6000)
-      return false
-    }
-
-    const ok = await usarProyecto(td.token)
-    if (ok && tokenCtx.refreshTokenData) {
-      tokenCtx.refreshTokenData({ proyectos_usados: td.proyectos_usados + 1 })
-    }
-    if (!ok) {
-      setExportError('Error al registrar el uso del proyecto. Revisa tu conexión.')
-      setTimeout(() => setExportError(''), 5000)
-    }
-    return ok
+    // Con autenticación por usuario, no hay límite de proyectos
+    // El usuario puede generar tantos informes como quiera
+    return true
   }
 
   function getData() {

@@ -127,3 +127,283 @@ export async function eliminarProyectoDB(token, id) {
   if (error) { console.warn('eliminarProyectoDB error:', error); return false }
   return true
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── NUEVA FUNCIONALIDAD: Autenticación Supabase Auth ──────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Signup: Crear nueva cuenta
+export async function signUp(email, password, nombreCompleto) {
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+
+  if (authError || !authData.user) {
+    return { ok: false, error: authError?.message || 'Error en signup' }
+  }
+
+  const userId = authData.user.id
+
+  // Crear organización personal
+  const { data: orgData, error: orgError } = await supabase
+    .from('organizaciones')
+    .insert([{
+      nombre: `${nombreCompleto} - Workspace`,
+      propietario_id: userId,
+      plan: 'free',
+      activa: true,
+    }])
+    .select()
+    .single()
+
+  if (orgError) {
+    return { ok: false, error: 'Error al crear workspace' }
+  }
+
+  // Crear perfil usuario
+  const { error: perfilError } = await supabase
+    .from('perfiles_usuario')
+    .insert([{
+      user_id: userId,
+      organizacion_id: orgData.id,
+      nombre_completo: nombreCompleto,
+      rol: 'admin',
+      activo: true,
+    }])
+
+  if (perfilError) {
+    return { ok: false, error: 'Error al crear perfil' }
+  }
+
+  return { ok: true, user: authData.user, orgId: orgData.id }
+}
+
+// Login: Acceder con email/password
+export async function signIn(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error || !data.user) {
+    return { ok: false, error: error?.message || 'Email o contraseña incorrectos' }
+  }
+
+  // Obtener perfil del usuario
+  const { data: perfil, error: perfilError } = await supabase
+    .from('perfiles_usuario')
+    .select('*, organizaciones(*)')
+    .eq('user_id', data.user.id)
+    .single()
+
+  if (perfilError) {
+    return { ok: false, error: 'Error al cargar perfil' }
+  }
+
+  return { ok: true, user: data.user, perfil }
+}
+
+// Logout
+export async function signOut() {
+  const { error } = await supabase.auth.signOut()
+  return !error
+}
+
+// Obtener sesión actual
+export async function getSession() {
+  const { data, error } = await supabase.auth.getSession()
+  return data?.session || null
+}
+
+// Obtener perfil del usuario actual
+export async function obtenerPerfil(userId) {
+  const { data, error } = await supabase
+    .from('perfiles_usuario')
+    .select('*, organizaciones(*)')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) return null
+  return data
+}
+
+// Obtener todas las organizaciones del usuario
+export async function obtenerOrganizacionesUsuario(userId) {
+  const { data, error } = await supabase
+    .from('perfiles_usuario')
+    .select('organizaciones(id, nombre, slug, descripcion, plan, activa)')
+    .eq('user_id', userId)
+
+  if (error) return []
+  return data.map(p => p.organizaciones).filter(Boolean)
+}
+
+// Invitar usuario a organización (enviar email)
+export async function invitarUsuario(orgId, email, rol = 'viewer') {
+  // 1. Crear usuario en Auth (sin contraseña, con magic link)
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password: Math.random().toString(36).substring(2, 15),
+    email_confirm: false, // Requiere confirmación
+  })
+
+  if (authError) {
+    return { ok: false, error: authError.message }
+  }
+
+  // 2. Crear perfil usuario
+  const { error: perfilError } = await supabase
+    .from('perfiles_usuario')
+    .insert([{
+      user_id: authData.user.id,
+      organizacion_id: orgId,
+      nombre_completo: email.split('@')[0],
+      rol,
+      activo: true,
+    }])
+
+  if (perfilError) {
+    return { ok: false, error: 'Error al crear perfil' }
+  }
+
+  // 3. Enviar email de invitación (Supabase lo hace automáticamente)
+  // El usuario recibirá un email con link de confirmación
+
+  return { ok: true, message: `Invitación enviada a ${email}` }
+}
+
+// Listar usuarios de una organización
+export async function listarUsuariosOrg(orgId) {
+  const { data, error } = await supabase
+    .from('perfiles_usuario')
+    .select('id, user_id, nombre_completo, rol, activo, ultimo_acceso, created_at')
+    .eq('organizacion_id', orgId)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return data
+}
+
+// Actualizar rol de usuario
+export async function actualizarRolUsuario(perfilId, nuevoRol) {
+  const { error } = await supabase
+    .from('perfiles_usuario')
+    .update({ rol: nuevoRol })
+    .eq('id', perfilId)
+
+  return !error
+}
+
+// Deactivar usuario
+export async function desactivarUsuario(perfilId) {
+  const { error } = await supabase
+    .from('perfiles_usuario')
+    .update({ activo: false })
+    .eq('id', perfilId)
+
+  return !error
+}
+
+// Migración de token a usuario
+export async function migrarTokenAUsuario(token, userId, orgId) {
+  const { error } = await supabase
+    .from('tokens_legado')
+    .insert([{
+      token,
+      user_id: userId,
+      organizacion_id: orgId,
+      migrado_en: new Date().toISOString(),
+    }])
+
+  return !error
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Proyectos con nuevo schema (user_id + org_id) ─────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Listar proyectos del usuario
+export async function listarProyectosUsuario(userId, orgId) {
+  if (!userId || !orgId) return []
+
+  const { data, error } = await supabase
+    .from('proyectos')
+    .select('id, user_id, organizacion_id, nombre, saved_at, updated_at, snapshots, data')
+    .eq('user_id', userId)
+    .eq('organizacion_id', orgId)
+    .order('updated_at', { ascending: false })
+
+  if (error) {
+    console.warn('listarProyectosUsuario error:', error)
+    return null
+  }
+  return data
+}
+
+// Guardar proyecto nuevo
+export async function guardarProyectoUsuario(userId, orgId, id, nombre, data, snapshots = []) {
+  if (!userId || !orgId) return false
+
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('proyectos')
+    .insert([{
+      id,
+      user_id: userId,
+      organizacion_id: orgId,
+      nombre,
+      data,
+      snapshots,
+      creado_por: userId,
+      saved_at: now,
+      updated_at: now,
+    }])
+
+  if (error) {
+    console.warn('guardarProyectoUsuario error:', error)
+    return false
+  }
+  return true
+}
+
+// Actualizar proyecto existente
+export async function actualizarProyectoUsuario(userId, orgId, id, nombre, data, snapshots = []) {
+  if (!userId || !orgId) return false
+
+  const { error } = await supabase
+    .from('proyectos')
+    .update({
+      nombre,
+      data,
+      snapshots,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .eq('organizacion_id', orgId)
+
+  if (error) {
+    console.warn('actualizarProyectoUsuario error:', error)
+    return false
+  }
+  return true
+}
+
+// Eliminar proyecto
+export async function eliminarProyectoUsuario(userId, orgId, id) {
+  if (!userId || !orgId) return false
+
+  const { error } = await supabase
+    .from('proyectos')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .eq('organizacion_id', orgId)
+
+  if (error) {
+    console.warn('eliminarProyectoUsuario error:', error)
+    return false
+  }
+  return true
+}

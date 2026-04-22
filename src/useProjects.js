@@ -1,4 +1,8 @@
 import {
+  listarProyectosUsuario,
+  guardarProyectoUsuario,
+  actualizarProyectoUsuario,
+  eliminarProyectoUsuario,
   listarProyectosDB,
   guardarProyectoDB,
   sobrescribirProyectoDB,
@@ -6,15 +10,15 @@ import {
 } from './supabase.js'
 
 const LS_AUTOSAVE  = 'nc_autosave_v1'
-const LS_PROJECTS  = 'nc_projects_v1'   // fallback cuando no hay token
+const LS_PROJECTS  = 'nc_projects_v1'   // fallback cuando no hay auth
 
-export function useProjects(token) {
-  const hasToken = !!token
+export function useProjects(userId, orgId) {
+  const hasAuth = !!userId && !!orgId
 
   // ── Listar ────────────────────────────────────────────────────────────────
   async function listarProyectos() {
-    if (hasToken) {
-      const rows = await listarProyectosDB(token)
+    if (hasAuth) {
+      const rows = await listarProyectosUsuario(userId, orgId)
       if (rows !== null) return rows.map(r => ({
         ...r,
         savedAt: r.updated_at,
@@ -31,8 +35,8 @@ export function useProjects(token) {
   // ── Guardar nuevo ─────────────────────────────────────────────────────────
   async function guardarNuevo(nombre, data) {
     const id = Date.now().toString()
-    if (hasToken) {
-      await guardarProyectoDB(token, id, nombre, data, [])
+    if (hasAuth) {
+      await guardarProyectoUsuario(userId, orgId, id, nombre, data, [])
     } else {
       const item = { id, nombre, savedAt: new Date().toISOString(), snapshots: [], ...data }
       const lista = listarProyectosLS()
@@ -43,7 +47,7 @@ export function useProjects(token) {
 
   // ── Sobrescribir (actualizar) ──────────────────────────────────────────────
   async function sobrescribir(id, nombre, data) {
-    if (hasToken) {
+    if (hasAuth) {
       // Obtener snapshots anteriores
       const lista = await listarProyectos()
       const original = lista.find(p => p.id === id)
@@ -58,7 +62,7 @@ export function useProjects(token) {
         notas: original?.notas,
       }
       const newSnapshots = [snap, ...prevSnaps].slice(0, 10)
-      await sobrescribirProyectoDB(token, id, nombre, data, newSnapshots)
+      await actualizarProyectoUsuario(userId, orgId, id, nombre, data, newSnapshots)
     } else {
       const lista = listarProyectosLS()
       const original = lista.find(p => p.id === id)
@@ -79,8 +83,8 @@ export function useProjects(token) {
 
   // ── Eliminar ──────────────────────────────────────────────────────────────
   async function eliminarProyecto(id) {
-    if (hasToken) {
-      await eliminarProyectoDB(token, id)
+    if (hasAuth) {
+      await eliminarProyectoUsuario(userId, orgId, id)
     } else {
       const lista = listarProyectosLS().filter(p => p.id !== id)
       localStorage.setItem(LS_PROJECTS, JSON.stringify(lista))
@@ -99,8 +103,8 @@ export function useProjects(token) {
       calcUInit: original.calcUInit, fachadas: original.fachadas,
       fachadasNextId: original.fachadasNextId, notas: original.notas,
     }
-    if (hasToken) {
-      await guardarProyectoDB(token, newId, nombre, data, [])
+    if (hasAuth) {
+      await guardarProyectoUsuario(userId, orgId, newId, nombre, data, [])
     } else {
       const copia = { ...original, id: newId, nombre, savedAt: new Date().toISOString(), snapshots: [] }
       localStorage.setItem(LS_PROJECTS, JSON.stringify([copia, ...listarProyectosLS()]))
@@ -148,13 +152,13 @@ export function useProjects(token) {
 
   // ── Migrar desde localStorage a Supabase ──────────────────────────────────
   async function migrarDesdeLocalStorage() {
-    if (!hasToken) return 0
+    if (!hasAuth) return 0
     const local = listarProyectosLS()
     if (!local.length) return 0
     let count = 0
     for (const p of local) {
       const data = { proy: p.proy, termica: p.termica, calcUInit: p.calcUInit, fachadas: p.fachadas, fachadasNextId: p.fachadasNextId, notas: p.notas }
-      const ok = await guardarProyectoDB(token, p.id, p.nombre, data, p.snapshots || [])
+      const ok = await guardarProyectoUsuario(userId, orgId, p.id, p.nombre, data, p.snapshots || [])
       if (ok) count++
     }
     return count
