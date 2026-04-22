@@ -21,6 +21,7 @@ import {
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
+import AdminStats from './modules/AdminStats.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -5710,7 +5711,7 @@ export default function App() {
 
 // ─── Panel admin con sub-pestañas ─────────────────────────────────────────────
 function AdminPanel({ onOverridesChanged }) {
-  const [subTab, setSubTab] = useState('zonas')
+  const [subTab, setSubTab] = useState('stats')
   const stBtnStyle = (active) => ({
     padding: '6px 16px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer',
     fontSize: 12, fontWeight: active ? 700 : 400,
@@ -5721,11 +5722,13 @@ function AdminPanel({ onOverridesChanged }) {
     <div>
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 4px 0', borderRadius: '8px 8px 0 0', marginBottom: 0 }}>
-        <button style={stBtnStyle(subTab === 'zonas')}  onClick={() => setSubTab('zonas')}>🗺 Zonas térmicas</button>
+        <button style={stBtnStyle(subTab === 'stats')}   onClick={() => setSubTab('stats')}>📊 Estadísticas</button>
+        <button style={stBtnStyle(subTab === 'zonas')}   onClick={() => setSubTab('zonas')}>🗺 Zonas térmicas</button>
         <button style={stBtnStyle(subTab === 'usuarios')} onClick={() => setSubTab('usuarios')}>👥 Usuarios</button>
       </div>
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 16 }}>
-        {subTab === 'zonas'  && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
+        {subTab === 'stats'    && <AdminStats />}
+        {subTab === 'zonas'    && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
         {subTab === 'usuarios' && <UserManager />}
       </div>
     </div>

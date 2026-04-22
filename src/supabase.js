@@ -570,3 +570,162 @@ export async function convertirTokenAUsuario(token, email, password, nombreCompl
     return { ok: false, error: 'Error al procesar migración' }
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Admin Stats: Estadísticas para administradores ──────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Obtener estadísticas de una organización
+ * @param {string} orgId - ID de la organización
+ * @returns {Promise<{ok: boolean, data?: object}>}
+ */
+export async function obtenerStatsOrganizacion(orgId) {
+  if (!orgId) return { ok: false, data: null }
+
+  try {
+    // Total usuarios
+    const { count: totalUsuarios } = await supabase
+      .from('perfiles_usuario')
+      .select('*', { count: 'exact', head: true })
+      .eq('organizacion_id', orgId)
+      .eq('activo', true)
+
+    // Total proyectos
+    const { count: totalProyectos } = await supabase
+      .from('proyectos')
+      .select('*', { count: 'exact', head: true })
+      .eq('organizacion_id', orgId)
+
+    // Proyectos este mes
+    const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+    const { count: proyectosEsteMes } = await supabase
+      .from('proyectos')
+      .select('*', { count: 'exact', head: true })
+      .eq('organizacion_id', orgId)
+      .gte('created_at', primerDiaMes)
+
+    // Último acceso
+    const { data: ultimoAcceso } = await supabase
+      .from('perfiles_usuario')
+      .select('ultimo_acceso')
+      .eq('organizacion_id', orgId)
+      .eq('activo', true)
+      .order('ultimo_acceso', { ascending: false })
+      .limit(1)
+
+    const ultimoAccesoTime = ultimoAcceso?.[0]?.ultimo_acceso
+      ? formatTiempoTranscurrido(ultimoAcceso[0].ultimo_acceso)
+      : 'Sin registro'
+
+    return {
+      ok: true,
+      data: {
+        totalUsuarios: totalUsuarios || 0,
+        totalProyectos: totalProyectos || 0,
+        proyectosEsteMes: proyectosEsteMes || 0,
+        ultimoAcceso: ultimoAccesoTime,
+      },
+    }
+  } catch (err) {
+    console.warn('obtenerStatsOrganizacion error:', err)
+    return { ok: false, data: null }
+  }
+}
+
+/**
+ * Obtener actividad reciente de una organización
+ * @param {string} orgId - ID de la organización
+ * @param {number} limit - Cantidad de registros a retornar (default: 20)
+ * @returns {Promise<array>}
+ */
+export async function obtenerActividadOrganizacion(orgId, limit = 20) {
+  if (!orgId) return []
+
+  try {
+    const { data, error } = await supabase
+      .from('registro_auditoria')
+      .select('*')
+      .eq('organizacion_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      console.warn('obtenerActividadOrganizacion error:', error)
+      return []
+    }
+
+    return data?.map(item => ({
+      ...item,
+      tiempoTranscurrido: formatTiempoTranscurrido(item.created_at),
+    })) || []
+  } catch (err) {
+    console.warn('obtenerActividadOrganizacion error:', err)
+    return []
+  }
+}
+
+/**
+ * Obtener usuarios más activos (con más proyectos)
+ * @param {string} orgId - ID de la organización
+ * @param {number} limit - Cantidad de usuarios a retornar (default: 5)
+ * @returns {Promise<array>}
+ */
+export async function obtenerUsuariosActivos(orgId, limit = 5) {
+  if (!orgId) return []
+
+  try {
+    // Obtener usuariosy contar sus proyectos
+    const { data: usuarios } = await supabase
+      .from('perfiles_usuario')
+      .select('id, nombre_completo, user_id')
+      .eq('organizacion_id', orgId)
+      .eq('activo', true)
+
+    if (!usuarios || usuarios.length === 0) return []
+
+    // Contar proyectos por usuario
+    const usuariosConCuenta = await Promise.all(
+      usuarios.map(async (user) => {
+        const { count } = await supabase
+          .from('proyectos')
+          .select('*', { count: 'exact', head: true })
+          .eq('organizacion_id', orgId)
+          .eq('user_id', user.user_id)
+
+        return {
+          id: user.id,
+          nombre_completo: user.nombre_completo,
+          cantidad_proyectos: count || 0,
+        }
+      })
+    )
+
+    return usuariosConCuenta
+      .sort((a, b) => b.cantidad_proyectos - a.cantidad_proyectos)
+      .slice(0, limit)
+  } catch (err) {
+    console.warn('obtenerUsuariosActivos error:', err)
+    return []
+  }
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+function formatTiempoTranscurrido(fechaISO) {
+  if (!fechaISO) return '—'
+
+  const fecha = new Date(fechaISO)
+  const ahora = new Date()
+  const diffMs = ahora - fecha
+  const diffSeg = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSeg / 60)
+  const diffHoras = Math.floor(diffMin / 60)
+  const diffDias = Math.floor(diffHoras / 24)
+
+  if (diffSeg < 60) return 'hace unos segundos'
+  if (diffMin < 60) return `hace ${diffMin}m`
+  if (diffHoras < 24) return `hace ${diffHoras}h`
+  if (diffDias < 7) return `hace ${diffDias}d`
+
+  return fecha.toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })
+}
