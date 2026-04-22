@@ -22,6 +22,8 @@ import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
 import AdminStats from './modules/AdminStats.jsx'
+import AdminTokens from './modules/AdminTokens.jsx'
+import UserHeader from './components/UserHeader.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -5721,13 +5723,15 @@ function AdminPanel({ onOverridesChanged }) {
   return (
     <div>
       {/* Sub-tabs */}
-      <div style={{ display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 4px 0', borderRadius: '8px 8px 0 0', marginBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 4px 0', borderRadius: '8px 8px 0 0', marginBottom: 0, flexWrap: 'wrap' }}>
         <button style={stBtnStyle(subTab === 'stats')}   onClick={() => setSubTab('stats')}>📊 Estadísticas</button>
-        <button style={stBtnStyle(subTab === 'zonas')}   onClick={() => setSubTab('zonas')}>🗺 Zonas térmicas</button>
+        <button style={stBtnStyle(subTab === 'tokens')}  onClick={() => setSubTab('tokens')}>🔑 Tokens</button>
+        <button style={stBtnStyle(subTab === 'zonas')}   onClick={() => setSubTab('zonas')}>🗺 Zonas</button>
         <button style={stBtnStyle(subTab === 'usuarios')} onClick={() => setSubTab('usuarios')}>👥 Usuarios</button>
       </div>
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 16 }}>
         {subTab === 'stats'    && <AdminStats />}
+        {subTab === 'tokens'   && <AdminTokens />}
         {subTab === 'zonas'    && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
         {subTab === 'usuarios' && <UserManager />}
       </div>
@@ -6080,6 +6084,9 @@ function AppInner() {
         >
           📁 Proyectos {hasUnsaved && proyectoActual && <span style={{ background:'#f59e0b', borderRadius:10, padding:'1px 6px', fontSize:10 }}>●</span>}
         </button>
+        <div style={{ marginLeft: 12 }}>
+          <UserHeader />
+        </div>
       </div>
       {exportError && (
         <div style={{ background: '#fef2f2', borderBottom: '2px solid #fca5a5', padding: '10px 20px', color: '#991b1b', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
