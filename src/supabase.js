@@ -220,11 +220,27 @@ export async function getSession() {
 export async function obtenerPerfil(userId) {
   const { data, error } = await supabase
     .from('perfiles_usuario')
-    .select('*, organizaciones(*)')
+    .select('id, user_id, nombre_completo, rol, activo, organizacion_id, ultimo_acceso, created_at')
     .eq('user_id', userId)
     .single()
 
-  if (error) return null
+  if (error) {
+    console.error('Error obtenerPerfil:', error)
+    return null
+  }
+
+  // Si tenemos organizacion_id, obtener org por separado
+  if (data?.organizacion_id) {
+    const { data: org } = await supabase
+      .from('organizaciones')
+      .select('*')
+      .eq('id', data.organizacion_id)
+      .single()
+    if (org) {
+      data.organizaciones = org
+    }
+  }
+
   return data
 }
 
