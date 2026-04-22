@@ -168,7 +168,7 @@ export async function signUp(email, password, nombreCompleto) {
       user_id: userId,
       organizacion_id: orgData.id,
       nombre_completo: nombreCompleto,
-      rol: 'admin',
+      es_admin: true,
       activo: true,
     }])
 
