@@ -48,10 +48,15 @@ export default function AuthGate({ children }) {
 
     // Validar en tiempo real
     const fieldErr = validarCampo(name, value)
-    setFieldErrors(prev => ({
-      ...prev,
-      [name]: fieldErr,
-    }))
+    setFieldErrors(prev => {
+      const newErrors = { ...prev }
+      if (fieldErr) {
+        newErrors[name] = fieldErr
+      } else {
+        delete newErrors[name]
+      }
+      return newErrors
+    })
   }
 
   async function handleLogin(e) {
