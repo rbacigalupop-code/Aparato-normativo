@@ -1,0 +1,365 @@
+================================================================
+AUDITORIA TECNICA — NORMACHECK
+Sistema de Verificacion Normativa OGUC · NCh853 · DS N°15 · LOSCAT
+Generado: 2026-04-18  |  Actualizado: 2026-04-18 (BUG-CRITICO-01 corregido)
+================================================================
+
+[RESUMEN EJECUTIVO]
+-------------------
+Aplicacion web React para verificacion de cumplimiento normativo de
+edificaciones en Chile. Motor de calculo termico y de resistencia al
+fuego con exportacion de informes para expedientes DOM.
+
+Normativas implementadas:
+  · NCh853:2021       — Aislacion termica / Metodo de Glaser
+  · ISO 6946:2017     — Metodo combinado R_T = (R_upper + R_lower)/2
+  · DS N°15           — Reglamento de instalaciones termicas
+  · OGUC Tit.4 Cap.3  — Clasificacion de destinos y riesgo incendio
+  · LOFC Ed.17 2025   — Lista Oficial de Soluciones Constructivas (RF)
+  · NCh352:2013       — Aislacion acustica
+  · LOSCAT Ed.13      — Lista de Soluciones Constructivas y Aislamientos Termicos
+
+Arquitectura:
+  src/data.js       — Motor de calculo y constantes normativas
+  src/App.jsx       — Interfaz React (componentes y logica UI)
+  src/supabase.js   — Gestion de tokens y proyectos en Supabase
+  src/TokenGate.jsx — Autenticacion por token
+  src/useProjects.js— Hook de gestion de proyectos (dual: Supabase + localStorage)
+
+
+================================================================
+[MOTOR DE CALCULO — src/data.js]
+================================================================
+
+--- CONSTANTES NORMATIVAS ---
+
+RSI_MAP: Resistencias superficiales internas (ISO 6946 Tabla 1)
+  muro:  0.13 m2K/W
+  techo: 0.10 m2K/W
+  piso:  0.17 m2K/W
+
+RSE_MAP: Resistencias superficiales externas (ISO 6946 Tabla 1)
+  muro:  0.04 m2K/W
+  techo: 0.04 m2K/W
+  piso:  0.04 m2K/W
+
+RCAMARA: Resistencia camara de aire = 0.18 m2K/W (ISO 6946)
+
+STRUCT_MATS: Materiales para estructura integrada (puentes termicos)
+  madera: { label:'Madera (Pino Radiata)', lam:0.13, mu:3,       color:'#92400e' }
+  acero:  { label:'Acero (Metalcon)',      lam:50.0,  mu:1000000, color:'#334155' }
+  Fuente lambda: NCh433 / EN ISO 10456
+
+AISLS: Materiales aislantes candidatos para correcciones C1-C6
+  XPS extruido      lam:0.036  mu:100
+  PU proyectado     lam:0.026  mu:50
+  Lana mineral 30kg lam:0.035  mu:1
+  EPS 20kg/m3       lam:0.040  mu:60
+  Lana vidrio 13kg  lam:0.036  mu:1
+  Fibra madera      lam:0.040  mu:5
+
+ZONAS: 7 zonas climaticas chilenas con Ti, Te, HR de diseno
+COMUNAS_ZONA: Asignacion de cada comuna a su zona climatica
+
+--- FUNCIONES EXPORTADAS ---
+
+calcU_SC(sc, elem)
+  Calcula U de una solucion constructiva del catalogo LOSCAT.
+  Usa RSI/RSE correctos por tipo de elemento (muro/techo/piso).
+  Retorna: { U, Rtot, capas[] }
+
+buildCapas(sc, elem)
+  Construye el array de capas desde un codigo LOSCAT.
+
+calcR_ISO6946_helper(cv, elemTipo)  [PRIVADA]
+  Nucleo del metodo combinado ISO 6946:2017.
+  · Detecta capas con estructura_integrada (montantes madera/acero)
+  · R_upper: planos isotermicos (resistencias en paralelo para capa mixta)
+  · R_lower: flujo de calor paralelo (dos caminos completos int->ext)
+  · R_T = (R_upper + R_lower) / 2
+  · fa = ancho_montante / distanciamiento  (fraccion de puente termico)
+  · Retorna: { R_T, R_upper, R_lower, fa, fb, method, hasEB }
+
+_calcGlaserSimple(cv, ti, te, hr, elemTipo)  [PRIVADA — solo generarCorrecciones]
+  Version ligera de Glaser SIN invocar calcR_ISO6946_helper.
+  Usa suma de resistencias en serie pura (R = esp/lam, RCAMARA para camaras).
+  MOTIVO: las capas que genera generarCorrecciones desde AISLS NUNCA tienen
+  estructura_integrada. Llamar calcR_ISO6946_helper en 260+ iteraciones
+  causaba freeze de UI al presionar el boton Soluciones Constructivas.
+  Retorna el mismo shape que calcGlaser (iso6946:null, aviso_puente:null).
+
+calcGlaser(cv, ti, te, hr, elemTipo)  [EXPORTADA]
+  Motor principal: Glaser NCh853:2021 + ISO 6946:2017 combinado.
+  · Llama calcR_ISO6946_helper para R_T certificable (U = 1/R_T)
+  · Perfil de temperaturas usa R_upper (planos isotermicos, conservador)
+  · Presiones de vapor: metodo Glaser (difusion Fickiana, sd = mu * esp_mm)
+  · Detecta condensacion intersticial (pvReal > pvSat en alguna interfaz)
+  · Detecta condensacion superficial (T_ext < Tdew)
+  · Genera aviso_puente si hay capa de acero
+  Retorna: { temps, pv, ifaces, condInter, condSup, caso, Tdew, U,
+             Rtot, Rs, Pvsi, Pvse, iso6946, aviso_puente }
+
+calcU_ISO6946(cv, elemTipo)  [EXPORTADA]
+  Calcula U certificable por metodo combinado ISO 6946:2017.
+  Retorna: { U, R_T, R_upper, R_lower, fa, fb, method, aviso_puente }
+
+generarCorrecciones(cv, ti, te, hr, elemTipo, umaxTarget)  [EXPORTADA]
+  Motor de correcciones automaticas NCh853.
+  Detecta: condensacion intersticial y/o U > Umax DS N°15.
+  Usa _calcGlaserSimple (NO calcGlaser) en todos los bucles internos.
+
+  C1 — EIFS/SATE
+    Aislante exterior + Estuco cemento 15mm.
+    Bucle: 6 materiales x esp 30..180mm (paso 10mm).
+    Solo para: muro, tabique.
+
+  C2 — Fachada Ventilada
+    Aislante + Barrera humedad Tyvek + Camara ventilada + Fibrocemento.
+    Bucle: 6 materiales x esp 40..180mm.
+
+  C3 — Trasdosado Interior
+    Yeso carton + Barrera vapor PE (mu=9999, cara caliente) + Aislante.
+    Bucle: 6 materiales x esp 30..100mm.
+
+  C4 — Aumentar espesor aislante existente
+    Incrementa esp del aislante (lambda<=0.05) con cierre automatico.
+    Bucle: extra 10..500mm paso 10mm. Safety break: extra>500.
+    Compatible LOSCAT (mismo material, mayor espesor). compatible_loscat:true.
+
+  C5 — Barrera de vapor (cara caliente)
+    Inserta lamina PE mu=9999 tras revestimiento interior.
+    Solo si hay condensacion activa y no existe barrera. Sin bucle.
+
+  C6 — Sustitucion de aislante
+    Reemplaza aislante por material de menor lambda (igual espesor).
+    Bucle: sobre AISLS con lam < orig.lam.
+
+--- OTRAS FUNCIONES EXPORTADAS ---
+
+getUIdx(zona, elem)     — Obtiene Umax DS N°15 por zona y elemento
+satP(T)                 — Presion de vapor saturado (Pa) — formula Magnus
+dewPoint(T, HR)         — Punto de rocio
+rfN(s)                  — Parsea string RF ("F60" -> 60)
+colSem(v)               — Color semaforo para RF
+ELEM_NORM               — Definicion de elementos normativos
+SUBGRUPOS_PUERTA        — Clasificacion de tipos de puerta
+CAPAS_CIERRE_EXT        — Terminaciones exteriores validas
+CAPAS_CIERRE_INT        — Terminaciones interiores validas
+VPCT, PERM_V            — Tablas de permeabilidad al viento y aire
+RF_DEF, RF_EST          — Resistencias al fuego requeridas
+AC_DEF                  — Requerimientos acusticos
+RIESGO_INC              — Clasificacion de riesgo de incendio
+MATS, ALL_MATS          — Biblioteca de materiales con lam, mu, densidad
+
+
+================================================================
+[INTERFAZ — src/App.jsx]
+================================================================
+
+--- PanelCalcU ---
+Componente para calculo U por elemento constructivo.
+
+Estado local:
+  capas[]        — array de capas editables
+  res            — resultado calcGlaser actual
+  correc[]       — correcciones normativas sugeridas
+  calcuando      — bool: true mientras generarCorrecciones esta en setTimeout
+  solucion       — solucion LOSCAT asignada
+  showHomolog    — muestra texto de homologacion LOSCAT
+  pisoTipo       — 'ventilado'|'terreno'|'no_calef'
+  cubiertaVent   — bool: cubierta ventilada (ISO 6946 §6.9.2)
+  deltaU         — correccion puentes termicos perimetrales
+
+calcularConCapas(cs):
+  try {
+    calcGlaser(cv, ...) -> setRes(r)
+    if (necesita correcciones) {
+      setCalcuando(true)
+      setTimeout(() => {
+        try { setCorrec(generarCorrecciones(...)) }
+        catch(e) { setCorrec([]) }
+        finally { setCalcuando(false) }
+      }, 0)
+    }
+  } catch(e) { setRes(null); setCorrec([]) }
+
+Loading spinner: visible mientras calcuando===true
+  "Calculando correcciones normativas..."
+
+updEstructura(id, campo, valor):
+  Toggle estructura_integrada en capas de aislante (lambda <= 0.05).
+  Defaults: tipo=madera, ancho_mm=38, distancia_mm=600.
+  Sub-row muestra: fa = ancho/distancia (fraccion puente termico).
+
+Avisos puente termico:
+  Acero (rojo): U_sin_tb, U_con_tb, % incremento de U
+  Madera (ambar): R_upper, R_lower, R_T, fa
+
+--- TabCalcU ---
+Genera PanelCalcU dinamicamente por (estructura x elemento).
+  Clave compuesta: 'estId::elemKey' en calcUInit.
+  Fallback: 4 paneles globales si no hay estructuras con solucion.
+
+CALC_U_ELEM_CFG:
+  muro:    { elemTipo:'muro',      label:'Muro',    umaxKey:'muro'  }
+  techo:   { elemTipo:'techumbre', label:'Cubierta',umaxKey:'techo' }
+  piso:    { elemTipo:'piso',      label:'Piso',    umaxKey:'piso'  }
+  tabique: { elemTipo:'muro',      label:'Tabique', umaxKey:null    }
+
+getCalcUData(elemKey):
+  Busca claves simples y compuestas (k.endsWith('::elemKey')).
+  Retorna entrada con mayor U (peor caso, conservador).
+
+getCalcUForElem(elemKey) en TabResultados:
+  Retorna el mayor U entre todas las entradas que terminan en ::elemKey.
+
+
+================================================================
+[BASE DE DATOS — src/supabase.js]
+================================================================
+
+URL: https://srukzfoerdgcaymnriax.supabase.co
+Tabla tokens:   token, descripcion, max_proyectos, proyectos_usados, expires_at, activo
+Tabla proyectos: id, token, nombre, data, snapshots, saved_at, updated_at
+
+validarToken(tokenStr)
+  Retorna { ok:true, data } | { ok:false, motivo:'invalid'|'expired'|'exhausted'|'inactive' }
+  Verifica: existencia, activo===true, expires_at > now, proyectos_usados < max_proyectos
+
+usarProyecto(tokenStr)
+  Incrementa proyectos_usados en 1. (0 = ilimitado).
+
+Administracion: listarTokens, crearToken, actualizarToken, eliminarToken
+Proyectos: listarProyectosDB, guardarProyectoDB (UPSERT), sobrescribirProyectoDB, eliminarProyectoDB
+
+Cache local (localStorage key: 'oguc_token_v1'):
+  Campos: token, expires_at, max_proyectos, proyectos_usados, descripcion, cached_at
+  Fallback offline: si red falla -> usa cache sin limpiar (modo lectura).
+
+
+================================================================
+[CAMBIOS RECIENTES — 2026-04-18]
+================================================================
+
+1. _calcGlaserSimple (NUEVO — data.js)
+   Funcion privada Glaser sin ISO 6946. Creada para eliminar el freeze.
+   Las capas de generarCorrecciones (desde AISLS) nunca tienen
+   estructura_integrada, por lo que ISO 6946 es overhead puro.
+   Reduccion estimada de costo computacional en bucles: ~8-12x.
+
+2. generarCorrecciones: todos los calcGlaser() -> _calcGlaserSimple()
+   C1, C2, C3, C4, C5, C6 usan la version ligera.
+
+3. Safety break C4: limite 200mm -> 500mm extra con guard explicito.
+
+4. calcularConCapas — patron async con setTimeout (App.jsx)
+   generarCorrecciones en setTimeout(fn,0) + try/catch + finally.
+   try/catch externo sobre toda la funcion.
+
+5. aplicarCorreccion — mismo patron async (App.jsx).
+
+6. Loading spinner "Calculando correcciones normativas..."
+   Estado calcuando:bool en PanelCalcU.
+
+--- BUG CRITICO CORREGIDO 2026-04-18 ---
+
+BUG-CRITICO-01: TypeError en TabSoluciones — s.zonas.join() sobre string (App.jsx L1150)
+  SINTOMA: La pestaña "Soluciones" crasheaba inmediatamente al entrar, mostrando
+    pantalla en blanco / componente desmontado. El error ocurria en CADA render de
+    la lista de soluciones para cualquier proyecto con zona configurada, porque:
+    - s.zonas es un STRING "ABCDEFGHI" (no un array)
+    - El codigo llamaba s.zonas.join(', ') en la generacion del tooltip "Fuera de zona"
+    - String.prototype.join no existe → TypeError → React unmount del componente
+  CONDICION: Sucedia cuando al menos una solucion en el catalogo tenia:
+    - faltaZona = true (la zona del proyecto no esta en s.zonas)
+    - faltaUso = false (el uso del proyecto SI esta en s.usos)
+    Esto es muy comun: zona D (Santiago) no esta en "ABC" de soluciones de Norte Chico,
+    pero el uso "Vivienda" si aplica a casi todas. Casi CUALQUIER proyecto con zona
+    definida disparaba este crash al entrar en tab 1 (Soluciones).
+  CORRECCION: s.zonas.join(', ') → s.zonas.split('').join(', ')
+    (convierte string "ABCG" a "A, B, C, G" correctamente)
+  ARCHIVO: src/App.jsx linea 1150
+  SEVERIDAD: CRITICA — crasheaba siempre que el proyecto tenia zona configurada
+
+--- Implementaciones previas ---
+
+7. calcR_ISO6946_helper + calcU_ISO6946 (data.js)
+   Metodo combinado ISO 6946:2017 §6.4-6.6.
+
+8. STRUCT_MATS: Madera (lambda=0.13) y Acero Metalcon (lambda=50.0).
+
+9. calcGlaser actualizado con ISO 6946 + aviso_puente para acero.
+
+10. updEstructura + sub-row de estructura integrada (App.jsx).
+
+11. TabCalcU con paneles dinamicos, claves compuestas 'estId::elemKey'.
+
+12. getCalcUData / getCalcUForElem con busqueda de claves compuestas.
+
+
+================================================================
+[VALIDACIONES NORMATIVAS]
+================================================================
+
+Umax DS N°15 (W/m2K):
+  Elemento  Z1    Z2    Z3    Z4    Z5    Z6    Z7
+  Muro      1.9   1.5   1.1   0.8   0.6   0.5   0.4
+  Techo     1.0   0.8   0.6   0.5   0.4   0.35  0.28
+  Piso      1.5   1.2   0.9   0.7   0.55  0.45  0.38
+
+Metodo Glaser (NCh853:2021 Anexo C):
+  Condensacion: pvReal(z) > pvSat(T(z)) en alguna interfaz
+  pvSat(T) = 610.8 * exp(17.27*T / (T+237.3))  [Pa]
+  sd = mu * esp_mm  (resistencia a difusion de vapor)
+  Pvse = satP(Te) * 0.80  (HR exterior asumida 80%)
+
+ISO 6946:2017 Metodo Combinado:
+  R_upper: serie con capa mixta en paralelo
+  R_lower: 1 / (fa/R_A + fb/R_B)
+  R_T = (R_upper + R_lower) / 2
+  fa = ancho_montante / distanciamiento
+
+Clasificacion de capas para generarCorrecciones:
+  rev_int:  lambda > 0.5 y posicion inicial
+  aislante: lambda <= 0.05
+  rev_ext:  lambda > 0.5 y posicion final
+  vapor:    mu > 500
+  humedad:  mu entre 100 y 500
+  camara:   esCamara === true
+
+
+================================================================
+[PENDIENTES Y OBSERVACIONES TECNICAS]
+================================================================
+
+OBS-01: _calcGlaserSimple usa serie pura. Si el cv de entrada TIENE
+  estructura_integrada, la evaluacion inicial r0 en generarCorrecciones
+  subestima el U real (ignora puente termico). Impacto: correcciones
+  pueden ser ligeramente suboptimas para muros con montantes.
+  Mitigacion: usuario puede recalcular con calcGlaser completo en PanelCalcU.
+
+OBS-02: C1 (EIFS/SATE) y C2 (Fachada Ventilada) solo aplican a muro/tabique.
+  Para techo y piso solo hay C3-C6. Evaluar si C1 aplica a cubiertas planas.
+
+OBS-03: Campo `pda` (pendiente de diseno acustico) aparece en proyectos
+  pero no tiene validacion activa. Pendiente integracion con tabla AC_DEF.
+
+OBS-04: Si aislante existente es muy grueso y C4 no resuelve en 500mm,
+  no se muestra aviso explicito. Considerar mensaje de advertencia.
+
+OBS-05: La tabla VPCT no tiene validacion automatica en informe HTML.
+
+OBS-06: Snapshots sin limite de cantidad. Con muchos snapshots el JSONB
+  en Supabase puede superar 1MB. Recomendacion: limitar a 10 por proyecto.
+
+OBS-07: Token en localStorage no se revalida si cached_at > 24h.
+  Token revocado en Supabase sigue funcionando hasta expiracion local.
+
+OBS-08: No se encontraron TODO ni FIXME en el codigo fuente auditado.
+
+OBS-09: calcU_ISO6946 y calcGlaser tienen logica duplicada en aviso_puente.
+  Considerar refactorizar para compartir la comparacion U_con vs U_sin.
+
+================================================================
+FIN DE AUDITORIA
+================================================================

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { validarEmail } from '../utils/validation'
 
 export default function UserManager() {
   const { orgActual, isAdmin, invitarUsuario, listarUsuarios, cambiarRol, desactivarUsuario } = useAuth()
@@ -28,7 +29,22 @@ export default function UserManager() {
   // Invitar usuario
   async function handleInvitar(e) {
     e.preventDefault()
-    if (!emailInvitar.trim()) return
+
+    // Validar email
+    const emailErr = validarEmail(emailInvitar)
+    if (emailErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${emailErr}` })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+
+    // Verificar si el usuario ya existe en esta organización
+    const usuarioExistente = usuarios.some(u => u.user_id || u.email === emailInvitar)
+    if (usuarioExistente) {
+      setMsg({ tipo: 'err', texto: 'Este usuario ya existe en la organización' })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
 
     setCargando(true)
     const result = await invitarUsuario(emailInvitar, rolInvitar)
@@ -40,7 +56,8 @@ export default function UserManager() {
       setRolInvitar('viewer')
       cargarUsuarios()
     } else {
-      setMsg({ tipo: 'err', texto: `Error: ${result.error}` })
+      const errorMsg = result.error?.message || result.error || 'Error desconocido'
+      setMsg({ tipo: 'err', texto: `Error: ${errorMsg}` })
     }
 
     setTimeout(() => setMsg(null), 5000)

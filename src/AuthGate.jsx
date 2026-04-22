@@ -1,48 +1,121 @@
 import { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
+import {
+  validarEmail,
+  validarPassword,
+  validarNombre,
+  validarCoincidencia,
+} from './utils/validation'
 
 export default function AuthGate({ children }) {
   const { session, cargando, isLoggedIn } = useAuth()
   const [modo, setModo] = useState('login') // 'login' | 'signup'
-  const [formData, setFormData] = useState({ email: '', password: '', nombreCompleto: '' })
+  const [formData, setFormData] = useState({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({})
 
   const { signIn, signUp } = useAuth()
+
+  // Validar campo individual
+  function validarCampo(fieldName, value) {
+    let err = null
+    switch (fieldName) {
+      case 'email':
+        err = validarEmail(value)
+        break
+      case 'password':
+        err = validarPassword(value)
+        break
+      case 'nombreCompleto':
+        err = validarNombre(value)
+        break
+      case 'passwordConfirm':
+        if (value && formData.password) {
+          err = validarCoincidencia(formData.password, value, 'Contraseñas')
+        }
+        break
+      default:
+        break
+    }
+    return err
+  }
+
+  // Actualizar campo y limpiar error
+  function handleChangeField(e) {
+    const { name, value } = e.target
+    setFormData(p => ({ ...p, [name]: value }))
+
+    // Validar en tiempo real
+    const fieldErr = validarCampo(name, value)
+    setFieldErrors(prev => ({
+      ...prev,
+      [name]: fieldErr,
+    }))
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
     setError(null)
-    setProcesando(true)
+    setFieldErrors({})
 
-    const result = await signIn(formData.email, formData.password)
-    if (!result.ok) {
-      setError(result.error)
+    // Validar campos
+    const errors = {}
+    const emailErr = validarEmail(formData.email)
+    if (emailErr) errors.email = emailErr
+
+    const passwordErr = formData.password ? null : 'Contraseña requerida'
+    if (passwordErr) errors.password = passwordErr
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setError('Por favor corrige los errores indicados')
+      return
     }
 
+    setProcesando(true)
+    const result = await signIn(formData.email, formData.password)
+    if (!result.ok) {
+      setError(result.error?.message || 'Error al iniciar sesión')
+    }
     setProcesando(false)
   }
 
   async function handleSignup(e) {
     e.preventDefault()
     setError(null)
-    setProcesando(true)
+    setFieldErrors({})
 
-    if (!formData.nombreCompleto.trim()) {
-      setError('El nombre es requerido')
-      setProcesando(false)
+    // Validar campos
+    const errors = {}
+    const emailErr = validarEmail(formData.email)
+    if (emailErr) errors.email = emailErr
+
+    const passwordErr = validarPassword(formData.password)
+    if (passwordErr) errors.password = passwordErr
+
+    const confirmErr = validarCoincidencia(formData.password, formData.passwordConfirm, 'Contraseñas')
+    if (confirmErr) errors.passwordConfirm = confirmErr
+
+    const nombreErr = validarNombre(formData.nombreCompleto)
+    if (nombreErr) errors.nombreCompleto = nombreErr
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setError('Por favor corrige los errores indicados')
       return
     }
 
-    const result = await signUp(formData.email, formData.password, formData.nombreCompleto)
+    setProcesando(true)
+    const result = await signUp(formData.email, formData.password, formData.nombreCompleto, formData.passwordConfirm)
     if (!result.ok) {
-      setError(result.error)
+      setError(result.error?.message || 'Error al crear la cuenta')
     } else {
       setModo('login')
-      setFormData({ email: '', password: '', nombreCompleto: '' })
+      setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
+      setFieldErrors({})
       setError(null)
     }
-
     setProcesando(false)
   }
 
@@ -91,13 +164,14 @@ export default function AuthGate({ children }) {
               <label style={styles.label}>Nombre completo</label>
               <input
                 type="text"
-                style={styles.input}
+                name="nombreCompleto"
+                style={{ ...styles.input, borderColor: fieldErrors.nombreCompleto ? '#dc2626' : undefined }}
                 placeholder="Juan Pérez"
                 value={formData.nombreCompleto}
-                onChange={e => setFormData(p => ({ ...p, nombreCompleto: e.target.value }))}
-                required
+                onChange={handleChangeField}
                 disabled={procesando}
               />
+              {fieldErrors.nombreCompleto && <div style={styles.fieldErrorText}>{fieldErrors.nombreCompleto}</div>}
             </div>
           )}
 
@@ -106,40 +180,60 @@ export default function AuthGate({ children }) {
             <label style={styles.label}>Email</label>
             <input
               type="email"
-              style={styles.input}
+              name="email"
+              style={{ ...styles.input, borderColor: fieldErrors.email ? '#dc2626' : undefined }}
               placeholder="usuario@estudio.cl"
               value={formData.email}
-              onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
-              required
+              onChange={handleChangeField}
               disabled={procesando}
               autoComplete="email"
             />
+            {fieldErrors.email && <div style={styles.fieldErrorText}>{fieldErrors.email}</div>}
           </div>
 
           {/* Contraseña */}
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: modo === 'signup' ? 12 : 16 }}>
             <label style={styles.label}>Contraseña</label>
             <input
               type="password"
-              style={styles.input}
+              name="password"
+              style={{ ...styles.input, borderColor: fieldErrors.password ? '#dc2626' : undefined }}
               placeholder="••••••••"
               value={formData.password}
-              onChange={e => setFormData(p => ({ ...p, password: e.target.value }))}
-              required
+              onChange={handleChangeField}
               disabled={procesando}
               autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
             />
+            {fieldErrors.password && <div style={styles.fieldErrorText}>{fieldErrors.password}</div>}
           </div>
+
+          {/* Confirmar Contraseña (solo en signup) */}
+          {modo === 'signup' && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={styles.label}>Confirmar contraseña</label>
+              <input
+                type="password"
+                name="passwordConfirm"
+                style={{ ...styles.input, borderColor: fieldErrors.passwordConfirm ? '#dc2626' : undefined }}
+                placeholder="••••••••"
+                value={formData.passwordConfirm}
+                onChange={handleChangeField}
+                disabled={procesando}
+                autoComplete="new-password"
+              />
+              {fieldErrors.passwordConfirm && <div style={styles.fieldErrorText}>{fieldErrors.passwordConfirm}</div>}
+            </div>
+          )}
 
           {/* Botón principal */}
           <button
             type="submit"
             style={{
               ...styles.btn,
-              opacity: procesando ? 0.5 : 1,
-              cursor: procesando ? 'not-allowed' : 'pointer',
+              opacity: procesando || Object.keys(fieldErrors).length > 0 ? 0.6 : 1,
+              cursor: procesando || Object.keys(fieldErrors).length > 0 ? 'not-allowed' : 'pointer',
             }}
-            disabled={procesando}
+            disabled={procesando || Object.keys(fieldErrors).length > 0}
           >
             {procesando ? '⏳ Procesando...' : modo === 'login' ? 'Ingresar →' : 'Crear cuenta →'}
           </button>
@@ -151,7 +245,12 @@ export default function AuthGate({ children }) {
             <>
               ¿No tienes cuenta?{' '}
               <button
-                onClick={() => { setModo('signup'); setError(null); setFormData({ email: '', password: '', nombreCompleto: '' }) }}
+                onClick={() => {
+                  setModo('signup')
+                  setError(null)
+                  setFieldErrors({})
+                  setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
+                }}
                 style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}
               >
                 Crear una
@@ -161,7 +260,12 @@ export default function AuthGate({ children }) {
             <>
               ¿Ya tienes cuenta?{' '}
               <button
-                onClick={() => { setModo('login'); setError(null); setFormData({ email: '', password: '', nombreCompleto: '' }) }}
+                onClick={() => {
+                  setModo('login')
+                  setError(null)
+                  setFieldErrors({})
+                  setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
+                }}
                 style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}
               >
                 Inicia sesión
@@ -252,6 +356,12 @@ const styles = {
     color: '#991b1b',
     fontSize: 13,
     marginBottom: 14,
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    color: '#dc2626',
+    marginTop: 4,
+    display: 'block',
   },
   spinner: {
     width: 18,

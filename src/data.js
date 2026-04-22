@@ -336,22 +336,33 @@ export const MATS=[
     {n:"Vidrio monolitico",lam:1.00,mu:9999},
     {n:"Lamina impermeable",lam:0.23,mu:9999},
   ]},
-  {g:"Cubiertas para techumbre",items:[
-    // Planchas onduladas de acero galvanizado (perfil PV). λ nominal acero ≈ 50 W/mK.
-    // Su contribución térmica es despreciable (espesor < 1 mm), pero sí cuentan como
-    // capa hidrófuga (μ=9999).  OGUC Art. 5.5 / NCh184 / NCh218.
-    {n:"Plancha acero PV4 (0.4mm)",lam:50,mu:9999,usos:['techo']},
-    {n:"Plancha acero PV5 (0.5mm)",lam:50,mu:9999,usos:['techo']},
-    {n:"Plancha Zincalum (0.4–0.5mm)",lam:50,mu:9999,usos:['techo']},
-    // Teja asfáltica — producto bituminoso con gránulos minerales. Espesor típico 3 mm.
-    {n:"Teja asfaltica",lam:0.23,mu:1000,usos:['techo']},
-    // Fibrocemento Gran Onda — plancha autosoportante, espesor 6–8 mm, perfil trapezoidal.
-    {n:"Fibrocemento Gran Onda",lam:0.23,mu:50,usos:['techo']},
-    // Teja cerámica (para completar el catálogo de cubiertas tradicionales).
-    {n:"Teja ceramica",lam:1.00,mu:40,usos:['techo']},
-  ]},
 ];
 export const ALL_MATS=MATS.flatMap(g=>g.items);
+
+// ─── CUBIERTAS DE TECHUMBRE ───────────────────────────────────────────────────
+// Lista cerrada y exclusiva para el slot «Cubierta / Terminación» de techumbres.
+// Valores técnicos de referencia:
+//   · PV-4 / PV-5 Zincalum: plancha ondulada de acero recubierto Zn+Al. Espesor
+//     efectivo 0.5 mm, λ del acero ≈ 50 W/mK (contribución térmica despreciable),
+//     μ=100 000 (totalmente impermeable al vapor).  NCh218 / NCh184.
+//   · Teja asfáltica (incluye fieltro base): producto bituminoso, λ≈0.17 W/mK,
+//     espesor conjunto 3 mm, μ=3 000.
+//   · Fibrocemento Gran Onda (Perfil 7): λ=0.24 W/mK, espesor 5 mm, μ=50.
+//   · Panel Sándwich (núcleo poliuretano 40 mm): λ=0.022 W/mK, μ=100 000
+//     (cara metálica exterior impermeable).  NCh853 / NCh184.
+export const CUBIERTAS_TECHUMBRE=[
+  { n:'PV-4 / PV-5 Zincalum',              lam:50,    mu:100000, esp:0.0005, cat:'cubierta' },
+  { n:'Teja Asfáltica (incl. fieltro)',    lam:0.17,  mu:3000,   esp:0.003,  cat:'cubierta' },
+  { n:'Fibrocemento Gran Onda (P7)',       lam:0.24,  mu:50,     esp:0.005,  cat:'cubierta' },
+  { n:'Panel Sandwich (Poliuretano 40mm)', lam:0.022, mu:100000, esp:0.04,   cat:'cubierta' },
+];
+
+// Alias semántico para el slot «Revestimiento Exterior» de muros.
+// Corresponde exactamente a CAPAS_CIERRE_EXT (definido más abajo). Se re-exporta
+// bajo este nombre para que el componente de UI pueda importar una constante
+// intuitiva y distinguir claramente el caso muro vs. techo.
+// (La asignación del valor real ocurre tras la definición de CAPAS_CIERRE_EXT
+//  via un `export { CAPAS_CIERRE_EXT as REVESTIMIENTOS_EXTERIORES }`.)
 
 // ─── Filtro de materiales por tipo de elemento ────────────────────────────────
 // Recibe el listado MATS completo + elemTipo ('muro' | 'techo' | 'techumbre' |
@@ -364,9 +375,16 @@ export function filterMatsByElem(elemTipo){
              : (elemTipo==='tabique')   ? 'muro'
              : elemTipo || null;
   if(!elem) return MATS;
-  return MATS
+  const base = MATS
     .map(g => ({ ...g, items: g.items.filter(m => !m.usos || m.usos.includes(elem)) }))
     .filter(g => g.items.length > 0);
+  // Para techumbres, inyectar el catálogo cerrado de cubiertas como grupo extra
+  // (de esta forma el selector general también muestra PV-4/PV-5/Tejas/etc. sin
+  // duplicarlos en MATS).
+  if (elem === 'techo') {
+    base.push({ g:'Cubiertas para techumbre', items: CUBIERTAS_TECHUMBRE });
+  }
+  return base;
 }
 
 // ─── RESISTENCIAS SUPERFICIALES (NCh853 / ISO 6946) ──────────────────────────
@@ -884,6 +902,9 @@ export const CAPAS_CIERRE_EXT=[
   {n:"Siding PVC",                lam:0.16, esp:0.012, mu:10000, desc:"1.2mm (equiv.)"},
   {n:"Ladrillo visto",            lam:0.69, esp:0.070, mu:10,    desc:"70mm · NCh167"},
 ];
+// Alias semántico para el slot «Revestimiento Exterior» de muros
+// (ver comentario junto a CUBIERTAS_TECHUMBRE).
+export const REVESTIMIENTOS_EXTERIORES = CAPAS_CIERRE_EXT;
 export const CAPAS_CIERRE_INT=[
   {n:"Yeso carton",               lam:0.26, esp:0.013, mu:8,     desc:"13mm · NC 1070"},
   {n:"Enlucido de yeso",          lam:0.58, esp:0.010, mu:6,     desc:"10mm"},

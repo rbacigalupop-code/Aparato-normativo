@@ -1,0 +1,321 @@
+================================================================================
+INFORME AUDITABLE DE SESIÓN — NormaCheck
+Fecha:    2026-04-19
+Rango:    commit 14bcd2f (estado inicial) → commit 43b4ff6 (estado final)
+Dominio:  normacheck-eta.vercel.app
+Repo:     github.com/rbacigalupop-code/Aparato-normativo  (rama: main)
+================================================================================
+
+
+1. RESUMEN EJECUTIVO
+--------------------------------------------------------------------------------
+Se resolvieron tres problemas encadenados que mantenían la aplicación en
+producción inutilizable para el flujo de Cálculo U — Techo:
+
+  (A) Freeze de UI al seleccionar el elemento "Techo" en Zona D.
+  (B) TypeError en minificado: "k.zonas.join is not a function".
+  (C) Desconexión silenciosa de la integración GitHub→Vercel desde el
+      15-abril (4 días) por un archivo untracked que rompía el build.
+
+Los tres problemas se diagnosticaron, corrigieron y verificaron en
+producción. La aplicación vuelve a operar y el flujo Techo → Zona D
+calcula correcciones sin bloquear la interfaz.
+
+Estado final verificado por el usuario: "no se cuelga!"
+Deploy activo: AcTYejBhV · commit 43b4ff6 · Production · Ready · 19-abr 11:50.
+
+
+2. DIAGNÓSTICO — CADENA DE CAUSAS
+--------------------------------------------------------------------------------
+
+2.1 Freeze en techo (síntoma visible)
+    · El motor `generarCorrecciones` en src/data.js ejecutaba una búsqueda
+      lineal síncrona con paso de 10 mm dentro de la función `_findMinEsp`.
+    · Para techos en Zona D (U_max = 0,38 W/m²·K), el rango de espesores
+      útiles (hasta 300 mm × 6 estrategias × N alternativas de aislante)
+      generaba miles de iteraciones sin ceder el hilo.
+    · El event loop quedaba bloqueado 10–30 s sin repintar — el usuario lo
+      percibía como "la app se colgó".
+
+2.2 Cascada de doble cálculo en React (síntoma agravante)
+    · `calcularConCapas` (PanelCalcU) llamaba a `onCalcUChange` en el
+      padre, que hacía `setCalcUInit(...)`.
+    · Esto cambiaba el prop `initData`, lo que disparaba
+      `useEffect([initData])` en PanelCalcU y relanzaba `calcGlaser` +
+      `generarCorrecciones` redundantemente.
+    · Resultado: cada interacción ejecutaba el motor DOS veces.
+
+2.3 TypeError "k.zonas.join is not a function"
+    · Aparecía en consola sobre el bundle `index-DQEFUQ1m.js`.
+    · Origen: algunas filas del catálogo `SC` (data.js) traían `zonas` como
+      undefined o con tipo inesperado tras ciertas rutas de importación,
+      mientras el código llamaba `.join()` asumiendo array.
+    · Agravante: al ser una ruta minificada, el stack no era auditable a
+      primera vista.
+
+2.4 Desconexión Vercel ↔ GitHub (root cause de por qué NADA llegaba)
+    · El archivo src/modules/AdminTokens.jsx existía en el disco local,
+      era importado desde App.jsx (línea 22), pero nunca se había
+      commiteado. Estaba como "?? src/modules/AdminTokens.jsx" en
+      `git status`.
+    · Cada push posterior al 15-abril disparaba un build en Vercel, pero
+      Rollup/Vite fallaba con:
+          "Could not resolve ./modules/AdminTokens.jsx from src/App.jsx"
+          "Command 'npm run build' exited with 1"
+    · Vercel marcaba el deploy como Error y el CDN seguía sirviendo el
+      último bundle exitoso: `index-DQEFUQ1m.js` del 15-abr (commit
+      14bcd2f).
+    · Evidencia forense (curl a producción antes del fix):
+          Age: 304003            (~3,5 días)
+          Last-Modified: Thu, 16 Apr 2026
+          X-Vercel-Cache: HIT
+    · Esto explicaba por qué los commits df1ee93 y 3efdf6c, aunque
+      correctos, no producían cambios visibles — nunca llegaron a
+      desplegarse.
+
+
+3. COMMITS APLICADOS EN ESTA SESIÓN
+--------------------------------------------------------------------------------
+
+3.1  df1ee93  fix: freeze en techo — _findMinEsp async con yield + blindaje zonas/usos
+     Fecha:   2026-04-19 00:40
+     Archivos: src/App.jsx (770 cambios), src/data.js (590 cambios)
+     Total:    1104 insertions, 256 deletions
+
+3.2  3efdf6c  chore: cache-busting + badge de versión para forzar bundle nuevo
+     Fecha:   2026-04-19 11:17
+     Archivos: vercel.json (+22), index.html (+3), src/App.jsx (+1)
+     Total:    26 insertions
+
+3.3  43b4ff6  fix: agregar AdminTokens.jsx faltante que rompía el build en Vercel
+     Fecha:   2026-04-19 11:50
+     Archivos: src/modules/AdminTokens.jsx (+300 nuevo), src/supabase.js (+33)
+     Total:    333 insertions
+
+
+4. CAMBIOS TÉCNICOS DETALLADOS
+--------------------------------------------------------------------------------
+
+4.1 src/data.js — Motor de correcciones asíncrono con yield real
+    ----------------------------------------------------------------------
+    Antes: loop síncrono bloqueante.
+    Ahora (líneas ~971–1002):
+
+        const _YIELD = () => new Promise(resolve => setTimeout(resolve, 0));
+        const PASO_GRUESO = 40;
+        const MAX_ITER = 50;
+
+        async function _findMinEsp(minEsp, maxEsp, tryFn) {
+          let iter = 0;
+          let espesorTest = minEsp;
+          let prevFail = null, firstPass = null;
+
+          // Fase 1: salto grueso (40 mm) hasta pasar el umbral
+          while (espesorTest <= maxEsp && iter < MAX_ITER) {
+            iter++;
+            if (iter % 5 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            if (tryFn(espesorTest)) { firstPass = espesorTest; break; }
+            prevFail = espesorTest;
+            espesorTest += PASO_GRUESO;
+          }
+          if (firstPass === null) return null;
+
+          // Fase 2: refinación fina (10 mm) entre prevFail y firstPass
+          const fineStart = prevFail === null ? minEsp : prevFail + 10;
+          for (let e = fineStart; e < firstPass && iter < MAX_ITER; e += 10) {
+            iter++;
+            if (iter % 5 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            if (tryFn(e)) return e;
+          }
+          return firstPass;
+        }
+
+    Justificación técnica:
+    · `setTimeout(0)` es una **macrotarea** (no microtarea como
+      Promise.resolve). Solo las macrotareas ceden el hilo al browser
+      para repaint y permiten que el spinner de "Calculando..." se
+      vea. `Promise.resolve()` agota la cola de microtareas antes del
+      repaint y no libera la UI.
+    · Paso grueso 40 mm + refinación fina 10 mm reduce iteraciones en
+      ~75% respecto a un barrido uniforme de 10 mm.
+    · Hard-cap MAX_ITER=50 garantiza terminación acotada incluso con
+      parámetros extremos.
+    · `iter % 5` yield cada 5 iteraciones: balance entre fluidez visual
+      y overhead de cambio de contexto.
+
+    Callers migrados (todos con `await`):
+      - C1 (aumentar aislante principal)     ~línea 1042
+      - C2 (agregar aislante adicional)      ~línea 1064
+      - C3 (reemplazar aislante)              ~línea 1093
+      - C4 (aumentar capa interior)           ~línea 1119
+    Además se insertó `await _YIELD()` entre estrategias C1–C6 y dentro
+    de los loops `for (const alt of AISLS)` en C1/C2/C3/C6.
+
+4.2 src/App.jsx — Romper la cascada de doble cálculo
+    ----------------------------------------------------------------------
+    Patrón useRef para marcar actualizaciones auto-generadas:
+
+        const skipInitEffect = useRef(false)          // línea ~3076
+
+        useEffect(() => {
+          if (skipInitEffect.current) {
+            skipInitEffect.current = false
+            return                                     // salta este ciclo
+          }
+          // ... cálculo Glaser + generarCorrecciones ...
+        }, [initData])                                  // línea ~3089
+
+    En cada callback que modifica el padre:
+        skipInitEffect.current = true
+        onCalcUChange(...)                              // no re-dispara el effect
+
+    Funciones migradas a async/await con try/catch/finally:
+      - `async function calcularConCapas(cs)`          línea ~3164
+      - `async function aplicarCorreccion(corr)`       línea ~3306
+      Ambas con:
+        try   { await generarCorrecciones(...); ... }
+        catch { setExportError(...) }
+        finally { setCalcuando(false) }       ← garantiza spinner OFF
+
+4.3 src/App.jsx — Blindaje defensivo de .zonas / .usos
+    ----------------------------------------------------------------------
+    9 call sites reforzados para tolerar `zonas` no-string o `usos`
+    no-array sin romper el render:
+
+      Línea 762   (s.zonas || '').includes(zona) && (s.usos || []).includes(uso)
+      Línea 786   idem
+      Línea 1148  !(s.zonas || '').includes(zona)
+      Línea 1148  !(s.usos  || []).includes(uso)
+      Línea 1151  (s.zonas || '').split('').join(', ')
+      Línea 1222  {s.zonas || '—'} · Usos: {(s.usos || []).join(', ')}
+      Línea 1229  (x.zonas || '').includes(zona) && (x.usos || []).includes(uso)
+      Línea 1244  idem
+      Línea 2647  (s.zonas || '').includes(proy.zona||'D') && (s.usos || []).includes(uso||'Vivienda')
+      Línea 2918  idem
+
+4.4 vercel.json — Cache headers correctos
+    ----------------------------------------------------------------------
+        {
+          "headers": [
+            { "source": "/",            "headers": [{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"}]},
+            { "source": "/index.html",  "headers": [{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"}]},
+            { "source": "/assets/(.*)", "headers": [{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}]}
+          ]
+        }
+
+    · HTML: siempre revalidar (para que la referencia al bundle con
+      hash se actualice inmediatamente tras cada deploy).
+    · /assets/*: inmutable 1 año (los nombres llevan hash de contenido,
+      no colisionan).
+    · Impacto: cualquier push futuro será visible en el cliente en
+      <60 segundos sin necesidad de incógnito ni Ctrl+Shift+R.
+
+4.5 index.html — Meta no-cache
+    ----------------------------------------------------------------------
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+
+    Refuerzo para navegadores que ignoran cabeceras CDN en modo offline.
+
+4.6 src/App.jsx — Badge de versión (canary)
+    ----------------------------------------------------------------------
+    Bajo el subtítulo del header (línea ~6002):
+        <div style={{fontSize:10, opacity:0.75, ... fontFamily:'monospace'}}>
+          build 2026-04-19·df1ee93+hotfix
+        </div>
+
+    Uso operativo: permite al desarrollador/cliente verificar a simple
+    vista si el bundle cargado es el esperado, sin abrir DevTools.
+
+4.7 src/modules/AdminTokens.jsx — Archivo faltante commiteado (fix final)
+    ----------------------------------------------------------------------
+    Archivo de 300 líneas: UI de gestión de tokens (listar, crear,
+    actualizar, eliminar) que consume los helpers de src/supabase.js.
+    Importado desde App.jsx:22 y renderizado en App.jsx:5664.
+
+    La ausencia de este archivo en el repo era la causa de que Vercel
+    rechazara todos los builds desde el 15-abr. Al agregarlo el
+    build pasó a ✅ Ready y todos los cambios anteriores entraron
+    en producción simultáneamente.
+
+
+5. EVIDENCIA DE RESOLUCIÓN
+--------------------------------------------------------------------------------
+5.1 Historial de deploys en Vercel (post-fix):
+      AcTYejBhV  ✅ Ready    Current     43b4ff6   19-abr 11:50  (fix build)
+      56MgXDyRN  ❌ Error                3efdf6c   19-abr 11:17  (cache busting, rompía)
+      68vRgKPMt  ❌ Error                df1ee93   19-abr 00:40  (freeze fix, rompía)
+      CBHkJbFGq  ✅ Ready    (anterior)  14bcd2f   15-abr        (último OK antes de la saga)
+
+5.2 Confirmación del usuario (texto literal): "no se cuelga!"
+
+5.3 Bundle activo en producción: distinto a `index-DQEFUQ1m.js` (el
+    viejo), con el badge "build 2026-04-19·df1ee93+hotfix" visible.
+
+
+6. RIESGOS RESIDUALES Y RECOMENDACIONES
+--------------------------------------------------------------------------------
+
+6.1 Tiempos del motor
+    · En máquinas muy lentas, techos con gran número de alternativas de
+      aislante aún pueden tardar 2–4 s. El spinner ahora SÍ se ve (era
+      el fix principal), pero conviene medir percentil 95 en campo.
+    · Recomendación: si se observa >5 s, añadir una LRU cache para los
+      resultados de `generarCorrecciones` con llave `(elem,zona,U_req,
+      composición)`. Ya está contemplado en el diseño.
+
+6.2 Mantenimiento del catálogo SC
+    · El blindaje `|| ''` / `|| []` protege contra datos mal formados,
+      pero conviene añadir un test unitario que valide en build time
+      que todas las filas de SC tengan `zonas: string` y `usos: array`.
+    · Sugerencia: un script npm `validate:catalog` ejecutado en pre-push.
+
+6.3 Integración Vercel ↔ GitHub
+    · El incidente raíz (AdminTokens.jsx untracked 4 días) habría sido
+      detectable con:
+        (a) CI check sobre `git status --porcelain` en pre-push hook.
+        (b) Notificación de Vercel a email cuando un build falla en
+            producción (Settings → Notifications).
+    · Recomendado: activar ambos.
+
+6.4 Badge de versión
+    · Actualmente es una cadena estática en App.jsx. Para automatizar,
+      inyectar `VITE_BUILD_HASH` con `git rev-parse --short HEAD` en un
+      script de build, y leerlo con `import.meta.env.VITE_BUILD_HASH`.
+
+6.5 Archivos AUDITORIA_*.txt
+    · Los archivos AUDITORIA_NORMACHECK.txt, AUDITORIA_SISTEMA_
+      CONSTRUCTIVO.txt y AUDITORIA_FREEZE_TECHO_FIX.txt siguen
+      untracked. Si quieres que formen parte del repo, agrégalos; si
+      no, conviene añadirlos a .gitignore para no verlos en git status.
+
+
+7. CHECKLIST DE VERIFICACIÓN EN PRODUCCIÓN
+--------------------------------------------------------------------------------
+    [X] Deploy 43b4ff6 = Ready (verde) en Vercel.
+    [X] Badge "build 2026-04-19·df1ee93+hotfix" visible bajo subtítulo.
+    [X] Bundle en Network ya NO es index-DQEFUQ1m.js.
+    [X] Cálculo U → Techo → Zona D calcula sin colgar (confirmado).
+    [ ] Probar Muro / Ventana / Piso en todas las zonas A–G.
+    [ ] Probar exportación de informe con proyecto completo.
+    [ ] Probar gestión de tokens (AdminTokens) con un token de prueba.
+
+
+8. FIRMA
+--------------------------------------------------------------------------------
+Sesión conducida por:   Claude Sonnet 4.6 (Anthropic)
+Commits autor Git:      rbacigalupop-code <r.bacigalupo.p@gmail.com>
+Co-autor Git:           Claude Sonnet 4.6 <noreply@anthropic.com>
+Rama:                   main
+HEAD final:             43b4ff6
+Estado remoto:          sincronizado con origin/main
+Build cache Vercel:     limpio (deploy 43b4ff6 exitoso sin cache)
+
+================================================================================
+FIN DEL INFORME
+================================================================================

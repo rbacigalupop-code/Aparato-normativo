@@ -12,6 +12,13 @@ import {
   desactivarUsuario,
   supabase,
 } from '../supabase'
+import {
+  validarEmail,
+  validarPassword,
+  validarNombre,
+  validarCoincidencia,
+} from '../utils/validation'
+import { createError, createSuccess } from '../utils/errors'
 
 // Crear contexto de autenticación
 export const AuthContext = createContext(null)
@@ -91,25 +98,72 @@ export function AuthProvider({ children }) {
   }
 
   // Función: Registrarse
-  const handleSignUp = useCallback(async (email, password, nombreCompleto) => {
+  const handleSignUp = useCallback(async (email, password, nombreCompleto, passwordConfirm) => {
     setError(null)
+
+    // Validaciones locales
+    const emailErr = validarEmail(email)
+    if (emailErr) {
+      const err = createError(emailErr, 'VALIDATION')
+      setError(emailErr)
+      return err
+    }
+
+    const passwordErr = validarPassword(password)
+    if (passwordErr) {
+      const err = createError(passwordErr, 'VALIDATION')
+      setError(passwordErr)
+      return err
+    }
+
+    if (passwordConfirm) {
+      const confirmErr = validarCoincidencia(password, passwordConfirm, 'Contraseñas')
+      if (confirmErr) {
+        const err = createError(confirmErr, 'VALIDATION')
+        setError(confirmErr)
+        return err
+      }
+    }
+
+    const nombreErr = validarNombre(nombreCompleto)
+    if (nombreErr) {
+      const err = createError(nombreErr, 'VALIDATION')
+      setError(nombreErr)
+      return err
+    }
+
     const result = await signUp(email, password, nombreCompleto)
     if (!result.ok) {
-      setError(result.error)
-      return { ok: false, error: result.error }
+      setError(result.error?.message || result.error)
+      return result
     }
-    return { ok: true }
+    return createSuccess()
   }, [])
 
   // Función: Iniciar sesión
   const handleSignIn = useCallback(async (email, password) => {
     setError(null)
+
+    // Validaciones locales
+    const emailErr = validarEmail(email)
+    if (emailErr) {
+      const err = createError(emailErr, 'VALIDATION')
+      setError(emailErr)
+      return err
+    }
+
+    if (!password || password.trim() === '') {
+      const err = createError('Contraseña requerida', 'VALIDATION')
+      setError('Contraseña requerida')
+      return err
+    }
+
     const result = await signIn(email, password)
     if (!result.ok) {
-      setError(result.error)
-      return { ok: false, error: result.error }
+      setError(result.error?.message || result.error)
+      return result
     }
-    return { ok: true }
+    return createSuccess()
   }, [])
 
   // Función: Cerrar sesión
