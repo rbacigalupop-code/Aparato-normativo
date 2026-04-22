@@ -168,7 +168,7 @@ export async function signUp(email, password, nombreCompleto) {
       user_id: userId,
       organizacion_id: orgData.id,
       nombre_completo: nombreCompleto,
-      es_admin: true,
+      rol: 'admin',
       activo: true,
     }])
 
@@ -193,12 +193,27 @@ export async function signIn(email, password) {
   // Obtener perfil del usuario
   const { data: perfil, error: perfilError } = await supabase
     .from('perfiles_usuario')
-    .select('*, organizaciones(*)')
+    .select('id, user_id, nombre_completo, rol, activo, organizacion_id, ultimo_acceso, created_at')
     .eq('user_id', data.user.id)
     .single()
 
   if (perfilError) {
     return { ok: false, error: 'Error al cargar perfil' }
+  }
+
+  // Obtener organización por separado
+  let org = null
+  if (perfil?.organizacion_id) {
+    const { data: orgData } = await supabase
+      .from('organizaciones')
+      .select('*')
+      .eq('id', perfil.organizacion_id)
+      .single()
+    org = orgData
+  }
+
+  if (org) {
+    perfil.organizaciones = org
   }
 
   return { ok: true, user: data.user, perfil }
