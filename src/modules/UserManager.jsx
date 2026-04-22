@@ -39,7 +39,7 @@ export default function UserManager() {
     }
 
     // Verificar si el usuario ya existe en esta organización
-    const usuarioExistente = usuarios.some(u => u.user_id || u.email === emailInvitar)
+    const usuarioExistente = usuarios.some(u => u.email === emailInvitar)
     if (usuarioExistente) {
       setMsg({ tipo: 'err', texto: 'Este usuario ya existe en la organización' })
       setTimeout(() => setMsg(null), 5000)
