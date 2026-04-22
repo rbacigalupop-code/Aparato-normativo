@@ -407,3 +407,166 @@ export async function eliminarProyectoUsuario(userId, orgId, id) {
   }
   return true
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Token Legacy: Migración automática de tokens antiguos ─────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Obtener token legado de la tabla de tokens antiguos
+ * @param {string} token - Token en formato OGUC-XXXX-XXXX-XXXX
+ * @returns {Promise<{ok: boolean, data?: object, error?: string}>}
+ */
+export async function obtenerTokenLegacy(token) {
+  const tok = token.trim().toUpperCase()
+  const { data, error } = await supabase
+    .from('tokens')
+    .select('*')
+    .eq('token', tok)
+    .single()
+
+  if (error || !data) {
+    return { ok: false, error: 'Token no válido o expirado' }
+  }
+
+  if (!data.activo) {
+    return { ok: false, error: 'Token inactivo' }
+  }
+
+  if (new Date(data.expires_at) < new Date()) {
+    return { ok: false, error: 'Token expirado' }
+  }
+
+  return { ok: true, data }
+}
+
+/**
+ * Contar proyectos asociados a un token
+ * @param {string} token - Token en formato OGUC-XXXX-XXXX-XXXX
+ * @returns {Promise<number>} - Cantidad de proyectos
+ */
+export async function contarProyectosToken(token) {
+  const tok = token.trim().toUpperCase()
+  const { count, error } = await supabase
+    .from('proyectos')
+    .select('*', { count: 'exact', head: true })
+    .eq('token', tok)
+
+  if (error) {
+    console.warn('contarProyectosToken error:', error)
+    return 0
+  }
+
+  return count || 0
+}
+
+/**
+ * Convertir token legado a usuario con Auth
+ * Crea usuario en Auth, perfil, org, y migra proyectos
+ * @param {string} token - Token antiguo
+ * @param {string} email - Email nuevo
+ * @param {string} password - Contraseña nueva
+ * @param {string} nombreCompleto - Nombre del usuario
+ * @returns {Promise<{ok: boolean, user?: object, orgId?: string, error?: string}>}
+ */
+export async function convertirTokenAUsuario(token, email, password, nombreCompleto) {
+  try {
+    const tok = token.trim().toUpperCase()
+
+    // 1. Validar token legado
+    const { data: tokenData, error: tokenErr } = await supabase
+      .from('tokens')
+      .select('*')
+      .eq('token', tok)
+      .single()
+
+    if (tokenErr || !tokenData) {
+      return { ok: false, error: 'Token no encontrado' }
+    }
+
+    if (!tokenData.activo) {
+      return { ok: false, error: 'Token inactivo' }
+    }
+
+    if (new Date(tokenData.expires_at) < new Date()) {
+      return { ok: false, error: 'Token expirado' }
+    }
+
+    // 2. Crear usuario en Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+
+    if (authError || !authData.user) {
+      return { ok: false, error: authError?.message || 'Error al crear usuario' }
+    }
+
+    const userId = authData.user.id
+
+    // 3. Crear organización personal
+    const { data: orgData, error: orgError } = await supabase
+      .from('organizaciones')
+      .insert([{
+        nombre: `${nombreCompleto} - Workspace (migrado)`,
+        propietario_id: userId,
+        plan: 'free',
+        activa: true,
+      }])
+      .select()
+      .single()
+
+    if (orgError) {
+      console.warn('Error creando org:', orgError)
+      return { ok: false, error: 'Error al crear workspace' }
+    }
+
+    const orgId = orgData.id
+
+    // 4. Crear perfil usuario
+    const { error: perfilError } = await supabase
+      .from('perfiles_usuario')
+      .insert([{
+        user_id: userId,
+        organizacion_id: orgId,
+        nombre_completo: nombreCompleto,
+        rol: 'admin',
+        activo: true,
+      }])
+
+    if (perfilError) {
+      console.warn('Error creando perfil:', perfilError)
+      return { ok: false, error: 'Error al crear perfil' }
+    }
+
+    // 5. Migrar proyectos (update projects del token a los nuevos user_id + org_id)
+    const { error: migrateErr } = await supabase
+      .from('proyectos')
+      .update({ user_id: userId, organizacion_id: orgId, creado_por: userId })
+      .eq('token', tok)
+
+    if (migrateErr) {
+      console.warn('Error migrando proyectos:', migrateErr)
+      // No es crítico si no se migran los proyectos, continuamos
+    }
+
+    // 6. Registrar migración en tokens_legado
+    const { error: migracionErr } = await supabase
+      .from('tokens_legado')
+      .insert([{
+        token: tok,
+        user_id: userId,
+        organizacion_id: orgId,
+        migrado_en: new Date().toISOString(),
+      }])
+
+    if (migracionErr) {
+      console.warn('Error registrando migración:', migracionErr)
+    }
+
+    return { ok: true, user: authData.user, orgId }
+  } catch (err) {
+    console.error('convertirTokenAUsuario error:', err)
+    return { ok: false, error: 'Error al procesar migración' }
+  }
+}

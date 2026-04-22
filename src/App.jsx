@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
+import MigrationGate from './MigrationGate.jsx'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import NotasPanel from './NotasPanel.jsx'
 import {
@@ -5697,11 +5698,13 @@ const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'C
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AuthGate>
-        <AppInner />
-      </AuthGate>
-    </AuthProvider>
+    <MigrationGate>
+      <AuthProvider>
+        <AuthGate>
+          <AppInner />
+        </AuthGate>
+      </AuthProvider>
+    </MigrationGate>
   )
 }
 
