@@ -1,9 +1,7 @@
 // ─── MÓDULO: ADMIN — GESTIÓN DE TOKENS ────────────────────────────────────────
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import { listarTokens, crearToken, actualizarToken, eliminarToken } from '../supabase.js'
-
-// Contraseña de administrador — cámbiala aquí si quieres
-const ADMIN_PASS = 'normacheck2025'
 
 // Genera un token aleatorio con formato OGUC-XXXX-XXXX-XXXX
 function generarToken() {
@@ -35,9 +33,7 @@ const S = {
 }
 
 export default function AdminTokens() {
-  const [autenticado, setAutenticado]   = useState(false)
-  const [passInput,   setPassInput]     = useState('')
-  const [passError,   setPassError]     = useState(false)
+  const { isAdmin } = useAuth()
 
   const [tokens,      setTokens]        = useState(null)
   const [cargando,    setCargando]      = useState(false)
@@ -56,7 +52,7 @@ export default function AdminTokens() {
     if (!data) setMsg({ tipo: 'err', texto: 'No se pudo conectar a Supabase. Verifica la clave de servicio o los permisos RLS.' })
   }, [])
 
-  useEffect(() => { if (autenticado) cargar() }, [autenticado, cargar])
+  useEffect(() => { if (isAdmin) cargar() }, [isAdmin, cargar])
 
   // ── Crear token ──────────────────────────────────────────────────────────────
   async function handleCrear(e) {
@@ -107,38 +103,16 @@ export default function AdminTokens() {
     setTimeout(() => setMsg(null), 4000)
   }
 
-  // ── Pantalla de contraseña ───────────────────────────────────────────────────
-  if (!autenticado) {
+  // ── Verificar permiso de admin ──────────────────────────────────────────────
+  if (!isAdmin) {
     return (
       <div style={{ maxWidth: 380, margin: '40px auto' }}>
-        <div style={{ ...S.card, textAlign: 'center', padding: '32px 28px' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔐</div>
-          <h2 style={{ ...S.h2, textAlign: 'center' }}>Panel de administración</h2>
-          <p style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>
-            Ingresa la contraseña de administrador para gestionar tokens.
+        <div style={{ ...S.card, textAlign: 'center', padding: '32px 28px', color: '#dc2626' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+          <h2 style={{ ...S.h2, textAlign: 'center', color: '#dc2626' }}>Acceso denegado</h2>
+          <p style={{ fontSize: 12, color: '#64748b' }}>
+            Solo administradores pueden gestionar tokens.
           </p>
-          <input
-            type="password"
-            style={{ ...S.input, textAlign: 'center', fontSize: 16, letterSpacing: 3, marginBottom: 10,
-              borderColor: passError ? '#fca5a5' : '#e2e8f0' }}
-            placeholder="Contraseña"
-            value={passInput}
-            onChange={e => { setPassInput(e.target.value); setPassError(false) }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                if (passInput === ADMIN_PASS) setAutenticado(true)
-                else { setPassError(true); setPassInput('') }
-              }
-            }}
-            autoFocus
-          />
-          {passError && <div style={{ fontSize: 11, color: '#dc2626', marginBottom: 8 }}>Contraseña incorrecta</div>}
-          <button style={{ ...S.btn('#1e40af'), width: '100%' }} onClick={() => {
-            if (passInput === ADMIN_PASS) setAutenticado(true)
-            else { setPassError(true); setPassInput('') }
-          }}>
-            Acceder →
-          </button>
         </div>
       </div>
     )
