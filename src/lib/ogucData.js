@@ -77,7 +77,7 @@ const OGUC_TABLA1_LOCAL = {
  */
 export async function obtenerOGUCRFLetras() {
   try {
-    const { supabase } = await import('./supabaseClient.js')
+    const { supabase } = await import('../supabase.js')
     if (!supabase) return OGUC_RF_LETRAS_LOCAL
 
     const { data, error } = await supabase
@@ -103,7 +103,7 @@ export async function obtenerOGUCRFLetras() {
  */
 export async function obtenerOGUCTabla1() {
   try {
-    const { supabase } = await import('./supabaseClient.js')
+    const { supabase } = await import('../supabase.js')
     if (!supabase) return OGUC_TABLA1_LOCAL
 
     const { data, error } = await supabase
@@ -129,7 +129,7 @@ export async function obtenerOGUCTabla1() {
  */
 export async function obtenerOGUCElemCol() {
   try {
-    const { supabase } = await import('./supabaseClient.js')
+    const { supabase } = await import('../supabase.js')
     if (!supabase) return OGUC_ELEM_COL_LOCAL
 
     const { data, error } = await supabase
