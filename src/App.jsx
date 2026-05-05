@@ -2468,7 +2468,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
   // Si hay letra OGUC, usar Tabla de elementos; si no, fallback a RF_DEF/RF_PISOS
   const rfReqFromOGUC = (elemId) => {
     if (letraOGUC) {
-      const col = ogucData.OGUC_ELEM_COL[elemId]
+      const col = ogucDataReady.OGUC_ELEM_COL[elemId]
       return col ? (getRFDeLetra_loaded(letraOGUC, elemId) || null) : null
     }
     return null
@@ -4983,7 +4983,7 @@ ${glaserHtml}`
       let req = null
       let fuenteReq = ''
       if (_letraRpt) {
-        req = ogucData.OGUC_RF_LETRAS[_letraRpt.toLowerCase()]?.[e.col] || null
+        req = ogucDataReady.OGUC_RF_LETRAS[_letraRpt.toLowerCase()]?.[e.col] || null
         fuenteReq = `Tabla 1 · Letra ${_letraRpt.toUpperCase()} ${e.colLabel}`
       } else if (e.id === 'estructura') {
         req = RF_PISOS(uso, proy.pisos); fuenteReq = 'RF_DEF approx'
@@ -5808,11 +5808,8 @@ function AppInner() {
   const [showAyuda, setShowAyuda] = useState(false)
 
   // OGUC normative data (loaded from Supabase with fallback to local)
-  const [ogucData, setOgucData] = useState({
-    OGUC_RF_LETRAS: {},
-    OGUC_TABLA1: {},
-    OGUC_ELEM_COL: {},
-  })
+  // Start with local data to avoid undefined errors during loading
+  const [ogucData, setOgucData] = useState(null)
   const [ogucLoading, setOgucLoading] = useState(true)
 
   // Load OGUC data on mount
@@ -5824,22 +5821,29 @@ function AppInner() {
       })
       .catch(err => {
         console.error('Error loading OGUC data:', err)
-        // ogucData already has defaults, so continue anyway
+        // Continue with loaded data anyway
         setOgucLoading(false)
       })
   }, [])
+
+  // Use loaded data, or fallback to empty objects if still loading
+  const ogucDataReady = ogucData || {
+    OGUC_RF_LETRAS: {},
+    OGUC_TABLA1: {},
+    OGUC_ELEM_COL: {},
+  }
 
   // ─── Wrapper functions for OGUC operations (pass loaded data) ───────────────────
   // These replace the global aliases, but with loaded OGUC data captured in closure
   // Memoized to avoid recreation on every render
   const { getLetraOGUC_loaded, getRFDeLetra_loaded, getRFOGUC_loaded } = useMemo(() => ({
     getLetraOGUC_loaded: (destino, m2, pisos) =>
-      obtenerLetraOGUC(destino, m2, pisos, ogucData.OGUC_TABLA1),
+      obtenerLetraOGUC(destino, m2, pisos, ogucDataReady.OGUC_TABLA1),
     getRFDeLetra_loaded: (letra, elemId) =>
-      obtenerRFdeLetra(letra, elemId, ogucData.OGUC_RF_LETRAS, ogucData.OGUC_ELEM_COL),
+      obtenerRFdeLetra(letra, elemId, ogucDataReady.OGUC_RF_LETRAS, ogucDataReady.OGUC_ELEM_COL),
     getRFOGUC_loaded: (uso, destino, m2, pisos, elemId) =>
-      obtenerRFOGUC(uso, destino, m2, pisos, ogucData.OGUC_TABLA1, ogucData.OGUC_RF_LETRAS, ogucData.OGUC_ELEM_COL),
-  }), [ogucData])
+      obtenerRFOGUC(uso, destino, m2, pisos, ogucDataReady.OGUC_TABLA1, ogucDataReady.OGUC_RF_LETRAS, ogucDataReady.OGUC_ELEM_COL),
+  }), [ogucDataReady])
 
   // Contenido del panel de ayuda por pestaña (índice = tab)
   const ayudaData = useMemo(() => ({
