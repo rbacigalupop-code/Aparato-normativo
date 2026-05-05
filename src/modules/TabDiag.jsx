@@ -6,7 +6,7 @@ import { AyudaPanel } from '../components/Ayuda.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST, RF_EST, CATEG_FUEGO,
-  USO_TO_OGUC, OGUC_TABLA1, getLetraOGUC,
+  USO_TO_OGUC,
   PERM_V, PUERTA_U, PUERTA_P, SOBR_R, INFILT,
   CARGA_OCUP_DENSIDAD, OGUC_TABLA2_EDUC, getLetraOGUC_T2_Educ,
 } from '../data.js'
@@ -441,7 +441,7 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
 }
 
 // ─── Componente principal: TabDiag ───────────────────────────────────────────
-export default function TabDiag({ proy, setProy }) {
+export default function TabDiag({ proy, setProy, getLetraOGUC }) {
   // Overrides se leen del localStorage (actualizados por AdminZonas)
   const [overrides, setOverrides] = useState(() => getOverrides())
 

@@ -6202,7 +6202,7 @@ function AppInner() {
           <div className="nc-content">
             {tab === 0 && (
               <div>
-                <TabDiag proy={proy} setProy={setProy} />
+                <TabDiag proy={proy} setProy={setProy} getLetraOGUC={getLetraOGUC_loaded} />
                 <div style={{ padding: '0 16px 16px' }}>
                   <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
                 </div>
