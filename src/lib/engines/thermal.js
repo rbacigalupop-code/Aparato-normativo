@@ -191,3 +191,109 @@ export function buscarSolucionesTermicas(soluciones, uMax, acMax, filtros = {}) 
     return true
   })
 }
+
+// ─── Sugerir mejoras cuando solución no cumple U ─────────────────────────
+export function sugerirMejorasTermicas(solucionActual, soluciones, uMax, filtros = {}) {
+  if (!solucionActual || !uMax || !soluciones) return null
+
+  const uActual = parseFloat(solucionActual.u) || Infinity
+
+  // Si ya cumple, no hay sugerencias necesarias
+  if (uActual <= uMax) {
+    return {
+      cumple: true,
+      sugerencias: [],
+    }
+  }
+
+  // Buscar soluciones que cumplan
+  const solucionesCumplen = buscarSolucionesTermicas(
+    soluciones.filter(s => s.elem === solucionActual.elem),
+    uMax,
+    null,
+    filtros
+  )
+
+  // Si hay soluciones que cumplen, usarlas
+  if (solucionesCumplen.length > 0) {
+    return {
+      cumple: false,
+      mejoraRequerida: uActual - uMax,
+      sugerencias: solucionesCumplen
+        .slice(0, 3) // Top 3
+        .sort((a, b) => parseFloat(a.u) - parseFloat(b.u))
+        .map(s => ({
+          cod: s.cod,
+          desc: s.desc,
+          u: s.u,
+          rf: s.rf || '—',
+          mejora: uActual - parseFloat(s.u),
+        })),
+    }
+  }
+
+  // Si no hay soluciones estándar, sugerir mejoras de aislación
+  const mejoraRequerida = uActual - uMax
+  return {
+    cumple: false,
+    mejoraRequerida: mejoraRequerida,
+    sugerencias: [],
+    recomendacion: {
+      tipo: 'personalizada',
+      medidas: generarMedidasAislacion(solucionActual, mejoraRequerida),
+    },
+  }
+}
+
+// ─── Generar medidas de aislación ──────────────────────────────────────
+function generarMedidasAislacion(solucion, mejoraRequerida) {
+  // Conversión aproximada: 1 cm de EPS ~= 0.01 W/m²K de mejora
+  const espesorAproximado = Math.ceil(mejoraRequerida * 100)
+
+  return [
+    {
+      opcion: 1,
+      desc: `Aumentar aislación (EPS/lana mineral): +${espesorAproximado} mm`,
+      impacto: `Mejora U aproximadamente a ${(parseFloat(solucion.u) - mejoraRequerida * 1.1).toFixed(3)} W/m²K`,
+      costo: 'Moderado',
+    },
+    {
+      opcion: 2,
+      desc: 'Mejorar vidriería: cambiar a DVH o TVH de mejor desempeño',
+      impacto: 'Reduce U de ventanas significativamente (hasta 0.1-0.2 W/m²K)',
+      costo: 'Moderado-Alto',
+    },
+    {
+      opcion: 3,
+      desc: 'Combinar mejoras: aislación + vidriería + sellos mejorados',
+      impacto: 'Mejora térmica integral, cumple fácilmente',
+      costo: 'Alto',
+    },
+    {
+      opcion: 4,
+      desc: 'Usar paneles SIP o sistemas constructivos integrados',
+      impacto: 'Mejora 0.2-0.4 W/m²K, mejor desempeño global',
+      costo: 'Muy Alto',
+    },
+  ]
+}
+
+// ─── Validar compliance térmico con sugerencias ────────────────────────
+export function validarCumplimientoTermico(solucion, uMax, soluciones, filtros = {}) {
+  if (!solucion || !uMax) return null
+
+  const uActual = parseFloat(solucion.u) || null
+  if (!uActual) return { ok: false, error: 'U no calculada' }
+
+  const cumple = uActual <= uMax
+  const mejoras = sugerirMejorasTermicas(solucion, soluciones, uMax, filtros)
+
+  return {
+    cumple,
+    uActual,
+    uMax,
+    diferencia: uActual - uMax,
+    mejoras: mejoras?.sugerencias || [],
+    recomendacion: mejoras?.recomendacion || null,
+  }
+}

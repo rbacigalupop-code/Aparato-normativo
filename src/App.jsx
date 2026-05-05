@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
-import { calcularU, calcularGlaser, calcularUSC } from './lib/engines/thermal.js'
+import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { validarRwCumplimiento, obtenerRwRequerido, buscarSolucionesAcusticas } from './lib/engines/acoustic.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
@@ -1309,6 +1309,54 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── Sugerencias de mejoras térmicas cuando no cumple U ─── */}
+                  {ev.aplica && !ev.tOk && uMax && (() => {
+                    const mejoras = sugerirMejorasTermicas(s, SC.filter(x => x.elem === elem), uMax, { zona, uso })
+                    if (!mejoras || mejoras.cumple) return null
+
+                    return (
+                      <div style={{ background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:6, padding:'10px 14px', marginBottom:10 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:'#92400e', marginBottom:8 }}>
+                          🔧 Mejoras térmicas sugeridas
+                          <span style={{ fontWeight:400, marginLeft:6, fontSize:11 }}>
+                            Mejora requerida: {mejoras.mejoraRequerida?.toFixed(3)} W/m²K
+                          </span>
+                        </div>
+
+                        {mejoras.sugerencias.length > 0 ? (
+                          <div style={{ marginBottom:8 }}>
+                            <div style={{ fontSize:11, fontWeight:600, color:'#78350f', marginBottom:6 }}>✓ Soluciones estándar que cumplen:</div>
+                            {mejoras.sugerencias.map((alt, i) => (
+                              <div key={i} style={{ background:'#fff', border:'1px solid #fde047', borderRadius:4, padding:'6px 10px', marginBottom:4, fontSize:10, color:'#374151' }}>
+                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+                                  <span><b>{alt.cod}</b> — {alt.desc}</span>
+                                  <span style={{ fontWeight:700, color:'#16a34a' }}>U={alt.u}W/m²K (mejora {alt.mejora.toFixed(3)})</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : mejoras.recomendacion ? (
+                          <div style={{ marginBottom:8 }}>
+                            <div style={{ fontSize:11, fontWeight:600, color:'#78350f', marginBottom:6 }}>💡 Medidas de mejora personalizada:</div>
+                            {mejoras.recomendacion.medidas.map((med, i) => (
+                              <div key={i} style={{ background:'#fff', border:'1px solid #fde047', borderRadius:4, padding:'6px 10px', marginBottom:4, fontSize:10 }}>
+                                <div style={{ fontWeight:600, color:'#92400e', marginBottom:2 }}>Opción {med.opcion}: {med.desc}</div>
+                                <div style={{ color:'#64748b', fontSize:9 }}>
+                                  Impacto: {med.impacto} · Costo: {med.costo}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        <div style={{ fontSize:10, color:'#92400e', paddingTop:6, borderTop:'1px solid #fde047' }}>
+                          💬 <b>Nota:</b> Estas sugerencias se basan en soluciones estándar disponibles o cálculos aproximados.
+                          Consulta con el diseñador para validar la solución final.
+                        </div>
                       </div>
                     )
                   })()}

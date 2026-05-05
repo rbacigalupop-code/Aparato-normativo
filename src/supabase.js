@@ -760,3 +760,123 @@ function formatTiempoTranscurrido(fechaISO) {
 
   return fecha.toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })
 }
+
+// ─── Inicializar tablas OGUC en Supabase (si no existen) ─────────────────────
+// Datos de OGUC Tabla 1 (Tít. 4 Cap. 3 - Seguridad contra incendios)
+const OGUC_RF_LETRAS_DATA = {
+  a: { 1:'F180', 2:'F120', 3:'F120', 4:'F120', 5:'F120', 6:'F30',  7:'F60',  8:'F120', 9:'F60'  },
+  b: { 1:'F150', 2:'F120', 3:'F90',  4:'F90',  5:'F90',  6:'F15',  7:'F30',  8:'F90',  9:'F60'  },
+  c: { 1:'F120', 2:'F90',  3:'F60',  4:'F60',  5:'F60',  6:null,   7:'F15',  8:'F60',  9:'F30'  },
+  d: { 1:'F120', 2:'F60',  3:'F60',  4:'F60',  5:'F30',  6:null,   7:null,   8:'F30',  9:'F15'  },
+}
+
+const OGUC_ELEM_COL_DATA = {
+  estructura:   2,
+  muros_sep:    3,
+  cajas_esc:    4,
+  muros_mismo:  5,
+  paredes_div:  6,
+  cubierta:     7,
+  entrepisos:   8,
+  escaleras:    9,
+}
+
+const OGUC_TABLA1_DATA = {
+  Habitacional: [
+    { m2Min: 0, m2Max: Infinity, letras: ['d','d','c','c','b','a','a'] },
+  ],
+  'Hoteles o similares': [
+    { m2Min: 5001, m2Max: Infinity, letras: ['c','b','a','a','a','a','a'] },
+    { m2Min: 1501, m2Max: 5000,     letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['c','c','b','b','a','a','a'] },
+    { m2Min: 0,    m2Max: 500,      letras: ['d','c','b','b','a','a','a'] },
+  ],
+  Oficinas: [
+    { m2Min: 1501, m2Max: Infinity, letras: ['c','c','b','b','a','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['c','c','c','b','b','a','a'] },
+    { m2Min: 0,    m2Max: 500,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  Museos: [
+    { m2Min: 1501, m2Max: Infinity, letras: ['c','c','b','b','b','a','a'] },
+    { m2Min: 501,  m2Max: 1500,     letras: ['c','c','c','b','b','a','a'] },
+    { m2Min: 0,    m2Max: 500,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  'Salud (clínica, hospital, laboratorio)': [
+    { m2Min: 1001, m2Max: Infinity, letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 1000,     letras: ['c','c','b','b','a','a','a'] },
+  ],
+  'Salud (policlínico)': [
+    { m2Min: 401,  m2Max: Infinity, letras: ['c','c','b','b','b','a','a'] },
+    { m2Min: 0,    m2Max: 400,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  'Restaurantes y fuentes de soda': [
+    { m2Min: 501,  m2Max: Infinity, letras: ['b','a','a','a','a','a','a'] },
+    { m2Min: 251,  m2Max: 500,      letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 250,      letras: ['d','c','c','b','b','a','a'] },
+  ],
+  'Locales comerciales': [
+    { m2Min: 501,  m2Max: Infinity, letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 201,  m2Max: 500,      letras: ['c','c','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 200,      letras: ['d','c','b','b','b','a','a'] },
+  ],
+  'Educación (pre/primaria)': [
+    { m2Min: 1001, m2Max: Infinity, letras: ['b','a','a','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 1000,     letras: ['c','b','b','a','a','a','a'] },
+  ],
+  'Educación (secundaria/superior)': [
+    { m2Min: 5001, m2Max: Infinity, letras: ['b','a','a','a','a','a','a'] },
+    { m2Min: 1001, m2Max: 5000,     letras: ['c','b','b','a','a','a','a'] },
+    { m2Min: 0,    m2Max: 1000,     letras: ['c','c','b','b','a','a','a'] },
+  ],
+}
+
+/**
+ * Inicializa tablas OGUC en Supabase (idempotente)
+ * Se ejecuta en background, no bloquea
+ */
+export async function inicializarTablasOGUC() {
+  try {
+    // Verificar si ya existen
+    const { count: countRF } = await supabase
+      .from('oguc_rf_letras')
+      .select('*', { count: 'exact', head: true })
+
+    if ((countRF || 0) > 0) {
+      console.log('✓ Tablas OGUC ya inicializadas')
+      return { ok: true, msg: 'Already initialized' }
+    }
+
+    // Crear tabla oguc_rf_letras
+    const { error: errRF } = await supabase.from('oguc_rf_letras').insert({
+      id: 'main',
+      data: OGUC_RF_LETRAS_DATA,
+      created_at: new Date().toISOString(),
+    })
+
+    if (errRF) throw errRF
+
+    // Crear tabla oguc_elem_col
+    const { error: errElem } = await supabase.from('oguc_elem_col').insert({
+      id: 'main',
+      data: OGUC_ELEM_COL_DATA,
+      created_at: new Date().toISOString(),
+    })
+
+    if (errElem) throw errElem
+
+    // Crear tabla oguc_tabla1
+    const { error: errTab } = await supabase.from('oguc_tabla1').insert({
+      id: 'main',
+      data: OGUC_TABLA1_DATA,
+      created_at: new Date().toISOString(),
+    })
+
+    if (errTab) throw errTab
+
+    console.log('✓ Tablas OGUC inicializadas correctamente')
+    return { ok: true, msg: 'Initialized' }
+  } catch (error) {
+    console.warn('⚠ Error inicializando tablas OGUC:', error.message)
+    return { ok: false, error: error.message }
+  }
+}
