@@ -190,30 +190,11 @@ export async function signIn(email, password) {
     return { ok: false, error: error?.message || 'Email o contraseña incorrectos' }
   }
 
-  // Obtener perfil del usuario
-  const { data: perfil, error: perfilError } = await supabase
-    .from('perfiles_usuario')
-    .select('id, user_id, nombre_completo, rol, activo, organizacion_id, ultimo_acceso, created_at')
-    .eq('user_id', data.user.id)
-    .single()
+  // Obtener perfil del usuario (crea uno si no existe)
+  const perfil = await obtenerPerfil(data.user.id)
 
-  if (perfilError) {
-    return { ok: false, error: 'Error al cargar perfil' }
-  }
-
-  // Obtener organización por separado
-  let org = null
-  if (perfil?.organizacion_id) {
-    const { data: orgData } = await supabase
-      .from('organizaciones')
-      .select('*')
-      .eq('id', perfil.organizacion_id)
-      .single()
-    org = orgData
-  }
-
-  if (org) {
-    perfil.organizaciones = org
+  if (!perfil) {
+    return { ok: false, error: 'Error al cargar o crear perfil' }
   }
 
   return { ok: true, user: data.user, perfil }
@@ -232,6 +213,7 @@ export async function getSession() {
 }
 
 // Obtener perfil del usuario actual
+// Si no existe, crea uno automáticamente (para usuarios que se registraron antes de la migración)
 export async function obtenerPerfil(userId) {
   const { data, error } = await supabase
     .from('perfiles_usuario')
@@ -239,24 +221,92 @@ export async function obtenerPerfil(userId) {
     .eq('user_id', userId)
     .single()
 
-  if (error) {
-    console.error('Error obtenerPerfil:', error)
+  // Si existe el perfil, devolverlo
+  if (!error && data) {
+    // Si tenemos organizacion_id, obtener org por separado
+    if (data?.organizacion_id) {
+      const { data: org } = await supabase
+        .from('organizaciones')
+        .select('*')
+        .eq('id', data.organizacion_id)
+        .single()
+      if (org) {
+        data.organizaciones = org
+      }
+    }
+    return data
+  }
+
+  // Si el perfil NO existe (0 rows), crear uno automáticamente
+  if (error?.code === 'PGRST116' || error?.details?.includes('0 rows')) {
+    console.warn('Perfil no encontrado, creando automáticamente para userId:', userId)
+
+    // 1. Obtener datos del usuario de Auth
+    const { data: authUser } = await supabase.auth.admin.getUserById(userId)
+    const userEmail = authUser?.user?.email || 'Usuario'
+    const nombreCompleto = authUser?.user?.user_metadata?.nombre_completo || userEmail.split('@')[0]
+
+    // 2. Crear organización personal si no existe
+    let orgId = null
+    const { data: existingOrgs } = await supabase
+      .from('organizaciones')
+      .select('id')
+      .eq('propietario_id', userId)
+      .limit(1)
+
+    if (existingOrgs?.length > 0) {
+      orgId = existingOrgs[0].id
+    } else {
+      const { data: newOrg, error: orgError } = await supabase
+        .from('organizaciones')
+        .insert([{
+          nombre: `${nombreCompleto} - Workspace`,
+          propietario_id: userId,
+          plan: 'free',
+          activa: true,
+        }])
+        .select()
+        .single()
+
+      if (!orgError && newOrg) {
+        orgId = newOrg.id
+      }
+    }
+
+    // 3. Crear perfil usuario
+    if (orgId) {
+      const { data: newPerfil, error: perfilError } = await supabase
+        .from('perfiles_usuario')
+        .insert([{
+          user_id: userId,
+          organizacion_id: orgId,
+          nombre_completo: nombreCompleto,
+          rol: 'admin',
+          activo: true,
+        }])
+        .select()
+        .single()
+
+      if (!perfilError && newPerfil) {
+        // Obtener org para devolverla
+        const { data: org } = await supabase
+          .from('organizaciones')
+          .select('*')
+          .eq('id', orgId)
+          .single()
+        if (org) {
+          newPerfil.organizaciones = org
+        }
+        return newPerfil
+      }
+    }
+
+    console.error('Error creando perfil automático:', error)
     return null
   }
 
-  // Si tenemos organizacion_id, obtener org por separado
-  if (data?.organizacion_id) {
-    const { data: org } = await supabase
-      .from('organizaciones')
-      .select('*')
-      .eq('id', data.organizacion_id)
-      .single()
-    if (org) {
-      data.organizaciones = org
-    }
-  }
-
-  return data
+  console.error('Error obtenerPerfil:', error)
+  return null
 }
 
 // Obtener todas las organizaciones del usuario
