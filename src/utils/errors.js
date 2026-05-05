@@ -102,3 +102,72 @@ export function extractErrorMessage(error) {
   if (error?.error?.message) return error.error.message
   return 'Error desconocido'
 }
+
+/**
+ * Categoriza errores por tipo
+ * @param {Error|Object} error - Error a categorizar
+ * @returns {string} - Tipo de error (VALIDATION, AUTH, DB, NETWORK, UNKNOWN)
+ */
+export function categorizarError(error) {
+  if (!error) return 'UNKNOWN'
+
+  const msg = (error.message || '').toLowerCase()
+
+  if (msg.includes('invalid') || msg.includes('validation')) return 'VALIDATION'
+  if (msg.includes('auth') || msg.includes('unauthorized') || msg.includes('credentials')) return 'AUTH'
+  if (msg.includes('not found') || msg.includes('404')) return 'NOT_FOUND'
+  if (msg.includes('permission') || msg.includes('forbidden')) return 'PERMISSION'
+  if (msg.includes('network') || msg.includes('timeout')) return 'NETWORK'
+  if (error.status >= 500) return 'DB'
+
+  return 'UNKNOWN'
+}
+
+/**
+ * Limpia objeto de errores de campos vacíos/nulos
+ * @param {Object} errores - Objeto con errores por campo
+ * @returns {Object} - Objeto limpio sin valores falsy
+ */
+export function limpiarErrores(errores) {
+  if (!errores) return {}
+  return Object.keys(errores)
+    .filter(key => errores[key])
+    .reduce((acc, key) => {
+      acc[key] = errores[key]
+      return acc
+    }, {})
+}
+
+/**
+ * Verifica si hay algún error
+ * @param {Object} errores - Objeto de errores por campo
+ * @returns {boolean} - True si hay errores
+ */
+export function hayErrores(errores) {
+  return Object.values(errores || {}).some(e => !!e)
+}
+
+/**
+ * Obtiene el primer error de un objeto
+ * @param {Object} errores - Objeto de errores por campo
+ * @returns {string|null} - Primer error encontrado o null
+ */
+export function obtenerPrimerError(errores) {
+  const keys = Object.keys(errores || {})
+  for (const key of keys) {
+    if (errores[key]) return errores[key]
+  }
+  return null
+}
+
+/**
+ * Convierte errores de campo a string legible
+ * @param {Object} errores - Objeto de errores por campo
+ * @param {string} separador - Separador entre errores (default: ' | ')
+ * @returns {string} - String con todos los errores
+ */
+export function formatearErrores(errores, separador = ' | ') {
+  return Object.values(errores || {})
+    .filter(e => !!e)
+    .join(separador)
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { validarEmail } from '../utils/validation'
+import { validarEmail, validarRol, validarEmailDiferente, validarEmailUnico } from '../utils/validation'
 
 export default function UserManager() {
   const { orgActual, isAdmin, invitarUsuario, listarUsuarios, cambiarRol, desactivarUsuario } = useAuth()
@@ -38,10 +38,28 @@ export default function UserManager() {
       return
     }
 
+    // Validar que el email sea diferente del usuario actual
+    const { user } = useAuth()
+    const emailDiferenteErr = validarEmailDiferente(emailInvitar, user?.email)
+    if (emailDiferenteErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${emailDiferenteErr}` })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+
+    // Validar rol
+    const rolErr = validarRol(rolInvitar)
+    if (rolErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${rolErr}` })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+
     // Verificar si el usuario ya existe en esta organización
-    const usuarioExistente = usuarios.some(u => u.email === emailInvitar)
-    if (usuarioExistente) {
-      setMsg({ tipo: 'err', texto: 'Este usuario ya existe en la organización' })
+    const emailsExistentes = usuarios.map(u => u.email)
+    const emailUnicoErr = validarEmailUnico(emailInvitar, emailsExistentes)
+    if (emailUnicoErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${emailUnicoErr}` })
       setTimeout(() => setMsg(null), 5000)
       return
     }

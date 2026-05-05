@@ -1,4 +1,6 @@
 import { createProjectStore } from './lib/projectStorage.js'
+import { validarNombreProyecto } from './utils/validation.js'
+import { createError, createSuccess } from './utils/errors.js'
 
 const LS_AUTOSAVE = 'nc_autosave_v1'
 
@@ -12,15 +14,64 @@ export function useProjects(userId, orgId) {
 
   // ── Guardar nuevo ─────────────────────────────────────────────────────────
   async function guardarNuevo(nombre, data) {
-    return await store.create(nombre, data)
+    // Validar nombre
+    const errorNombre = validarNombreProyecto(nombre)
+    if (errorNombre) {
+      return createError(errorNombre, 'VALIDATION')
+    }
+
+    // Validar que data sea un objeto
+    if (!data || typeof data !== 'object') {
+      return createError('Datos de proyecto inválidos', 'VALIDATION')
+    }
+
+    try {
+      const id = await store.create(nombre, data)
+      return createSuccess({ id })
+    } catch (error) {
+      return createError(
+        error.message || 'Error al guardar proyecto',
+        'DB',
+        error.toString()
+      )
+    }
   }
 
   // ── Sobrescribir (actualizar) ──────────────────────────────────────────────
   async function sobrescribir(id, nombre, data) {
-    const lista = await listarProyectos()
-    const original = lista.find(p => p.id === id)
-    const prevSnaps = original?.snapshots || []
-    return await store.update(id, nombre, data, prevSnaps)
+    // Validar que id exista
+    if (!id) {
+      return createError('ID de proyecto requerido', 'VALIDATION')
+    }
+
+    // Validar nombre
+    const errorNombre = validarNombreProyecto(nombre)
+    if (errorNombre) {
+      return createError(errorNombre, 'VALIDATION')
+    }
+
+    // Validar que data sea un objeto
+    if (!data || typeof data !== 'object') {
+      return createError('Datos de proyecto inválidos', 'VALIDATION')
+    }
+
+    try {
+      const lista = await listarProyectos()
+      const original = lista.find(p => p.id === id)
+      if (!original) {
+        return createError('Proyecto no encontrado', 'NOT_FOUND')
+      }
+
+      const prevSnaps = original?.snapshots || []
+      const ok = await store.update(id, nombre, data, prevSnaps)
+      return createSuccess({ ok })
+    } catch (error) {
+      return createError(
+        error.message || 'Error al actualizar proyecto',
+        'DB',
+        error.toString()
+      )
+    }
   }
 
   // ── Eliminar ──────────────────────────────────────────────────────────────
