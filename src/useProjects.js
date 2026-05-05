@@ -1,122 +1,43 @@
-import {
-  listarProyectosUsuario,
-  guardarProyectoUsuario,
-  actualizarProyectoUsuario,
-  eliminarProyectoUsuario,
-  listarProyectosDB,
-  guardarProyectoDB,
-  sobrescribirProyectoDB,
-  eliminarProyectoDB,
-} from './supabase.js'
+import { createProjectStore } from './lib/projectStorage.js'
 
-const LS_AUTOSAVE  = 'nc_autosave_v1'
-const LS_PROJECTS  = 'nc_projects_v1'   // fallback cuando no hay auth
+const LS_AUTOSAVE = 'nc_autosave_v1'
 
 export function useProjects(userId, orgId) {
-  const hasAuth = !!userId && !!orgId
+  const store = createProjectStore(userId, orgId)
 
   // ── Listar ────────────────────────────────────────────────────────────────
   async function listarProyectos() {
-    if (hasAuth) {
-      const rows = await listarProyectosUsuario(userId, orgId)
-      if (rows !== null) return rows.map(r => ({
-        ...r,
-        savedAt: r.updated_at,
-        ...(r.data || {}),
-      }))
-    }
-    // fallback localStorage
-    try {
-      const raw = JSON.parse(localStorage.getItem(LS_PROJECTS)) || []
-      return raw.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
-    } catch { return [] }
+    return await store.list()
   }
 
   // ── Guardar nuevo ─────────────────────────────────────────────────────────
   async function guardarNuevo(nombre, data) {
-    const id = Date.now().toString()
-    if (hasAuth) {
-      await guardarProyectoUsuario(userId, orgId, id, nombre, data, [])
-    } else {
-      const item = { id, nombre, savedAt: new Date().toISOString(), snapshots: [], ...data }
-      const lista = listarProyectosLS()
-      localStorage.setItem(LS_PROJECTS, JSON.stringify([item, ...lista]))
-    }
-    return id
+    return await store.create(nombre, data)
   }
 
   // ── Sobrescribir (actualizar) ──────────────────────────────────────────────
   async function sobrescribir(id, nombre, data) {
-    if (hasAuth) {
-      // Obtener snapshots anteriores
-      const lista = await listarProyectos()
-      const original = lista.find(p => p.id === id)
-      const prevSnaps = original?.snapshots || []
-      const snap = {
-        savedAt: original?.savedAt || new Date().toISOString(),
-        proy: original?.proy,
-        termica: original?.termica,
-        calcUInit: original?.calcUInit,
-        fachadas: original?.fachadas,
-        fachadasNextId: original?.fachadasNextId,
-        notas: original?.notas,
-      }
-      const newSnapshots = [snap, ...prevSnaps].slice(0, 10)
-      await actualizarProyectoUsuario(userId, orgId, id, nombre, data, newSnapshots)
-    } else {
-      const lista = listarProyectosLS()
-      const original = lista.find(p => p.id === id)
-      const snapshots = original?.snapshots || []
-      const snap = {
-        savedAt: original?.savedAt || new Date().toISOString(),
-        proy: original?.proy, termica: original?.termica,
-        calcUInit: original?.calcUInit, fachadas: original?.fachadas,
-        fachadasNextId: original?.fachadasNextId, notas: original?.notas,
-      }
-      const newSnapshots = [snap, ...snapshots].slice(0, 10)
-      const updated = lista.map(p =>
-        p.id === id ? { ...p, nombre, savedAt: new Date().toISOString(), snapshots: newSnapshots, ...data } : p
-      )
-      localStorage.setItem(LS_PROJECTS, JSON.stringify(updated))
-    }
+    const lista = await listarProyectos()
+    const original = lista.find(p => p.id === id)
+    const prevSnaps = original?.snapshots || []
+    return await store.update(id, nombre, data, prevSnaps)
   }
 
   // ── Eliminar ──────────────────────────────────────────────────────────────
   async function eliminarProyecto(id) {
-    if (hasAuth) {
-      await eliminarProyectoUsuario(userId, orgId, id)
-    } else {
-      const lista = listarProyectosLS().filter(p => p.id !== id)
-      localStorage.setItem(LS_PROJECTS, JSON.stringify(lista))
-    }
+    return await store.delete(id)
   }
 
   // ── Duplicar ──────────────────────────────────────────────────────────────
   async function duplicarProyecto(id) {
     const lista = await listarProyectos()
-    const original = lista.find(p => p.id === id)
-    if (!original) return null
-    const newId = Date.now().toString()
-    const nombre = `Copia de ${original.nombre}`
-    const data = {
-      proy: original.proy, termica: original.termica,
-      calcUInit: original.calcUInit, fachadas: original.fachadas,
-      fachadasNextId: original.fachadasNextId, notas: original.notas,
-    }
-    if (hasAuth) {
-      await guardarProyectoUsuario(userId, orgId, newId, nombre, data, [])
-    } else {
-      const copia = { ...original, id: newId, nombre, savedAt: new Date().toISOString(), snapshots: [] }
-      localStorage.setItem(LS_PROJECTS, JSON.stringify([copia, ...listarProyectosLS()]))
-    }
-    return newId
+    return await store.duplicate(id, lista)
   }
 
   // ── Restaurar snapshot ────────────────────────────────────────────────────
   async function restaurarSnapshot(id, snapIdx) {
     const lista = await listarProyectos()
-    const proyecto = lista.find(p => p.id === id)
-    return proyecto?.snapshots?.[snapIdx] ?? null
+    return await store.getSnapshot(id, lista, snapIdx)
   }
 
   // ── AutoGuardar (solo localStorage, demasiado frecuente para DB) ──────────
@@ -152,14 +73,19 @@ export function useProjects(userId, orgId) {
 
   // ── Migrar desde localStorage a Supabase ──────────────────────────────────
   async function migrarDesdeLocalStorage() {
-    if (!hasAuth) return 0
-    const local = listarProyectosLS()
+    if (!userId || !orgId) return 0
+    const localStore = createProjectStore(null, null)
+    const local = await localStore.list()
     if (!local.length) return 0
     let count = 0
     for (const p of local) {
-      const data = { proy: p.proy, termica: p.termica, calcUInit: p.calcUInit, fachadas: p.fachadas, fachadasNextId: p.fachadasNextId, notas: p.notas }
-      const ok = await guardarProyectoUsuario(userId, orgId, p.id, p.nombre, data, p.snapshots || [])
-      if (ok) count++
+      const data = { ...p }
+      delete data.id
+      delete data.savedAt
+      delete data.nombre
+      delete data.snapshots
+      const id = await store.create(p.nombre, data)
+      if (id) count++
     }
     return count
   }
@@ -169,9 +95,4 @@ export function useProjects(userId, orgId) {
     duplicarProyecto, restaurarSnapshot, autoGuardar, cargarAutoguardado,
     exportarJSON, importarJSON, migrarDesdeLocalStorage,
   }
-}
-
-// ── helper local (no export) ────────────────────────────────────────────────
-function listarProyectosLS() {
-  try { return JSON.parse(localStorage.getItem('nc_projects_v1')) || [] } catch { return [] }
 }
