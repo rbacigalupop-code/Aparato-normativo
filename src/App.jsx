@@ -2,20 +2,23 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
+import { calcularU, calcularGlaser, calcularUSC } from './lib/engines/thermal.js'
+import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
+import { validarRwCumplimiento, obtenerRwRequerido, buscarSolucionesAcusticas } from './lib/engines/acoustic.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import NotasPanel from './NotasPanel.jsx'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST, CATEG_FUEGO,
-  OGUC_RF_LETRAS, OGUC_TABLA1, OGUC_ELEM_COL, USO_TO_OGUC, getLetraOGUC, getRFDeLetra, getRFOGUC,
+  OGUC_RF_LETRAS, OGUC_TABLA1, OGUC_ELEM_COL, USO_TO_OGUC,
   ACERO_PROT, PERFILES_ACERO,
   ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA, filterMatsByElem,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
   VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
-  calcU_SC, buildCapas, rfN, colSem, ist,
-  calcGlaser, generarCorrecciones,
-  calcU_ISO6946, STRUCT_MATS,
+  calcU_SC, buildCapas, colSem, ist,
+  generarCorrecciones,
+  STRUCT_MATS,
   getUIdx, MATS
 } from './data.js'
 import TabDiag from './modules/TabDiag.jsx'
@@ -26,6 +29,14 @@ import AdminTokens from './modules/AdminTokens.jsx'
 import UserHeader from './components/UserHeader.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
+
+// ─── Aliases para compatibilidad con código existente ────────────────────────
+const rfN = rfStringToNumber
+const getLetraOGUC = obtenerLetraOGUC
+const getRFDeLetra = obtenerRFdeLetra
+const getRFOGUC = obtenerRFOGUC
+const calcGlaser = calcularGlaser
+const calcU_ISO6946 = calcularU
 
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
@@ -2173,16 +2184,6 @@ const MAT_ESCAL = [
   { id:'clt',    label:'CLT / madera en masa (e ≥ 90 mm)',  rfBase:'F60',  nota:'LOFC Ed.17 Tabla A6. CLT con e ≥ 90 mm → aprox. F60 sin protección adicional.' },
   { id:'mamp',   label:'Mampostería de ladrillo/bloque',    rfBase:'F60',  nota:'RF intrínseca ≥ F60 según espesor (e ≥ 110 mm). Ver LOFC Ed.17 Tabla A2.' },
 ]
-
-// OGUC Art. 4.5.7: condición de caja de escalera cerrada (enclosure) según uso y pisos
-function requiereCajaEscalera(uso, pisos) {
-  const n = parseInt(pisos) || 0
-  if (n <= 1) return false
-  if (uso === 'Salud' || uso === 'Educacion') return n >= 2
-  if (uso === 'Industrial') return n >= 2
-  if (uso === 'Comercio' || uso === 'Oficina') return n >= 3
-  return n >= 4   // Vivienda y otros: ≥ 4 pisos
-}
 
 function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja }) {
   const [matId, setMatId] = useState('ha')
