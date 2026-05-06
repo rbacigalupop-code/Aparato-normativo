@@ -761,23 +761,27 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
     elem==='puerta'    ? PUERTA_U[zona]      : null
 
   // Resistencia al fuego — OGUC Art. 4.5.4 + RF_PISOS
+  // Defensa contra uso vacío/nulo: usar 'Vivienda' como default
+  const validUso = (uso && uso.trim()) ? uso : 'Vivienda'
   const rfReq =
-    elem==='muro'      ? RF_PISOS(uso, pisos)          :
-    elem==='tabique'   ? RF_DEF[uso]?.muros_sep ?? null :
-    elem==='techumbre' ? RF_DEF[uso]?.cubierta  ?? null :
-    elem==='piso'      ? RF_DEF[uso]?.estructura ?? null :
-    elem==='puerta'    ? RF_DEF[uso]?.muros_sep ?? null : null
+    elem==='muro'      ? RF_PISOS(validUso, pisos)          :
+    elem==='tabique'   ? RF_DEF[validUso]?.muros_sep ?? null :
+    elem==='techumbre' ? RF_DEF[validUso]?.cubierta  ?? null :
+    elem==='piso'      ? RF_DEF[validUso]?.estructura ?? null :
+    elem==='puerta'    ? RF_DEF[validUso]?.muros_sep ?? null : null
 
   // Acústica — NCh352 / OGUC Art. 4.1.6
   const acReq =
-    (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[uso]?.entre_unidades ?? null :
-    (elem==='techumbre'||elem==='piso')                ? AC_DEF[uso]?.entre_pisos    ?? null :
-    elem==='ventana'                                   ? AC_DEF[uso]?.fachada        ?? null : null
+    (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[validUso]?.entre_unidades ?? null :
+    (elem==='techumbre'||elem==='piso')                ? AC_DEF[validUso]?.entre_pisos    ?? null :
+    elem==='ventana'                                   ? AC_DEF[validUso]?.fachada        ?? null : null
 
   // ── Evaluación individual ─────────────────────────────────────────────────
   function evaluar(s) {
     // Blindaje: s.zonas debe ser string; s.usos debe ser array. Fallback defensivo.
-    const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(uso)
+    // Defensa contra uso vacío/nulo
+    const validUso = uso && uso.trim() ? uso : 'Vivienda'
+    const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(validUso)
     const tOk = !uMax  || s.u <= uMax
     const fOk = !rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq)
     const aOk = !acReq || !s.ac_rw || s.ac_rw >= acReq
@@ -787,21 +791,23 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   // ── Lista ordenada ────────────────────────────────────────────────────────
   const soluciones = useMemo(() => {
     // evaluar inline para evitar closure stale (uMax/rfReq/acReq dependen de elem)
+    // Defensa contra uso vacío/nulo: usar 'Vivienda' como default
+    const _validUso = (uso && uso.trim()) ? uso : 'Vivienda'
     const _uMax  = elem==='muro'      ? ZONAS[zona]?.muro   :
                    elem==='techumbre' ? ZONAS[zona]?.techo  :
                    elem==='piso'      ? ZONAS[zona]?.piso   :
                    elem==='puerta'    ? PUERTA_U[zona]      : null
-    const _rfReq = elem==='muro'      ? RF_PISOS(uso, pisos)          :
-                   elem==='tabique'   ? RF_DEF[uso]?.muros_sep ?? null :
-                   elem==='techumbre' ? RF_DEF[uso]?.cubierta  ?? null :
-                   elem==='piso'      ? RF_DEF[uso]?.estructura ?? null :
-                   elem==='puerta'    ? RF_DEF[uso]?.muros_sep ?? null : null
-    const _acReq = (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[uso]?.entre_unidades ?? null :
-                   (elem==='techumbre'||elem==='piso')                 ? AC_DEF[uso]?.entre_pisos    ?? null :
-                   elem==='ventana'                                    ? AC_DEF[uso]?.fachada        ?? null : null
+    const _rfReq = elem==='muro'      ? RF_PISOS(_validUso, pisos)          :
+                   elem==='tabique'   ? RF_DEF[_validUso]?.muros_sep ?? null :
+                   elem==='techumbre' ? RF_DEF[_validUso]?.cubierta  ?? null :
+                   elem==='piso'      ? RF_DEF[_validUso]?.estructura ?? null :
+                   elem==='puerta'    ? RF_DEF[_validUso]?.muros_sep ?? null : null
+    const _acReq = (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[_validUso]?.entre_unidades ?? null :
+                   (elem==='techumbre'||elem==='piso')                 ? AC_DEF[_validUso]?.entre_pisos    ?? null :
+                   elem==='ventana'                                    ? AC_DEF[_validUso]?.fachada        ?? null : null
 
     function ev(s) {
-      const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(uso)
+      const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(_validUso)
       const tOk = !_uMax  || s.u <= _uMax
       const fOk = !_rfReq || !s.rf || rfN(s.rf) >= rfN(_rfReq)
       const aOk = !_acReq || !s.ac_rw || s.ac_rw >= _acReq
@@ -1472,7 +1478,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 // ─── PESTAÑA TÉRMICA ───────────────────────────────────────────────────────────
 function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
-  const uso = proy.uso || ''
+  const uso = proy.uso || 'Vivienda'
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
   const ELEMS = [
@@ -2445,7 +2451,7 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja }) {
 
 // ─── PESTAÑA FUEGO ────────────────────────────────────────────────────────────
 function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
-  const uso = proy.uso || ''
+  const uso = proy.uso || 'Vivienda'
   const rfDef = RF_DEF[uso] || {}
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
@@ -2820,7 +2826,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
 
 // ─── PESTAÑA ACÚSTICA ─────────────────────────────────────────────────────────
 function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
-  const uso = proy.uso || ''
+  const uso = proy.uso || 'Vivienda'
   const acDef = AC_DEF[uso] || {}
   const acImpact = AC_IMPACT_DEF[uso] || {}
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
@@ -5792,7 +5798,7 @@ function AdminPanel({ onOverridesChanged }) {
 function AppInner() {
   const { user, perfil, orgActual, isAdmin } = useAuth()
   const [tab, setTab] = useState(0)
-  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: '', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
+  const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: 'Vivienda', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
