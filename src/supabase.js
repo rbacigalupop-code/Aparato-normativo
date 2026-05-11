@@ -867,3 +867,18 @@ export async function inicializarTablasOGUC() {
     return { ok: false, error: error.message }
   }
 }
+
+// ─── PostgreSQL TRIGGER PARA AUTO-CREAR PERFIL AL REGISTRARSE ──────────────────
+//
+// IMPORTANTE: Ejecuta una sola vez en la consola SQL de Supabase:
+// Ver: /sql/001_create_user_profile_trigger.sql
+//
+// El trigger automáticamente crea un perfil en perfiles_usuario cuando:
+// - Un usuario se registra en auth.users
+//
+// Evita el error 406 "Cannot coerce result" en obtenerPerfil() porque:
+// - Antes: Usuario se registra → No hay perfil → obtenerPerfil retorna null
+// - Después: Usuario se registra → Trigger crea perfil → obtenerPerfil lo encuentra
+//
+// Estado: ⚠ Pendiente de ejecutar el SQL una sola vez en Supabase console
+// Ubicación: https://app.supabase.com/project/srukzfoerdgcaymnriax/sql/
