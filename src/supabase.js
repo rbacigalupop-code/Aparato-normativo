@@ -259,36 +259,54 @@ export async function obtenerOrganizacionesUsuario(userId) {
 
 // Invitar usuario a organización (enviar email)
 export async function invitarUsuario(orgId, email, rol = 'viewer') {
-  // 1. Crear usuario en Auth (sin contraseña, con magic link)
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password: Math.random().toString(36).substring(2, 15),
-    email_confirm: false, // Requiere confirmación
-  })
+  try {
+    // Validar email
+    if (!email || !email.includes('@')) {
+      return { ok: false, error: 'Email inválido' }
+    }
 
-  if (authError) {
-    return { ok: false, error: authError.message }
+    // 1. Verificar que el usuario no existe ya en la organización
+    const { data: existente } = await supabase
+      .from('perfiles_usuario')
+      .select('id')
+      .eq('organizacion_id', orgId)
+      .ilike('nombre_completo', email)
+      .single()
+
+    if (existente) {
+      return { ok: false, error: 'Este usuario ya está en la organización' }
+    }
+
+    // 2. Crear una invitación temporal (registro en perfiles_usuario con estado especial)
+    // El usuario se completará cuando se registre en auth
+    const { data, error } = await supabase
+      .from('perfiles_usuario')
+      .insert([{
+        nombre_completo: email, // Usar email como nombre temporal
+        organizacion_id: orgId,
+        rol,
+        activo: false, // Inactivo hasta que se registre
+        // Sin user_id aún - se asignará cuando se registre
+      }])
+      .select()
+
+    if (error) {
+      console.error('Error crear invitación:', error)
+      return { ok: false, error: 'Error al crear invitación' }
+    }
+
+    // 3. En un flujo real, aquí enviarías un email de invitación
+    // Por ahora, solo creamos el registro
+
+    return {
+      ok: true,
+      message: `Invitación creada para ${email}. El usuario puede registrarse en la app.`,
+      data
+    }
+  } catch (err) {
+    console.error('invitarUsuario error:', err)
+    return { ok: false, error: 'Error procesando invitación' }
   }
-
-  // 2. Crear perfil usuario
-  const { error: perfilError } = await supabase
-    .from('perfiles_usuario')
-    .insert([{
-      user_id: authData.user.id,
-      organizacion_id: orgId,
-      nombre_completo: email.split('@')[0],
-      rol,
-      activo: true,
-    }])
-
-  if (perfilError) {
-    return { ok: false, error: 'Error al crear perfil' }
-  }
-
-  // 3. Enviar email de invitación (Supabase lo hace automáticamente)
-  // El usuario recibirá un email con link de confirmación
-
-  return { ok: true, message: `Invitación enviada a ${email}` }
 }
 
 // Listar usuarios de una organización
