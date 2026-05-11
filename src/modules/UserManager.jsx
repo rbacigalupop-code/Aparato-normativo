@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { validarEmail, validarRol, validarEmailDiferente, validarEmailUnico } from '../utils/validation'
 
 export default function UserManager() {
-  const { orgActual, isAdmin, invitarUsuario, listarUsuarios, cambiarRol, desactivarUsuario } = useAuth()
+  const { orgActual, isAdmin, user, invitarUsuario, listarUsuarios, cambiarRol, desactivarUsuario } = useAuth()
 
   const [usuarios, setUsuarios] = useState([])
   const [cargando, setCargando] = useState(false)
@@ -39,7 +39,6 @@ export default function UserManager() {
     }
 
     // Validar que el email sea diferente del usuario actual
-    const { user } = useAuth()
     const emailDiferenteErr = validarEmailDiferente(emailInvitar, user?.email)
     if (emailDiferenteErr) {
       setMsg({ tipo: 'err', texto: `Error: ${emailDiferenteErr}` })
