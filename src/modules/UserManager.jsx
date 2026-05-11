@@ -14,6 +14,8 @@ export default function UserManager() {
     reenviarInvitacion,
     cambiarRol,
     desactivarUsuario,
+    reactivarYEnviarEmail,
+    eliminarUsuario,
     generarLinkInvitacion,
   } = useAuth()
 
@@ -131,7 +133,7 @@ export default function UserManager() {
 
   // Desactivar usuario
   async function handleDesactivar(perfilId) {
-    if (!window.confirm('¿Desactivar este usuario?')) return
+    if (!window.confirm('¿Desactivar este usuario?\nEl usuario no podrá acceder a la aplicación hasta que sea reactivado.')) return
 
     const ok = await desactivarUsuario(perfilId)
     if (ok) {
@@ -141,6 +143,61 @@ export default function UserManager() {
       setMsg({ tipo: 'err', texto: 'Error al desactivar usuario' })
     }
     setTimeout(() => setMsg(null), 4000)
+  }
+
+  // Reactivar usuario y enviar email con link de acceso
+  async function handleReactivarYEnviarEmail(perfilId, email) {
+    if (!window.confirm(`¿Reactivar a ${email} y enviar email con link de acceso?`)) return
+
+    setCargando(true)
+    const result = await reactivarYEnviarEmail(perfilId)
+    setCargando(false)
+
+    if (result.ok) {
+      if (result.emailEnviado) {
+        setMsg({ tipo: 'ok', texto: `✓ ${email} reactivado y email enviado` })
+      } else {
+        setMsg({ tipo: 'ok', texto: `Usuario reactivado. ${result.warning || ''}` })
+      }
+      cargarTodo()
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'Error al reactivar usuario' })
+    }
+    setTimeout(() => setMsg(null), 5000)
+  }
+
+  // Eliminar usuario completamente
+  async function handleEliminarUsuario(perfilId, email) {
+    const confirma = window.confirm(
+      `⚠️ ¿BORRAR PERMANENTEMENTE a ${email}?\n\n` +
+      `• Se eliminará su perfil de la organización\n` +
+      `• Sus proyectos quedarán sin propietario\n` +
+      `• Esta acción NO se puede deshacer\n\n` +
+      `Si solo quieres bloquear el acceso temporal, usa "Desactivar".`
+    )
+    if (!confirma) return
+
+    // Doble confirmación para acción destructiva
+    const confirma2 = window.prompt(
+      `Para confirmar, escribe el email exacto del usuario a borrar:\n${email}`
+    )
+    if (confirma2 !== email) {
+      setMsg({ tipo: 'err', texto: 'Email no coincide. Eliminación cancelada.' })
+      setTimeout(() => setMsg(null), 4000)
+      return
+    }
+
+    setCargando(true)
+    const result = await eliminarUsuario(perfilId)
+    setCargando(false)
+
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ Usuario ${email} eliminado correctamente` })
+      cargarTodo()
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'Error al eliminar usuario' })
+    }
+    setTimeout(() => setMsg(null), 5000)
   }
 
   // Cancelar invitación pendiente
@@ -430,15 +487,36 @@ export default function UserManager() {
                       </td>
                       {/* Acciones */}
                       <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
-                        {u.activo && (
+                        {u.activo ? (
+                          // Usuario ACTIVO: opción de desactivar
                           <button
                             style={S.btnSm('#dc2626')}
                             onClick={() => handleDesactivar(u.id)}
                             disabled={cargando}
                             title="Desactivar usuario"
                           >
-                            🚫
+                            🚫 Desactivar
                           </button>
+                        ) : (
+                          // Usuario INACTIVO: opciones de reenviar email o eliminar
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            <button
+                              style={S.btnSm('#166534')}
+                              onClick={() => handleReactivarYEnviarEmail(u.id, u.nombre_completo)}
+                              disabled={cargando}
+                              title="Reactivar usuario y enviar email con link de acceso"
+                            >
+                              📧 Reenviar email
+                            </button>
+                            <button
+                              style={S.btnSm('#dc2626')}
+                              onClick={() => handleEliminarUsuario(u.id, u.nombre_completo)}
+                              disabled={cargando}
+                              title="Eliminar usuario permanentemente"
+                            >
+                              🗑️ Borrar
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -452,8 +530,11 @@ export default function UserManager() {
 
       {/* Footer info */}
       <div style={{ ...S.warn, fontSize: 11, marginTop: 16 }}>
-        <b>Información:</b> Los usuarios inactivos no pueden acceder a la aplicación. Puedes reactivarlos creando una nueva invitación
-        con el mismo email.
+        <b>Información sobre usuarios inactivos:</b>
+        <ul style={{ margin: '4px 0 0 0', paddingLeft: 20, lineHeight: 1.6 }}>
+          <li><strong>📧 Reenviar email:</strong> Reactiva al usuario y le envía un email con link de acceso</li>
+          <li><strong>🗑️ Borrar:</strong> Elimina permanentemente al usuario (requiere doble confirmación)</li>
+        </ul>
       </div>
 
       {/* ─── Modal: Confirmación de invitación exitosa ─────────────────────── */}

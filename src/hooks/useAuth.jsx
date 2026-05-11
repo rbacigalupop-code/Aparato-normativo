@@ -14,6 +14,8 @@ import {
   generarLinkInvitacion,
   actualizarRolUsuario,
   desactivarUsuario,
+  reactivarYEnviarEmail,
+  eliminarUsuario,
   supabase,
 } from '../supabase'
 import {
@@ -253,6 +255,18 @@ export function AuthProvider({ children }) {
     []
   )
 
+  // Función: Reactivar usuario y enviar email
+  const handleReactivarYEnviarEmail = useCallback(
+    (perfilId) => reactivarYEnviarEmail(perfilId),
+    []
+  )
+
+  // Función: Eliminar usuario completamente
+  const handleEliminarUsuario = useCallback(
+    (perfilId) => eliminarUsuario(perfilId),
+    []
+  )
+
   // Valor del contexto
   const value = {
     // Estado
@@ -280,6 +294,8 @@ export function AuthProvider({ children }) {
     reenviarInvitacion: handleReenviarInvitacion,
     cambiarRol: handleCambiarRol,
     desactivarUsuario: handleDesactivarUsuario,
+    reactivarYEnviarEmail: handleReactivarYEnviarEmail,
+    eliminarUsuario: handleEliminarUsuario,
     generarLinkInvitacion,
 
     // Helpers

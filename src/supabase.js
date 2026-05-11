@@ -479,6 +479,94 @@ export async function desactivarUsuario(perfilId) {
   return !error
 }
 
+// Reactivar usuario y enviar email con link de acceso
+export async function reactivarYEnviarEmail(perfilId) {
+  try {
+    // 1. Obtener datos del usuario
+    const { data: perfil, error: getError } = await supabase
+      .from('perfiles_usuario')
+      .select('id, user_id, nombre_completo, rol, organizacion_id')
+      .eq('id', perfilId)
+      .maybeSingle()
+
+    if (getError || !perfil) {
+      return { ok: false, error: 'Usuario no encontrado' }
+    }
+
+    // 2. Reactivar el usuario
+    const { error: updateError } = await supabase
+      .from('perfiles_usuario')
+      .update({
+        activo: true,
+        ultimo_acceso: new Date().toISOString(),
+      })
+      .eq('id', perfilId)
+
+    if (updateError) {
+      console.warn('reactivarYEnviarEmail update error:', updateError)
+      return { ok: false, error: 'Error al reactivar usuario' }
+    }
+
+    // 3. Enviar email magic link
+    const email = perfil.nombre_completo
+    const redirectUrl = window.location.origin
+
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false, // Ya existe el usuario
+        emailRedirectTo: redirectUrl,
+        data: {
+          perfil_id: perfil.id,
+          rol: perfil.rol,
+          org: perfil.organizacion_id,
+        },
+      },
+    })
+
+    if (emailError) {
+      console.warn('Error enviando email reactivación:', emailError)
+      return {
+        ok: true,
+        emailEnviado: false,
+        warning: `Usuario reactivado pero email no se envió: ${emailError.message}`,
+        message: 'Usuario reactivado',
+      }
+    }
+
+    return {
+      ok: true,
+      emailEnviado: true,
+      message: `✓ Usuario reactivado y email enviado a ${email}`,
+    }
+  } catch (err) {
+    console.error('reactivarYEnviarEmail error:', err)
+    return { ok: false, error: 'Error procesando reactivación' }
+  }
+}
+
+// Eliminar usuario completamente (borra el perfil)
+// Nota: El registro en auth.users no se borra desde el cliente
+// Si el usuario intenta acceder, no tendrá perfil y no podrá usar la app
+export async function eliminarUsuario(perfilId) {
+  try {
+    const { error } = await supabase
+      .from('perfiles_usuario')
+      .delete()
+      .eq('id', perfilId)
+
+    if (error) {
+      console.warn('eliminarUsuario error:', error)
+      return { ok: false, error: 'Error al eliminar usuario' }
+    }
+
+    return { ok: true, message: 'Usuario eliminado correctamente' }
+  } catch (err) {
+    console.error('eliminarUsuario error:', err)
+    return { ok: false, error: 'Error procesando eliminación' }
+  }
+}
+
 // Migración de token a usuario
 export async function migrarTokenAUsuario(token, userId, orgId) {
   const { error } = await supabase
