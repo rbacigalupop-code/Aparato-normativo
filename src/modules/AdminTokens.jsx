@@ -1,258 +1,285 @@
-// ─── MÓDULO: ADMIN — GESTIÓN DE TOKENS ────────────────────────────────────────
+// ─── MÓDULO: ADMIN — GESTIÓN DE TOKENS POR USUARIO ────────────────────────────
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { listarTokens, crearToken, actualizarToken, eliminarToken } from '../supabase.js'
-
-// Genera un token aleatorio con formato OGUC-XXXX-XXXX-XXXX
-function generarToken() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  const seg = (n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-  return `OGUC-${seg(4)}-${seg(4)}-${seg(4)}`
-}
-
-// Fecha por defecto: 1 año desde hoy
-function fechaDefault() {
-  const d = new Date()
-  d.setFullYear(d.getFullYear() + 1)
-  return d.toISOString().slice(0, 10)
-}
 
 const S = {
-  card:   { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 12 },
-  h2:     { fontSize: 15, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
-  h3:     { fontSize: 12, fontWeight: 700, color: '#374151', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' },
-  label:  { fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 },
-  input:  { border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%', boxSizing: 'border-box' },
-  btn:    (c = '#1e40af') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
-  btnSm:  (c = '#64748b') => ({ background: '#fff', color: c, border: `1px solid ${c}`, borderRadius: 5, padding: '3px 9px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }),
-  row:    { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 },
-  col:    (w = 160) => ({ display: 'flex', flexDirection: 'column', gap: 3, minWidth: w }),
-  ok:     { background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#166534' },
-  err:    { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991b1b' },
-  warn:   { background: '#fef9c3', border: '1px solid #fde047', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#713f12' },
+  card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 12 },
+  h1: { fontSize: 22, fontWeight: 700, color: '#1e40af', margin: '0 0 16px 0' },
+  h2: { fontSize: 15, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
+  label: { fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 },
+  input: { border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%', boxSizing: 'border-box' },
+  btn: (c = '#1e40af') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
+  btnSm: (c = '#64748b') => ({ background: '#fff', color: c, border: `1px solid ${c}`, borderRadius: 5, padding: '4px 9px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }),
+  ok: { background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#166534', marginBottom: 12 },
+  err: { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991b1b', marginBottom: 12 },
+  warn: { background: '#fef9c3', border: '1px solid #fde047', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#713f12', marginBottom: 12 },
+  metric: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: 16,
+    textAlign: 'center',
+    flex: 1,
+    minWidth: 140,
+  },
+  metricValue: { fontSize: 28, fontWeight: 800, color: '#1e40af', lineHeight: 1 },
+  metricLabel: { fontSize: 11, color: '#64748b', marginTop: 4 },
 }
 
 export default function AdminTokens() {
-  const { isAdmin } = useAuth()
+  const {
+    isAdmin,
+    orgActual,
+    listarUsuariosConTokens,
+    asignarTokens,
+    establecerTokens,
+    resetearTokensUsados,
+  } = useAuth()
 
-  const [tokens,      setTokens]        = useState(null)
-  const [cargando,    setCargando]      = useState(false)
-  const [msg,         setMsg]           = useState(null)  // { tipo: 'ok'|'err', texto }
+  const [usuarios, setUsuarios] = useState([])
+  const [cargando, setCargando] = useState(false)
+  const [msg, setMsg] = useState(null)
 
-  // ── Form nuevo token ─────────────────────────────────────────────────────────
-  const [nuevo, setNuevo] = useState({ token: generarToken(), descripcion: '', max_proyectos: '10', expires_at: fechaDefault() })
-  const setN = (k, v) => setNuevo(p => ({ ...p, [k]: v }))
+  // Modal de asignar tokens
+  const [modalAsignar, setModalAsignar] = useState(null) // { usuario, cantidad }
 
-  // ── Cargar tokens ────────────────────────────────────────────────────────────
+  // ── Cargar usuarios con tokens ──────────────────────────────────────────────
   const cargar = useCallback(async () => {
+    if (!orgActual?.id) return
     setCargando(true)
-    const data = await listarTokens()
+    const data = await listarUsuariosConTokens(orgActual.id)
+    setUsuarios(data || [])
     setCargando(false)
-    setTokens(data)
-    if (!data) setMsg({ tipo: 'err', texto: 'No se pudo conectar a Supabase. Verifica la clave de servicio o los permisos RLS.' })
-  }, [])
+  }, [orgActual?.id, listarUsuariosConTokens])
 
-  useEffect(() => { if (isAdmin) cargar() }, [isAdmin, cargar])
+  useEffect(() => {
+    if (isAdmin) cargar()
+  }, [isAdmin, cargar])
 
-  // ── Crear token ──────────────────────────────────────────────────────────────
-  async function handleCrear(e) {
-    e.preventDefault()
-    if (!nuevo.token.trim() || !nuevo.expires_at) return
-    const max = parseInt(nuevo.max_proyectos) || 0
-    const res = await crearToken({ ...nuevo, max_proyectos: max })
-    if (res.ok) {
-      setMsg({ tipo: 'ok', texto: `Token ${nuevo.token} creado exitosamente.` })
-      setNuevo({ token: generarToken(), descripcion: '', max_proyectos: '10', expires_at: fechaDefault() })
+  // ── Agregar tokens rápido (+5, +10) ────────────────────────────────────────
+  async function handleAgregar(perfilId, cantidad, email) {
+    setCargando(true)
+    const result = await asignarTokens(perfilId, cantidad)
+    setCargando(false)
+
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ ${cantidad > 0 ? `+${cantidad}` : cantidad} tokens para ${email}. Total: ${result.nuevoTotal}` })
       cargar()
     } else {
-      setMsg({ tipo: 'err', texto: `Error al crear: ${res.msg}` })
+      setMsg({ tipo: 'err', texto: result.error || 'Error al asignar tokens' })
     }
-    setTimeout(() => setMsg(null), 5000)
-  }
-
-  // ── Resetear contador ────────────────────────────────────────────────────────
-  async function resetearUso(token) {
-    const res = await actualizarToken(token, { proyectos_usados: 0 })
-    if (res.ok) { setMsg({ tipo: 'ok', texto: `Contador de ${token} reseteado a 0.` }); cargar() }
-    else        { setMsg({ tipo: 'err', texto: `Error: ${res.msg}` }) }
     setTimeout(() => setMsg(null), 4000)
   }
 
-  // ── Activar/Desactivar token ─────────────────────────────────────────────────
-  async function toggleActivo(token, activo) {
-    const res = await actualizarToken(token, { activo: !activo })
-    if (res.ok) { cargar() }
-    else        { setMsg({ tipo: 'err', texto: `Error: ${res.msg}` }); setTimeout(() => setMsg(null), 4000) }
-  }
+  // ── Establecer cantidad exacta ─────────────────────────────────────────────
+  async function handleEstablecer() {
+    if (!modalAsignar) return
+    const cantidad = parseInt(modalAsignar.cantidad)
+    if (isNaN(cantidad) || cantidad < 0) {
+      setMsg({ tipo: 'err', texto: 'Cantidad inválida' })
+      setTimeout(() => setMsg(null), 3000)
+      return
+    }
 
-  // ── Cambiar max_proyectos ────────────────────────────────────────────────────
-  async function cambiarMax(token, max) {
-    const v = parseInt(max)
-    if (isNaN(v) || v < 0) return
-    const res = await actualizarToken(token, { max_proyectos: v })
-    if (res.ok) cargar()
-    else        { setMsg({ tipo: 'err', texto: `Error: ${res.msg}` }); setTimeout(() => setMsg(null), 4000) }
-  }
+    setCargando(true)
+    const result = await establecerTokens(modalAsignar.usuario.id, cantidad)
+    setCargando(false)
 
-  // ── Eliminar token ───────────────────────────────────────────────────────────
-  async function handleEliminar(token) {
-    if (!window.confirm(`¿Eliminar permanentemente el token ${token}?`)) return
-    const ok = await eliminarToken(token)
-    if (ok) { setMsg({ tipo: 'ok', texto: `Token ${token} eliminado.` }); cargar() }
-    else    { setMsg({ tipo: 'err', texto: 'No se pudo eliminar.' }) }
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ ${modalAsignar.usuario.nombre_completo}: ${result.nuevoTotal} tokens` })
+      setModalAsignar(null)
+      cargar()
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'Error' })
+    }
     setTimeout(() => setMsg(null), 4000)
   }
 
-  // ── Verificar permiso de admin ──────────────────────────────────────────────
+  // ── Resetear contador de usados ────────────────────────────────────────────
+  async function handleResetear(perfilId, email) {
+    if (!window.confirm(`¿Resetear el contador de tokens usados de ${email} a 0?\nLos tokens disponibles NO se modifican.`)) return
+
+    const result = await resetearTokensUsados(perfilId)
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ Contador reseteado para ${email}` })
+      cargar()
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'Error al resetear' })
+    }
+    setTimeout(() => setMsg(null), 4000)
+  }
+
+  // ── Estadísticas globales ─────────────────────────────────────────────────
+  const totalDisponibles = usuarios.reduce((s, u) => s + (u.tokens_disponibles || 0), 0)
+  const totalUsados = usuarios.reduce((s, u) => s + (u.tokens_usados || 0), 0)
+  const totalUsuarios = usuarios.length
+
   if (!isAdmin) {
     return (
-      <div style={{ maxWidth: 380, margin: '40px auto' }}>
-        <div style={{ ...S.card, textAlign: 'center', padding: '32px 28px', color: '#dc2626' }}>
+      <div style={{ maxWidth: 600, margin: '40px auto', textAlign: 'center' }}>
+        <div style={{ ...S.card, color: '#dc2626' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-          <h2 style={{ ...S.h2, textAlign: 'center', color: '#dc2626' }}>Acceso denegado</h2>
-          <p style={{ fontSize: 12, color: '#64748b' }}>
-            Solo administradores pueden gestionar tokens.
-          </p>
+          <h2 style={{ margin: 0 }}>Acceso denegado</h2>
+          <p style={{ margin: '4px 0 0 0', fontSize: 14, color: '#94a3b8' }}>Solo administradores pueden gestionar tokens.</p>
         </div>
       </div>
     )
   }
 
-  // ── Panel principal ──────────────────────────────────────────────────────────
   return (
-    <div>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ ...S.h2, margin: 0 }}>🔑 Gestión de tokens de acceso</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button style={S.btnSm('#1e40af')} onClick={cargar} disabled={cargando}>
-            {cargando ? '⏳ Cargando...' : '↺ Recargar'}
-          </button>
-          <button style={S.btnSm('#dc2626')} onClick={() => setAutenticado(false)}>
-            Cerrar sesión
-          </button>
+        <h1 style={{ ...S.h1, margin: 0 }}>🎫 Gestión de Tokens</h1>
+        <button style={S.btn('#0369a1')} onClick={cargar} disabled={cargando}>
+          {cargando ? '⏳ Cargando...' : '↺ Recargar'}
+        </button>
+      </div>
+
+      {msg && <div style={msg.tipo === 'ok' ? S.ok : S.err}>{msg.texto}</div>}
+
+      {/* ─── Estadísticas globales ──────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={S.metric}>
+          <div style={S.metricValue}>{totalUsuarios}</div>
+          <div style={S.metricLabel}>👥 Usuarios</div>
+        </div>
+        <div style={{ ...S.metric, background: '#dbeafe', borderColor: '#93c5fd' }}>
+          <div style={{ ...S.metricValue, color: '#1e40af' }}>{totalDisponibles}</div>
+          <div style={S.metricLabel}>🎫 Tokens disponibles</div>
+        </div>
+        <div style={{ ...S.metric, background: '#dcfce7', borderColor: '#86efac' }}>
+          <div style={{ ...S.metricValue, color: '#166534' }}>{totalUsados}</div>
+          <div style={S.metricLabel}>📊 Informes generados</div>
         </div>
       </div>
 
-      {/* Mensaje de estado */}
-      {msg && <div style={{ ...(msg.tipo === 'ok' ? S.ok : S.err), marginBottom: 12 }}>{msg.texto}</div>}
-
-      {/* ── Crear nuevo token ───────────────────────────────────────────────── */}
-      <div style={S.card}>
-        <h3 style={S.h3}>➕ Crear nuevo token</h3>
-        <form onSubmit={handleCrear}>
-          <div style={S.row}>
-            <div style={S.col(230)}>
-              <label style={S.label}>Token</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input style={{ ...S.input, fontFamily: 'monospace', flex: 1 }}
-                  value={nuevo.token} onChange={e => setN('token', e.target.value.toUpperCase())}
-                  placeholder="OGUC-XXXX-XXXX-XXXX" required />
-                <button type="button" style={S.btnSm('#0369a1')} onClick={() => setN('token', generarToken())}
-                  title="Generar aleatorio">⚄</button>
-              </div>
-            </div>
-            <div style={S.col(200)}>
-              <label style={S.label}>Descripción / usuario</label>
-              <input style={S.input} value={nuevo.descripcion}
-                onChange={e => setN('descripcion', e.target.value)} placeholder="Ej: Estudio UCSC Prueba" />
-            </div>
-            <div style={S.col(120)}>
-              <label style={S.label}>Máx. proyectos <span style={{ fontWeight: 400 }}>(0=∞)</span></label>
-              <input style={S.input} type="number" min="0" value={nuevo.max_proyectos}
-                onChange={e => setN('max_proyectos', e.target.value)} />
-            </div>
-            <div style={S.col(140)}>
-              <label style={S.label}>Expira</label>
-              <input style={S.input} type="date" value={nuevo.expires_at}
-                onChange={e => setN('expires_at', e.target.value)} required />
-            </div>
-            <button type="submit" style={S.btn('#166534')}>Crear token</button>
-          </div>
-        </form>
+      {/* ─── Info / Reglas ──────────────────────────────────────────────── */}
+      <div style={S.warn}>
+        <strong>💡 Cómo funcionan los tokens:</strong>
+        <ul style={{ margin: '4px 0 0 0', paddingLeft: 20, lineHeight: 1.6 }}>
+          <li>Cada token equivale a <strong>1 informe generado</strong></li>
+          <li>Los nuevos usuarios reciben <strong>2 tokens de bienvenida</strong></li>
+          <li>Cuando un usuario se queda sin tokens, no puede generar más informes</li>
+          <li>Solo el admin puede asignar más tokens</li>
+        </ul>
       </div>
 
-      {/* ── Tabla de tokens ─────────────────────────────────────────────────── */}
+      {/* ─── Tabla de usuarios con tokens ───────────────────────────────── */}
       <div style={S.card}>
-        <h3 style={S.h3}>📋 Tokens existentes {tokens !== null && `(${tokens.length})`}</h3>
+        <h2 style={S.h2}>👥 Usuarios y sus tokens ({usuarios.length})</h2>
 
-        {tokens === null && !cargando && (
-          <div style={S.warn}>
-            No se pudieron cargar los tokens. Verifica que la tabla <code>tokens</code> exista
-            en Supabase y que la política RLS permita operaciones con la clave anon.
+        {cargando && <div style={{ color: '#94a3b8', fontSize: 12 }}>⏳ Cargando...</div>}
+
+        {!cargando && usuarios.length === 0 && (
+          <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 20 }}>
+            No hay usuarios en esta organización.
           </div>
         )}
 
-        {cargando && <div style={{ color: '#94a3b8', fontSize: 12 }}>⏳ Cargando tokens...</div>}
-
-        {tokens?.length === 0 && <div style={{ color: '#94a3b8', fontSize: 12 }}>No hay tokens creados.</div>}
-
-        {tokens?.length > 0 && (
+        {usuarios.length > 0 && (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr>
-                  {['Token', 'Descripción', 'Proyectos', 'Expira', 'Estado', 'Acciones'].map(h => (
-                    <th key={h} style={{ background: '#f8fafc', padding: '6px 10px', textAlign: 'left',
-                      fontWeight: 700, borderBottom: '2px solid #e2e8f0', fontSize: 11, color: '#64748b', whiteSpace: 'nowrap' }}>
+                  {['Email', 'Rol', 'Disponibles', 'Usados', 'Acciones'].map(h => (
+                    <th
+                      key={h}
+                      style={{
+                        background: '#f8fafc',
+                        padding: '8px 10px',
+                        textAlign: 'left',
+                        fontWeight: 700,
+                        borderBottom: '2px solid #e2e8f0',
+                        fontSize: 11,
+                        color: '#64748b',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tokens.map(t => {
-                  const expirado = new Date(t.expires_at) < new Date()
-                  const agotado  = t.max_proyectos > 0 && t.proyectos_usados >= t.max_proyectos
-                  const expStr   = new Date(t.expires_at).toLocaleDateString('es-CL')
+                {usuarios.map(u => {
+                  const disponibles = u.tokens_disponibles ?? 0
+                  const usados = u.tokens_usados ?? 0
+                  const bajos = disponibles < 2
                   return (
-                    <tr key={t.token} style={{ background: !t.activo ? '#fafafa' : '#fff' }}>
-                      {/* Token */}
-                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9', fontFamily: 'monospace', fontWeight: 700, fontSize: 11 }}>
-                        {t.token}
+                    <tr key={u.id} style={{ background: !u.activo ? '#fafafa' : '#fff' }}>
+                      <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', fontFamily: 'monospace', fontSize: 11 }}>
+                        {u.nombre_completo}
                       </td>
-                      {/* Descripción */}
-                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9', color: '#374151' }}>
-                        {t.descripcion || <span style={{ color: '#cbd5e1' }}>—</span>}
-                      </td>
-                      {/* Proyectos — editable inline */}
-                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
-                        <span style={{ color: agotado ? '#dc2626' : '#166534', fontWeight: 700, marginRight: 4 }}>
-                          {t.proyectos_usados} / {t.max_proyectos === 0 ? '∞' : t.max_proyectos}
-                        </span>
-                        <span style={{ display: 'inline-flex', gap: 4 }}>
-                          <button style={S.btnSm('#0369a1')} onClick={() => resetearUso(t.token)} title="Resetear contador a 0">
-                            ↺ reset
-                          </button>
-                          <select
-                            style={{ fontSize: 10, border: '1px solid #e2e8f0', borderRadius: 4, padding: '2px 4px', cursor: 'pointer' }}
-                            value={t.max_proyectos}
-                            onChange={e => cambiarMax(t.token, e.target.value)}
-                            title="Cambiar máximo">
-                            <option value="0">∞ ilimitado</option>
-                            {[1, 2, 3, 5, 10, 20, 50, 100].map(n => (
-                              <option key={n} value={n}>{n} proy.</option>
-                            ))}
-                          </select>
+                      <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          background: u.rol === 'admin' ? '#dbeafe' : '#f1f5f9',
+                          color: u.rol === 'admin' ? '#1e40af' : '#64748b',
+                        }}>
+                          {u.rol === 'admin' ? '👨‍💼 Admin' : '👁️ Viewer'}
                         </span>
                       </td>
-                      {/* Expira */}
-                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9',
-                        color: expirado ? '#dc2626' : '#166534', fontWeight: expirado ? 700 : 400, whiteSpace: 'nowrap' }}>
-                        {expStr} {expirado && '⚠ vencido'}
+                      {/* Tokens Disponibles */}
+                      <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{
+                          display: 'inline-block',
+                          background: bajos ? '#fee2e2' : '#dbeafe',
+                          color: bajos ? '#991b1b' : '#1e40af',
+                          padding: '3px 10px',
+                          borderRadius: 6,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          minWidth: 30,
+                          textAlign: 'center',
+                        }}>
+                          {disponibles}
+                        </div>
+                        {bajos && <span style={{ fontSize: 10, color: '#dc2626', marginLeft: 6 }}>⚠ bajos</span>}
                       </td>
-                      {/* Estado */}
-                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9' }}>
-                        <button
-                          style={{ ...S.btnSm(t.activo ? '#166534' : '#dc2626'), minWidth: 70 }}
-                          onClick={() => toggleActivo(t.token, t.activo)}>
-                          {t.activo ? '✓ activo' : '✗ inactivo'}
-                        </button>
+                      {/* Tokens Usados */}
+                      <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', color: '#64748b' }}>
+                        {usados}
                       </td>
                       {/* Acciones */}
-                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
-                        <button style={S.btnSm('#dc2626')} onClick={() => handleEliminar(t.token)}>
-                          🗑 eliminar
-                        </button>
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          <button
+                            style={S.btnSm('#166534')}
+                            onClick={() => handleAgregar(u.id, 5, u.nombre_completo)}
+                            disabled={cargando}
+                            title="Agregar 5 tokens"
+                          >
+                            +5
+                          </button>
+                          <button
+                            style={S.btnSm('#166534')}
+                            onClick={() => handleAgregar(u.id, 10, u.nombre_completo)}
+                            disabled={cargando}
+                            title="Agregar 10 tokens"
+                          >
+                            +10
+                          </button>
+                          <button
+                            style={S.btnSm('#0369a1')}
+                            onClick={() => setModalAsignar({ usuario: u, cantidad: String(disponibles) })}
+                            disabled={cargando}
+                            title="Establecer cantidad exacta"
+                          >
+                            ✎ Editar
+                          </button>
+                          <button
+                            style={S.btnSm('#a16207')}
+                            onClick={() => handleResetear(u.id, u.nombre_completo)}
+                            disabled={cargando}
+                            title="Resetear contador de usados a 0"
+                          >
+                            🔄 Reset
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -263,12 +290,78 @@ export default function AdminTokens() {
         )}
       </div>
 
-      {/* ── Nota sobre permisos RLS ─────────────────────────────────────────── */}
-      <div style={{ ...S.warn, fontSize: 11 }}>
-        <b>Nota RLS Supabase:</b> Si las operaciones fallan, asegúrate de que la tabla <code>tokens</code> tenga
-        políticas RLS que permitan INSERT, UPDATE y DELETE con la clave anon, o desactiva RLS para esa tabla
-        en el dashboard de Supabase (Dashboard → Authentication → Policies → tokens).
-      </div>
+      {/* ─── Modal: Editar cantidad de tokens ─────────────────────────── */}
+      {modalAsignar && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16,
+          }}
+          onClick={() => setModalAsignar(null)}
+        >
+          <div
+            style={{ background: '#fff', borderRadius: 14, padding: '28px 24px', maxWidth: 420, width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
+              🎫 Editar tokens
+            </h2>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px 0' }}>
+              Usuario: <strong style={{ color: '#1e40af', fontFamily: 'monospace' }}>{modalAsignar.usuario.nombre_completo}</strong>
+            </p>
+
+            <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: '#64748b' }}>
+              <div>Disponibles actuales: <strong style={{ color: '#1e40af' }}>{modalAsignar.usuario.tokens_disponibles ?? 0}</strong></div>
+              <div>Usados (histórico): <strong>{modalAsignar.usuario.tokens_usados ?? 0}</strong></div>
+            </div>
+
+            <label style={S.label}>Nueva cantidad de tokens disponibles</label>
+            <input
+              type="number"
+              min="0"
+              style={{ ...S.input, fontSize: 16, padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}
+              value={modalAsignar.cantidad}
+              onChange={e => setModalAsignar({ ...modalAsignar, cantidad: e.target.value })}
+              autoFocus
+            />
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {[5, 10, 25, 50, 100].map(n => (
+                <button
+                  key={n}
+                  style={S.btnSm('#0369a1')}
+                  onClick={() => setModalAsignar({ ...modalAsignar, cantidad: String(n) })}
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                style={S.btnSm('#7c3aed')}
+                onClick={() => setModalAsignar({ ...modalAsignar, cantidad: '999' })}
+                title="Ilimitado simbólico"
+              >
+                ∞ (999)
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                style={{ ...S.btn('#94a3b8'), flex: 1 }}
+                onClick={() => setModalAsignar(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                style={{ ...S.btn('#166534'), flex: 1 }}
+                onClick={handleEstablecer}
+                disabled={cargando}
+              >
+                ✓ Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

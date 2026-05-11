@@ -567,6 +567,203 @@ export async function eliminarUsuario(perfilId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Sistema de Tokens por Usuario (Generación de Informes) ──────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Obtener tokens disponibles del usuario actual
+ * @param {string} userId
+ * @returns {Promise<{disponibles: number, usados: number}>}
+ */
+export async function obtenerTokensUsuario(userId) {
+  if (!userId) return { disponibles: 0, usados: 0 }
+
+  const { data, error } = await supabase
+    .from('perfiles_usuario')
+    .select('tokens_disponibles, tokens_usados')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error || !data) {
+    console.warn('obtenerTokensUsuario error:', error)
+    return { disponibles: 0, usados: 0 }
+  }
+
+  return {
+    disponibles: data.tokens_disponibles ?? 0,
+    usados: data.tokens_usados ?? 0,
+  }
+}
+
+/**
+ * Consumir 1 token (al generar un informe)
+ * @param {string} userId
+ * @returns {Promise<{ok: boolean, tokensRestantes?: number, error?: string}>}
+ */
+export async function consumirToken(userId) {
+  if (!userId) return { ok: false, error: 'Usuario no identificado' }
+
+  try {
+    // 1. Verificar tokens disponibles
+    const { data: perfil, error: getError } = await supabase
+      .from('perfiles_usuario')
+      .select('id, tokens_disponibles, tokens_usados')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (getError || !perfil) {
+      return { ok: false, error: 'Perfil no encontrado' }
+    }
+
+    if (perfil.tokens_disponibles <= 0) {
+      return {
+        ok: false,
+        error: 'No tienes tokens disponibles. Contacta al administrador para obtener más.',
+        sinTokens: true,
+      }
+    }
+
+    // 2. Descontar 1 token y aumentar usados
+    const { error: updateError } = await supabase
+      .from('perfiles_usuario')
+      .update({
+        tokens_disponibles: perfil.tokens_disponibles - 1,
+        tokens_usados: perfil.tokens_usados + 1,
+      })
+      .eq('id', perfil.id)
+
+    if (updateError) {
+      console.warn('consumirToken update error:', updateError)
+      return { ok: false, error: 'Error al consumir token' }
+    }
+
+    return {
+      ok: true,
+      tokensRestantes: perfil.tokens_disponibles - 1,
+      tokensUsados: perfil.tokens_usados + 1,
+    }
+  } catch (err) {
+    console.error('consumirToken error:', err)
+    return { ok: false, error: 'Error procesando consumo' }
+  }
+}
+
+/**
+ * Asignar tokens a un usuario (admin)
+ * @param {string} perfilId
+ * @param {number} cantidad - Tokens a agregar (positivo) o quitar (negativo)
+ * @returns {Promise<{ok: boolean, nuevoTotal?: number, error?: string}>}
+ */
+export async function asignarTokens(perfilId, cantidad) {
+  if (!perfilId) return { ok: false, error: 'Perfil no especificado' }
+
+  try {
+    // Obtener tokens actuales
+    const { data: perfil, error: getError } = await supabase
+      .from('perfiles_usuario')
+      .select('id, tokens_disponibles, nombre_completo')
+      .eq('id', perfilId)
+      .maybeSingle()
+
+    if (getError || !perfil) {
+      return { ok: false, error: 'Usuario no encontrado' }
+    }
+
+    const nuevoTotal = Math.max(0, (perfil.tokens_disponibles ?? 0) + cantidad)
+
+    const { error: updateError } = await supabase
+      .from('perfiles_usuario')
+      .update({ tokens_disponibles: nuevoTotal })
+      .eq('id', perfilId)
+
+    if (updateError) {
+      console.warn('asignarTokens error:', updateError)
+      return { ok: false, error: 'Error al asignar tokens' }
+    }
+
+    return {
+      ok: true,
+      nuevoTotal,
+      message: `Tokens actualizados: ${perfil.nombre_completo} ahora tiene ${nuevoTotal} tokens`,
+    }
+  } catch (err) {
+    console.error('asignarTokens error:', err)
+    return { ok: false, error: 'Error procesando asignación' }
+  }
+}
+
+/**
+ * Establecer cantidad exacta de tokens (admin)
+ * @param {string} perfilId
+ * @param {number} cantidad - Total absoluto de tokens
+ */
+export async function establecerTokens(perfilId, cantidad) {
+  if (!perfilId) return { ok: false, error: 'Perfil no especificado' }
+  const total = Math.max(0, parseInt(cantidad) || 0)
+
+  try {
+    const { error } = await supabase
+      .from('perfiles_usuario')
+      .update({ tokens_disponibles: total })
+      .eq('id', perfilId)
+
+    if (error) {
+      return { ok: false, error: 'Error al establecer tokens' }
+    }
+
+    return { ok: true, nuevoTotal: total }
+  } catch (err) {
+    console.error('establecerTokens error:', err)
+    return { ok: false, error: 'Error procesando' }
+  }
+}
+
+/**
+ * Resetear contador de tokens usados (admin)
+ * @param {string} perfilId
+ */
+export async function resetearTokensUsados(perfilId) {
+  if (!perfilId) return { ok: false, error: 'Perfil no especificado' }
+
+  try {
+    const { error } = await supabase
+      .from('perfiles_usuario')
+      .update({ tokens_usados: 0 })
+      .eq('id', perfilId)
+
+    if (error) {
+      return { ok: false, error: 'Error al resetear' }
+    }
+
+    return { ok: true, message: 'Contador de tokens reseteado' }
+  } catch (err) {
+    console.error('resetearTokensUsados error:', err)
+    return { ok: false, error: 'Error procesando' }
+  }
+}
+
+/**
+ * Listar usuarios con info de tokens (para panel admin)
+ * @param {string} orgId
+ */
+export async function listarUsuariosConTokens(orgId) {
+  if (!orgId) return []
+
+  const { data, error } = await supabase
+    .from('perfiles_usuario')
+    .select('id, user_id, nombre_completo, rol, activo, tokens_disponibles, tokens_usados, created_at, ultimo_acceso')
+    .eq('organizacion_id', orgId)
+    .not('user_id', 'is', null) // Solo usuarios registrados
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.warn('listarUsuariosConTokens error:', error)
+    return []
+  }
+  return data || []
+}
+
 // Migración de token a usuario
 export async function migrarTokenAUsuario(token, userId, orgId) {
   const { error } = await supabase

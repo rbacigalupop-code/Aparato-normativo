@@ -16,6 +16,12 @@ import {
   desactivarUsuario,
   reactivarYEnviarEmail,
   eliminarUsuario,
+  obtenerTokensUsuario,
+  consumirToken,
+  asignarTokens,
+  establecerTokens,
+  resetearTokensUsados,
+  listarUsuariosConTokens,
   supabase,
 } from '../supabase'
 import {
@@ -47,6 +53,7 @@ export function AuthProvider({ children }) {
   const [orgActual, setOrgActual] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
+  const [tokens, setTokens] = useState({ disponibles: 0, usados: 0 })
 
   // Detectar y limpiar tokens de auth del URL (magic links)
   function limpiarTokensDelUrl() {
@@ -98,15 +105,17 @@ export function AuthProvider({ children }) {
     return () => subscription?.unsubscribe()
   }, [])
 
-  // Cargar datos del usuario (perfil + organizaciones)
+  // Cargar datos del usuario (perfil + organizaciones + tokens)
   async function cargarDatosUsuario(userId) {
     try {
       const perfil = await obtenerPerfil(userId)
       const orgs = await obtenerOrganizacionesUsuario(userId)
+      const tokensData = await obtenerTokensUsuario(userId)
 
       setUser({ id: userId })
       setPerfil(perfil)
       setOrganizaciones(orgs)
+      setTokens(tokensData)
 
       // Establecer org actual (la primera)
       if (perfil) {
@@ -119,6 +128,23 @@ export function AuthProvider({ children }) {
       setCargando(false)
     }
   }
+
+  // Recargar tokens (después de usar/asignar)
+  const recargarTokens = useCallback(async () => {
+    if (!user?.id) return
+    const tokensData = await obtenerTokensUsuario(user.id)
+    setTokens(tokensData)
+  }, [user?.id])
+
+  // Consumir 1 token al generar informe
+  const handleConsumirToken = useCallback(async () => {
+    if (!user?.id) return { ok: false, error: 'Sin sesión' }
+    const result = await consumirToken(user.id)
+    if (result.ok) {
+      setTokens({ disponibles: result.tokensRestantes, usados: result.tokensUsados })
+    }
+    return result
+  }, [user?.id])
 
   // Función: Registrarse
   const handleSignUp = useCallback(async (email, password, nombreCompleto, passwordConfirm) => {
@@ -297,6 +323,15 @@ export function AuthProvider({ children }) {
     reactivarYEnviarEmail: handleReactivarYEnviarEmail,
     eliminarUsuario: handleEliminarUsuario,
     generarLinkInvitacion,
+
+    // Sistema de Tokens
+    tokens, // { disponibles, usados }
+    recargarTokens,
+    consumirToken: handleConsumirToken,
+    asignarTokens,        // Admin: agregar/quitar tokens
+    establecerTokens,     // Admin: setear total
+    resetearTokensUsados, // Admin: resetear contador
+    listarUsuariosConTokens, // Admin: ver tokens de todos
 
     // Helpers
     isAdmin: perfil?.rol === 'admin',

@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth'
  * Muestra el rol, nombre de usuario y botón de logout en el header
  */
 export default function UserHeader() {
-  const { perfil, isAdmin, signOut } = useAuth()
+  const { perfil, isAdmin, signOut, tokens } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
 
   async function handleLogout() {
@@ -20,6 +20,12 @@ export default function UserHeader() {
   const rol = isAdmin ? 'Admin' : 'Viewer'
   const rolColor = isAdmin ? '#166534' : '#64748b'
   const rolBg = isAdmin ? '#dcfce7' : '#f1f5f9'
+
+  const tokensDisponibles = tokens?.disponibles ?? 0
+  const tokensBajos = tokensDisponibles > 0 && tokensDisponibles < 2
+  const tokensAgotados = tokensDisponibles === 0
+  const tokenBg = tokensAgotados ? '#fee2e2' : tokensBajos ? '#fef3c7' : '#dbeafe'
+  const tokenColor = tokensAgotados ? '#991b1b' : tokensBajos ? '#a16207' : '#1e40af'
 
   return (
     <div style={{ position: 'relative' }}>
@@ -49,6 +55,23 @@ export default function UserHeader() {
         }}>
           {rol}
         </span>
+        {/* Badge de tokens */}
+        <span
+          style={{
+            background: tokenBg,
+            color: tokenColor,
+            padding: '2px 8px',
+            borderRadius: 4,
+            fontSize: 10,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+          }}
+          title={`${tokensDisponibles} informe${tokensDisponibles !== 1 ? 's' : ''} disponible${tokensDisponibles !== 1 ? 's' : ''}`}
+        >
+          🎫 {tokensDisponibles}
+        </span>
         <span>{nombreUsuario}</span>
         <span style={{ fontSize: 10 }}>▼</span>
       </button>
@@ -75,6 +98,17 @@ export default function UserHeader() {
             </div>
             <div style={{ padding: '8px 16px', fontSize: 11, color: '#64748b' }}>
               Rol: <strong style={{ color: rolColor }}>{rol}</strong>
+            </div>
+            <div style={{ padding: '8px 16px', fontSize: 11, color: '#64748b', borderTop: '1px solid #f1f5f9' }}>
+              🎫 Tokens disponibles: <strong style={{ color: tokenColor }}>{tokensDisponibles}</strong>
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                Informes generados: {tokens?.usados ?? 0}
+              </div>
+              {tokensAgotados && (
+                <div style={{ fontSize: 10, color: '#dc2626', marginTop: 4, fontWeight: 600 }}>
+                  ⚠ Sin tokens. Contacta al admin.
+                </div>
+              )}
             </div>
             <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 8, paddingTop: 8 }}>
               <button

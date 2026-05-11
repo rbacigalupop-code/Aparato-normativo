@@ -5803,7 +5803,7 @@ function AdminPanel({ onOverridesChanged }) {
 }
 
 function AppInner() {
-  const { user, perfil, orgActual, isAdmin } = useAuth()
+  const { user, perfil, orgActual, isAdmin, tokens, consumirToken } = useAuth()
   const [tab, setTab] = useState(0)
   const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: 'Vivienda', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
@@ -6028,8 +6028,36 @@ function AppInner() {
 
   // Callback que llama TabResultados antes de generar el informe
   async function onExportar() {
-    // Con autenticación por usuario, no hay límite de proyectos
-    // El usuario puede generar tantos informes como quiera
+    // Sistema de tokens: cada informe consume 1 token
+    const tokensActuales = tokens?.disponibles ?? 0
+
+    if (tokensActuales <= 0) {
+      alert(
+        '🎫 SIN TOKENS DISPONIBLES\n\n' +
+        'No tienes tokens para generar informes.\n\n' +
+        'Cada informe consume 1 token.\n' +
+        'Contacta al administrador para obtener más tokens.'
+      )
+      return false
+    }
+
+    // Confirmar consumo
+    const confirma = window.confirm(
+      `🎫 Generar informe consumirá 1 token.\n\n` +
+      `Tokens disponibles: ${tokensActuales}\n` +
+      `Después de generar: ${tokensActuales - 1}\n\n` +
+      `¿Continuar con la generación del informe?`
+    )
+
+    if (!confirma) return false
+
+    // Consumir token
+    const result = await consumirToken()
+    if (!result.ok) {
+      alert(`Error al consumir token: ${result.error || 'Error desconocido'}`)
+      return false
+    }
+
     return true
   }
 
