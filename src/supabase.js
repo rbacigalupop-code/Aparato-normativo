@@ -257,7 +257,7 @@ export async function obtenerOrganizacionesUsuario(userId) {
   return data.map(p => p.organizaciones).filter(Boolean)
 }
 
-// Invitar usuario a organización (enviar email)
+// Invitar usuario a organización (con envío real de email vía Supabase Auth)
 export async function invitarUsuario(orgId, email, rol = 'viewer') {
   try {
     // Validar email
@@ -265,44 +265,70 @@ export async function invitarUsuario(orgId, email, rol = 'viewer') {
       return { ok: false, error: 'Email inválido' }
     }
 
+    const emailLower = email.trim().toLowerCase()
+
     // 1. Verificar que el usuario no existe ya en la organización
-    // Usar maybeSingle() para evitar error 406 cuando no hay resultados
     const { data: existente } = await supabase
       .from('perfiles_usuario')
-      .select('id')
+      .select('id, user_id')
       .eq('organizacion_id', orgId)
-      .ilike('nombre_completo', email)
+      .ilike('nombre_completo', emailLower)
       .maybeSingle()
 
     if (existente) {
       return { ok: false, error: 'Este usuario ya está en la organización' }
     }
 
-    // 2. Crear una invitación temporal (registro en perfiles_usuario con estado especial)
-    // El usuario se completará cuando se registre en auth
-    const { data, error } = await supabase
+    // 2. Crear el registro de invitación en perfiles_usuario
+    const { data: invitacionData, error: insertError } = await supabase
       .from('perfiles_usuario')
       .insert([{
-        nombre_completo: email, // Usar email como nombre temporal
+        nombre_completo: emailLower,
         organizacion_id: orgId,
         rol,
         activo: false, // Inactivo hasta que se registre
-        // Sin user_id aún - se asignará cuando se registre
       }])
       .select()
+      .single()
 
-    if (error) {
-      console.error('Error crear invitación:', error)
+    if (insertError) {
+      console.error('Error crear invitación:', insertError)
       return { ok: false, error: 'Error al crear invitación' }
     }
 
-    // 3. En un flujo real, aquí enviarías un email de invitación
-    // Por ahora, solo creamos el registro
+    // 3. Enviar email de invitación usando Supabase Auth (magic link / OTP)
+    // Esto envía un email REAL usando el sistema de email de Supabase
+    const redirectUrl = window.location.origin
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email: emailLower,
+      options: {
+        shouldCreateUser: true, // Crear cuenta automáticamente al hacer click
+        emailRedirectTo: redirectUrl,
+        data: {
+          invitacion_id: invitacionData.id,
+          invited_role: rol,
+          invited_org: orgId,
+        },
+      },
+    })
+
+    if (emailError) {
+      // El email falló pero la invitación está creada
+      console.warn('Error enviando email:', emailError)
+      return {
+        ok: true,
+        emailEnviado: false,
+        warning: `Invitación creada pero email no se envió: ${emailError.message}`,
+        message: `Invitación creada para ${emailLower}. Copia el link manualmente.`,
+        data: invitacionData,
+      }
+    }
 
     return {
       ok: true,
-      message: `Invitación creada para ${email}. El usuario puede registrarse en la app.`,
-      data
+      emailEnviado: true,
+      message: `✓ Invitación enviada por email a ${emailLower}`,
+      data: invitacionData,
     }
   } catch (err) {
     console.error('invitarUsuario error:', err)
@@ -360,25 +386,63 @@ export async function cancelarInvitacion(invitacionId) {
   }
 }
 
-// Re-enviar invitación (actualiza fecha de invitación)
+// Re-enviar invitación (actualiza fecha y envía email nuevamente)
 export async function reenviarInvitacion(invitacionId) {
   try {
-    const { data, error } = await supabase
+    // 1. Obtener datos de la invitación
+    const { data: invitacion, error: getError } = await supabase
       .from('perfiles_usuario')
-      .update({
-        ultimo_acceso: new Date().toISOString(), // Marca como re-invitado
-      })
+      .select('id, nombre_completo, rol, organizacion_id')
       .eq('id', invitacionId)
       .is('user_id', null)
-      .select()
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      console.warn('reenviarInvitacion error:', error)
-      return { ok: false, error: 'Error al re-enviar invitación' }
+    if (getError || !invitacion) {
+      return { ok: false, error: 'Invitación no encontrada' }
     }
 
-    return { ok: true, message: 'Invitación re-enviada', data }
+    // 2. Actualizar timestamp
+    const { error: updateError } = await supabase
+      .from('perfiles_usuario')
+      .update({
+        ultimo_acceso: new Date().toISOString(),
+      })
+      .eq('id', invitacionId)
+
+    if (updateError) {
+      console.warn('reenviarInvitacion update error:', updateError)
+    }
+
+    // 3. Re-enviar email
+    const redirectUrl = window.location.origin
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email: invitacion.nombre_completo,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: redirectUrl,
+        data: {
+          invitacion_id: invitacion.id,
+          invited_role: invitacion.rol,
+          invited_org: invitacion.organizacion_id,
+        },
+      },
+    })
+
+    if (emailError) {
+      console.warn('Error re-enviando email:', emailError)
+      return {
+        ok: true,
+        emailEnviado: false,
+        warning: `No se pudo enviar email: ${emailError.message}`,
+        message: 'Invitación actualizada pero email no se envió',
+      }
+    }
+
+    return {
+      ok: true,
+      emailEnviado: true,
+      message: `✓ Email re-enviado a ${invitacion.nombre_completo}`,
+    }
   } catch (err) {
     console.error('reenviarInvitacion error:', err)
     return { ok: false, error: 'Error procesando re-envío' }

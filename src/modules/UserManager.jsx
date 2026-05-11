@@ -103,6 +103,8 @@ export default function UserManager() {
           dateStyle: 'long',
           timeStyle: 'short',
         }),
+        emailEnviado: result.emailEnviado === true,
+        warning: result.warning,
         mensaje: result.message || `Invitación creada para ${emailInvitar}`,
       })
       setEmailInvitar('')
@@ -464,10 +466,49 @@ export default function UserManager() {
             </div>
 
             {/* Título */}
-            <h2 style={S.modalTitle}>¡Invitación enviada con éxito!</h2>
+            <h2 style={S.modalTitle}>
+              {confirmacionInvitacion.emailEnviado
+                ? '¡Invitación enviada por email!'
+                : '¡Invitación creada!'}
+            </h2>
             <p style={S.modalSubtitle}>
-              Los siguientes detalles de la invitación han sido registrados:
+              {confirmacionInvitacion.emailEnviado
+                ? 'Se ha enviado un email al usuario con un enlace para acceder.'
+                : 'La invitación se creó. Copia el link manualmente para compartirlo.'}
             </p>
+
+            {/* Status de email */}
+            {confirmacionInvitacion.emailEnviado ? (
+              <div style={{
+                background: '#dcfce7',
+                border: '1px solid #86efac',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                color: '#166534',
+              }}>
+                <span style={{ fontSize: 16 }}>📧</span>
+                <span><strong>Email enviado</strong> — Revisa la bandeja de entrada (y spam)</span>
+              </div>
+            ) : confirmacionInvitacion.warning ? (
+              <div style={{
+                background: '#fef3c7',
+                border: '1px solid #fde047',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 16,
+                fontSize: 12,
+                color: '#713f12',
+              }}>
+                <strong>⚠ Email no enviado:</strong> {confirmacionInvitacion.warning}
+                <br />
+                <span style={{ fontSize: 11 }}>Usa "Copiar link" para enviarlo manualmente.</span>
+              </div>
+            ) : null}
 
             {/* Detalles */}
             <div style={S.detailsBox}>
