@@ -46,9 +46,22 @@ export function AuthProvider({ children }) {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
 
+  // Detectar y limpiar tokens de auth del URL (magic links)
+  function limpiarTokensDelUrl() {
+    const hash = window.location.hash
+    if (hash && (hash.includes('access_token') || hash.includes('error'))) {
+      // Limpiar el hash del URL para no exponer tokens
+      const url = window.location.href.split('#')[0]
+      window.history.replaceState(null, '', url)
+    }
+  }
+
   // Monitorear cambios de sesión
   useEffect(() => {
     setCargando(true)
+
+    // Limpiar tokens del URL si vienen de un magic link
+    limpiarTokensDelUrl()
 
     // Obtener sesión actual
     getSession().then(sess => {
@@ -65,6 +78,10 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, sess) => {
       setSession(sess)
+      // Limpiar tokens del URL después de autenticarse
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        limpiarTokensDelUrl()
+      }
       if (sess?.user) {
         cargarDatosUsuario(sess.user.id)
       } else {
