@@ -8,6 +8,10 @@ import {
   obtenerOrganizacionesUsuario,
   invitarUsuario,
   listarUsuariosOrg,
+  listarInvitacionesPendientes,
+  cancelarInvitacion,
+  reenviarInvitacion,
+  generarLinkInvitacion,
   actualizarRolUsuario,
   desactivarUsuario,
   supabase,
@@ -202,6 +206,24 @@ export function AuthProvider({ children }) {
     return await listarUsuariosOrg(orgActual.id)
   }, [orgActual])
 
+  // Función: Listar invitaciones pendientes
+  const handleListarInvitacionesPendientes = useCallback(async () => {
+    if (!orgActual) return []
+    return await listarInvitacionesPendientes(orgActual.id)
+  }, [orgActual])
+
+  // Función: Cancelar invitación
+  const handleCancelarInvitacion = useCallback(
+    (invitacionId) => cancelarInvitacion(invitacionId),
+    []
+  )
+
+  // Función: Re-enviar invitación
+  const handleReenviarInvitacion = useCallback(
+    (invitacionId) => reenviarInvitacion(invitacionId),
+    []
+  )
+
   // Función: Cambiar rol de usuario
   const handleCambiarRol = useCallback(
     (perfilId, nuevoRol) => actualizarRolUsuario(perfilId, nuevoRol),
@@ -236,8 +258,12 @@ export function AuthProvider({ children }) {
     // Funciones de gestión de usuarios
     invitarUsuario: handleInvitarUsuario,
     listarUsuarios: handleListarUsuarios,
+    listarInvitacionesPendientes: handleListarInvitacionesPendientes,
+    cancelarInvitacion: handleCancelarInvitacion,
+    reenviarInvitacion: handleReenviarInvitacion,
     cambiarRol: handleCambiarRol,
     desactivarUsuario: handleDesactivarUsuario,
+    generarLinkInvitacion,
 
     // Helpers
     isAdmin: perfil?.rol === 'admin',

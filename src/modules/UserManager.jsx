@@ -3,9 +3,22 @@ import { useAuth } from '../hooks/useAuth'
 import { validarEmail, validarRol, validarEmailDiferente, validarEmailUnico } from '../utils/validation'
 
 export default function UserManager() {
-  const { orgActual, isAdmin, user, invitarUsuario, listarUsuarios, cambiarRol, desactivarUsuario } = useAuth()
+  const {
+    orgActual,
+    isAdmin,
+    user,
+    invitarUsuario,
+    listarUsuarios,
+    listarInvitacionesPendientes,
+    cancelarInvitacion,
+    reenviarInvitacion,
+    cambiarRol,
+    desactivarUsuario,
+    generarLinkInvitacion,
+  } = useAuth()
 
   const [usuarios, setUsuarios] = useState([])
+  const [invitaciones, setInvitaciones] = useState([])
   const [cargando, setCargando] = useState(false)
   const [msg, setMsg] = useState(null)
   const [emailInvitar, setEmailInvitar] = useState('')
@@ -17,17 +30,24 @@ export default function UserManager() {
   // Cargar usuarios cuando cambio orgActual
   useEffect(() => {
     if (orgActual) {
-      cargarUsuarios()
+      cargarTodo()
     }
   }, [orgActual])
 
-  // Cargar usuarios de la org
-  async function cargarUsuarios() {
+  // Cargar usuarios e invitaciones de la org
+  async function cargarTodo() {
     setCargando(true)
-    const data = await listarUsuarios()
-    setUsuarios(data || [])
+    const [usuariosData, invitacionesData] = await Promise.all([
+      listarUsuarios(),
+      listarInvitacionesPendientes(),
+    ])
+    setUsuarios(usuariosData || [])
+    setInvitaciones(invitacionesData || [])
     setCargando(false)
   }
+
+  // Mantener compatibilidad con el nombre anterior
+  const cargarUsuarios = cargarTodo
 
   // Invitar usuario
   async function handleInvitar(e) {
@@ -57,11 +77,11 @@ export default function UserManager() {
       return
     }
 
-    // Verificar si el usuario ya existe en esta organización
-    // Los emails se almacenan en nombre_completo (para invitaciones) o se obtienen de auth
-    const emailsExistentes = usuarios
-      .map(u => u.email || u.nombre_completo)
-      .filter(Boolean) // Eliminar undefined/null/empty
+    // Verificar si el usuario ya existe en esta organización (en usuarios o invitaciones)
+    const emailsExistentes = [
+      ...usuarios.map(u => u.email || u.nombre_completo),
+      ...invitaciones.map(i => i.nombre_completo),
+    ].filter(Boolean)
     const emailUnicoErr = validarEmailUnico(emailInvitar, emailsExistentes)
     if (emailUnicoErr) {
       setMsg({ tipo: 'err', texto: `Error: ${emailUnicoErr}` })
@@ -121,6 +141,51 @@ export default function UserManager() {
     setTimeout(() => setMsg(null), 4000)
   }
 
+  // Cancelar invitación pendiente
+  async function handleCancelarInvitacion(invitacionId, email) {
+    if (!window.confirm(`¿Cancelar la invitación para ${email}?\nEsta acción no se puede deshacer.`)) return
+
+    const result = await cancelarInvitacion(invitacionId)
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `Invitación a ${email} cancelada` })
+      cargarTodo()
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'Error al cancelar invitación' })
+    }
+    setTimeout(() => setMsg(null), 4000)
+  }
+
+  // Re-enviar invitación
+  async function handleReenviarInvitacion(invitacionId, email) {
+    const result = await reenviarInvitacion(invitacionId)
+    if (result.ok) {
+      // Generar link de invitación y copiarlo al clipboard
+      const link = generarLinkInvitacion(email)
+      try {
+        await navigator.clipboard.writeText(link)
+        setMsg({ tipo: 'ok', texto: `✓ Invitación re-enviada y link copiado al portapapeles para ${email}` })
+      } catch (err) {
+        setMsg({ tipo: 'ok', texto: `✓ Invitación re-enviada a ${email}` })
+      }
+      cargarTodo()
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'Error al re-enviar invitación' })
+    }
+    setTimeout(() => setMsg(null), 5000)
+  }
+
+  // Copiar link de invitación al clipboard
+  async function handleCopiarLink(email) {
+    const link = generarLinkInvitacion(email)
+    try {
+      await navigator.clipboard.writeText(link)
+      setMsg({ tipo: 'ok', texto: `✓ Link de invitación copiado al portapapeles` })
+    } catch (err) {
+      setMsg({ tipo: 'err', texto: 'No se pudo copiar el link' })
+    }
+    setTimeout(() => setMsg(null), 3000)
+  }
+
   // Si no es admin, mostrar acceso denegado
   if (!isAdmin) {
     return (
@@ -177,13 +242,114 @@ export default function UserManager() {
           </div>
         </form>
         <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
-          💡 El usuario recibirá un email con un enlace para confirmar su cuenta.
+          💡 El usuario debe registrarse con este email. Su perfil se vinculará automáticamente.
         </div>
       </div>
 
+      {/* ─── Invitaciones Pendientes ──────────────────────────────────────── */}
+      {invitaciones.length > 0 && (
+        <div style={{ ...S.card, marginTop: 16, background: '#fffbeb', borderColor: '#fde047' }}>
+          <h2 style={{ ...S.h2, color: '#a16207' }}>
+            ⏳ Invitaciones pendientes ({invitaciones.length})
+          </h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {['Email', 'Rol', 'Invitado', 'Acciones'].map(h => (
+                    <th
+                      key={h}
+                      style={{
+                        background: '#fef3c7',
+                        padding: '6px 10px',
+                        textAlign: 'left',
+                        fontWeight: 700,
+                        borderBottom: '2px solid #fde047',
+                        fontSize: 11,
+                        color: '#713f12',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {invitaciones.map(inv => {
+                  const fechaInvitacion = inv.created_at
+                    ? new Date(inv.created_at).toLocaleDateString('es-CL', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '—'
+                  return (
+                    <tr key={inv.id} style={{ background: '#fff' }}>
+                      {/* Email */}
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #fef3c7', fontFamily: 'monospace', fontSize: 11 }}>
+                        {inv.nombre_completo}
+                      </td>
+                      {/* Rol */}
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #fef3c7' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          background: inv.rol === 'admin' ? '#dbeafe' : '#f1f5f9',
+                          color: inv.rol === 'admin' ? '#1e40af' : '#64748b',
+                        }}>
+                          {inv.rol === 'admin' ? '👨‍💼 Admin' : '👁️ Viewer'}
+                        </span>
+                      </td>
+                      {/* Fecha invitación */}
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #fef3c7', color: '#64748b', fontSize: 11 }}>
+                        {fechaInvitacion}
+                      </td>
+                      {/* Acciones */}
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #fef3c7', whiteSpace: 'nowrap' }}>
+                        <button
+                          style={{ ...S.btnSm('#0369a1'), marginRight: 4 }}
+                          onClick={() => handleCopiarLink(inv.nombre_completo)}
+                          title="Copiar link de invitación"
+                        >
+                          🔗 Link
+                        </button>
+                        <button
+                          style={{ ...S.btnSm('#166534'), marginRight: 4 }}
+                          onClick={() => handleReenviarInvitacion(inv.id, inv.nombre_completo)}
+                          disabled={cargando}
+                          title="Re-enviar invitación"
+                        >
+                          📧 Re-enviar
+                        </button>
+                        <button
+                          style={S.btnSm('#dc2626')}
+                          onClick={() => handleCancelarInvitacion(inv.id, inv.nombre_completo)}
+                          disabled={cargando}
+                          title="Cancelar invitación"
+                        >
+                          ✕ Cancelar
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: 11, color: '#a16207', marginTop: 10, paddingTop: 10, borderTop: '1px solid #fde047' }}>
+            💡 Estas invitaciones se activarán automáticamente cuando el usuario se registre con su email.
+          </div>
+        </div>
+      )}
+
       {/* ─── Tabla de usuarios ────────────────────────────────────────────── */}
       <div style={{ ...S.card, marginTop: 16 }}>
-        <h2 style={S.h2}>📋 Usuarios en esta organización {usuarios?.length > 0 && `(${usuarios.length})`}</h2>
+        <h2 style={S.h2}>📋 Usuarios activos {usuarios?.length > 0 && `(${usuarios.length})`}</h2>
 
         {cargando && <div style={{ color: '#94a3b8', fontSize: 12 }}>⏳ Cargando...</div>}
 
@@ -329,19 +495,47 @@ export default function UserManager() {
             <div style={S.infoMessage}>
               <strong>💡 Próximos pasos:</strong>
               <ul style={S.infoList}>
-                <li>El usuario debe registrarse en NormaCheck con el email <strong>{confirmacionInvitacion.email}</strong></li>
+                <li>Comparte el link de invitación con <strong>{confirmacionInvitacion.email}</strong></li>
+                <li>El usuario debe registrarse en NormaCheck con ese email</li>
                 <li>Al registrarse, su perfil se vinculará automáticamente a tu organización</li>
                 <li>Recibirá el rol <strong>{confirmacionInvitacion.rol === 'admin' ? 'Admin' : 'Viewer'}</strong> que asignaste</li>
               </ul>
             </div>
 
-            {/* Botón de cerrar */}
-            <button
-              style={S.modalCloseBtn}
-              onClick={() => setConfirmacionInvitacion(null)}
-            >
-              ✓ Entendido, cerrar
-            </button>
+            {/* Botones */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                style={{
+                  flex: 1,
+                  background: '#fff',
+                  color: '#0369a1',
+                  border: '2px solid #0369a1',
+                  borderRadius: 8,
+                  padding: '12px 20px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+                onClick={async () => {
+                  const link = generarLinkInvitacion(confirmacionInvitacion.email)
+                  try {
+                    await navigator.clipboard.writeText(link)
+                    setMsg({ tipo: 'ok', texto: '✓ Link copiado al portapapeles' })
+                    setTimeout(() => setMsg(null), 3000)
+                  } catch (err) {
+                    console.error('Error copiando link:', err)
+                  }
+                }}
+              >
+                🔗 Copiar link
+              </button>
+              <button
+                style={{ ...S.modalCloseBtn, flex: 1 }}
+                onClick={() => setConfirmacionInvitacion(null)}
+              >
+                ✓ Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

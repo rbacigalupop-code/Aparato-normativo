@@ -310,16 +310,89 @@ export async function invitarUsuario(orgId, email, rol = 'viewer') {
   }
 }
 
-// Listar usuarios de una organización
+// Listar usuarios activos (con user_id) de una organización
 export async function listarUsuariosOrg(orgId) {
   const { data, error } = await supabase
     .from('perfiles_usuario')
     .select('id, user_id, nombre_completo, rol, activo, ultimo_acceso, created_at')
     .eq('organizacion_id', orgId)
+    .not('user_id', 'is', null) // Solo usuarios registrados
     .order('created_at', { ascending: false })
 
   if (error) return []
   return data
+}
+
+// Listar invitaciones pendientes (sin user_id) de una organización
+export async function listarInvitacionesPendientes(orgId) {
+  const { data, error } = await supabase
+    .from('perfiles_usuario')
+    .select('id, nombre_completo, rol, activo, created_at')
+    .eq('organizacion_id', orgId)
+    .is('user_id', null) // Solo invitaciones pendientes
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.warn('listarInvitacionesPendientes error:', error)
+    return []
+  }
+  return data || []
+}
+
+// Cancelar/eliminar invitación pendiente
+export async function cancelarInvitacion(invitacionId) {
+  try {
+    const { error } = await supabase
+      .from('perfiles_usuario')
+      .delete()
+      .eq('id', invitacionId)
+      .is('user_id', null) // Solo eliminar si es invitación pendiente
+
+    if (error) {
+      console.warn('cancelarInvitacion error:', error)
+      return { ok: false, error: 'Error al cancelar invitación' }
+    }
+
+    return { ok: true, message: 'Invitación cancelada' }
+  } catch (err) {
+    console.error('cancelarInvitacion error:', err)
+    return { ok: false, error: 'Error procesando cancelación' }
+  }
+}
+
+// Re-enviar invitación (actualiza fecha de invitación)
+export async function reenviarInvitacion(invitacionId) {
+  try {
+    const { data, error } = await supabase
+      .from('perfiles_usuario')
+      .update({
+        ultimo_acceso: new Date().toISOString(), // Marca como re-invitado
+      })
+      .eq('id', invitacionId)
+      .is('user_id', null)
+      .select()
+      .single()
+
+    if (error) {
+      console.warn('reenviarInvitacion error:', error)
+      return { ok: false, error: 'Error al re-enviar invitación' }
+    }
+
+    return { ok: true, message: 'Invitación re-enviada', data }
+  } catch (err) {
+    console.error('reenviarInvitacion error:', err)
+    return { ok: false, error: 'Error procesando re-envío' }
+  }
+}
+
+// Generar link de invitación (para copiar al clipboard)
+export function generarLinkInvitacion(email) {
+  const baseUrl = window.location.origin
+  const params = new URLSearchParams({
+    invitar: 'true',
+    email: email,
+  })
+  return `${baseUrl}/?${params.toString()}`
 }
 
 // Actualizar rol de usuario
