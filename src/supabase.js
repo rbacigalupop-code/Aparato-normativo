@@ -633,13 +633,13 @@ export async function obtenerStatsOrganizacion(orgId) {
       .select('*', { count: 'exact', head: true })
       .eq('organizacion_id', orgId)
 
-    // Proyectos este mes
+    // Proyectos este mes (usa saved_at, no created_at)
     const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
     const { count: proyectosEsteMes } = await supabase
       .from('proyectos')
       .select('*', { count: 'exact', head: true })
       .eq('organizacion_id', orgId)
-      .gte('created_at', primerDiaMes)
+      .gte('saved_at', primerDiaMes)
 
     // Último acceso
     const { data: ultimoAcceso } = await supabase
