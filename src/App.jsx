@@ -2450,9 +2450,14 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja }) {
 }
 
 // ─── PESTAÑA FUEGO ────────────────────────────────────────────────────────────
-function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
+function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC }) {
   const uso = proy.uso || 'Vivienda'
   const rfDef = RF_DEF[uso] || {}
+  // Provide fallback if getLetraOGUC not passed
+  const letraOGUCFn = getLetraOGUC || ((destino, m2, pisos) => {
+    // Fallback to global function if available
+    return typeof getLetraOGUC === 'function' ? getLetraOGUC(destino, m2, pisos) : null
+  })
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
   // ── Lógica de escaleras / cajas de escalera ──────────────────────────────────
@@ -2470,7 +2475,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas }) {
 
   // ── Resolución RF según OGUC Tabla 1 cuando hay m² y destino OGUC ──────────
   const destinoOGUC = proy.destinoOGUC || (USO_TO_OGUC[uso]?.length === 1 ? USO_TO_OGUC[uso][0] : '')
-  const letraOGUC   = getLetraOGUC_loaded(destinoOGUC, proy.superficie, proy.pisos)
+  const letraOGUC   = letraOGUCFn(destinoOGUC, proy.superficie, proy.pisos)
   // Si hay letra OGUC, usar Tabla de elementos; si no, fallback a RF_DEF/RF_PISOS
   const rfReqFromOGUC = (elemId) => {
     if (letraOGUC) {
@@ -6220,7 +6225,7 @@ function AppInner() {
             )}
             {tab === 1 && <TabSoluciones proy={proy} setProy={setProy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
             {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
-            {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
+            {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} getLetraOGUC={getLetraOGUC_loaded} />}
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}

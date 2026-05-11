@@ -218,10 +218,16 @@ export async function obtenerPerfil(userId) {
     .from('perfiles_usuario')
     .select('id, user_id, nombre_completo, rol, activo, organizacion_id, ultimo_acceso, created_at')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()  // Changed from .single() to handle empty result gracefully (406 error)
 
   if (error) {
     console.error('Error obtenerPerfil:', error)
+    return null
+  }
+
+  // If no profile exists, return null (caller should handle creation if needed)
+  if (!data) {
+    console.warn('No profile found for user:', userId)
     return null
   }
 
@@ -231,7 +237,7 @@ export async function obtenerPerfil(userId) {
       .from('organizaciones')
       .select('*')
       .eq('id', data.organizacion_id)
-      .single()
+      .maybeSingle()  // Also use maybeSingle for consistency
     if (org) {
       data.organizaciones = org
     }
