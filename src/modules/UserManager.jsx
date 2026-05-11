@@ -11,6 +11,9 @@ export default function UserManager() {
   const [emailInvitar, setEmailInvitar] = useState('')
   const [rolInvitar, setRolInvitar] = useState('viewer')
 
+  // Modal de confirmación de invitación exitosa
+  const [confirmacionInvitacion, setConfirmacionInvitacion] = useState(null)
+
   // Cargar usuarios cuando cambio orgActual
   useEffect(() => {
     if (orgActual) {
@@ -68,16 +71,25 @@ export default function UserManager() {
     setCargando(false)
 
     if (result.ok) {
-      setMsg({ tipo: 'ok', texto: `Invitación enviada a ${emailInvitar}` })
+      // Guardar detalles para mostrar modal de confirmación
+      setConfirmacionInvitacion({
+        email: emailInvitar,
+        rol: rolInvitar,
+        organizacion: orgActual?.nombre || 'Mi Workspace',
+        fecha: new Date().toLocaleString('es-CL', {
+          dateStyle: 'long',
+          timeStyle: 'short',
+        }),
+        mensaje: result.message || `Invitación creada para ${emailInvitar}`,
+      })
       setEmailInvitar('')
       setRolInvitar('viewer')
       cargarUsuarios()
     } else {
       const errorMsg = result.error?.message || result.error || 'Error desconocido'
       setMsg({ tipo: 'err', texto: `Error: ${errorMsg}` })
+      setTimeout(() => setMsg(null), 5000)
     }
-
-    setTimeout(() => setMsg(null), 5000)
   }
 
   // Cambiar rol
@@ -272,6 +284,64 @@ export default function UserManager() {
         <b>Información:</b> Los usuarios inactivos no pueden acceder a la aplicación. Puedes reactivarlos creando una nueva invitación
         con el mismo email.
       </div>
+
+      {/* ─── Modal: Confirmación de invitación exitosa ─────────────────────── */}
+      {confirmacionInvitacion && (
+        <div style={S.modalOverlay} onClick={() => setConfirmacionInvitacion(null)}>
+          <div style={S.modalCard} onClick={(e) => e.stopPropagation()}>
+            {/* Icono de éxito */}
+            <div style={S.modalIcon}>
+              <div style={S.checkCircle}>✓</div>
+            </div>
+
+            {/* Título */}
+            <h2 style={S.modalTitle}>¡Invitación enviada con éxito!</h2>
+            <p style={S.modalSubtitle}>
+              Los siguientes detalles de la invitación han sido registrados:
+            </p>
+
+            {/* Detalles */}
+            <div style={S.detailsBox}>
+              <div style={S.detailRow}>
+                <span style={S.detailLabel}>📧 Email invitado:</span>
+                <span style={S.detailValue}>{confirmacionInvitacion.email}</span>
+              </div>
+              <div style={S.detailRow}>
+                <span style={S.detailLabel}>👤 Rol asignado:</span>
+                <span style={S.detailValue}>
+                  {confirmacionInvitacion.rol === 'admin' ? '👨‍💼 Admin (acceso completo)' : '👁️ Viewer (solo lectura)'}
+                </span>
+              </div>
+              <div style={S.detailRow}>
+                <span style={S.detailLabel}>🏢 Organización:</span>
+                <span style={S.detailValue}>{confirmacionInvitacion.organizacion}</span>
+              </div>
+              <div style={S.detailRow}>
+                <span style={S.detailLabel}>📅 Fecha:</span>
+                <span style={S.detailValue}>{confirmacionInvitacion.fecha}</span>
+              </div>
+            </div>
+
+            {/* Mensaje informativo */}
+            <div style={S.infoMessage}>
+              <strong>💡 Próximos pasos:</strong>
+              <ul style={S.infoList}>
+                <li>El usuario debe registrarse en NormaCheck con el email <strong>{confirmacionInvitacion.email}</strong></li>
+                <li>Al registrarse, su perfil se vinculará automáticamente a tu organización</li>
+                <li>Recibirá el rol <strong>{confirmacionInvitacion.rol === 'admin' ? 'Admin' : 'Viewer'}</strong> que asignaste</li>
+              </ul>
+            </div>
+
+            {/* Botón de cerrar */}
+            <button
+              style={S.modalCloseBtn}
+              onClick={() => setConfirmacionInvitacion(null)}
+            >
+              ✓ Entendido, cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -290,4 +360,134 @@ const S = {
   ok: { background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#166534' },
   err: { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991b1b' },
   warn: { background: '#fef9c3', border: '1px solid #fde047', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#713f12' },
+
+  // ─── Estilos del modal de confirmación ────────────────────────────────────
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(15, 23, 42, 0.7)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    padding: 16,
+    animation: 'fadeIn 0.2s ease-out',
+  },
+  modalCard: {
+    background: '#fff',
+    borderRadius: 16,
+    padding: '32px 28px',
+    maxWidth: 480,
+    width: '100%',
+    boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+    animation: 'slideUp 0.3s ease-out',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+  },
+  modalIcon: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  checkCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #16a34a, #15803d)',
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 8px 24px rgba(22, 163, 74, 0.35)',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: '#0f172a',
+    textAlign: 'center',
+    margin: '0 0 8px 0',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    margin: '0 0 24px 0',
+  },
+  detailsBox: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+  },
+  detailRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 0',
+    borderBottom: '1px solid #f1f5f9',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#64748b',
+  },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#1e293b',
+    textAlign: 'right',
+  },
+  infoMessage: {
+    background: '#eff6ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 12,
+    color: '#1e40af',
+    marginBottom: 20,
+  },
+  infoList: {
+    margin: '8px 0 0 0',
+    paddingLeft: 20,
+    lineHeight: 1.6,
+  },
+  modalCloseBtn: {
+    width: '100%',
+    background: 'linear-gradient(135deg, #166534, #15803d)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    padding: '12px 20px',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(22, 163, 74, 0.3)',
+    transition: 'transform 0.1s',
+  },
+}
+
+// Inyectar animaciones CSS para el modal
+if (typeof document !== 'undefined' && !document.getElementById('user-manager-modal-animations')) {
+  const styleEl = document.createElement('style')
+  styleEl.id = 'user-manager-modal-animations'
+  styleEl.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  `
+  document.head.appendChild(styleEl)
 }
