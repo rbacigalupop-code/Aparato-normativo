@@ -266,12 +266,13 @@ export async function invitarUsuario(orgId, email, rol = 'viewer') {
     }
 
     // 1. Verificar que el usuario no existe ya en la organización
+    // Usar maybeSingle() para evitar error 406 cuando no hay resultados
     const { data: existente } = await supabase
       .from('perfiles_usuario')
       .select('id')
       .eq('organizacion_id', orgId)
       .ilike('nombre_completo', email)
-      .single()
+      .maybeSingle()
 
     if (existente) {
       return { ok: false, error: 'Este usuario ya está en la organización' }
