@@ -58,7 +58,10 @@ export default function UserManager() {
     }
 
     // Verificar si el usuario ya existe en esta organización
-    const emailsExistentes = usuarios.map(u => u.email)
+    // Los emails se almacenan en nombre_completo (para invitaciones) o se obtienen de auth
+    const emailsExistentes = usuarios
+      .map(u => u.email || u.nombre_completo)
+      .filter(Boolean) // Eliminar undefined/null/empty
     const emailUnicoErr = validarEmailUnico(emailInvitar, emailsExistentes)
     if (emailUnicoErr) {
       setMsg({ tipo: 'err', texto: `Error: ${emailUnicoErr}` })

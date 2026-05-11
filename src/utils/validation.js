@@ -141,7 +141,11 @@ export function validarEmailUnico(email, emailsExistentes = []) {
   if (!email) return null
 
   const emailLower = email.toLowerCase()
-  const existe = emailsExistentes.some(e => e.toLowerCase() === emailLower)
+  // Filtrar valores undefined/null antes de comparar
+  const existe = (emailsExistentes || []).some(e => {
+    if (!e || typeof e !== 'string') return false
+    return e.toLowerCase() === emailLower
+  })
 
   if (existe) {
     return 'Este email ya está registrado'
