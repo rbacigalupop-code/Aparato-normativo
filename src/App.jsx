@@ -3307,17 +3307,20 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
   async function calcularConCapas(cs) {
     try {
+      console.log('[CalcU]', elemKey, 'calcular click — capas:', cs?.length)
       const cv = cs.map(c => c.esCamara ? { esCamara: true } : {
         mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
         ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
-      if (!cv.length) return
+      console.log('[CalcU]', elemKey, 'cv después de filter:', cv.length, cv)
+      if (!cv.length) { console.warn('[CalcU]', elemKey, 'cv vacío — return temprano'); return }
 
       // Incrementar token. Promesas async previas se descartarán solas.
       const myToken = ++opToken.current
 
       // calcGlaser es sync — siempre aplicar el resultado
       const r = calcGlaser(cv, ti, te, hr, elemTipo)
+      console.log('[CalcU]', elemKey, 'calcGlaser resultado:', r ? `U=${r.U}, temps.length=${r.temps?.length}` : 'NULL')
       setRes(r)
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
