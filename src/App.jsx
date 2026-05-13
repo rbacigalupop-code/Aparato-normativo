@@ -3217,20 +3217,30 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   useEffect(() => {
     if (!initData?.capas?.length) return
 
+    // Filtrar capas nulas/undefined para evitar crashes en mapeos
+    const capasValidas = initData.capas.filter(c => c != null)
+    if (!capasValidas.length) return
+
     // ── Firma rápida para detectar cambios reales (ignora cambios de referencia
     //    cuando el contenido es el mismo). Evita re-trabajo cuando el padre llama
     //    a setCalcUInit y crea un nuevo objeto idéntico.
-    const sig = JSON.stringify(initData.capas.map(c =>
-      c.esCamara ? 'CAM' : `${c.mat}|${c.lam}|${c.esp}|${c.mu}`
-    )) + '|' + (initData.solucion?.cod || '')
+    let sig
+    try {
+      sig = JSON.stringify(capasValidas.map(c =>
+        c?.esCamara ? 'CAM' : `${c?.mat || ''}|${c?.lam || ''}|${c?.esp || ''}|${c?.mu || ''}`
+      )) + '|' + (initData.solucion?.cod || '')
+    } catch (e) {
+      console.warn('Error calculando sig de initData:', e)
+      sig = String(Math.random())  // forzar siempre rerun si falla
+    }
 
     // Si la firma no cambió Y skipInitEffect no está activo, no hacemos nada.
     // Esto rompe el ciclo: el padre actualiza calcUInit → nuevo objeto → mismo contenido.
     if (sig === lastInitSig.current && !skipInitEffect.current) return
     lastInitSig.current = sig
 
-    setCapas(initData.capas)
-    setOrigCapas(initData.capas.map(c => ({...c})))
+    setCapas(capasValidas)
+    setOrigCapas(capasValidas.map(c => ({...c})))
     setSolucion(initData.solucion || null)
     // Si el propio componente disparó este cambio de initData (vía onCalcUChange),
     // saltar el recálculo para evitar el doble cálculo que congela la UI.
@@ -3241,7 +3251,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
     // Auto-calcular inmediatamente con las capas de la solución
     const tiZ = zona?.Ti || 20, teZ = zona?.Te || 5, hrZ = zona?.HR || 70
-    const cv = initData.capas.map(c => c.esCamara ? { esCamara: true } : {
+    const cv = capasValidas.map(c => c.esCamara ? { esCamara: true } : {
       mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
       ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
     }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
@@ -3903,7 +3913,7 @@ ${cambios.length && solucion ? `
         </div>
       </div>
 
-      {res && (()=>{
+      {res && res.temps && res.temps.length > 0 && (()=>{
         // ΔU corrección puentes térmicos (ISO 6946 §6.9.3)
         const dU    = parseFloat(deltaU) || 0
         const uCalc = parseFloat(res.U) + dU
