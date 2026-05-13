@@ -3221,24 +3221,6 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     const capasValidas = initData.capas.filter(c => c != null)
     if (!capasValidas.length) return
 
-    // ── Firma rápida para detectar cambios reales (ignora cambios de referencia
-    //    cuando el contenido es el mismo). Evita re-trabajo cuando el padre llama
-    //    a setCalcUInit y crea un nuevo objeto idéntico.
-    let sig
-    try {
-      sig = JSON.stringify(capasValidas.map(c =>
-        c?.esCamara ? 'CAM' : `${c?.mat || ''}|${c?.lam || ''}|${c?.esp || ''}|${c?.mu || ''}`
-      )) + '|' + (initData.solucion?.cod || '')
-    } catch (e) {
-      console.warn('Error calculando sig de initData:', e)
-      sig = String(Math.random())  // forzar siempre rerun si falla
-    }
-
-    // Si la firma no cambió Y skipInitEffect no está activo, no hacemos nada.
-    // Esto rompe el ciclo: el padre actualiza calcUInit → nuevo objeto → mismo contenido.
-    if (sig === lastInitSig.current && !skipInitEffect.current) return
-    lastInitSig.current = sig
-
     setCapas(capasValidas)
     setOrigCapas(capasValidas.map(c => ({...c})))
     setSolucion(initData.solucion || null)
@@ -3246,7 +3228,8 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     // saltar el recálculo para evitar el doble cálculo que congela la UI.
     if (skipInitEffect.current) { skipInitEffect.current = false; return }
 
-    // Incrementar token de operación → cancela cualquier async previo en vuelo
+    // Incrementar token de operación. Async pendientes (de calls previos)
+    // verán que su myToken != opToken.current y descartarán su resultado.
     const myToken = ++opToken.current
 
     // Auto-calcular inmediatamente con las capas de la solución
@@ -3256,9 +3239,8 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
     }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
     if (cv.length) {
+      // calcGlaser es sync — siempre aplicar el resultado, sin token-check.
       const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo)
-      // Verificar token antes de aplicar resultado
-      if (myToken !== opToken.current) return
       setRes(r)
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
@@ -3268,14 +3250,13 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
           ;(async () => {
             try {
               const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax)
-              // Si otra operación tomó el token, descartar este resultado
+              // Solo aplicar si esta sigue siendo la operación activa
               if (myToken !== opToken.current) return
               setCorrec(cr)
             } catch (e) {
               console.error('generarCorrecciones error:', e)
               if (myToken === opToken.current) setCorrec([])
             } finally {
-              // Solo bajar el spinner si esta operación sigue siendo la actual
               if (myToken === opToken.current) setCalcuando(false)
             }
           })()
@@ -3284,12 +3265,8 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     } else {
       setRes(null); setCorrec([]); setCalcuando(false)
     }
-
-    // Cleanup: si initData cambia o el componente se desmonta, cancelar
-    // cualquier operación async en vuelo bumpeando el token.
-    return () => {
-      opToken.current++
-    }
+    // No registramos cleanup — bumpear opToken aquí se solapa con calcularConCapas
+    // que también bumpea, causando que el cálculo síncrono se pierda.
   }, [initData])
 
   const ti = zona?.Ti || 20
@@ -3336,12 +3313,11 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
       if (!cv.length) return
 
-      // Incrementar token de operación — cancela cualquier async previo
+      // Incrementar token. Promesas async previas se descartarán solas.
       const myToken = ++opToken.current
 
+      // calcGlaser es sync — siempre aplicar el resultado
       const r = calcGlaser(cv, ti, te, hr, elemTipo)
-      // Verificar que esta sigue siendo la operación actual
-      if (myToken !== opToken.current) return
       setRes(r)
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
@@ -3363,7 +3339,6 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
             console.error('Fallo crítico en el motor de cálculo:', e)
             if (myToken === opToken.current) setCorrec([])
           } finally {
-            // Solo bajar spinner si esta sigue siendo la operación activa
             if (myToken === opToken.current) setCalcuando(false)
           }
         } else { setCorrec([]); setCalcuando(false) }
