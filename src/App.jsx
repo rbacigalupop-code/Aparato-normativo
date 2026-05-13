@@ -3195,6 +3195,13 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   // (desde calcularConCapas o aplicarCorreccion) el efecto initData se dispara de nuevo.
   // Con este ref lo saltamos sin borrar correcciones ya en curso.
   const skipInitEffect = useRef(false)
+  // Token de cancelación para operaciones async — incrementa cada vez que cambia
+  // initData o el usuario dispara un nuevo cálculo. Las promesas en vuelo verifican
+  // este token antes de actualizar estado, evitando race conditions que cuelgan la UI.
+  const opToken = useRef(0)
+  // Última firma de initData procesada — evita re-trabajo si la referencia cambió
+  // pero el contenido es idéntico (caso común con setCalcUInit del padre).
+  const lastInitSig = useRef(null)
 
   // ── Estado para opciones normativas avanzadas ──────────────────────────────
   // Piso: tipo de apoyo (ventilado / sobre terreno / sobre espacio no calef.)
@@ -3209,12 +3216,29 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
   useEffect(() => {
     if (!initData?.capas?.length) return
+
+    // ── Firma rápida para detectar cambios reales (ignora cambios de referencia
+    //    cuando el contenido es el mismo). Evita re-trabajo cuando el padre llama
+    //    a setCalcUInit y crea un nuevo objeto idéntico.
+    const sig = JSON.stringify(initData.capas.map(c =>
+      c.esCamara ? 'CAM' : `${c.mat}|${c.lam}|${c.esp}|${c.mu}`
+    )) + '|' + (initData.solucion?.cod || '')
+
+    // Si la firma no cambió Y skipInitEffect no está activo, no hacemos nada.
+    // Esto rompe el ciclo: el padre actualiza calcUInit → nuevo objeto → mismo contenido.
+    if (sig === lastInitSig.current && !skipInitEffect.current) return
+    lastInitSig.current = sig
+
     setCapas(initData.capas)
     setOrigCapas(initData.capas.map(c => ({...c})))
     setSolucion(initData.solucion || null)
     // Si el propio componente disparó este cambio de initData (vía onCalcUChange),
     // saltar el recálculo para evitar el doble cálculo que congela la UI.
     if (skipInitEffect.current) { skipInitEffect.current = false; return }
+
+    // Incrementar token de operación → cancela cualquier async previo en vuelo
+    const myToken = ++opToken.current
+
     // Auto-calcular inmediatamente con las capas de la solución
     const tiZ = zona?.Ti || 20, teZ = zona?.Te || 5, hrZ = zona?.HR || 70
     const cv = initData.capas.map(c => c.esCamara ? { esCamara: true } : {
@@ -3223,6 +3247,8 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
     if (cv.length) {
       const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo)
+      // Verificar token antes de aplicar resultado
+      if (myToken !== opToken.current) return
       setRes(r)
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
@@ -3232,17 +3258,27 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
           ;(async () => {
             try {
               const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax)
+              // Si otra operación tomó el token, descartar este resultado
+              if (myToken !== opToken.current) return
               setCorrec(cr)
             } catch (e) {
-              console.error('generarCorrecciones error:', e); setCorrec([])
+              console.error('generarCorrecciones error:', e)
+              if (myToken === opToken.current) setCorrec([])
             } finally {
-              setCalcuando(false)
+              // Solo bajar el spinner si esta operación sigue siendo la actual
+              if (myToken === opToken.current) setCalcuando(false)
             }
           })()
-        } else { setCorrec([]) }
+        } else { setCorrec([]); setCalcuando(false) }
       }
     } else {
-      setRes(null); setCorrec([])
+      setRes(null); setCorrec([]); setCalcuando(false)
+    }
+
+    // Cleanup: si initData cambia o el componente se desmonta, cancelar
+    // cualquier operación async en vuelo bumpeando el token.
+    return () => {
+      opToken.current++
     }
   }, [initData])
 
@@ -3289,7 +3325,13 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
         ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
       if (!cv.length) return
+
+      // Incrementar token de operación — cancela cualquier async previo
+      const myToken = ++opToken.current
+
       const r = calcGlaser(cv, ti, te, hr, elemTipo)
+      // Verificar que esta sigue siendo la operación actual
+      if (myToken !== opToken.current) return
       setRes(r)
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
@@ -3304,18 +3346,21 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
             // 🔥 Esperamos al motor asíncrono. El spinner se ve porque
             // generarCorrecciones cede el hilo con setTimeout(0).
             const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, umax)
+            // Descartar resultado si otra operación más reciente está en curso
+            if (myToken !== opToken.current) return
             setCorrec(nuevasCorrec)
           } catch (e) {
             console.error('Fallo crítico en el motor de cálculo:', e)
-            setCorrec([])
+            if (myToken === opToken.current) setCorrec([])
           } finally {
-            setCalcuando(false)
+            // Solo bajar spinner si esta sigue siendo la operación activa
+            if (myToken === opToken.current) setCalcuando(false)
           }
-        } else { setCorrec([]) }
+        } else { setCorrec([]); setCalcuando(false) }
       }
     } catch(e) {
       console.error('calcularConCapas error:', e)
-      setRes(null); setCorrec([])
+      setRes(null); setCorrec([]); setCalcuando(false)
     }
   }
   function calcular() { calcularConCapas(capas) }
@@ -3425,6 +3470,9 @@ ${'='.repeat(60)}`
   }
 
   async function aplicarCorreccion(corr) {
+    // Incrementar token para cancelar cualquier async previo
+    const myToken = ++opToken.current
+
     const nuevas = corr.capasCorregidas.map(c => ({
       id: Date.now() + Math.random(),
       mat:      c.n || c.mat || '',
@@ -3447,14 +3495,16 @@ ${'='.repeat(60)}`
       try {
         // 🔥 Esperamos al motor asíncrono. Cero setTimeouts falsos.
         const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax)
+        // Descartar resultado si otra operación tomó el token
+        if (myToken !== opToken.current) return
         setCorrec(nuevasCorrec)
       } catch (e) {
         console.error('Fallo crítico en el motor de cálculo:', e)
-        setCorrec([])
+        if (myToken === opToken.current) setCorrec([])
       } finally {
-        setCalcuando(false)
+        if (myToken === opToken.current) setCalcuando(false)
       }
-    } else { setCorrec([]) }
+    } else { setCorrec([]); setCalcuando(false) }
   }
 
   function getSvgString() {
