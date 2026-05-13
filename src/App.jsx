@@ -18,6 +18,7 @@ import {
   VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
   calcU_SC, buildCapas, colSem, ist,
+  calcGlaser as calcGlaserCompleto, calcU_ISO6946 as calcU_ISO6946_completo,
   generarCorrecciones,
   STRUCT_MATS,
   getUIdx, MATS
@@ -36,8 +37,11 @@ const rfN = rfStringToNumber
 const getLetraOGUC = obtenerLetraOGUC
 const getRFDeLetra = obtenerRFdeLetra
 const getRFOGUC = obtenerRFOGUC
-const calcGlaser = calcularGlaser
-const calcU_ISO6946 = calcularU
+// IMPORTANTE: usar la implementación COMPLETA de data.js que retorna
+// {temps, U, Tdew, ifaces, Rtot, condInter, ...}. La de thermal.js (calcularGlaser)
+// es una versión simplificada sin U ni temps que ROMPE el render del calculador.
+const calcGlaser = calcGlaserCompleto
+const calcU_ISO6946 = calcU_ISO6946_completo
 
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
@@ -3307,20 +3311,17 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
   async function calcularConCapas(cs) {
     try {
-      console.log('[CalcU]', elemKey, 'calcular click — capas:', cs?.length)
       const cv = cs.map(c => c.esCamara ? { esCamara: true } : {
         mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
         ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
-      console.log('[CalcU]', elemKey, 'cv después de filter:', cv.length, cv)
-      if (!cv.length) { console.warn('[CalcU]', elemKey, 'cv vacío — return temprano'); return }
+      if (!cv.length) return
 
       // Incrementar token. Promesas async previas se descartarán solas.
       const myToken = ++opToken.current
 
       // calcGlaser es sync — siempre aplicar el resultado
       const r = calcGlaser(cv, ti, te, hr, elemTipo)
-      console.log('[CalcU]', elemKey, 'calcGlaser resultado:', r ? `U=${r.U}, temps.length=${r.temps?.length}` : 'NULL')
       setRes(r)
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
