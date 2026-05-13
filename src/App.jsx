@@ -4695,7 +4695,13 @@ ${capaLabels}
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData }) {
+  // Fallbacks defensivos por si las props no están disponibles
+  const getRFOGUC_loaded = getRFOGUC || (() => null)
+  const getLetraOGUC_loaded = getLetraOGUC || (() => null)
+  const getRFDeLetra_loaded = getRFDeLetra || (() => null)
+  const ogucDataReady = ogucData || { OGUC_TABLA1: [], OGUC_RF_LETRAS: {}, OGUC_ELEM_COL: {} }
+
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || ''
 
@@ -6319,7 +6325,7 @@ function AppInner() {
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} />}
+            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
             {tab === 8 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
           {showAyuda && ayudaData[tab] && (
