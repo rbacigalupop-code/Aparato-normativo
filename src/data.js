@@ -1189,6 +1189,173 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     }
   }
 
+  // ── C7 — Reordenar capas (μ alto interior, μ bajo exterior) ────────────────
+  //   Vapor migra de interior (cálido/húmedo) a exterior (frío/seco). Capas con
+  //   alta resistencia al vapor (μ alto) deben estar en la cara caliente (interior)
+  //   para bloquear el vapor antes de la zona fría donde podría condensar.
+  //   Estrategia: separar aislantes, ordenar el RESTO por μ descendente int→ext,
+  //   y mantener el aislante en el centro.
+  await _YIELD();
+  if(necesitaCond){
+    // Solo intentar si la composición tiene materiales con diferencias significativas de μ
+    const noCamaras = cv.filter(c => !c.esCamara && !c.camara);
+    const mus = noCamaras.map(c => parseFloat(c.mu) || 1);
+    const muMax = Math.max(...mus), muMin = Math.min(...mus);
+    if (muMax >= muMin * 5) {  // diferencia significativa (factor 5x)
+      // Separar aislantes (λ ≤ 0.05) del resto
+      const aislantes = noCamaras.filter(c => (parseFloat(c.lam) || 0) <= 0.05);
+      const otros = noCamaras.filter(c => (parseFloat(c.lam) || 0) > 0.05);
+      // Ordenar "otros" por μ descendente (int → ext)
+      const otrosOrdenados = [...otros].sort((a, b) => (parseFloat(b.mu) || 1) - (parseFloat(a.mu) || 1));
+      // Estrategia: μ-alto interior + aislantes + μ-bajo exterior
+      // Tomar el primero (μ más alto) al interior, el resto al exterior tras aislantes
+      let cvReord;
+      if (otrosOrdenados.length >= 2) {
+        const interior = [otrosOrdenados[0]];
+        const exterior = otrosOrdenados.slice(1).reverse();  // bajo μ al exterior
+        cvReord = [...interior, ...aislantes, ...exterior];
+      } else {
+        // Solo un material no-aislante: ponerlo al interior con aislante atrás
+        cvReord = [...otrosOrdenados, ...aislantes];
+      }
+      const cvCerrado = validarCierre(cvReord, elemTipo);
+      const rR = _calcGlaserSimple(cvCerrado, ti, te, hr, elemTipo);
+      if (rR && !rR.condInter && (!targetAjustado || parseFloat(rR.U) <= targetAjustado)) {
+        const orden = cvCerrado.filter(c => !c.esCamara && !c.camara)
+          .map(c => (c.n || c.mat || '')).join(' → ');
+        correcciones.push({
+          id: 'c7_reordenar',
+          titulo: 'C7 — Reordenar capas (μ-alto interior → μ-bajo exterior)',
+          etiqueta: 'Reordenar',
+          sistema: 'Reordenamiento',
+          color: '#7c2d12',
+          compatible_loscat: true,
+          descripcion: 'Reordenar las capas existentes para colocar los materiales de alta resistencia al vapor (μ alto) en la cara interior caliente, donde bloquean el vapor antes de alcanzar la zona fría. Los aislantes se mantienen en el centro. NO se agregan ni quitan materiales — solo se reordena la secuencia constructiva.',
+          cambio: 'Nueva secuencia int → ext: ' + orden,
+          capasCorregidas: cvCerrado,
+          resultado: rR,
+          impactoU: 'U ' + rR.U + ' W/m²K ✓' + (umaxTarget ? ' ≤' + umaxTarget : ''),
+          advertencias: withPenaltyAviso([
+            'Verificar que el reordenamiento sea constructivamente factible (capas estructurales vs revestimientos)',
+            'La solución es homologable a la LOSCAT original ya que conserva los mismos materiales',
+          ])
+        });
+      }
+    }
+  }
+
+  // ── C8 — FALLBACK: Sugerencias manuales informativas ──────────────────────
+  //   Cuando ninguna estrategia automática logra eliminar la condensación o
+  //   cumplir U (caso de climas extremos como Te ≤ 0°C con HR alta), generamos
+  //   sugerencias informativas para que el arquitecto evalúe.
+  await _YIELD();
+  if (correcciones.length === 0 && (necesitaCond || necesitaU)) {
+    // Análisis del problema actual
+    const noCamaras = cv.filter(c => !c.esCamara && !c.camara);
+    const mus = noCamaras.map(c => parseFloat(c.mu) || 1);
+    const muMax = Math.max(...mus);
+    const muMin = Math.min(...mus);
+    const aislantes = noCamaras.filter(c => (parseFloat(c.lam) || 0) <= 0.05);
+    const espesorAislante = aislantes.reduce((s, c) => s + (parseFloat(c.esp) * 1000 || 0), 0);
+
+    // Sugerencia 1: si hay capa con μ muy alto al exterior, sugerir invertir
+    if (muMax >= muMin * 10) {
+      const capaAlta = noCamaras.find(c => (parseFloat(c.mu) || 1) === muMax);
+      const idxAlta = cv.findIndex(c => c === capaAlta);
+      // Capa está en mitad exterior si idx >= n/2 (centrado al medio)
+      const esExterior = idxAlta >= Math.floor(cv.length / 2);
+      if (esExterior) {
+        correcciones.push({
+          id: 'c8_manual_invertir_mu',
+          titulo: `C8 — Mover ${capaAlta?.n || capaAlta?.mat || 'capa de alto μ'} al interior`,
+          etiqueta: 'Manual',
+          sistema: 'Reordenamiento',
+          color: '#7c2d12',
+          compatible_loscat: true,
+          descripcion: `La capa "${capaAlta?.n || capaAlta?.mat}" tiene resistencia al vapor alta (μ=${muMax}) y está al exterior. Esto BLOQUEA la salida del vapor desde el interior, acumulándolo en la zona fría y produciendo condensación. Recomendación: usar las flechas ↑↓ para mover esta capa hacia el interior (cara caliente), donde su alta resistencia al vapor protege contra la entrada al núcleo aislante.`,
+          cambio: `Mover ${capaAlta?.n || capaAlta?.mat} desde exterior → interior`,
+          capasCorregidas: null,  // Manual — no aplica automáticamente
+          resultado: null,
+          impactoU: 'Sin cambio en U — solo reordenamiento',
+          advertencias: withPenaltyAviso([
+            'Esta es una recomendación MANUAL: usa las flechas ↑↓ en la tabla de capas para reordenar',
+            'Asegurarse que el nuevo orden sea constructivamente factible',
+            'Tras reordenar, presiona "Calcular U" para verificar',
+          ]),
+          esManual: true,
+        });
+      }
+    }
+
+    // Sugerencia 2: si hay aislante pero poco espesor (<150mm)
+    if (aislantes.length > 0 && espesorAislante < 150 && (necesitaU || necesitaCond)) {
+      correcciones.push({
+        id: 'c8_manual_aumentar_aislante',
+        titulo: `C8 — Aumentar espesor de aislante (actual: ${espesorAislante.toFixed(0)}mm)`,
+        etiqueta: 'Manual',
+        sistema: 'Aumento aislante',
+        color: '#b45309',
+        compatible_loscat: true,
+        descripcion: `El espesor total de aislante térmico (${espesorAislante.toFixed(0)}mm) es insuficiente para las condiciones (Ti=${ti}°C, Te=${te}°C, HR=${hr}%). Recomendación: aumentar el aislante a 180-200mm o más, lo que reduce U y desplaza el punto de rocío fuera de la envolvente.`,
+        cambio: `Aumentar aislante a 180-200mm`,
+        capasCorregidas: null,
+        resultado: null,
+        impactoU: 'Reduce U y mejora condensación',
+        advertencias: withPenaltyAviso([
+          'Recomendación MANUAL: edita el campo "Espesor (mm)" del aislante en la tabla',
+          'Tras editar, presiona "Calcular U" para verificar',
+        ]),
+        esManual: true,
+      });
+    }
+
+    // Sugerencia 3: cámara ventilada (rain screen) — clima frío/húmedo extremo
+    if (necesitaCond && parseFloat(te) <= 5) {
+      correcciones.push({
+        id: 'c8_manual_camara_ventilada',
+        titulo: 'C8 — Agregar cámara ventilada exterior (rain screen)',
+        etiqueta: 'Manual',
+        sistema: 'Cámara ventilada',
+        color: '#0369a1',
+        compatible_loscat: false,
+        descripcion: `Las condiciones climáticas son extremas (Te=${te}°C, HR=${hr}%). Para evitar condensación, se recomienda una cámara ventilada (rain screen) entre el aislante y el revestimiento exterior. Esta cámara permite que la humedad que migra desde el interior se evapore al exterior sin acumularse. NCh853:2021 §6.9.2.`,
+        cambio: 'Agregar cámara de aire ventilada (>=20mm) tras el aislante',
+        capasCorregidas: null,
+        resultado: null,
+        impactoU: 'Mejora higrotérmica significativa',
+        advertencias: withPenaltyAviso([
+          'Recomendación MANUAL: presiona "+ Cámara" y posiciona después del aislante',
+          'La cámara debe tener aberturas de ventilación en base y coronamiento',
+          'NCh853:2021 §6.9.2 / ASHRAE 160',
+        ]),
+        esManual: true,
+      });
+    }
+
+    // Sugerencia 4: reducir HR interior (caso límite)
+    if (necesitaCond && parseFloat(hr) >= 70) {
+      correcciones.push({
+        id: 'c8_manual_reducir_hr',
+        titulo: 'C8 — Verificar control de humedad interior',
+        etiqueta: 'Manual',
+        sistema: 'Control HR',
+        color: '#6d28d9',
+        compatible_loscat: false,
+        descripcion: `La humedad relativa interior asumida (HR=${hr}%) es alta y dificulta el cumplimiento higrotérmico. En la práctica, los recintos habitacionales operan con HR=50-60%. Si el proyecto incluye ventilación mecánica adecuada (NCh3309 / DS47), considera recalcular con HR=60% para verificar cumplimiento bajo condiciones reales de uso.`,
+        cambio: 'Considerar HR=60% si hay ventilación mecánica',
+        capasCorregidas: null,
+        resultado: null,
+        impactoU: 'No modifica U',
+        advertencias: withPenaltyAviso([
+          'Recomendación MANUAL: revisa proyecto de ventilación',
+          'La HR=80% asumida es conservadora para uso habitacional con ventilación',
+          'DS47 / NCh3309',
+        ]),
+        esManual: true,
+      });
+    }
+  }
+
   // ── Escribir caché (LRU simple: descartar el más antiguo si lleno) ───────────
   if(_corrCache.size>=_MAX_CACHE)_corrCache.delete(_corrCache.keys().next().value);
   _corrCache.set(ck,correcciones);
