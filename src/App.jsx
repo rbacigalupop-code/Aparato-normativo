@@ -5,6 +5,7 @@ import MigrationGate from './MigrationGate.jsx'
 import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { validarRwCumplimiento, obtenerRwRequerido, buscarSolucionesAcusticas } from './lib/engines/acoustic.js'
+import { homologarSolucion } from './lib/engines/homologacion.js'
 import { cargarDatosOGUC } from './lib/ogucData.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import NotasPanel from './NotasPanel.jsx'
@@ -716,6 +717,117 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
 const ELEM_LABELS = { muro:'Muro', tabique:'Tabique', techumbre:'Techumbre', piso:'Piso', ventana:'Ventana', puerta:'Puerta' }
 const ELEM_LIST   = ['muro','tabique','techumbre','piso','ventana','puerta']
 
+// ─── PANEL: Códigos Normativos (LOSCAT + LOFC + LOSCAA) ─────────────────────
+// Muestra los 3 códigos homologados para una solución constructiva.
+// Calcula on-demand usando el motor de homologación.
+function CodigosNormativos({ sc, rfReq, acReq }) {
+  const homolog = useMemo(() => {
+    try {
+      return homologarSolucion(sc, { rfRequerido: rfReq, rwRequerido: acReq })
+    } catch (e) {
+      console.warn('Error homologando solución', sc?.cod, e)
+      return null
+    }
+  }, [sc, rfReq, acReq])
+
+  if (!homolog) return null
+  const { termico, fuego, acustico, estructura_base } = homolog
+
+  const Card = ({ icon, titulo, codigo, valor, fuente, intrinseco, color, descripcion }) => (
+    <div style={{
+      flex: 1, minWidth: 220,
+      background: '#fff',
+      border: `1.5px solid ${color}`,
+      borderRadius: 8,
+      padding: '10px 12px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <span style={{ fontSize: 16 }}>{icon}</span>
+        <span style={{ fontWeight: 700, fontSize: 12, color }}>{titulo}</span>
+        {intrinseco === false && (
+          <span style={{ marginLeft: 'auto', fontSize: 9, background: '#fef3c7', color: '#92400e', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}>
+            requiere capas
+          </span>
+        )}
+        {intrinseco === true && (
+          <span style={{ marginLeft: 'auto', fontSize: 9, background: '#dcfce7', color: '#166534', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}>
+            intrínseco
+          </span>
+        )}
+      </div>
+      {codigo ? (
+        <>
+          <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 2 }}>{codigo}</div>
+          {valor && <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{valor}</div>}
+          {descripcion && (
+            <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.4, marginTop: 4, fontStyle: 'italic' }}>
+              {descripcion.slice(0, 80)}{descripcion.length > 80 ? '…' : ''}
+            </div>
+          )}
+          {fuente && <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 4 }}>{fuente}</div>}
+        </>
+      ) : (
+        <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Sin homologación automática disponible</div>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{
+      background: '#f0f9ff',
+      border: '1px solid #bae6fd',
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>📋 Códigos normativos homologados</span>
+        {estructura_base?.material && (
+          <span style={{ fontSize: 10, background: '#dbeafe', color: '#1e40af', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
+            Base: {estructura_base.material.replace(/_/g, ' ')}
+            {estructura_base.espesor_estructura_mm ? ` ${estructura_base.espesor_estructura_mm}mm` : ''}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Card
+          icon="🌡️"
+          titulo="Térmico"
+          color="#1e40af"
+          codigo={termico?.codigo}
+          valor={termico?.u ? `U = ${termico.u} W/m²K` : null}
+          fuente={termico?.fuente}
+          descripcion={termico?.descripcion}
+        />
+        <Card
+          icon="🔥"
+          titulo="Fuego"
+          color="#dc2626"
+          codigo={fuego?.codigo}
+          valor={fuego?.rf ? `RF = ${fuego.rf}` : null}
+          fuente={fuego?.fuente}
+          descripcion={fuego?.descripcion}
+          intrinseco={fuego?.intrinseco}
+        />
+        <Card
+          icon="🔇"
+          titulo="Acústico"
+          color="#7c3aed"
+          codigo={acustico?.codigo}
+          valor={acustico?.rw ? `${acustico.rw_tipo || 'Rw'} = ${acustico.rw} dB` : null}
+          fuente={acustico?.fuente}
+          descripcion={acustico?.descripcion}
+          intrinseco={acustico?.intrinseco}
+        />
+      </div>
+      <div style={{ fontSize: 10, color: '#64748b', marginTop: 8, lineHeight: 1.4 }}>
+        💡 Los códigos LOFC y LOSCAA se homologan automáticamente al material base de la solución LOSCAT.
+        Para casos especiales, el profesional responsable debe validar la equivalencia.
+      </div>
+    </div>
+  )
+}
+
 function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNotas }) {
   const [elem,      setElem]      = useState('muro')
   const [expandido, setExpandido] = useState(null)
@@ -1261,6 +1373,10 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       return <>Zonas aplicables: {zonasStr || '—'} · Usos: {usosStr || '—'}</>
                     })()}
                   </div>
+
+                  {/* ── Códigos Normativos (LOSCAT + LOFC + LOSCAA) ──────────── */}
+                  <CodigosNormativos sc={s} rfReq={rfReq} acReq={acReq} />
+
 
                   {/* ── Alternativas LOSCAT cuando incumple ──────────────────── */}
                   {!ev.aplica && (
@@ -6282,7 +6398,7 @@ function AppInner() {
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
-          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·c8-fallback</div>
+          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·3codigos (feat)</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
