@@ -3356,11 +3356,6 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
         const necesitaU    = umax && u_actual > umax              // no cumple
         const optimizar    = umax && u_actual > umax * 0.85       // cerca del límite
         const necesita     = r?.condInter || necesitaU || optimizar
-        console.log('[CalcU corrs]', elemKey, {
-          U: r?.U, umax, u_actual,
-          condInter: r?.condInter,
-          necesitaU, optimizar, necesita
-        })
         if (necesita) {
           setCalcuando(true)
           try {
@@ -3371,14 +3366,9 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
             const targetParaSugerir = (optimizar && !necesitaU && !r?.condInter)
               ? umax * 0.90    // sugiere mejoras para llegar al 90% del límite
               : umax
-            console.log('[CalcU corrs]', elemKey, 'llamando generarCorrecciones con target=', targetParaSugerir)
             const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir)
-            console.log('[CalcU corrs]', elemKey, 'resultado:', nuevasCorrec?.length, 'opciones')
             // Descartar resultado si otra operación más reciente está en curso
-            if (myToken !== opToken.current) {
-              console.warn('[CalcU corrs]', elemKey, 'TOKEN DESCARTADO myToken=', myToken, 'opToken=', opToken.current)
-              return
-            }
+            if (myToken !== opToken.current) return
             setCorrec(nuevasCorrec)
           } catch (e) {
             console.error('Fallo crítico en el motor de cálculo:', e)

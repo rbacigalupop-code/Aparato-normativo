@@ -1189,6 +1189,61 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     }
   }
 
+  // ── C7 — Reordenar capas (μ alto interior, μ bajo exterior) ────────────────
+  //   Vapor migra de interior (cálido/húmedo) a exterior (frío/seco). Capas con
+  //   alta resistencia al vapor (μ alto) deben estar en la cara caliente (interior)
+  //   para bloquear el vapor antes de la zona fría donde podría condensar.
+  //   Estrategia: separar aislantes, ordenar el RESTO por μ descendente int→ext,
+  //   y mantener el aislante en el centro.
+  await _YIELD();
+  if(necesitaCond){
+    // Solo intentar si la composición tiene materiales con diferencias significativas de μ
+    const noCamaras = cv.filter(c => !c.esCamara && !c.camara);
+    const mus = noCamaras.map(c => parseFloat(c.mu) || 1);
+    const muMax = Math.max(...mus), muMin = Math.min(...mus);
+    if (muMax >= muMin * 5) {  // diferencia significativa (factor 5x)
+      // Separar aislantes (λ ≤ 0.05) del resto
+      const aislantes = noCamaras.filter(c => (parseFloat(c.lam) || 0) <= 0.05);
+      const otros = noCamaras.filter(c => (parseFloat(c.lam) || 0) > 0.05);
+      // Ordenar "otros" por μ descendente (int → ext)
+      const otrosOrdenados = [...otros].sort((a, b) => (parseFloat(b.mu) || 1) - (parseFloat(a.mu) || 1));
+      // Estrategia: μ-alto interior + aislantes + μ-bajo exterior
+      // Tomar el primero (μ más alto) al interior, el resto al exterior tras aislantes
+      let cvReord;
+      if (otrosOrdenados.length >= 2) {
+        const interior = [otrosOrdenados[0]];
+        const exterior = otrosOrdenados.slice(1).reverse();  // bajo μ al exterior
+        cvReord = [...interior, ...aislantes, ...exterior];
+      } else {
+        // Solo un material no-aislante: ponerlo al interior con aislante atrás
+        cvReord = [...otrosOrdenados, ...aislantes];
+      }
+      const cvCerrado = validarCierre(cvReord, elemTipo);
+      const rR = _calcGlaserSimple(cvCerrado, ti, te, hr, elemTipo);
+      if (rR && !rR.condInter && (!targetAjustado || parseFloat(rR.U) <= targetAjustado)) {
+        const orden = cvCerrado.filter(c => !c.esCamara && !c.camara)
+          .map(c => (c.n || c.mat || '')).join(' → ');
+        correcciones.push({
+          id: 'c7_reordenar',
+          titulo: 'C7 — Reordenar capas (μ-alto interior → μ-bajo exterior)',
+          etiqueta: 'Reordenar',
+          sistema: 'Reordenamiento',
+          color: '#7c2d12',
+          compatible_loscat: true,
+          descripcion: 'Reordenar las capas existentes para colocar los materiales de alta resistencia al vapor (μ alto) en la cara interior caliente, donde bloquean el vapor antes de alcanzar la zona fría. Los aislantes se mantienen en el centro. NO se agregan ni quitan materiales — solo se reordena la secuencia constructiva.',
+          cambio: 'Nueva secuencia int → ext: ' + orden,
+          capasCorregidas: cvCerrado,
+          resultado: rR,
+          impactoU: 'U ' + rR.U + ' W/m²K ✓' + (umaxTarget ? ' ≤' + umaxTarget : ''),
+          advertencias: withPenaltyAviso([
+            'Verificar que el reordenamiento sea constructivamente factible (capas estructurales vs revestimientos)',
+            'La solución es homologable a la LOSCAT original ya que conserva los mismos materiales',
+          ])
+        });
+      }
+    }
+  }
+
   // ── Escribir caché (LRU simple: descartar el más antiguo si lleno) ───────────
   if(_corrCache.size>=_MAX_CACHE)_corrCache.delete(_corrCache.keys().next().value);
   _corrCache.set(ck,correcciones);
