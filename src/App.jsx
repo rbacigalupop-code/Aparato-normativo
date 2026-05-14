@@ -2812,8 +2812,31 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                   <td style={S.td}>
                     {sol ? (
                       <div>
-                        <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }}>{sol.cod}</span>
-                        <span style={{ fontSize:11, marginLeft:5, fontWeight:700 }}>{rfSol || '—'}</span>
+                        <div style={{ display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
+                          <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }} title="Código LOSCAT — térmico">{sol.cod}</span>
+                          <span style={{ fontSize:11, fontWeight:700 }}>{rfSol || '—'}</span>
+                        </div>
+                        {/* Homologación LOFC para fuego */}
+                        {(() => {
+                          try {
+                            const homol = homologarSolucion(sol, { rfRequerido: rfReq })
+                            if (homol?.fuego?.codigo_base) {
+                              const intrinseco = homol.fuego.intrinseco
+                              return (
+                                <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:3 }}>
+                                  <span style={{ fontSize:9, color:'#dc2626', fontWeight:700 }} title="Código LOFC — fuego">🔥</span>
+                                  <span style={{ fontSize:9, background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:3, padding:'1px 5px', color:'#991b1b', fontWeight:700, fontFamily:'monospace' }} title={homol.fuego.descripcion || ''}>
+                                    LOFC {homol.fuego.codigo_base}
+                                  </span>
+                                  {intrinseco && (
+                                    <span style={{ fontSize:8, color:'#166534', fontWeight:600 }}>✓int</span>
+                                  )}
+                                </div>
+                              )
+                            }
+                          } catch (e) { /* silent */ }
+                          return null
+                        })()}
                       </div>
                     ) : (
                       <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>
@@ -3014,14 +3037,32 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
               const rwSol = sol.ac_rw ?? null
               const cumple = !req || rwSol == null || rwSol >= req
               const sinRw = rwSol == null
+              // Homologación LOSCAA para acústica
+              let codigoLOSCAA = null
+              let loscaaIntrinseco = false
+              try {
+                const homol = homologarSolucion(sol, { rwRequerido: req })
+                if (homol?.acustico?.codigo_base) {
+                  codigoLOSCAA = homol.acustico.codigo_base
+                  loscaaIntrinseco = homol.acustico.intrinseco
+                }
+              } catch (e) { /* silent */ }
+
               return (
                 <div key={id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', marginBottom:5,
                   background: sinRw?'#fafafa':cumple?'#f0fdf4':'#fff5f5',
-                  border:`1px solid ${sinRw?'#e2e8f0':cumple?'#86efac':'#fca5a5'}`, borderRadius:6 }}>
-                  <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700, flexShrink:0 }}>
-                    {sol.cod}
-                  </span>
-                  <span style={{ flex:1, fontSize:11, color:'#374151' }}>
+                  border:`1px solid ${sinRw?'#e2e8f0':cumple?'#86efac':'#fca5a5'}`, borderRadius:6, flexWrap:'wrap' }}>
+                  <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
+                    <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }} title="Código LOSCAT — térmico">
+                      {sol.cod}
+                    </span>
+                    {codigoLOSCAA && (
+                      <span style={{ fontSize:9, background:'#f3e8ff', border:'1px solid #d8b4fe', borderRadius:3, padding:'1px 5px', color:'#7c3aed', fontWeight:700, fontFamily:'monospace', whiteSpace:'nowrap' }} title="Código LOSCAA — acústico">
+                        🔇 LOSCAA {codigoLOSCAA}{loscaaIntrinseco ? ' ✓' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ flex:1, fontSize:11, color:'#374151', minWidth:140 }}>
                     <b>{label}:</b> {sol.desc}
                   </span>
                   <span style={{ fontSize:11, fontWeight:700, color:'#374151', flexShrink:0 }}>
@@ -5131,6 +5172,45 @@ ${res.condInter
 </div>`
       }
 
+      // Calcular homologación de los 3 códigos normativos
+      let homologHtml = ''
+      if (sc) {
+        try {
+          const homol = homologarSolucion(sc, { rfRequerido: el.rfReq, rwRequerido: el.rwReq })
+          if (homol) {
+            const t = homol.termico, f = homol.fuego, a = homol.acustico
+            const intr = (v) => v?.intrinseco === true ? '<span style="background:#dcfce7;color:#166534;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">intrínseco</span>'
+                            : v?.intrinseco === false ? '<span style="background:#fef3c7;color:#92400e;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">requiere capas</span>'
+                            : ''
+            homologHtml = `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 12px;margin:6px 0">
+              <div style="font-size:11pt;font-weight:700;color:#0369a1;margin-bottom:6px">📋 Códigos normativos homologados</div>
+              <table style="width:100%;border-collapse:collapse;font-size:9pt">
+                <tr>
+                  <th style="background:#dbeafe;color:#1e40af;padding:4px 6px;text-align:left;width:33%">🌡️ Térmico (LOSCAT)</th>
+                  <th style="background:#fee2e2;color:#dc2626;padding:4px 6px;text-align:left;width:33%">🔥 Fuego (LOFC Ed.17)</th>
+                  <th style="background:#f3e8ff;color:#7c3aed;padding:4px 6px;text-align:left;width:34%">🔇 Acústico (LOSCAA 2024)</th>
+                </tr>
+                <tr style="vertical-align:top">
+                  <td style="padding:6px;border:1px solid #e2e8f0;font-family:monospace;font-size:9pt">
+                    <b>${t?.codigo_base || '—'}</b>
+                    ${t?.u != null ? `<br/><span style="font-family:sans-serif;color:#64748b">U = ${t.u} W/m²K</span>` : ''}
+                  </td>
+                  <td style="padding:6px;border:1px solid #e2e8f0;font-family:monospace;font-size:9pt">
+                    ${f?.codigo_base ? `<b>${f.codigo_base}</b>${intr(f) ? ' ' + intr(f) : ''}` : '<span style="color:#94a3b8">—</span>'}
+                    ${f?.rf ? `<br/><span style="font-family:sans-serif;color:#64748b">RF = ${f.rf}</span>` : ''}
+                  </td>
+                  <td style="padding:6px;border:1px solid #e2e8f0;font-family:monospace;font-size:9pt">
+                    ${a?.codigo_base ? `<b>${a.codigo_base}</b>${intr(a) ? ' ' + intr(a) : ''}` : '<span style="color:#94a3b8">—</span>'}
+                    ${a?.rw ? `<br/><span style="font-family:sans-serif;color:#64748b">${a.rw_tipo || 'Rw'} = ${a.rw} dB</span>` : ''}
+                  </td>
+                </tr>
+              </table>
+              ${homol.estructura_base?.material ? `<div style="font-size:8pt;color:#64748b;margin-top:6px;font-style:italic">Estructura base detectada: ${homol.estructura_base.material.replace(/_/g, ' ')}${homol.estructura_base.espesor_estructura_mm ? ' ' + homol.estructura_base.espesor_estructura_mm + 'mm' : ''}</div>` : ''}
+            </div>`
+          }
+        } catch (e) { /* silent: si falla la homologación, omitir el panel */ }
+      }
+
       return `
 <h3>${el.label}${sc ? ` — LOSCAT ${sc.cod}` : ''}</h3>
 ${sc ? `<div class="data-row">
@@ -5138,6 +5218,7 @@ ${sc ? `<div class="data-row">
   <div class="data-item"><label>Descripción</label><span>${sc.desc}</span></div>
   ${sc.obs ? `<div class="data-item" style="flex-basis:100%"><label>Observaciones técnicas</label><span style="font-weight:normal;font-size:10pt">${sc.obs}</span></div>` : ''}
 </div>` : ''}
+${homologHtml}
 ${memoriaDescriptiva}
 ${hayModifCapas ? `<div class="aviso" style="background:#fff7ed;border-color:#fed7aa;color:#92400e">⚙ Capas modificadas en Cálculo U respecto a la solución original LOSCAT ${sc?.cod}. El cálculo de U y la verificación higrotérmica reflejan la configuración modificada.</div>` : ''}
 
@@ -6398,7 +6479,7 @@ function AppInner() {
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
-          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·3codigos (feat)</div>
+          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·3codigos-full</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
