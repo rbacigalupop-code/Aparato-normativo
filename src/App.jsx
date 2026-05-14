@@ -4198,10 +4198,16 @@ ${cambios.length && solucion ? `
                           </ul>
                         )}
                       </div>
-                      <button onClick={()=>aplicarCorreccion(c)}
-                        style={{ background:c.color, color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap', flexShrink:0, alignSelf:'flex-start' }}>
-                        ▶ Aplicar y recalcular
-                      </button>
+                      {c.esManual ? (
+                        <span style={{ background:'#fef3c7', color:'#92400e', border:'1px solid #fde047', borderRadius:6, padding:'6px 14px', fontSize:11, fontWeight:700, whiteSpace:'nowrap', flexShrink:0, alignSelf:'flex-start' }}>
+                          ✋ Acción manual
+                        </span>
+                      ) : (
+                        <button onClick={()=>aplicarCorreccion(c)}
+                          style={{ background:c.color, color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap', flexShrink:0, alignSelf:'flex-start' }}>
+                          ▶ Aplicar y recalcular
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -6276,7 +6282,7 @@ function AppInner() {
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
-          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·7e5ac12+c7-reorder</div>
+          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·c8-fallback</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
