@@ -5044,8 +5044,23 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       const uCalcCorr = (uCalc != null && tbPct > 0) ? uCalc * (1 + tbPct/100) : uCalc
       const cumpleU = el.umax ? (uCalcCorr != null && uCalcCorr <= el.umax) : true
 
-      // Indicador de si hay diferencia con las capas originales del LOSCAT
-      const hayModifCapas = !!(capasModif?.length && capasOriginal?.length)
+      // Indicador de si hay diferencia REAL con las capas originales del LOSCAT
+      // (comparando contenido, no solo presencia). Esto evita mostrar el esquema
+      // comparativo cuando capasModif === capasOriginal (caso común al cargar
+      // una solución sin modificarla).
+      const capasIguales = (a, b) => {
+        if (!a || !b || a.length !== b.length) return false
+        for (let i = 0; i < a.length; i++) {
+          const ca = a[i], cb = b[i]
+          if (!!ca?.esCamara !== !!cb?.esCamara) return false
+          if ((ca?.mat || '') !== (cb?.mat || '')) return false
+          if (String(ca?.lam ?? '') !== String(cb?.lam ?? '')) return false
+          if (String(ca?.esp ?? '') !== String(cb?.esp ?? '')) return false
+          if (String(ca?.mu ?? '') !== String(cb?.mu ?? '')) return false
+        }
+        return true
+      }
+      const hayModifCapas = !!(capasModif?.length && capasOriginal?.length && !capasIguales(capasModif, capasOriginal))
 
       // Tabla de capas con R por capa
       let tablaCapa = ''
@@ -5327,7 +5342,8 @@ ${glaserHtml}`
     </tr>` : ''
 
     // ── Resumen ejecutivo ─────────────────────────────────────────────────────
-    const allOkLocal = checks.every(c => c.ok)
+    // (allOkLocal se calcula DESPUÉS de extender con condensación y VPCT
+    // para incluir esos chequeos en el estado global del proyecto)
 
     // Agregar condensación y VPCT al resumen
     const checksExtendido = [...checks]
@@ -5377,6 +5393,9 @@ ${glaserHtml}`
         norma: 'DS N°15 MINVU'
       })
     }
+
+    // allOkLocal = cumple TODOS los chequeos incluidos condensación + VPCT
+    const allOkLocal = checksExtendido.every(c => c.ok)
 
     const resumenRows = checksExtendido.map(c => {
       const categoria = c.label.startsWith('Muro') || c.label.startsWith('Techo') || c.label.startsWith('Piso') || c.label.startsWith('Puerta') ? 'Térmico' :
@@ -6479,7 +6498,7 @@ function AppInner() {
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
-          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·homolog-strict</div>
+          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·informe-fixes</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
