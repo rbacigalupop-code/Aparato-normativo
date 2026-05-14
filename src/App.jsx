@@ -18,6 +18,7 @@ import {
   VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
   calcU_SC, buildCapas, colSem, ist,
+  calcGlaser as calcGlaserCompleto, calcU_ISO6946 as calcU_ISO6946_completo,
   generarCorrecciones,
   STRUCT_MATS,
   getUIdx, MATS
@@ -36,8 +37,11 @@ const rfN = rfStringToNumber
 const getLetraOGUC = obtenerLetraOGUC
 const getRFDeLetra = obtenerRFdeLetra
 const getRFOGUC = obtenerRFOGUC
-const calcGlaser = calcularGlaser
-const calcU_ISO6946 = calcularU
+// IMPORTANTE: usar la implementación COMPLETA de data.js que retorna
+// {temps, U, Tdew, ifaces, Rtot, condInter, ...}. La de thermal.js (calcularGlaser)
+// es una versión simplificada sin U ni temps que ROMPE el render del calculador.
+const calcGlaser = calcGlaserCompleto
+const calcU_ISO6946 = calcU_ISO6946_completo
 
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
@@ -3092,14 +3096,26 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
 
   const temps  = res.temps
   const Tdew   = parseFloat(res.Tdew)
-  const tMin   = Math.min(...temps, Tdew) - 1
-  const tMax   = Math.max(...temps, Tdew) + 1
+  // Filtrar valores válidos para min/max (temps puede tener menos puntos que rsAcum)
+  const tempsValidos = temps.filter(t => typeof t === 'number' && !isNaN(t))
+  const tMin   = Math.min(...tempsValidos, Tdew) - 1
+  const tMax   = Math.max(...tempsValidos, Tdew) + 1
 
   function xPx(rel) { return PAD.l + rel * gW }
-  function yPx(t)   { return PAD.t + gH - ((t - tMin) / (tMax - tMin)) * gH }
+  function yPx(t)   {
+    if (typeof t !== 'number' || isNaN(t)) return PAD.t + gH  // posición segura
+    return PAD.t + gH - ((t - tMin) / (tMax - tMin)) * gH
+  }
 
-  // Línea de temperatura
-  const tempPts = rsAcum.map((r, i) => `${xPx(r)},${yPx(temps[i])}`).join(' ')
+  // Línea de temperatura — solo puntos con temp definida
+  const tempPts = rsAcum
+    .map((r, i) => {
+      const t = temps[i]
+      if (typeof t !== 'number' || isNaN(t)) return null
+      return `${xPx(r)},${yPx(t)}`
+    })
+    .filter(Boolean)
+    .join(' ')
   // Línea de punto de rocío (horizontal)
   const yTd = yPx(Tdew)
 
@@ -3146,12 +3162,14 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
       {/* Línea de temperatura — azul */}
       <polyline points={tempPts} fill="none" stroke="#1e40af" strokeWidth={2} strokeLinejoin="round" />
 
-      {/* Puntos de interfaz */}
+      {/* Puntos de interfaz — solo donde temps[i] esté definido */}
       {rsAcum.map((r, i) => {
-        const iface = res.ifaces[i - 1]
+        const t = temps[i]
+        if (typeof t !== 'number' || isNaN(t)) return null
+        const iface = res.ifaces?.[i - 1]
         const riesgo = iface?.riesgo
         return (
-          <circle key={i} cx={xPx(r)} cy={yPx(temps[i])}
+          <circle key={i} cx={xPx(r)} cy={yPx(t)}
             r={i === 0 || i === rsAcum.length - 1 ? 3 : 4}
             fill={riesgo ? '#dc2626' : '#1e40af'}
             stroke="#fff" strokeWidth={1.5}
@@ -3244,12 +3262,17 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       setRes(r)
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
-        const nec = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+        // Trigger en 3 casos: condensación, no cumple U, o cerca del límite
+        const u_actual = parseFloat(r?.U)
+        const necesitaU = umax && u_actual > umax
+        const optimizar = umax && u_actual > umax * 0.85
+        const nec = r?.condInter || necesitaU || optimizar
         if (nec) {
           setCalcuando(true)
+          const targetParaSugerir = (optimizar && !necesitaU && !r?.condInter) ? umax * 0.90 : umax
           ;(async () => {
             try {
-              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, umax)
+              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, targetParaSugerir)
               // Solo aplicar si esta sigue siendo la operación activa
               if (myToken !== opToken.current) return
               setCorrec(cr)
@@ -3325,13 +3348,25 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       if (onCalcUChange) { skipInitEffect.current = true; onCalcUChange(elemKey, { capas: cs, res: r }) }
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
-        const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+        // Trigger corrections en 3 casos:
+        // 1. Condensación intersticial detectada (siempre, debe corregirse)
+        // 2. U excede el máximo (no cumple, debe corregirse)
+        // 3. U está cerca del límite (>=85% del max) — sugerencias de optimización
+        const u_actual = parseFloat(r?.U)
+        const necesitaU    = umax && u_actual > umax              // no cumple
+        const optimizar    = umax && u_actual > umax * 0.85       // cerca del límite
+        const necesita     = r?.condInter || necesitaU || optimizar
         if (necesita) {
           setCalcuando(true)
           try {
             // 🔥 Esperamos al motor asíncrono. El spinner se ve porque
             // generarCorrecciones cede el hilo con setTimeout(0).
-            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, umax)
+            // Para mostrar opciones de optimización aunque ya cumpla, le pasamos
+            // un umaxTarget más estricto (90% del oficial) si estamos en modo optimizar.
+            const targetParaSugerir = (optimizar && !necesitaU && !r?.condInter)
+              ? umax * 0.90    // sugiere mejoras para llegar al 90% del límite
+              : umax
+            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir)
             // Descartar resultado si otra operación más reciente está en curso
             if (myToken !== opToken.current) return
             setCorrec(nuevasCorrec)
