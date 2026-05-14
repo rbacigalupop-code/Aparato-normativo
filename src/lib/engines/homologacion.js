@@ -158,6 +158,36 @@ export function identificarEstructuraBase(loscat) {
     }
   }
 
+  // ── Tabique ligero genérico (yeso + lana, sin estructura macizada) ────────
+  // Para tabiques tipo drywall sin marco estructural explícito en la descripción
+  if (loscat?.elem === 'tabique' && /yeso|gyplac|volcanita|drywall/i.test(texto)) {
+    if (/lana/i.test(texto)) {
+      return {
+        material: 'tabique_drywall',
+        subtipo: 'yeso_lana',
+        sistemas: loscat.sistemas || [],
+        confianza: 0.7,
+      }
+    }
+    // Tabique de yeso sin lana (más raro)
+    return {
+      material: 'tabique_drywall',
+      subtipo: 'yeso',
+      sistemas: loscat.sistemas || [],
+      confianza: 0.6,
+    }
+  }
+
+  // ── Panel sandwich genérico (zinc/acero + aislante + zinc/acero) ──────────
+  if (/panel\s+sandwich|sandwich.*?(?:zinc|acero|aluminio)/i.test(texto)) {
+    return {
+      material: 'panel_sandwich',
+      subtipo: 'metalico',
+      sistemas: loscat.sistemas || [],
+      confianza: 0.7,
+    }
+  }
+
   return {
     material: null,
     subtipo: 'desconocido',
@@ -273,13 +303,43 @@ function homologarMacizo(estructura, reqRfMin) {
   return null
 }
 
+// ─── Tabla de compatibilidad elemento LOSCAT ↔ LOFC ──────────────────────────
+// LOSCAT.elem    →  LOFC.tipo_elemento permitidos
+const ELEM_COMPATIBILIDAD_LOFC = {
+  'muro':      ['muro_macizo', 'muro_albanileria', 'panel', 'tabique', 'tabique_o_panel', 'bloque'],
+  'tabique':   ['tabique', 'panel', 'tabique_o_panel'],
+  'techumbre': ['muro_macizo', 'panel', 'tabique_o_panel', 'panel_madera_macizo', 'bloque'],  // techos de mismo material
+  'piso':      ['muro_macizo', 'panel_madera_macizo', 'bloque'],                              // pisos como losas/paneles
+  'puerta':    ['puerta'],
+  'ventana':   [],  // no aplica
+}
+
+// ─── Tabla de compatibilidad elemento LOSCAT ↔ LOSCAA ────────────────────────
+const ELEM_COMPATIBILIDAD_LOSCAA = {
+  'muro':      ['muro'],           // muros divisorios, exteriores, interiores
+  'tabique':   ['muro'],           // tabiques también en LOSCAA muros (D.M.x)
+  'techumbre': ['techumbre'],      // techumbres específicas (E.T.x)
+  'piso':      ['entrepiso'],      // pisos en entrepisos (D.EP.x)
+  'puerta':    ['puerta'],
+  'ventana':   ['ventana'],
+}
+
 // ─── Score de coincidencia para items LOFC ───────────────────────────────────
 // Devuelve 0-100 según qué tan bien matchea un item LOFC con una estructura.
 // IMPORTANTE: requiere coincidencia de material primario + al menos un
 // material secundario (revestimiento o aislante) para puntaje significativo.
 // Penaliza items con RF muy superior al declarado por el LOSCAT (over-spec).
-function scoreLOFC(item, estructura, loscat) {
+// Si elemSource está definido, FILTRA por compatibilidad de tipo de elemento.
+function scoreLOFC(item, estructura, loscat, elemSource) {
   if (!item || !estructura?.material) return 0
+
+  // ── Filtro estricto por tipo de elemento (no asociar entrepiso a muro, etc.) ──
+  if (elemSource) {
+    const tiposPermitidos = ELEM_COMPATIBILIDAD_LOFC[elemSource]
+    if (tiposPermitidos && tiposPermitidos.length === 0) return 0  // no aplica
+    if (tiposPermitidos && !tiposPermitidos.includes(item.tipo_elemento)) return 0
+  }
+
   let score = 0
 
   const matTags = item.materiales || []
@@ -313,6 +373,15 @@ function scoreLOFC(item, estructura, loscat) {
   } else if (estructura.material === 'bloque') {
     primaryMatch = matTags.includes('bloque') || matTags.includes('ladrillo')
     if (primaryMatch) score += 40
+  } else if (estructura.material === 'tabique_drywall') {
+    // Tabique ligero: yeso, puede tener perfilería de acero o madera
+    primaryMatch = matTags.includes('yeso_carton')
+    if (primaryMatch) score += 50
+    if (matTags.includes('lana_mineral')) score += 10
+  } else if (estructura.material === 'panel_sandwich') {
+    // Panel sandwich: acero + aislante (lana, EPS, PU, etc)
+    primaryMatch = matTags.includes('acero') && (matTags.includes('lana_mineral') || matTags.includes('eps') || matTags.includes('pu'))
+    if (primaryMatch) score += 55
   }
 
   if (!primaryMatch) return 0  // No tiene sentido el match
@@ -354,19 +423,24 @@ function scoreLOFC(item, estructura, loscat) {
 // ─── Homologación LOFC (Fuego) ────────────────────────────────────────────────
 // Estrategia: priorizar score de match (constructivo similar) y luego RF.
 // El "más restrictiva" se aplica cuando hay empate de score: elegir el de mayor RF.
+// FILTRA estrictamente por tipo de elemento (no asociar entrepiso a muro, etc.).
 export function homologarLOFC(loscat, reqRF) {
   const reqRfMin = rfToMinutos(reqRF)
   const estructura = identificarEstructuraBase(loscat)
   if (!estructura) return null
 
-  // 1. Intentar primero con tabla macizos (más confiable)
-  const macizo = homologarMacizo(estructura, reqRfMin)
-  if (macizo) return macizo
+  const elemSource = loscat?.elem || null
 
-  // 2. Buscar en items LOFC individuales por score
+  // 1. Intentar primero con tabla macizos (más confiable) — solo para muros/techos/pisos macizos
+  if (elemSource === 'muro' || elemSource === 'techumbre' || elemSource === 'piso' || !elemSource) {
+    const macizo = homologarMacizo(estructura, reqRfMin)
+    if (macizo) return macizo
+  }
+
+  // 2. Buscar en items LOFC individuales por score (con filtro de elemento)
   const candidatos = Object.values(LOFC)
     .filter(item => item.rf_minutos >= reqRfMin)
-    .map(item => ({ item, score: scoreLOFC(item, estructura, loscat) }))
+    .map(item => ({ item, score: scoreLOFC(item, estructura, loscat, elemSource) }))
     .filter(c => c.score >= 60)  // umbral más alto = match más confiable
     .sort((a, b) => {
       // Priorizar score (similitud constructiva)
@@ -392,18 +466,37 @@ export function homologarLOFC(loscat, reqRF) {
 }
 
 // ─── Score de coincidencia para LOSCAA ───────────────────────────────────────
-function scoreLOSCAA(item, estructura, loscat) {
+// FILTRA estrictamente por tipo de elemento — no asociar entrepiso a muro, etc.
+function scoreLOSCAA(item, estructura, loscat, elemSource) {
   if (!item) return 0
+
+  // ── Filtro estricto por tipo de elemento ──────────────────────────────────
+  if (elemSource) {
+    const elementosPermitidos = ELEM_COMPATIBILIDAD_LOSCAA[elemSource]
+    if (elementosPermitidos && elementosPermitidos.length === 0) return 0
+    if (elementosPermitidos && !elementosPermitidos.includes(item.elemento)) return 0
+  }
+
   let score = 0
+  let materialMatch = false
 
   const itemMat = item.material || ''
   const estMat = estructura?.material || ''
 
-  // Material primario coincide
-  if (estMat === 'hormigon_armado' && itemMat === 'hormigon_armado') score += 50
-  if (estMat === 'ladrillo' && itemMat === 'ladrillo') score += 50
-  if (estMat === 'madera' && itemMat === 'madera') score += 50
-  if (estMat === 'acero' && itemMat === 'acero') score += 50
+  // Material primario coincide (REQUERIDO — si no, score = 0)
+  if (estMat === 'hormigon_armado' && itemMat === 'hormigon_armado') { score += 50; materialMatch = true }
+  if (estMat === 'ladrillo' && itemMat === 'ladrillo') { score += 50; materialMatch = true }
+  if (estMat === 'madera' && itemMat === 'madera') { score += 50; materialMatch = true }
+  if (estMat === 'acero' && itemMat === 'acero') { score += 50; materialMatch = true }
+  if (estMat === 'panel_sandwich' && itemMat === 'acero') { score += 45; materialMatch = true }
+  // Tabique drywall: matchear con tabiques LOSCAA en muros (acero o madera)
+  if (estMat === 'tabique_drywall' && (itemMat === 'acero' || itemMat === 'madera')) { score += 40; materialMatch = true }
+  // CLT y SIP: matchear como madera
+  if ((estMat === 'clt' || estMat === 'sip') && itemMat === 'madera') { score += 40; materialMatch = true }
+  // Bloque hormigón: matchear como hormigon
+  if (estMat === 'bloque' && itemMat === 'hormigon_armado') { score += 30; materialMatch = true }
+
+  if (!materialMatch) return 0  // Sin match de material, no es homologable
 
   // Bonus si LOSCAT también tiene Rw declarado y es similar
   const rwLOSCAT = parseFloat(loscat?.ac_rw || 0)
@@ -421,26 +514,36 @@ function scoreLOSCAA(item, estructura, loscat) {
 }
 
 // ─── Homologación LOSCAA (Acústica) ──────────────────────────────────────────
+// FILTRA por tipo de elemento del LOSCAT (muro→muro, techumbre→techumbre, etc.)
+// Y por material — si no hay match de material, no devuelve nada.
 export function homologarLOSCAA(loscat, reqRw) {
   const estructura = identificarEstructuraBase(loscat)
   if (!estructura) return null
 
   const reqRwNum = parseFloat(reqRw) || 0
+  const elemSource = loscat?.elem || null
 
-  // Buscar en LOSCAA por score y Rw cumplimiento
+  // Buscar en LOSCAA por score (filtrando por elemento + material)
+  // No filtramos por Rw aquí — el score se encarga, y queremos mostrar match
+  // de material aunque no cumpla Rw exacto.
   const candidatos = Object.values(LOSCAA)
-    .filter(item => item.rw && item.rw >= reqRwNum)
-    .map(item => ({ item, score: scoreLOSCAA(item, estructura, loscat) }))
-    .filter(c => c.score > 30)
+    .filter(item => item.rw)  // solo items con Rw definido
+    .map(item => ({ item, score: scoreLOSCAA(item, estructura, loscat, elemSource) }))
+    .filter(c => c.score >= 40)  // requiere match de material (material da min 30 score)
     .sort((a, b) => {
-      // Más restrictivo primero (mayor Rw)
-      if (b.item.rw !== a.item.rw) return b.item.rw - a.item.rw
-      return b.score - a.score
+      // Priorizar score (similitud constructiva con material match)
+      if (b.score !== a.score) return b.score - a.score
+      // Empate: mayor Rw (más restrictivo)
+      return b.item.rw - a.item.rw
     })
 
   if (candidatos.length === 0) return null
 
   const mejor = candidatos[0]
+  // intrinseco: el LOSCAT cumple el req sin necesidad de capas extras
+  const intrinseco = reqRwNum > 0
+    ? (parseFloat(loscat?.ac_rw || 0)) >= reqRwNum
+    : true
   return {
     codigo: `LOSCAA ${mejor.item.codigo}`,
     codigo_base: mejor.item.codigo,
@@ -448,7 +551,7 @@ export function homologarLOSCAA(loscat, reqRw) {
     rw_tipo: mejor.item.rw_tipo || 'Rw',
     masa_kg_m2: mejor.item.masa_kg_m2,
     descripcion: mejor.item.descripcion,
-    intrinseco: (parseFloat(loscat?.ac_rw || 0)) >= reqRwNum,
+    intrinseco,
     capas_extras: [],
     fuente: `LOSCAA 2024 ED13 (${mejor.item.categoria || 'unidad'})`,
     score: mejor.score,
