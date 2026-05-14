@@ -5346,10 +5346,14 @@ ${glaserHtml}`
     // para incluir esos chequeos en el estado global del proyecto)
 
     // Agregar condensación y VPCT al resumen
+    // IMPORTANTE: Sobreescribir U declarado del LOSCAT con U REAL calculado
+    // a partir de las capas. Esto evita falsos CUMPLE cuando el LOSCAT declara
+    // un U que no coincide con el cálculo correcto (p.ej. piso ventilado con
+    // RSi/RSe distintos al muro original que se aplicó).
     const checksExtendido = [...checks]
 
-    // Condensación intersticial por elemento
-    const condRows = []
+    // Mapa label → recálculo desde capas
+    const _uRecalc = {}
     ELEMS_DEF.forEach(el => {
       if (el.key === 'tabique') return
       const calcUData = getCalcUData(el.key)
@@ -5364,6 +5368,25 @@ ${glaserHtml}`
       if (!cv.length) return
       const res = resModif || calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo)
       if (!res) return
+      const uReal = parseFloat(res.U)
+      _uRecalc[el.label] = { uReal, res, capas }
+
+      // ── Override en checksExtendido para que el resumen use el U REAL ─────
+      const labelMap = { muro: 'Muro U', techo: 'Techo U', piso: 'Piso U' }
+      const targetLabel = labelMap[el.key]
+      if (targetLabel) {
+        const idx = checksExtendido.findIndex(c => c.label === targetLabel)
+        if (idx >= 0) {
+          const umaxEl = el.umax
+          checksExtendido[idx] = {
+            ...checksExtendido[idx],
+            val: uReal.toFixed(4),
+            ok: !umaxEl || uReal <= umaxEl,
+          }
+        }
+      }
+
+      // ── Condensación intersticial ────────────────────────────────────────
       const estado = res.condInter ? 'RIESGO' : 'OK'
       checksExtendido.push({
         label: `Cond. intersticial — ${el.label}`,
@@ -6498,7 +6521,7 @@ function AppInner() {
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
-          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·informe-fixes</div>
+          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·u-real-resumen</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
