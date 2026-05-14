@@ -5011,12 +5011,21 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       .catch(() => '')
 
     // Helper: busca calcUData para un elemento en claves simples Y compuestas.
-    // Si hay varios sistemas usa el de peor U (más conservador para el informe).
+    // PRIORIDAD:
+    // 1. Entry cuyo solucion.cod coincide con la solución actualmente aplicada
+    //    en termica[elemKey] — evita usar capas STALE de soluciones antiguas.
+    // 2. Si no hay match, el de peor U (más conservador).
     function getCalcUData(elemKey) {
       const entries = Object.entries(calcUInit || {})
         .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v)
       if (!entries.length) return null
-      // Ordenar por U descendente → tomar el peor caso
+      // Buscar match con la solución ACTUAL aplicada
+      const solActual = termica?.[elemKey]?.solucion?.cod
+      if (solActual) {
+        const matching = entries.find(([, v]) => v?.solucion?.cod === solActual)
+        if (matching) return matching[1]
+      }
+      // Fallback: ordenar por U descendente → tomar el peor caso
       entries.sort((a, b) => parseFloat(b[1]?.res?.U || 0) - parseFloat(a[1]?.res?.U || 0))
       return entries[0][1]
     }
@@ -6521,7 +6530,7 @@ function AppInner() {
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
-          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·u-real-resumen</div>
+          <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·calcudata-sync</div>
         </div>
         {proy.zona && (
           <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
