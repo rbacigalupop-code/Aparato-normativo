@@ -133,50 +133,33 @@ export async function eliminarProyectoDB(token, id) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Signup: Crear nueva cuenta
+// NOTA: La creación de organización + perfil se hace automáticamente por el
+// trigger SQL handle_new_user (sql/008_fix_signup_trigger.sql). El cliente NO
+// hace INSERTs directos porque al momento de signUp() aún no tiene sesión
+// autenticada y RLS rechaza los inserts con 401 Unauthorized.
 export async function signUp(email, password, nombreCompleto) {
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        nombre_completo: nombreCompleto,
+        name: nombreCompleto,
+      },
+    },
   })
 
   if (authError || !authData.user) {
     return { ok: false, error: authError?.message || 'Error en signup' }
   }
 
-  const userId = authData.user.id
-
-  // Crear organización personal
-  const { data: orgData, error: orgError } = await supabase
-    .from('organizaciones')
-    .insert([{
-      nombre: `${nombreCompleto} - Workspace`,
-      propietario_id: userId,
-      plan: 'free',
-      activa: true,
-    }])
-    .select()
-    .single()
-
-  if (orgError) {
-    return { ok: false, error: 'Error al crear workspace' }
+  // El trigger crea org + perfil automáticamente con SECURITY DEFINER.
+  // Si el usuario necesita confirmar email, authData.session será null.
+  return {
+    ok: true,
+    user: authData.user,
+    needsConfirmation: !authData.session,
   }
-
-  // Crear perfil usuario
-  const { error: perfilError } = await supabase
-    .from('perfiles_usuario')
-    .insert([{
-      user_id: userId,
-      organizacion_id: orgData.id,
-      nombre_completo: nombreCompleto,
-      rol: 'admin',
-      activo: true,
-    }])
-
-  if (perfilError) {
-    return { ok: false, error: 'Error al crear perfil' }
-  }
-
-  return { ok: true, user: authData.user, orgId: orgData.id }
 }
 
 // Login: Acceder con email/password
