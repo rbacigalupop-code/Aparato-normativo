@@ -5526,7 +5526,7 @@ ${glaserHtml}`
         </tr>`
       }).join('')
       vpctHtml = `
-<h2>Módulo 5 — Ventanas y Vanos (VPCT, DS N°15 MINVU)</h2>
+<h2 id="modulo-5">Módulo 5 — Ventanas y Vanos (VPCT, DS N°15 MINVU)</h2>
 <h3>Detalle por fachada</h3>
 <table>
   <tr><th>Fachada</th><th>Orientación</th><th>Área total</th><th>Área vanos</th><th>% vano</th><th>Uw ventana</th><th>VPCT máx</th><th>Estado</th></tr>
@@ -5540,7 +5540,7 @@ ${glaserHtml}`
 <div style="font-size:8.5pt;color:#64748b;margin-top:4px">VPCT = Porcentaje de Vano / Área de Fachada · DS N°15 MINVU Tabla 3 · Zona ${proy.zona} · Nivel VPCT según Uw: Nivel 1 (≤2.0 W/m²K) · Nivel 2 (≤3.5 W/m²K) · Nivel 3 ({'>'}3.5 W/m²K)</div>`
     } else if (vpctZona) {
       vpctHtml = `
-<h2>Módulo 5 — Vanos y Ventilación (VPCT, DS N°15)</h2>
+<h2 id="modulo-5b">Módulo 5 — Vanos y Ventilación (VPCT, DS N°15)</h2>
 <div class="aviso">Sin fachadas ingresadas en la pestaña Ventana. Los límites VPCT para Zona ${proy.zona} son:</div>
 <table>
   <tr><th>Orientación</th><th>Nivel 1 (Uw≤2.0)</th><th>Nivel 2 (Uw≤3.5)</th><th>Nivel 3 (Uw>3.5)</th></tr>
@@ -5554,7 +5554,7 @@ ${glaserHtml}`
     const TAB_NAMES_RPT = { diagnostico:'Diagnóstico', soluciones:'Soluciones', termica:'Térmica', fuego:'Fuego', acustica:'Acústica', calcU:'Cálculo U', ventana:'Ventana', resultados:'Resultados' }
     const notasEntries = Object.entries(notas || {}).filter(([, v]) => v?.trim())
     const notasHtml = notasEntries.length > 0 ? `
-<h2>Módulo 6 — Notas y observaciones del proyectista</h2>
+<h2 id="modulo-6">Módulo 6 — Notas y observaciones del proyectista</h2>
 ${notasEntries.map(([k, v]) => `
 <div style="margin-bottom:12px">
   <div style="font-weight:700;color:#1e40af;font-size:10pt;margin-bottom:4px;border-left:3px solid #93c5fd;padding-left:8px">${TAB_NAMES_RPT[k] || k}</div>
@@ -5599,6 +5599,18 @@ ${notasEntries.map(([k, v]) => `
   .estado-cond .sello { background: #d97706; color: #fff }
   .estado-no  { background: #fef2f2; border-color: #dc2626; color: #991b1b }
   .estado-no  .sello { background: #dc2626; color: #fff }
+  /* ── TOC clickeable ───────────────────────────────────────────────────── */
+  .toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 24px; margin: 20px 0 28px; page-break-inside: avoid }
+  .toc-title { font-size: 12pt; font-weight: 700; color: #1e40af; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #dbeafe; display: flex; align-items: center; gap: 8px }
+  .toc-list { list-style: none; padding: 0; margin: 0; counter-reset: toc-counter }
+  .toc-list li { counter-increment: toc-counter; margin: 4px 0; display: flex; align-items: baseline; gap: 8px; font-size: 10pt }
+  .toc-list li a { color: #1e40af; text-decoration: none; font-weight: 500 }
+  .toc-list li a:hover { text-decoration: underline; color: #0c4a6e }
+  .toc-list li::before { content: counter(toc-counter, decimal-leading-zero); font-family: monospace; color: #94a3b8; font-size: 9pt; font-weight: 700; min-width: 24px }
+  .toc-list .toc-dots { flex: 1; border-bottom: 1px dotted #cbd5e1; transform: translateY(-3px) }
+  .toc-list .toc-page { font-family: monospace; font-size: 9pt; color: #64748b }
+  /* ── Running header (logo en cada página impresa) ─────────────────────── */
+  .running-header { display: none }
   hr.sep { margin: 24px 0; border: none; border-top: 1px dashed #cbd5e1 }
   .nota { font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 10px; text-align: center; line-height: 1.6 }
   .mem-desc { background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0369a1; border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 9.5pt; line-height: 1.7 }
@@ -5611,14 +5623,50 @@ ${notasEntries.map(([k, v]) => `
   .firma-box { border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 16px 20px; margin: 10px 0; page-break-inside: avoid }
   .firma-linea { border-bottom: 1px solid #94a3b8; height: 52px; margin: 8px 0 2px }
   @media print {
-    body { margin: 10px; padding: 0 12px }
+    @page { margin: 18mm 12mm 14mm 12mm }
+    body { margin: 0; padding: 0 12px }
     h2 { page-break-before: always }
     h2:first-of-type { page-break-before: avoid }
     .fig svg { max-width: 100% }
+    /* Running header con logo en cada página */
+    .running-header {
+      display: flex !important;
+      position: fixed;
+      top: -16mm;
+      left: 0;
+      right: 0;
+      height: 12mm;
+      padding: 2mm 8mm;
+      background: linear-gradient(135deg, #1e40af 0%, #0369a1 100%);
+      color: #fff;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 8.5pt;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .running-header .rh-left { display: flex; align-items: center; gap: 8px; min-width: 0 }
+    .running-header .rh-left img { height: 8mm; width: auto; border-radius: 2px }
+    .running-header .rh-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90mm }
+    .running-header .rh-right { font-size: 7.5pt; opacity: 0.9; text-align: right; white-space: nowrap }
+    /* La portada NO necesita el running header (tiene su propio banner) */
+    .cover-page { page-break-after: always }
   }
 </style>
 </head>
 <body>
+
+<!-- ══ RUNNING HEADER (visible solo al imprimir, en cada página) ══════════ -->
+<div class="running-header">
+  <div class="rh-left">
+    ${logoDataUrl ? `<img src="${logoDataUrl}" alt="NormaCheck"/>` : ''}
+    <div class="rh-title">${proy.nombre || 'Memoria de Cálculo DOM'}</div>
+  </div>
+  <div class="rh-right">
+    NormaCheck · ${fechaHoy}
+  </div>
+</div>
 
 <!-- ══ PORTADA NORMACHECK ══════════════════════════════════════════════════ -->
 <div style="background:linear-gradient(135deg,#1e40af,#0369a1);color:#fff;padding:24px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:20px">
@@ -5680,7 +5728,23 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
   </div>` : ''}
 </div>` : ''}
 
-<h2>Resumen ejecutivo — Estado de cumplimiento</h2>
+<!-- ══ ÍNDICE / TABLA DE CONTENIDOS ══════════════════════════════════════ -->
+<div class="toc">
+  <div class="toc-title">📑 Índice de contenidos</div>
+  <ol class="toc-list">
+    <li><a href="#resumen">Resumen ejecutivo — Estado de cumplimiento</a><span class="toc-dots"></span><span class="toc-page">Módulo de síntesis</span></li>
+    <li><a href="#modulo-1">Módulo 1 — Diagnóstico del proyecto</a><span class="toc-dots"></span><span class="toc-page">Datos generales</span></li>
+    ${mods.termica  ? `<li><a href="#modulo-2">Módulo 2 — Verificación Térmica</a><span class="toc-dots"></span><span class="toc-page">DS N°15 / NCh853</span></li>` : ''}
+    ${mods.sistemas ? `<li><a href="#modulo-2b">Módulo 2b — Sistemas constructivos</a><span class="toc-dots"></span><span class="toc-page">LOSCAT Ed.13</span></li>` : ''}
+    ${mods.fuego    ? `<li><a href="#modulo-3">Módulo 3 — Resistencia al Fuego</a><span class="toc-dots"></span><span class="toc-page">OGUC · LOFC Ed.17</span></li>` : ''}
+    ${mods.acustica ? `<li><a href="#modulo-4">Módulo 4 — Aislamiento Acústico</a><span class="toc-dots"></span><span class="toc-page">OGUC · NCh352</span></li>` : ''}
+    ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
+    ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
+    <li><a href="#modulo-7">Módulo 7 — Responsabilidad profesional y firma</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 1.2.2</span></li>
+  </ol>
+</div>
+
+<h2 id="resumen">Resumen ejecutivo — Estado de cumplimiento</h2>
 <div style="font-size:8.5pt;color:#64748b;margin-bottom:8px">
   Consolidación automática de todas las verificaciones normativas realizadas. Los elementos sin datos ingresados se muestran como "Sin datos" y no afectan el estado general.
 </div>
@@ -5691,7 +5755,7 @@ ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados
   ${resumenRows}
 </table>`}
 
-<h2>Módulo 1 — Diagnóstico del proyecto</h2>
+<h2 id="modulo-1">Módulo 1 — Diagnóstico del proyecto</h2>
 <table>
   <tr><th>Ítem</th><th>Valor</th><th>Fuente / Norma</th></tr>
   <tr><td>Nombre del proyecto</td><td><b>${proy.nombre || '—'}</b></td><td>Expediente DOM</td></tr>
@@ -5715,7 +5779,7 @@ ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados
   ${proy.estructura && OBS_EST[proy.estructura] ? `<tr><td>RF intrínseca estimada</td><td colspan="2" style="font-size:9pt">${OBS_EST[proy.estructura]}</td></tr>` : ''}
 </table>
 
-${mods.termica ? `<h2>Módulo 2 — Verificación Térmica (DS N°15 MINVU / NCh853:2021 / ISO 6946)</h2>
+${mods.termica ? `<h2 id="modulo-2">Módulo 2 — Verificación Térmica (DS N°15 MINVU / NCh853:2021 / ISO 6946)</h2>
 <div class="traz-box">
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
@@ -5742,7 +5806,7 @@ ${mods.sistemas ? (() => {
   const zonaD = ZONAS[proy.zona] || {}
   const umaxMap = { muro: zonaD.muro, techo: zonaD.techo, piso: zonaD.piso, tabique: null }
   return `
-<h2>Módulo 2b — Soluciones constructivas por sistema estructural</h2>
+<h2 id="modulo-2b">Módulo 2b — Soluciones constructivas por sistema estructural</h2>
 <p style="font-size:9.5pt;color:#64748b;margin-bottom:10px">
   El proyecto define <b>${proy.estructuras.length} sistemas estructurales</b> con soluciones asignadas individualmente.
   La siguiente tabla resume las propiedades térmicas y de resistencia al fuego por sistema y elemento constructivo.
@@ -5783,7 +5847,7 @@ ${mods.sistemas ? (() => {
 </table>`
 })() : ''}
 
-${mods.fuego ? `<h2>Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
+${mods.fuego ? `<h2 id="modulo-3">Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
 <div class="traz-box">
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
@@ -5836,7 +5900,7 @@ ${(['Estructura de acero','Metalframe (acero liviano)'].some(t => proy.estructur
   ⚠ Espesores orientativos LOFC Ed.17 Annex B para Hp/A ≤ 200 m⁻¹. Verificar con el calculador de acero en la aplicación (factor Hp/A específico del perfil). Los valores definitivos requieren ficha técnica del fabricante, DOP y ETA vigente. RF debe respaldarse con ensayo NCh850 o clasificación equivalente.
 </div>` : ''}` : ''}
 
-${mods.acustica ? `<h2>Módulo 4 — Aislamiento Acústico (OGUC Art. 4.1.6 / NCh352:2013)</h2>
+${mods.acustica ? `<h2 id="modulo-4">Módulo 4 — Aislamiento Acústico (OGUC Art. 4.1.6 / NCh352:2013)</h2>
 <div class="traz-box">
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
@@ -5857,40 +5921,87 @@ ${mods.ventanas ? vpctHtml : ''}
 ${mods.notas ? notasHtml : ''}
 
 <!-- ══ MÓDULO 7 — RESPONSABILIDAD PROFESIONAL ══════════════════════════════ -->
-<h2>Módulo 7 — Responsabilidad Profesional</h2>
-<div style="font-size:9pt;color:#64748b;margin-bottom:10px">
-  Según OGUC Art. 1.2.2, el profesional competente es responsable de la revisión técnica, firma y presentación del expediente al DOM.
-  Esta memoria de cálculo es un documento de apoyo técnico que debe ser revisado, firmado y timbrado por el profesional responsable antes de su presentación oficial.
+<h2 id="modulo-7" style="page-break-before:always">Módulo 7 — Responsabilidad Profesional y Firma</h2>
+<div style="font-size:9pt;color:#64748b;margin-bottom:14px;line-height:1.6">
+  De conformidad con el <b>Art. 1.2.2 de la OGUC</b>, el profesional competente es responsable de la revisión técnica, firma y presentación del expediente ante la Dirección de Obras Municipales (DOM).
+  Esta memoria de cálculo es un documento de apoyo técnico que debe ser <b>revisado, firmado y timbrado</b> por el profesional responsable antes de su presentación oficial.
 </div>
+
+<!-- Mini-card de cumplimiento + ID documento -->
+<div style="display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+  <div style="flex:1;min-width:240px;background:${allOkLocal ? '#f0fdf4' : '#fef2f2'};border:2px solid ${allOkLocal ? '#86efac' : '#fca5a5'};border-radius:8px;padding:14px 16px">
+    <div style="font-size:8.5pt;color:${allOkLocal ? '#16a34a' : '#dc2626'};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Estado consolidado de cumplimiento</div>
+    <div style="font-size:14pt;font-weight:800;color:${allOkLocal ? '#15803d' : '#991b1b'};margin-bottom:4px">
+      ${allOkLocal ? '✓ CUMPLE NORMATIVA' : '✗ CON OBSERVACIONES'}
+    </div>
+    <div style="font-size:9pt;color:#475569;line-height:1.5">
+      ${checksExtendido.length} parámetros verificados · ${checksExtendido.filter(c => c.ok).length} conformes · ${checksExtendido.filter(c => !c.ok).length} no conformes
+    </div>
+  </div>
+  <div style="flex:1;min-width:240px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:14px 16px">
+    <div style="font-size:8.5pt;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Identificación del documento</div>
+    <div style="font-family:monospace;font-size:11pt;font-weight:700;color:#1e293b;letter-spacing:1px;margin-bottom:4px">
+      ${(() => {
+        // ID determinista basado en proyecto + fecha (no criptográfico, solo trazabilidad)
+        const seed = (proy.nombre || 'proy') + (proy.arq || proy.profesional || '') + fechaHoy
+        let h = 0; for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h + seed.charCodeAt(i)) | 0 }
+        const id = Math.abs(h).toString(16).toUpperCase().padStart(8, '0').slice(0, 8)
+        const ts = new Date().toISOString().slice(0,16).replace(/[-T:]/g,'').slice(2)
+        return `NC-${id}-${ts}`
+      })()}
+    </div>
+    <div style="font-size:8.5pt;color:#64748b;line-height:1.5">
+      Generado por NormaCheck · ${new Date().toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' })}
+    </div>
+  </div>
+</div>
+
 <div class="firma-box">
   <table style="width:100%;font-size:10pt">
     <tr>
-      <td style="width:50%;padding-right:20px;border-right:1px solid #e2e8f0;vertical-align:top">
-        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Profesional Responsable</div>
+      <td style="width:48%;padding-right:20px;border-right:1px solid #e2e8f0;vertical-align:top">
+        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Profesional Responsable</div>
         <table style="font-size:10pt;width:100%">
-          <tr><td style="padding:4px 0;color:#64748b;width:40%">Nombre</td><td style="font-weight:700">${proy.profesional || proy.arq || '[No ingresado]'}</td></tr>
-          <tr><td style="padding:4px 0;color:#64748b">Profesión / Título</td><td>${proy.titulo || '[No ingresado]'}</td></tr>
-          <tr><td style="padding:4px 0;color:#64748b">RUT</td><td>${proy.rutProfesional || '[No ingresado]'}</td></tr>
-          <tr><td style="padding:4px 0;color:#64748b">Rol</td><td>${proy.rol || '[No ingresado]'}</td></tr>
-          ${proy.email ? `<tr><td style="padding:4px 0;color:#64748b">Email</td><td>${proy.email}</td></tr>` : ''}
-          ${proy.telefono ? `<tr><td style="padding:4px 0;color:#64748b">Teléfono</td><td>${proy.telefono}</td></tr>` : ''}
-          <tr><td style="padding:4px 0;color:#64748b">Fecha de emisión</td><td><b>${fechaHoy}</b></td></tr>
+          <tr><td style="padding:5px 0;color:#64748b;width:42%;border-bottom:1px solid #f1f5f9">Nombre completo</td><td style="font-weight:700;border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.profesional || proy.arq || '<span style="color:#cbd5e1;font-weight:400">[Pendiente]</span>'}</td></tr>
+          <tr><td style="padding:5px 0;color:#64748b;border-bottom:1px solid #f1f5f9">Profesión / Título</td><td style="border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.titulo || '<span style="color:#cbd5e1">[Pendiente]</span>'}</td></tr>
+          <tr><td style="padding:5px 0;color:#64748b;border-bottom:1px solid #f1f5f9">RUT</td><td style="border-bottom:1px solid #f1f5f9;padding:5px 0;font-family:monospace">${proy.rutProfesional || '<span style="color:#cbd5e1;font-family:sans-serif">[Pendiente]</span>'}</td></tr>
+          <tr><td style="padding:5px 0;color:#64748b;border-bottom:1px solid #f1f5f9">Rol / Cargo</td><td style="border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.rol || '<span style="color:#cbd5e1">[Pendiente]</span>'}</td></tr>
+          ${proy.email ? `<tr><td style="padding:5px 0;color:#64748b;border-bottom:1px solid #f1f5f9">Email</td><td style="border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.email}</td></tr>` : ''}
+          ${proy.telefono ? `<tr><td style="padding:5px 0;color:#64748b;border-bottom:1px solid #f1f5f9">Teléfono</td><td style="border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.telefono}</td></tr>` : ''}
+          <tr><td style="padding:5px 0;color:#64748b">Fecha emisión</td><td style="padding:5px 0"><b>${fechaHoy}</b></td></tr>
         </table>
       </td>
-      <td style="width:50%;padding-left:20px;vertical-align:top">
-        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Firma y Timbre</div>
-        <div style="height:90px;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px">
-          <span style="font-size:8pt;color:#94a3b8">Firma, timbre y sello del profesional responsable</span>
+      <td style="width:52%;padding-left:20px;vertical-align:top">
+        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Firma, Timbre y Sello Profesional</div>
+        <div style="height:120px;border:1.5px dashed #94a3b8;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;background:#fafbfc;position:relative">
+          <div style="position:absolute;top:8px;left:10px;font-size:7pt;color:#cbd5e1;letter-spacing:1px;font-weight:600">FIRMA · TIMBRE · SELLO</div>
+          <span style="font-size:8pt;color:#94a3b8;font-style:italic">Espacio reservado para firma profesional</span>
         </div>
-        <div style="margin-top:12px;height:40px;border:1px dashed #e2e8f0;border-radius:4px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px">
-          <span style="font-size:8pt;color:#94a3b8">Nombre y RUT (letra de imprenta)</span>
+        <div style="margin-top:14px;padding-top:8px;border-top:1px solid #e2e8f0">
+          <div style="font-size:8pt;color:#94a3b8;text-align:center;margin-bottom:4px">Nombre y RUT (letra de imprenta)</div>
+          <div style="height:30px;border-bottom:1px solid #cbd5e1"></div>
+        </div>
+        <div style="margin-top:10px;padding:6px 10px;background:#f1f5f9;border-radius:4px;font-size:8pt;color:#475569;text-align:center;line-height:1.5">
+          📌 <b>Colegio Profesional</b> · N° Registro: <span style="border-bottom:1px solid #94a3b8;padding:0 30px">&nbsp;</span>
         </div>
       </td>
     </tr>
   </table>
 </div>
-<div style="margin-top:10px;font-size:8.5pt;color:#64748b;background:#f8fafc;border-radius:6px;padding:10px 14px;line-height:1.7">
-  <b>Declaración de responsabilidad:</b> El profesional que firma el presente documento declara haber revisado los cálculos contenidos en esta memoria y asume la responsabilidad técnica de los resultados obtenidos, en conformidad con la OGUC y la normativa vigente aplicable. Los valores de RF requieren respaldo mediante ensayo NCh850 o clasificación LOFC para certificación DOM. Los valores Rw estimados requieren ensayo NCh352.
+
+<!-- Declaración legal expandida -->
+<div style="margin-top:14px;font-size:8.5pt;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #1e40af;border-radius:6px;padding:12px 16px;line-height:1.7">
+  <div style="font-weight:700;color:#1e40af;font-size:9.5pt;margin-bottom:6px">📋 Declaración de responsabilidad profesional</div>
+  El profesional que firma el presente documento <b>declara haber revisado</b> los cálculos contenidos en esta memoria y <b>asume la responsabilidad técnica</b> de los resultados obtenidos, en conformidad con la normativa vigente:
+  <ul style="margin:6px 0 6px 18px;padding:0;line-height:1.65">
+    <li><b>OGUC Art. 1.2.2</b> — Responsabilidad del profesional competente en la presentación de proyectos.</li>
+    <li><b>OGUC Art. 4.1.10</b> — Aislación térmica de la envolvente y exigencias por zona térmica (DS N°15 MINVU).</li>
+    <li><b>OGUC Tít. IV Cap. 3</b> — Comportamiento al fuego de los elementos constructivos (Tabla 1).</li>
+    <li><b>OGUC Art. 4.1.6</b> — Aislación acústica entre unidades habitacionales.</li>
+  </ul>
+  <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1">
+    <b>Notas técnicas:</b> Los valores de <b>RF</b> declarados requieren respaldo mediante ensayo conforme a <b>NCh850</b> o clasificación según <b>LOFC Ed.17 2025</b>. Los valores <b>Rw</b> estimados requieren validación mediante ensayo <b>NCh352:2013</b>. El cumplimiento higrotérmico se verifica según el método de Glaser establecido en <b>NCh853:2021</b> (anexo informativo, equivalente a EN ISO 13788).
+  </div>
 </div>
 
 <!-- ══ PIE DE PÁGINA ════════════════════════════════════════════════════════ -->
