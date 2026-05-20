@@ -211,6 +211,257 @@ function capasComparacionSvgStr(capasOrig, capasModif, opts = {}) {
   return { svgOrig, svgModif }
 }
 
+// ── Resolver capas de una solución LOSCAT (utilidad compartida) ────────────────
+// Busca primero en SC_CAPAS (tabla principal), luego en BH (banco hormigón),
+// y como fallback parsea la cadena "Material1 esp | Material2 esp | ..."
+function getCapasParaSC(sc) {
+  if (!sc) return null
+  const raw = SC_CAPAS[sc.cod]
+  if (raw?.length) return raw
+  const bh = BH.find(b => b.cod === sc.cod)
+  if (bh?.capas?.length) return bh.capas.map(c => ({ mat: c.n, lam: c.lam, esp: c.esp, mu: c.mu, esCamara: c.esCamara }))
+  return (sc.capas || '').split(' | ').map(part => {
+    const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
+    if (!m) return null
+    const nombre = m[1].trim()
+    const isCamara = /camara|aire/i.test(nombre)
+    const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}
+    return { mat: nombre, lam: isCamara ? '' : (matDat.lam || ''), esp: m[2], mu: isCamara ? '' : (matDat.mu || '1'), esCamara: isCamara }
+  }).filter(Boolean)
+}
+
+// ── Detector de aislación: identifica capas de aislación térmica ───────────────
+// Devuelve el ÍNDICE de la primera capa aislante encontrada en la lista, o -1.
+function findAislacionIdx(capas) {
+  if (!capas?.length) return -1
+  const aislantes = ['lana vidrio', 'lana mineral', 'lana de roca', 'eps', 'xps',
+    'poliuretano', 'pu ', 'poliestireno', 'aislaci', 'aislante', 'celulosa',
+    'pir', 'pir/pur', 'corcho', 'fibra de madera', 'lm', 'lv']
+  for (let i = 0; i < capas.length; i++) {
+    const n = (capas[i].mat || capas[i].n || '').toLowerCase()
+    if (aislantes.some(a => n.includes(a))) return i
+  }
+  return -1
+}
+
+// ── ESCANTILLÓN: Detalle constructivo de unión entre 2 elementos ───────────────
+// tipo: 'muro-piso' (muro arriba, piso abajo)
+//       'muro-cubierta' o 'muro-techumbre' (techo arriba, muro abajo)
+// muroCapas: array de capas del muro (orden INT → EXT)
+// horizCapas: array de capas del piso/techo (orden INT → EXT)
+function escantillonSvgStr(opts) {
+  const {
+    muroCapas, horizCapas, tipo = 'muro-piso',
+    muroLabel = 'Muro', horizLabel = 'Piso',
+    muroSc, horizSc, muroU, horizU,
+  } = opts
+  if (!muroCapas?.length || !horizCapas?.length) return ''
+
+  const W = 720, H = 580
+  const PT = 56, PL = 24, PR = 100
+
+  // Tipo determina geometría: muro arriba (piso) vs muro abajo (techos)
+  const muroArriba = tipo === 'muro-piso'
+
+  // Dimensiones visuales fijas
+  const wallVisualW = 200    // ancho visual del muro en SVG
+  const wallVisualH = 310    // alto del muro
+  const horizVisualH = 130   // alto de la franja horizontal
+  const horizVisualW = W - PL - PR  // ancho de la franja
+
+  // Layout (coords)
+  const wallX = PL + 110     // muro desplazado dejando espacio para "interior" a la izq
+  const wallY = muroArriba ? PT : PT + horizVisualH
+  const horizX = PL
+  const horizY = muroArriba ? PT + wallVisualH : PT
+
+  // Espesores reales para proporcionar widths
+  const muroTotEsp = muroCapas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0) || 1
+  const horizTotEsp = horizCapas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0) || 1
+
+  // Cámaras de aire: fracción fija para que no ocupen demasiado
+  const muroNCam = muroCapas.filter(c => c.esCamara).length
+  const horizNCam = horizCapas.filter(c => c.esCamara).length
+  const CAM_FRAC = 0.05
+  const muroRealFrac = 1 - muroNCam * CAM_FRAC
+  const horizRealFrac = 1 - horizNCam * CAM_FRAC
+
+  const muroLW = muroCapas.map(c => c.esCamara
+    ? wallVisualW * CAM_FRAC
+    : wallVisualW * muroRealFrac * (parseFloat(c.esp || 0) / muroTotEsp))
+  const horizLH = horizCapas.map(c => c.esCamara
+    ? horizVisualH * CAM_FRAC
+    : horizVisualH * horizRealFrac * (parseFloat(c.esp || 0) / horizTotEsp))
+
+  // Render capas del muro (bandas verticales)
+  let xCur = wallX
+  const wallLayers = muroCapas.map((c, i) => {
+    const w = muroLW[i]
+    const name = c.esCamara ? 'Cámara aire' : (c.mat || c.n || '—')
+    const col = fichaLayerColor(name)
+    const patKey = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat) ? col.pat : null
+    const rect = `<rect x="${xCur.toFixed(1)}" y="${wallY}" width="${w.toFixed(1)}" height="${wallVisualH}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1"/>`
+    const pat = patKey ? `<rect x="${xCur.toFixed(1)}" y="${wallY}" width="${w.toFixed(1)}" height="${wallVisualH}" fill="url(#es-${patKey})"/>` : ''
+    // Etiqueta vertical dentro (rotada -90°)
+    const lblText = name.length > 14 ? name.slice(0, 13) + '…' : name
+    const cx = xCur + w/2, cy = wallY + wallVisualH/2
+    const lbl = w > 24
+      ? `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" font-size="9" fill="#1e293b" font-weight="600" transform="rotate(-90 ${cx.toFixed(1)} ${cy.toFixed(1)})">${lblText}</text>`
+      : ''
+    // Espesor arriba (o abajo si muroAbajo)
+    const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
+    const espY = muroArriba ? wallY - 6 : wallY + wallVisualH + 12
+    const espLbl = (w > 18 && espStr) ? `<text x="${cx.toFixed(1)}" y="${espY.toFixed(1)}" text-anchor="middle" font-size="8" fill="#475569" font-weight="700">${espStr}</text>` : ''
+    // Número de capa pequeño
+    const numY = muroArriba ? wallY + 14 : wallY + wallVisualH - 8
+    const num = w > 14 ? `<circle cx="${cx.toFixed(1)}" cy="${numY.toFixed(1)}" r="7" fill="${col.stroke}" opacity="0.9"/><text x="${cx.toFixed(1)}" y="${(numY + 3).toFixed(1)}" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">${i + 1}</text>` : ''
+    xCur += w
+    return rect + pat + lbl + espLbl + num
+  }).join('\n')
+
+  // Render capas del horiz (bandas horizontales)
+  let yCur = horizY
+  const horizLayers = horizCapas.map((c, i) => {
+    const h = horizLH[i]
+    const name = c.esCamara ? 'Cámara aire' : (c.mat || c.n || '—')
+    const col = fichaLayerColor(name)
+    const patKey = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat) ? col.pat : null
+    const rect = `<rect x="${horizX}" y="${yCur.toFixed(1)}" width="${horizVisualW}" height="${h.toFixed(1)}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1"/>`
+    const pat = patKey ? `<rect x="${horizX}" y="${yCur.toFixed(1)}" width="${horizVisualW}" height="${h.toFixed(1)}" fill="url(#es-${patKey})"/>` : ''
+    const lblText = name.length > 26 ? name.slice(0, 25) + '…' : name
+    // Etiqueta a la derecha
+    const lblY = yCur + h/2 + 3
+    const lbl = h > 12 ? `<text x="${(horizX + horizVisualW - 8).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="end" font-size="9" fill="#1e293b" font-weight="600">${lblText}</text>` : ''
+    // Espesor a la izquierda
+    const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}mm`
+    const espLbl = h > 11 && espStr ? `<text x="${(horizX + 6).toFixed(1)}" y="${lblY.toFixed(1)}" font-size="8" fill="#475569" font-weight="700">${espStr}</text>` : ''
+    // Número de capa
+    const num = h > 14 ? `<circle cx="${(horizX + 32).toFixed(1)}" cy="${(yCur + h/2).toFixed(1)}" r="7" fill="${col.stroke}" opacity="0.9"/><text x="${(horizX + 32).toFixed(1)}" y="${(yCur + h/2 + 3).toFixed(1)}" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">${i + 1}</text>` : ''
+    yCur += h
+    return rect + pat + lbl + espLbl + num
+  }).join('\n')
+
+  // Detectar aislación en cada elemento
+  const muroAislIdx  = findAislacionIdx(muroCapas)
+  const horizAislIdx = findAislacionIdx(horizCapas)
+
+  // Calcular posición visual de la capa de aislación en cada elemento (para línea de continuidad)
+  let muroAislX1 = null, muroAislX2 = null
+  if (muroAislIdx >= 0) {
+    muroAislX1 = wallX + muroLW.slice(0, muroAislIdx).reduce((a, w) => a + w, 0)
+    muroAislX2 = muroAislX1 + muroLW[muroAislIdx]
+  }
+  let horizAislY1 = null, horizAislY2 = null
+  if (horizAislIdx >= 0) {
+    horizAislY1 = horizY + horizLH.slice(0, horizAislIdx).reduce((a, h) => a + h, 0)
+    horizAislY2 = horizAislY1 + horizLH[horizAislIdx]
+  }
+
+  // Línea de continuidad de aislación + zona de puente térmico
+  // La idea: si la aislación NO continúa entre muro y piso, marcar la zona como puente térmico
+  let lineaAislacion = ''
+  let zonaPuente = ''
+  let estadoContinuidad = ''
+  if (muroAislIdx >= 0 && horizAislIdx >= 0) {
+    // Determinar si las posiciones de aislación se solapan en el corner
+    // En muro-piso: aislación del muro va vertical, debería "tocar" la aislación del piso horizontal
+    // Líneas guía punteadas naranja conectando ambas zonas de aislación
+    const aislMuroMidX = (muroAislX1 + muroAislX2) / 2
+    const aislHorizMidY = (horizAislY1 + horizAislY2) / 2
+    lineaAislacion = `
+<line x1="${aislMuroMidX.toFixed(1)}" y1="${(muroArriba ? wallY + wallVisualH : wallY).toFixed(1)}"
+      x2="${aislMuroMidX.toFixed(1)}" y2="${aislHorizMidY.toFixed(1)}"
+      stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.85"/>
+<line x1="${aislMuroMidX.toFixed(1)}" y1="${aislHorizMidY.toFixed(1)}"
+      x2="${(horizX + horizVisualW - 20).toFixed(1)}" y2="${aislHorizMidY.toFixed(1)}"
+      stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.85"/>
+<text x="${(aislMuroMidX + 8).toFixed(1)}" y="${(muroArriba ? wallY + wallVisualH + 24 : wallY - 22).toFixed(1)}"
+      font-size="9" fill="#92400e" font-weight="700">↓ Aislación continua</text>`
+    estadoContinuidad = '✓ Ambos elementos tienen aislación identificada. Verifica en obra que la línea de aislación NO se interrumpa en el encuentro (riesgo de puente térmico si hay corte).'
+  } else if (muroAislIdx >= 0 || horizAislIdx >= 0) {
+    // Discontinuidad clara
+    const cornerX = muroArriba ? wallX : wallX
+    const cornerY = muroArriba ? wallY + wallVisualH : wallY
+    zonaPuente = `<rect x="${(cornerX - 20).toFixed(1)}" y="${(cornerY - 20).toFixed(1)}" width="60" height="40"
+      fill="#fee2e2" stroke="#dc2626" stroke-width="2" stroke-dasharray="4,2" opacity="0.7"/>
+<text x="${(cornerX + 10).toFixed(1)}" y="${(cornerY - 4).toFixed(1)}" font-size="9" fill="#991b1b" font-weight="700">⚠ PT</text>`
+    estadoContinuidad = `⚠ Solo ${muroAislIdx >= 0 ? muroLabel.toLowerCase() : horizLabel.toLowerCase()} tiene aislación identificada → puente térmico probable en la unión. Considera EIFS continuo o trasdosado.`
+  } else {
+    estadoContinuidad = '⚠ Ninguno de los dos elementos tiene una capa de aislación térmica claramente identificada en sus capas.'
+  }
+
+  // Etiquetas INT/EXT del muro
+  const muroLabelY = muroArriba ? wallY + wallVisualH + 30 : wallY - 30
+  const muroLabelTxt = `<text x="${(wallX + wallVisualW/2).toFixed(1)}" y="${muroLabelY.toFixed(1)}" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="700">${muroLabel}${muroSc ? ` · LOSCAT ${muroSc}` : ''}${muroU != null ? ` · U=${muroU}` : ''}</text>`
+
+  // Etiquetas del horiz
+  const horizLabelTxt = `<text x="${(W - PR + 10).toFixed(1)}" y="${(horizY + horizVisualH/2 - 8).toFixed(1)}" text-anchor="start" font-size="10" fill="#1e40af" font-weight="700">${horizLabel}</text>
+<text x="${(W - PR + 10).toFixed(1)}" y="${(horizY + horizVisualH/2 + 6).toFixed(1)}" text-anchor="start" font-size="8.5" fill="#64748b">${horizSc ? `LOSCAT ${horizSc}` : ''}${horizU != null ? ` · U=${horizU}` : ''}</text>`
+
+  // Espacios INT (donde está el aire interior) y EXT (aire exterior)
+  // Para muro-piso: INT a la izquierda del muro y arriba del piso; EXT a la derecha del muro y abajo del piso
+  const intAreaX = PL
+  const intAreaY = muroArriba ? PT : PT + horizVisualH
+  const intAreaW = wallX - PL
+  const intAreaH = wallVisualH
+  const extAreaX = wallX + wallVisualW
+  const extAreaY = muroArriba ? PT : PT + horizVisualH
+  const extAreaW = W - PR - extAreaX
+  const extAreaH = wallVisualH
+
+  const intHighlight = `<rect x="${intAreaX}" y="${intAreaY}" width="${intAreaW}" height="${intAreaH}" fill="#fffbeb" opacity="0.5"/>`
+  const extHighlight = `<rect x="${extAreaX}" y="${extAreaY}" width="${extAreaW}" height="${extAreaH}" fill="#eff6ff" opacity="0.5"/>`
+  const intText = `<text x="${(intAreaX + intAreaW/2).toFixed(1)}" y="${(intAreaY + intAreaH/2).toFixed(1)}" text-anchor="middle" font-size="13" fill="#92400e" font-weight="800" opacity="0.6">🏠 INTERIOR</text>`
+  const extText = `<text x="${(extAreaX + extAreaW/2).toFixed(1)}" y="${(extAreaY + extAreaH/2).toFixed(1)}" text-anchor="middle" font-size="13" fill="#1e40af" font-weight="800" opacity="0.6">🌤 EXTERIOR</text>`
+
+  const tipoLabels = {
+    'muro-piso': 'Detalle constructivo · Encuentro Muro-Piso (planta baja)',
+    'muro-cubierta': 'Detalle constructivo · Encuentro Muro-Cubierta plana',
+    'muro-techumbre': 'Detalle constructivo · Encuentro Muro-Techumbre inclinada (alero)',
+  }
+  const titleStr = tipoLabels[tipo] || 'Detalle constructivo'
+
+  // Caja de análisis al pie
+  const continuidadBg = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#dcfce7' : '#fef2f2'
+  const continuidadBorder = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#86efac' : '#fca5a5'
+  const continuidadColor = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#166534' : '#991b1b'
+  const analisisBox = `
+<rect x="${PL}" y="${H - 56}" width="${W - PL - 20}" height="44" fill="${continuidadBg}" stroke="${continuidadBorder}" stroke-width="1.5" rx="6"/>
+<text x="${PL + 10}" y="${H - 39}" font-size="10" fill="${continuidadColor}" font-weight="700">📊 Análisis de continuidad de aislación</text>
+<text x="${PL + 10}" y="${H - 21}" font-size="9" fill="${continuidadColor}">${estadoContinuidad}</text>`
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${W}px;height:auto;background:#fff;border-radius:8px;border:1px solid #e2e8f0">
+<defs>
+  <pattern id="es-insul" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
+  <pattern id="es-conc" patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
+  <pattern id="es-wood" patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/></pattern>
+  <pattern id="es-brick" patternUnits="userSpaceOnUse" width="16" height="10"><rect x="0" y="0" width="16" height="10" fill="none" stroke="#f87171" stroke-width="0.8" opacity="0.5"/></pattern>
+  <pattern id="es-air" patternUnits="userSpaceOnUse" width="10" height="10"><circle cx="5" cy="5" r="1.5" fill="#7dd3fc" opacity="0.4"/></pattern>
+  <pattern id="es-mem" patternUnits="userSpaceOnUse" width="6" height="4"><line x1="0" y1="2" x2="6" y2="2" stroke="#a78bfa" stroke-width="2" opacity="0.6"/></pattern>
+  <pattern id="es-metal" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
+</defs>
+<rect width="${W}" height="${H}" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" rx="8"/>
+<text x="${W/2}" y="22" text-anchor="middle" font-size="13" fill="#1e40af" font-weight="800">${titleStr}</text>
+<text x="${W/2}" y="40" text-anchor="middle" font-size="10" fill="#64748b">Vista en sección · Espesores en mm · Identificación de continuidad de aislación</text>
+
+${intHighlight}
+${extHighlight}
+${intText}
+${extText}
+
+${horizLayers}
+${wallLayers}
+
+${zonaPuente}
+${lineaAislacion}
+
+${muroLabelTxt}
+${horizLabelTxt}
+
+${analisisBox}
+</svg>`
+}
+
 function fichaScSvgStr(s, capas, opts = {}) {
   const W = 560, H = 270
   const PL = 38, PR = 38, PT = 38, PB = 96
@@ -4884,6 +5135,210 @@ ${capaLabels}
 </svg>`
 }
 
+// ─── PESTAÑA DETALLES CONSTRUCTIVOS — Escantillones de uniones ──────────────────
+function TabDetalles({ proy, termica, calcUInit, notas, setNotas }) {
+  // Helper: obtiene capas EFECTIVAS de un elemento (modif si existe, sino original LOSCAT)
+  function obtenerCapas(elemKey) {
+    // Prioridad 1: capas modificadas en calcUInit (match por solucion.cod)
+    const solCod = termica?.[elemKey]?.solucion?.cod
+    const entries = Object.entries(calcUInit || {})
+      .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v?.capas?.length)
+    if (entries.length && solCod) {
+      const match = entries.find(([, v]) => v?.solucion?.cod === solCod)
+      if (match) return { capas: match[1].capas, sc: solCod, U: match[1].res?.U }
+    }
+    if (entries.length) return { capas: entries[0][1].capas, sc: entries[0][1].solucion?.cod, U: entries[0][1].res?.U }
+    // Fallback 2: capas originales del LOSCAT aplicado
+    const sc = termica?.[elemKey]?.solucion
+    if (sc) {
+      const orig = getCapasParaSC(sc)
+      if (orig?.length) return { capas: orig, sc: sc.cod, U: sc.u }
+    }
+    return null
+  }
+
+  const muro = obtenerCapas('muro')
+  const piso = obtenerCapas('piso')
+  const techo = obtenerCapas('techo')
+
+  // Detectar tipo de techumbre: si tiene capa de "Lana de vidrio" o "Lana mineral" y "cubierta liviana"
+  // o si tiene "Hormigón" como capa principal → asumir cubierta plana
+  const techoEsHormigon = techo?.capas?.some(c =>
+    (c.mat || c.n || '').toLowerCase().includes('hormig')
+  )
+
+  const detalles = [
+    {
+      id: 'muro-piso',
+      titulo: 'Muro + Piso (planta baja)',
+      desc: 'Encuentro del muro de fachada con el piso ventilado o sobre terreno. Zona crítica para puentes térmicos perimetrales.',
+      muro, horiz: piso, horizLabel: 'Piso',
+      disponible: !!(muro && piso),
+    },
+    {
+      id: 'muro-cubierta',
+      titulo: 'Muro + Cubierta plana',
+      desc: 'Encuentro superior del muro con losa o cubierta de hormigón. Típico en edificios de hormigón armado.',
+      muro, horiz: techo, horizLabel: 'Cubierta',
+      disponible: !!(muro && techo && techoEsHormigon),
+    },
+    {
+      id: 'muro-techumbre',
+      titulo: 'Muro + Techumbre inclinada',
+      desc: 'Encuentro alero del muro con techumbre liviana (madera + cubierta). Típico en viviendas unifamiliares.',
+      muro, horiz: techo, horizLabel: 'Techumbre',
+      disponible: !!(muro && techo && !techoEsHormigon),
+    },
+  ]
+
+  const [detalleActivo, setDetalleActivo] = useState('muro-piso')
+  const activo = detalles.find(d => d.id === detalleActivo) || detalles[0]
+  const tieneAlgo = detalles.some(d => d.disponible)
+
+  return (
+    <div>
+      <AyudaPanel
+        titulo="Cómo usar — Detalles constructivos"
+        pasos={[
+          'Esta pestaña genera <b>escantillones automáticos</b> de las uniones constructivas a partir de las soluciones LOSCAT aplicadas en tus elementos.',
+          'Para que aparezca un detalle, necesitas haber asignado solución en <b>Muro</b> y <b>Piso/Techo</b> (en Soluciones o Cálculo U).',
+          'Cada escantillón muestra: las capas en sección, la zona interior/exterior, y un <b>análisis automático de continuidad de aislación térmica</b>.',
+          'Si la línea naranja punteada es continua del muro al piso/techo → la envolvente térmica es continua. Si hay interrupción → riesgo de puente térmico.',
+          'Estos detalles son <b>diagramáticos</b> y sirven como guía conceptual. La definición exacta de la unión queda al criterio del proyectista.',
+        ]}
+        normativa="NCh853:2021 · MINVU Guía Puentes Térmicos · ISO 14683 · OGUC Art. 4.1.10"
+      />
+
+      {/* Selector de detalle */}
+      <div style={S.card}>
+        <p style={S.h2}>📐 Escantillones disponibles</p>
+        {!tieneAlgo ? (
+          <div style={{ padding:'16px 20px', background:'#fef3c7', border:'1px solid #fde047', borderRadius:8, fontSize:12, color:'#92400e' }}>
+            ⚠ Aún no hay datos suficientes para generar escantillones. Asigna primero soluciones LOSCAT a <b>Muro</b> y <b>Piso/Techo</b> en la pestaña Soluciones (o calcúlalos en Cálculo U).
+          </div>
+        ) : (
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
+            {detalles.map(d => (
+              <button
+                key={d.id}
+                onClick={() => setDetalleActivo(d.id)}
+                disabled={!d.disponible}
+                style={{
+                  padding:'10px 16px', borderRadius:8, border:'2px solid',
+                  borderColor: detalleActivo === d.id ? '#1e40af' : (d.disponible ? '#cbd5e1' : '#e2e8f0'),
+                  background: detalleActivo === d.id ? '#1e40af' : (d.disponible ? '#fff' : '#f8fafc'),
+                  color: detalleActivo === d.id ? '#fff' : (d.disponible ? '#1e293b' : '#94a3b8'),
+                  cursor: d.disponible ? 'pointer' : 'not-allowed',
+                  fontWeight: 600, fontSize:12, opacity: d.disponible ? 1 : 0.6,
+                  transition:'all 0.15s',
+                }}
+                title={d.disponible ? d.desc : 'Sin datos suficientes para este detalle'}
+              >
+                {d.titulo}
+                {!d.disponible && ' (sin datos)'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Render del detalle activo */}
+      {tieneAlgo && activo && activo.disponible && (
+        <div style={S.card}>
+          <div style={{ marginBottom:12, padding:'10px 14px', background:'#eff6ff', borderLeft:'4px solid #1e40af', borderRadius:6 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#1e40af', marginBottom:3 }}>{activo.titulo}</div>
+            <div style={{ fontSize:11, color:'#475569', lineHeight:1.5 }}>{activo.desc}</div>
+          </div>
+          <div
+            dangerouslySetInnerHTML={{ __html: escantillonSvgStr({
+              muroCapas: activo.muro.capas,
+              horizCapas: activo.horiz.capas,
+              tipo: activo.id,
+              muroLabel: 'Muro',
+              horizLabel: activo.horizLabel,
+              muroSc: activo.muro.sc,
+              horizSc: activo.horiz.sc,
+              muroU: activo.muro.U ? parseFloat(activo.muro.U).toFixed(3) : null,
+              horizU: activo.horiz.U ? parseFloat(activo.horiz.U).toFixed(3) : null,
+            }) }}
+          />
+
+          {/* Análisis Glaser en la línea de unión */}
+          {(() => {
+            const ti = ZONAS[proy.zona]?.Ti || 20
+            const te = ZONAS[proy.zona]?.Te || 5
+            const hr = ZONAS[proy.zona]?.HR || 70
+            const muroAislIdx = findAislacionIdx(activo.muro.capas)
+            const horizAislIdx = findAislacionIdx(activo.horiz.capas)
+            return (
+              <div style={{ marginTop:14, padding:'12px 16px', background:'#f8fafc', borderRadius:8, fontSize:12, lineHeight:1.6 }}>
+                <div style={{ fontWeight:700, color:'#1e40af', fontSize:12, marginBottom:6 }}>🔍 Análisis técnico de la unión</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  <div>
+                    <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:0.5, marginBottom:2 }}>Condiciones</div>
+                    <div>Zona {proy.zona || '—'} · T<sub>i</sub>={ti}°C · T<sub>e</sub>={te}°C · HR={hr}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:0.5, marginBottom:2 }}>Aislación</div>
+                    <div>
+                      Muro: {muroAislIdx >= 0
+                        ? <span style={{ color:'#166534', fontWeight:700 }}>✓ capa {muroAislIdx + 1} ({activo.muro.capas[muroAislIdx].mat || activo.muro.capas[muroAislIdx].n})</span>
+                        : <span style={{ color:'#dc2626' }}>✗ sin aislación clara</span>}
+                    </div>
+                    <div>
+                      {activo.horizLabel}: {horizAislIdx >= 0
+                        ? <span style={{ color:'#166534', fontWeight:700 }}>✓ capa {horizAislIdx + 1} ({activo.horiz.capas[horizAislIdx].mat || activo.horiz.capas[horizAislIdx].n})</span>
+                        : <span style={{ color:'#dc2626' }}>✗ sin aislación clara</span>}
+                    </div>
+                  </div>
+                </div>
+                {muroAislIdx >= 0 && horizAislIdx >= 0 && (
+                  <div style={{ marginTop:8, padding:'8px 12px', background:'#fffbeb', border:'1px dashed #fde68a', borderRadius:6, fontSize:11, color:'#92400e' }}>
+                    💡 <b>Recomendación de detalle:</b> Para mantener la continuidad térmica, la aislación del muro debe encontrarse físicamente con la aislación del {activo.horizLabel.toLowerCase()}.
+                    {activo.id === 'muro-piso' && ' En piso ventilado, agregar aislante perimetral bajando hasta la fundación. En piso sobre terreno, aislante perimetral en el zócalo (al menos 60 cm de altura).'}
+                    {activo.id === 'muro-cubierta' && ' La aislación de cubierta debe sobreponerse al muro por al menos 100 mm o usar antepecho aislado.'}
+                    {activo.id === 'muro-techumbre' && ' En el alero, la aislación de techumbre debe envolver el coronamiento del muro y conectar con la del muro vertical.'}
+                  </div>
+                )}
+                {(muroAislIdx < 0 || horizAislIdx < 0) && (
+                  <div style={{ marginTop:8, padding:'8px 12px', background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:6, fontSize:11, color:'#991b1b' }}>
+                    ⚠ <b>Puente térmico probable:</b> Uno de los elementos no tiene aislación identificada. Aplica una estrategia C1/C2/C3 (EIFS, fachada ventilada, trasdosado) para crear envolvente continua.
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Tabla resumen de capas (debajo del diagrama) */}
+          <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            {[{ titulo:'Capas del muro (INT → EXT)', capas: activo.muro.capas, sc: activo.muro.sc, U: activo.muro.U },
+              { titulo:`Capas del ${activo.horizLabel.toLowerCase()} (INT → EXT)`, capas: activo.horiz.capas, sc: activo.horiz.sc, U: activo.horiz.U }].map((t, i) => (
+              <div key={i} style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'8px 12px', fontSize:11, background:'#fff' }}>
+                <div style={{ fontWeight:700, color:'#1e40af', marginBottom:4, fontSize:11.5 }}>
+                  {t.titulo}
+                  {t.sc && <span style={{ marginLeft:6, color:'#64748b', fontFamily:'monospace', fontSize:10 }}>LOSCAT {t.sc}</span>}
+                </div>
+                {t.U && <div style={{ fontSize:10, color:'#475569', marginBottom:4 }}>U = {parseFloat(t.U).toFixed(4)} W/m²K</div>}
+                <ol style={{ margin:'4px 0 0 18px', padding:0, fontSize:11, color:'#1e293b', lineHeight:1.65 }}>
+                  {t.capas.map((c, idx) => (
+                    <li key={idx} style={{ marginBottom:2 }}>
+                      {c.esCamara ? <i>Cámara de aire</i> : (c.mat || c.n || '—')}
+                      {!c.esCamara && c.esp ? <span style={{ color:'#64748b' }}> · {Math.round(parseFloat(c.esp))} mm</span> : ''}
+                      {!c.esCamara && c.lam ? <span style={{ color:'#94a3b8', fontSize:9.5 }}> · λ={parseFloat(c.lam).toFixed(3)}</span> : ''}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <NotasPanel tabKey="detalles" notas={notas} setNotas={setNotas} />
+    </div>
+  )
+}
+
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
 function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData }) {
   // Fallbacks defensivos por si las props no están disponibles
@@ -4978,21 +5433,8 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
 
   const allOk = checks.every(c => c.ok)
 
-  function getCapasParaSC(sc) {
-    if (!sc) return null
-    const raw = SC_CAPAS[sc.cod]
-    if (raw?.length) return raw
-    const bh = BH.find(b => b.cod === sc.cod)
-    if (bh?.capas?.length) return bh.capas.map(c => ({ mat: c.n, lam: c.lam, esp: c.esp, mu: c.mu, esCamara: c.esCamara }))
-    return (sc.capas || '').split(' | ').map(part => {
-      const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
-      if (!m) return null
-      const nombre = m[1].trim()
-      const isCamara = /camara|aire/i.test(nombre)
-      const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}
-      return { mat: nombre, lam: isCamara ? '' : (matDat.lam || ''), esp: m[2], mu: isCamara ? '' : (matDat.mu || '1'), esCamara: isCamara }
-    }).filter(Boolean)
-  }
+  // getCapasParaSC ahora es una utilidad de nivel de módulo (definida arriba en App.jsx)
+  // — se usa por closure tanto aquí como en TabDetalles.
 
   async function exportarInforme(modo = 'export') {
     // modo === 'preview' → solo abrir vista previa (no consume token ni descarga)
@@ -5720,6 +6162,85 @@ ${tarjetas}
 </div>`
     }
 
+    // ── Módulo 8 — Detalles constructivos (escantillones de unión) ────────────
+    // Genera diagramas SVG mostrando la unión entre muro y piso/techo/cubierta
+    // con análisis de continuidad de aislación térmica.
+    function obtenerCapasParaInforme(elemKey) {
+      const solCod = termica?.[elemKey]?.solucion?.cod
+      const entries = Object.entries(calcUInit || {})
+        .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v?.capas?.length)
+      if (entries.length && solCod) {
+        const match = entries.find(([, v]) => v?.solucion?.cod === solCod)
+        if (match) return { capas: match[1].capas, sc: solCod, U: match[1].res?.U }
+      }
+      if (entries.length) return { capas: entries[0][1].capas, sc: entries[0][1].solucion?.cod, U: entries[0][1].res?.U }
+      const sc = termica?.[elemKey]?.solucion
+      if (sc) {
+        const orig = getCapasParaSC(sc)
+        if (orig?.length) return { capas: orig, sc: sc.cod, U: sc.u }
+      }
+      return null
+    }
+    const muroInfo  = obtenerCapasParaInforme('muro')
+    const pisoInfo  = obtenerCapasParaInforme('piso')
+    const techoInfo = obtenerCapasParaInforme('techo')
+    const techoEsHormigon = techoInfo?.capas?.some(c => (c.mat || c.n || '').toLowerCase().includes('hormig'))
+
+    const detallesInforme = [
+      { id:'muro-piso',      titulo:'Muro + Piso (planta baja)', horizLabel:'Piso',        info: pisoInfo,  cond: !!(muroInfo && pisoInfo) },
+      { id:'muro-cubierta',  titulo:'Muro + Cubierta plana',     horizLabel:'Cubierta',    info: techoInfo, cond: !!(muroInfo && techoInfo && techoEsHormigon) },
+      { id:'muro-techumbre', titulo:'Muro + Techumbre inclinada', horizLabel:'Techumbre',   info: techoInfo, cond: !!(muroInfo && techoInfo && !techoEsHormigon) },
+    ].filter(d => d.cond)
+
+    let detallesHtml = ''
+    if (detallesInforme.length > 0 && muroInfo) {
+      const cards = detallesInforme.map(d => {
+        const muroAislIdx  = findAislacionIdx(muroInfo.capas)
+        const horizAislIdx = findAislacionIdx(d.info.capas)
+        const recomMap = {
+          'muro-piso':      'En piso ventilado, prolongar aislante perimetral bajando hasta fundación. En piso sobre terreno, aislante perimetral en el zócalo (mín. 60 cm de altura).',
+          'muro-cubierta':  'La aislación de cubierta debe sobreponerse al muro por al menos 100 mm, o usar antepecho aislado para cerrar la envolvente.',
+          'muro-techumbre': 'En el alero, la aislación de techumbre debe envolver el coronamiento del muro y conectar físicamente con la del muro vertical.',
+        }
+        const svg = escantillonSvgStr({
+          muroCapas: muroInfo.capas,
+          horizCapas: d.info.capas,
+          tipo: d.id,
+          muroLabel: 'Muro',
+          horizLabel: d.horizLabel,
+          muroSc: muroInfo.sc,
+          horizSc: d.info.sc,
+          muroU: muroInfo.U ? parseFloat(muroInfo.U).toFixed(3) : null,
+          horizU: d.info.U ? parseFloat(d.info.U).toFixed(3) : null,
+        })
+        const recomendacion = (muroAislIdx >= 0 && horizAislIdx >= 0)
+          ? `<div style="background:#fffbeb;border:1px dashed #fde68a;border-radius:6px;padding:10px 14px;font-size:9pt;color:#92400e;margin-top:8px;line-height:1.6">
+              💡 <b>Recomendación de detalle:</b> ${recomMap[d.id] || ''}
+            </div>`
+          : `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px 14px;font-size:9pt;color:#991b1b;margin-top:8px;line-height:1.6">
+              ⚠ <b>Puente térmico probable:</b> Uno de los elementos no tiene aislación claramente identificada. Considera aplicar estrategia C1/C2/C3 para crear envolvente térmica continua.
+            </div>`
+        return `<div style="page-break-inside:avoid;margin-bottom:18px">
+  <h3 style="font-size:10.5pt;color:#1e40af;margin:14px 0 6px;border-left:3px solid #93c5fd;padding-left:8px">${d.titulo}</h3>
+  <div style="text-align:center;background:#fff;padding:4px;border:1px solid #e2e8f0;border-radius:8px">${svg}</div>
+  ${recomendacion}
+</div>`
+      }).join('')
+
+      detallesHtml = `
+<h2 id="modulo-8" style="page-break-before:always">Módulo 8 — Detalles constructivos de unión</h2>
+<div style="font-size:9pt;color:#64748b;margin-bottom:12px;line-height:1.6">
+  Este módulo presenta los <b>escantillones automáticos</b> de las principales uniones constructivas del proyecto, generados a partir de las capas LOSCAT aplicadas a cada elemento. Cada diagrama muestra en sección las capas del muro y del elemento horizontal (piso, cubierta o techumbre), identificando visualmente la <b>continuidad de la aislación térmica</b> en la línea de encuentro.
+</div>
+<div style="font-size:9pt;color:#475569;margin-bottom:14px;background:#eff6ff;border-left:4px solid #1e40af;border-radius:6px;padding:10px 14px;line-height:1.65">
+  📚 <b>Marco normativo:</b> La <b>NCh853:2021</b> y la <b>Guía MINVU de Puentes Térmicos</b> establecen que la envolvente térmica debe ser <b>continua</b> en encuentros y singularidades. La interrupción de la aislación en uniones (puentes térmicos lineales) puede aumentar el U efectivo del muro entre 10-30% y generar riesgo de condensación superficial intersticial (<b>ISO 14683</b>).
+</div>
+${cards}
+<div style="margin-top:14px;font-size:8.5pt;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;line-height:1.7">
+  <b>📌 Nota interpretativa:</b> Los diagramas son <b>esquemáticos y conceptuales</b>, no constituyen detalles arquitectónicos finales. Su propósito es facilitar la verificación de continuidad de la envolvente térmica a nivel de capas. El detalle constructivo definitivo —incluyendo aristas, encuentros con fundaciones, sellos, impermeabilizaciones y resolución estructural— es responsabilidad del profesional proyectista.
+</div>`
+    }
+
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5900,6 +6421,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
     ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
+    ${detallesInforme.length > 0 ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
     <li><a href="#modulo-7">Módulo 7 — Responsabilidad profesional y firma</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 1.2.2</span></li>
   </ol>
 </div>
@@ -6081,6 +6603,8 @@ ${mods.ventanas ? vpctHtml : ''}
 ${mods.notas ? notasHtml : ''}
 
 ${correccionesHtml}
+
+${detallesHtml}
 
 <!-- ══ MÓDULO 7 — RESPONSABILIDAD PROFESIONAL ══════════════════════════════ -->
 <h2 id="modulo-7" style="page-break-before:always">Módulo 7 — Responsabilidad Profesional y Firma</h2>
@@ -6574,7 +7098,7 @@ const PLANTILLAS_USO = [
 ]
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
-const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', 'Resultados', '⚙ Admin']
+const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '📐 Detalles', 'Resultados', '⚙ Admin']
 
 export default function App() {
   return (
@@ -7091,8 +7615,9 @@ function AppInner() {
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-            {tab === 7 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
-            {tab === 8 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
+            {tab === 7 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} />}
+            {tab === 8 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
+            {tab === 9 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
           {showAyuda && ayudaData[tab] && (
             <div className="nc-sidebar">
