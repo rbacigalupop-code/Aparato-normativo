@@ -441,36 +441,100 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
 }
 
 // ─── Componente principal: TabDiag ───────────────────────────────────────────
-export default function TabDiag({ proy, setProy, getLetraOGUC, setTermica, plantillas }) {
+export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, setTermica, plantillas }) {
   // ── Modal de Plantillas Rápidas ──────────────────────────────────────────────
   const [showPlantillas, setShowPlantillas] = useState(false)
+  // Modal de confirmación cuando aplica una nueva plantilla con valores existentes
+  const [confirmAplicar, setConfirmAplicar] = useState(null)  // { plantilla }
 
-  function aplicarPlantilla(plantilla) {
+  // Plantilla actualmente aplicada (id) — null si ninguna
+  const plantillaActivaId = proy.plantillaActiva || null
+  const plantillaActiva = plantillas?.find(p => p.id === plantillaActivaId) || null
+
+  // ¿Hay valores RF/Rw ingresados en termica? (para decidir si confirmar reemplazo)
+  function tieneValoresTermicos() {
+    const elems = ['muro', 'techo', 'piso', 'tabique']
+    return elems.some(e => (termica[e]?.rf || '').toString().trim() || (termica[e]?.rw || '').toString().trim())
+  }
+
+  // Aplicación real (con modo)
+  // modo: 'merge'   → solo completa campos vacíos (respeta lo del usuario)
+  //       'replace' → sobrescribe valores existentes
+  function aplicarPlantilla(plantilla, modo = 'merge') {
     if (!plantilla) return
-    // Aplicar campos del proy (uso, pisos, estructura), conservando lo que ya tiene el usuario
+    // Aplicar campos del proy (uso, pisos, estructura)
     if (plantilla.proy) {
       setProy(p => ({
         ...p,
-        uso:        plantilla.proy.uso       || p.uso,
-        pisos:      plantilla.proy.pisos     || p.pisos,
-        estructura: plantilla.proy.estructura || p.estructura,
+        uso:        modo === 'replace' ? (plantilla.proy.uso       || p.uso)       : (p.uso        || plantilla.proy.uso       || ''),
+        pisos:      modo === 'replace' ? (plantilla.proy.pisos     || p.pisos)     : (p.pisos      || plantilla.proy.pisos     || ''),
+        estructura: modo === 'replace' ? (plantilla.proy.estructura || p.estructura) : (p.estructura || plantilla.proy.estructura || ''),
+        plantillaActiva: plantilla.id,
       }))
     }
-    // Aplicar valores RF/Rw a termica (MERGE, no reemplaza valores existentes)
+    // Aplicar valores RF/Rw a termica
     if (plantilla.termica && setTermica) {
       setTermica(t => {
         const next = { ...t }
         for (const [elem, vals] of Object.entries(plantilla.termica)) {
           next[elem] = {
             ...(next[elem] || {}),
-            // Solo escribir si el campo está vacío o no existe (no sobrescribir lo del usuario)
-            rf: next[elem]?.rf || vals.rf || '',
-            rw: next[elem]?.rw || vals.rw || '',
+            rf: modo === 'replace' ? (vals.rf || '') : (next[elem]?.rf || vals.rf || ''),
+            rw: modo === 'replace' ? (vals.rw || '') : (next[elem]?.rw || vals.rw || ''),
           }
         }
         return next
       })
     }
+    setShowPlantillas(false)
+    setConfirmAplicar(null)
+  }
+
+  // Handler cuando se clickea una plantilla en el modal
+  function handleClickPlantilla(plantilla) {
+    if (tieneValoresTermicos()) {
+      // Hay valores: pedir confirmación de cómo aplicar
+      setConfirmAplicar({ plantilla })
+    } else {
+      // No hay valores: aplicar directo
+      aplicarPlantilla(plantilla, 'merge')
+    }
+  }
+
+  // Quitar plantilla actual — limpia los valores RF/Rw que vienen del template
+  function quitarPlantilla() {
+    if (!plantillaActiva) return
+    if (!window.confirm(`¿Quitar la plantilla "${plantillaActiva.nombre}"?\n\nEsto limpiará los valores RF/Rw de Térmica (muro, techo, piso, tabique). NO afecta las soluciones LOSCAT que hayas aplicado ni el cálculo de capas.`)) return
+    setProy(p => ({ ...p, plantillaActiva: null }))
+    setTermica(t => {
+      const next = { ...t }
+      for (const elem of ['muro', 'techo', 'piso', 'tabique']) {
+        if (next[elem]) {
+          next[elem] = { ...next[elem], rf: '', rw: '' }
+        }
+      }
+      return next
+    })
+  }
+
+  // Reset de diagnóstico — vuelve todo a cero (uso, pisos, estructura, plantilla, RF/Rw)
+  function resetDiagnostico() {
+    if (!window.confirm('¿Empezar el diagnóstico de cero?\n\nSe limpiarán: uso, pisos, estructura, plantilla aplicada, y los valores RF/Rw de Térmica.\n\nNO se borran: nombre del proyecto, dirección, comuna/zona, soluciones LOSCAT aplicadas, ni cálculos U.')) return
+    setProy(p => ({
+      ...p,
+      uso: '',
+      pisos: '',
+      estructura: '',
+      estructuras: [],
+      plantillaActiva: null,
+    }))
+    setTermica(t => {
+      const next = { ...t }
+      for (const elem of ['muro', 'techo', 'piso', 'tabique']) {
+        if (next[elem]) next[elem] = { ...next[elem], rf: '', rw: '' }
+      }
+      return next
+    })
     setShowPlantillas(false)
   }
   // Overrides se leen del localStorage (actualizados por AdminZonas)
@@ -566,21 +630,47 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, setTermica, plant
       {/* ── PLANTILLAS RÁPIDAS POR USO ─────────────────────────────────────── */}
       {plantillas?.length > 0 && (
         <div style={{ ...S.card, background:'linear-gradient(135deg,#eff6ff,#f0f9ff)', border:'1.5px solid #bfdbfe' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-            <div>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+            <div style={{ flex:1, minWidth:240 }}>
               <div style={{ fontSize:14, fontWeight:700, color:'#1e40af', marginBottom:4 }}>
                 ⚡ Plantillas rápidas por tipo de proyecto
               </div>
-              <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>
-                Pre-carga valores RF y Rw normativos típicos según el uso. Los campos vacíos se completan; los que ya tienen valor se respetan. Tú eliges luego las soluciones LOSCAT en la pestaña Soluciones.
+              <div style={{ fontSize:12, color:'#475569', lineHeight:1.5, marginBottom:plantillaActiva ? 10 : 0 }}>
+                Pre-carga valores RF y Rw normativos típicos según el uso. Tú eliges luego las soluciones LOSCAT en la pestaña Soluciones.
               </div>
+              {/* Badge de plantilla activa */}
+              {plantillaActiva && (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'6px 12px', background:'#fff', border:'1.5px solid #16a34a', borderRadius:8, fontSize:12 }}>
+                  <span style={{ fontSize:16 }}>{plantillaActiva.icono}</span>
+                  <div>
+                    <div style={{ fontSize:9.5, color:'#15803d', textTransform:'uppercase', letterSpacing:0.4, fontWeight:700 }}>Plantilla activa</div>
+                    <div style={{ fontWeight:700, color:'#1e293b', fontSize:12 }}>{plantillaActiva.nombre}</div>
+                  </div>
+                  <button
+                    onClick={quitarPlantilla}
+                    style={{ marginLeft:6, padding:'4px 10px', background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5', borderRadius:5, fontSize:11, fontWeight:700, cursor:'pointer' }}
+                    title="Quitar plantilla y limpiar valores RF/Rw"
+                  >✕ Quitar</button>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => setShowPlantillas(true)}
-              style={{ padding:'10px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap', flexShrink:0 }}
-            >
-              📋 Elegir plantilla
-            </button>
+            <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap' }}>
+              <button
+                onClick={() => setShowPlantillas(true)}
+                style={{ padding:'10px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap' }}
+              >
+                📋 {plantillaActiva ? 'Cambiar plantilla' : 'Elegir plantilla'}
+              </button>
+              {(plantillaActiva || tieneValoresTermicos() || proy.uso || proy.pisos) && (
+                <button
+                  onClick={resetDiagnostico}
+                  style={{ padding:'10px 14px', background:'#fff', color:'#475569', border:'1.5px solid #cbd5e1', borderRadius:8, fontWeight:600, cursor:'pointer', fontSize:12, whiteSpace:'nowrap' }}
+                  title="Limpiar uso, pisos, estructura, plantilla y RF/Rw"
+                >
+                  🆕 Empezar de cero
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -606,15 +696,29 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, setTermica, plant
               {plantillas.map(p => (
                 <button
                   key={p.id}
-                  onClick={() => aplicarPlantilla(p)}
+                  onClick={() => handleClickPlantilla(p)}
                   style={{
-                    textAlign:'left', background:'#f8fafc', border:'2px solid #e2e8f0',
+                    textAlign:'left',
+                    background: p.id === plantillaActivaId ? '#dcfce7' : '#f8fafc',
+                    border:'2px solid',
+                    borderColor: p.id === plantillaActivaId ? '#16a34a' : '#e2e8f0',
                     borderRadius:10, padding:'14px 16px', cursor:'pointer', transition:'all 0.15s',
-                    fontFamily:'inherit', color:'#1e293b',
+                    fontFamily:'inherit', color:'#1e293b', position:'relative',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#1e40af'; e.currentTarget.style.background = '#eff6ff' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc' }}
+                  onMouseEnter={e => {
+                    if (p.id === plantillaActivaId) return
+                    e.currentTarget.style.borderColor = '#1e40af'
+                    e.currentTarget.style.background = '#eff6ff'
+                  }}
+                  onMouseLeave={e => {
+                    if (p.id === plantillaActivaId) return
+                    e.currentTarget.style.borderColor = '#e2e8f0'
+                    e.currentTarget.style.background = '#f8fafc'
+                  }}
                 >
+                  {p.id === plantillaActivaId && (
+                    <span style={{ position:'absolute', top:8, right:8, padding:'2px 8px', background:'#16a34a', color:'#fff', fontSize:9, fontWeight:800, borderRadius:4, letterSpacing:0.5 }}>ACTIVA</span>
+                  )}
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                     <span style={{ fontSize:22 }}>{p.icono}</span>
                     <span style={{ fontWeight:700, fontSize:13, color:'#1e40af' }}>{p.nombre}</span>
@@ -633,8 +737,64 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, setTermica, plant
                 </button>
               ))}
             </div>
-            <div style={{ padding:'10px 24px 16px', fontSize:10.5, color:'#94a3b8', borderTop:'1px solid #f1f5f9', background:'#fafbfc', borderRadius:'0 0 12px 12px' }}>
-              💡 Los valores RF se basan en OGUC Art. 4.5.4 según el uso. Los valores Rw siguen NCh352. Estas son referencias para acelerar el ingreso — verifica que apliquen a tu proyecto antes de exportar.
+            <div style={{ padding:'10px 24px 16px', fontSize:10.5, color:'#94a3b8', borderTop:'1px solid #f1f5f9', background:'#fafbfc', borderRadius:'0 0 12px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+              <div style={{ flex:1, minWidth:240 }}>
+                💡 Los valores RF se basan en OGUC Art. 4.5.4 según el uso. Los valores Rw siguen NCh352. Estas son referencias para acelerar el ingreso — verifica que apliquen a tu proyecto antes de exportar.
+              </div>
+              <button
+                onClick={resetDiagnostico}
+                style={{ padding:'7px 14px', background:'#fff', color:'#991b1b', border:'1.5px solid #fca5a5', borderRadius:6, fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}
+                title="Limpia uso, pisos, estructura, plantilla y valores RF/Rw — empezar diagnóstico de cero"
+              >
+                🆕 Empezar de cero
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación: reemplazar o solo completar */}
+      {confirmAplicar && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setConfirmAplicar(null) }}
+          style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.75)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+        >
+          <div style={{ background:'#fff', borderRadius:12, maxWidth:520, width:'100%', padding:'22px 26px', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+              <span style={{ fontSize:28 }}>{confirmAplicar.plantilla.icono}</span>
+              <div>
+                <div style={{ fontSize:16, fontWeight:800, color:'#1e40af' }}>Aplicar "{confirmAplicar.plantilla.nombre}"</div>
+                <div style={{ fontSize:11, color:'#64748b' }}>Ya tenés valores RF/Rw ingresados</div>
+              </div>
+            </div>
+            <div style={{ fontSize:12.5, color:'#475569', lineHeight:1.65, marginBottom:18, padding:'10px 14px', background:'#f8fafc', borderRadius:6 }}>
+              ¿Cómo querés aplicar esta plantilla?
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <button
+                onClick={() => aplicarPlantilla(confirmAplicar.plantilla, 'replace')}
+                style={{ padding:'12px 16px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, textAlign:'left' }}
+              >
+                🔄 Reemplazar valores existentes
+                <div style={{ fontSize:10.5, fontWeight:400, opacity:0.85, marginTop:2 }}>
+                  Sobrescribe los RF/Rw actuales con los de esta plantilla. Recomendado si querés cambiar el tipo de proyecto.
+                </div>
+              </button>
+              <button
+                onClick={() => aplicarPlantilla(confirmAplicar.plantilla, 'merge')}
+                style={{ padding:'12px 16px', background:'#fff', color:'#1e40af', border:'2px solid #bfdbfe', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, textAlign:'left' }}
+              >
+                ➕ Completar solo campos vacíos
+                <div style={{ fontSize:10.5, fontWeight:400, color:'#64748b', marginTop:2 }}>
+                  Respeta los valores que ya ingresaste. Solo llena los campos en blanco.
+                </div>
+              </button>
+              <button
+                onClick={() => setConfirmAplicar(null)}
+                style={{ padding:'10px 16px', background:'#f1f5f9', color:'#475569', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:12 }}
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
