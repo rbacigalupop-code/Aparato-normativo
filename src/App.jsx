@@ -117,10 +117,18 @@ function fichaLayerColor(nombre) {
 function capasSeccionSvgStr(capas, opts = {}) {
   if (!capas?.length) return ''
   const { titulo = 'Sección constructiva (int → ext)', uCalc, uMax, label = '' } = opts
-  const W = 600, H = 290
-  const PL = 44, PR = 12, PT = 46, PB = 110
-  const gW = W - PL - PR, gH = H - PT - PB
+  const f = n => Number(n).toFixed(1)
+  const uid = Math.random().toString(36).slice(2, 7)
 
+  const W = 660
+  const PL = 44, PR = 16, PT = 48
+  const gW = W - PL - PR           // 600 px usables
+  const LAYER_H = 120               // altura del bloque de capas
+  const COTA_Y  = PT - 14          // y de la línea horizontal de cotas
+  const LEGEND_Y = PT + LAYER_H + 18
+  const ROW_H   = 14
+
+  // Proporcionar anchos de capas
   const nCam = capas.filter(c => c.esCamara).length
   const realEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + Math.max(parseFloat(c.esp || 0), 1), 0)
   const CAM_FRAC = Math.min(0.06, 0.35 / Math.max(nCam, 1))
@@ -129,75 +137,102 @@ function capasSeccionSvgStr(capas, opts = {}) {
     ? gW * CAM_FRAC
     : realEsp > 0 ? gW * realFrac * (Math.max(parseFloat(c.esp || 0), 1) / realEsp) : gW / capas.length)
 
-  const defs = `<defs>
-<pattern id="cs-insul" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
-<pattern id="cs-conc"  patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
-<pattern id="cs-wood"  patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/><line x1="0" y1="4" x2="4" y2="4" stroke="#d97706" stroke-width="0.7" opacity="0.3"/></pattern>
-<pattern id="cs-brick" patternUnits="userSpaceOnUse" width="16" height="10"><rect x="0" y="0" width="16" height="10" fill="none" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="8" y1="0" x2="8" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="0" y1="5" x2="16" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/></pattern>
-<pattern id="cs-air"   patternUnits="userSpaceOnUse" width="10" height="10"><circle cx="5" cy="5" r="1.5" fill="#7dd3fc" opacity="0.4"/></pattern>
-<pattern id="cs-mem"   patternUnits="userSpaceOnUse" width="6" height="4"><line x1="0" y1="2" x2="6" y2="2" stroke="#a78bfa" stroke-width="2" opacity="0.6"/></pattern>
-<pattern id="cs-metal" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
-</defs>`
+  // Cadena de cotas sobre las capas
+  const cotaParts = []
+  cotaParts.push(`<line x1="${PL}" y1="${COTA_Y}" x2="${PL + gW}" y2="${COTA_Y}" stroke="#475569" stroke-width="1"/>`)
+  cotaParts.push(`<line x1="${PL}" y1="${COTA_Y}" x2="${PL}" y2="${PT - 2}" stroke="#475569" stroke-width="0.9"/>`)
 
   let xCur = PL
-  const layerParts = capas.map((c, i) => {
+  const layerParts = []
+
+  capas.forEach((c, i) => {
     const w = rawW[i]
     const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.name || c.n || '—')
-    const col = fichaLayerColor(name)
-    const patKey = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat) ? col.pat : null
-    const mx = xCur + w / 2
-    const espStr  = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))} mm`
-    const lamStr  = c.esCamara ? '' : (parseFloat(c.lam) > 0 ? `λ=${parseFloat(c.lam).toFixed(3)}` : '')
-    const Ri = c.esCamara ? 0.13 : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp)/1000)/parseFloat(c.lam) : 0)
-    const rStr = Ri > 0 ? `R=${Ri.toFixed(3)}` : ''
-    const shortN = name.length > 18 ? name.slice(0, 17) + '…' : name
+    const col  = fichaLayerColor(name)
+    const hasPat = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat)
+    const espMm  = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
+    const lamStr = (!c.esCamara && parseFloat(c.lam) > 0) ? `λ=${parseFloat(c.lam).toFixed(3)}` : ''
+    const Ri     = (!c.esCamara && parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0)
+      ? (parseFloat(c.esp)/1000)/parseFloat(c.lam) : 0
+    const rStr   = Ri > 0 ? `R=${Ri.toFixed(3)}` : ''
+    const cx = xCur + w/2
 
-    // Tick lines at top+bottom of layer block
-    const tickT = `<line x1="${xCur.toFixed(1)}" x2="${xCur.toFixed(1)}" y1="${PT - 6}" y2="${PT}" stroke="#94a3b8" stroke-width="0.8"/>`
-    const tickB = `<line x1="${xCur.toFixed(1)}" x2="${xCur.toFixed(1)}" y1="${PT+gH}" y2="${PT+gH+6}" stroke="#94a3b8" stroke-width="0.8"/>`
-    // espesor label top, centrado
-    const espLblT = w > 24 ? `<text x="${mx.toFixed(1)}" y="${PT - 8}" text-anchor="middle" font-size="8" fill="#1e293b" font-weight="700">${espStr}</text>` : ''
-    // capa number badge
-    const numBadge = `<rect x="${(mx - 6).toFixed(1)}" y="${(PT + 4).toFixed(1)}" width="12" height="12" rx="3" fill="${col.stroke}" opacity="0.85"/>
-<text x="${mx.toFixed(1)}" y="${(PT + 13).toFixed(1)}" text-anchor="middle" font-size="8" fill="white" font-weight="bold">${i + 1}</text>`
-    // λ and R inside block (only if wide enough)
-    const lamLbl = (w > 44 && lamStr) ? `<text x="${mx.toFixed(1)}" y="${(PT + gH/2 + 4).toFixed(1)}" text-anchor="middle" font-size="8" fill="#374151">${lamStr}</text>` : ''
-    const rLbl   = (w > 44 && rStr)   ? `<text x="${mx.toFixed(1)}" y="${(PT + gH/2 + 14).toFixed(1)}" text-anchor="middle" font-size="8" fill="#64748b">${rStr}</text>` : ''
-    // Rotated label at bottom
-    const lY = PT + gH + 14
-    const nameLabel = `<text x="${mx.toFixed(1)}" y="${lY}" text-anchor="start" font-size="8.5" fill="#1e293b" font-weight="600"
-      transform="rotate(40 ${mx.toFixed(1)} ${lY})">${shortN}</text>`
+    // Rectángulo de capa con clipPath
+    layerParts.push(`<rect x="${f(xCur)}" y="${PT}" width="${f(w)}" height="${LAYER_H}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2" clip-path="url(#csl-${uid})"/>`)
+    if (hasPat) layerParts.push(`<rect x="${f(xCur)}" y="${PT}" width="${f(w)}" height="${LAYER_H}" fill="url(#cs-${col.pat}-${uid})" clip-path="url(#csl-${uid})"/>`)
 
-    const out = [
-      `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${gH}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2"/>`,
-      patKey ? `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${gH}" fill="url(#cs-${patKey})" stroke="none"/>` : '',
-      tickT, tickB, espLblT, numBadge, lamLbl, rLbl, nameLabel,
-    ].filter(Boolean).join('\n')
+    // Badge numérico
+    if (w > 10) {
+      layerParts.push(`<circle cx="${f(cx)}" cy="${PT + 14}" r="7" fill="${col.stroke}" opacity="0.9" clip-path="url(#csl-${uid})"/>`)
+      layerParts.push(`<text x="${f(cx)}" y="${PT + 18}" text-anchor="middle" font-size="8" fill="white" font-weight="700">${i+1}</text>`)
+    }
+    // λ y R dentro del bloque (si hay espacio)
+    if (w > 44 && lamStr) layerParts.push(`<text x="${f(cx)}" y="${f(PT + LAYER_H/2 + 4)}" text-anchor="middle" font-size="8" fill="#374151">${lamStr}</text>`)
+    if (w > 44 && rStr)   layerParts.push(`<text x="${f(cx)}" y="${f(PT + LAYER_H/2 + 14)}" text-anchor="middle" font-size="8" fill="#64748b">${rStr}</text>`)
+
+    // Cota: tick derecho + texto de espesor
+    const tickX = xCur + w
+    cotaParts.push(`<line x1="${f(tickX)}" y1="${COTA_Y}" x2="${f(tickX)}" y2="${PT - 2}" stroke="#475569" stroke-width="0.9"/>`)
+    if (espMm) {
+      if (w >= 22) {
+        cotaParts.push(`<text x="${f(cx)}" y="${COTA_Y - 4}" text-anchor="middle" font-size="8.5" fill="#1e293b" font-weight="700">${espMm}</text>`)
+      } else if (w >= 8) {
+        cotaParts.push(`<text x="${f(cx)}" y="${COTA_Y - 4}" text-anchor="middle" font-size="7" fill="#1e293b" font-weight="700" transform="rotate(-55 ${f(cx)} ${COTA_Y - 4})">${espMm}</text>`)
+      }
+    }
     xCur += w
-    return out
   })
-  // Closing tick at right edge
-  const tickEnd = `<line x1="${(PL+gW).toFixed(1)}" x2="${(PL+gW).toFixed(1)}" y1="${PT-6}" y2="${PT}" stroke="#94a3b8" stroke-width="0.8"/>
-<line x1="${(PL+gW).toFixed(1)}" x2="${(PL+gW).toFixed(1)}" y1="${PT+gH}" y2="${PT+gH+6}" stroke="#94a3b8" stroke-width="0.8"/>`
+
+  // Tabla de leyenda: muestra nombres completos
+  const legendRows = capas.map((c, i) => {
+    const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.name || c.n || '—')
+    const col  = fichaLayerColor(name)
+    const esp  = c.esCamara ? '—' : `${Math.round(parseFloat(c.esp || 0))} mm`
+    const lam  = (!c.esCamara && parseFloat(c.lam) > 0) ? parseFloat(c.lam).toFixed(3) : '—'
+    const Ri   = (!c.esCamara && parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0)
+      ? (parseFloat(c.esp)/1000/parseFloat(c.lam)).toFixed(3) : '—'
+    const ry   = LEGEND_Y + 13 + i * ROW_H
+    return `<rect x="${PL}" y="${ry - 9}" width="9" height="9" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1" rx="1.5"/>
+<text x="${PL + 14}" y="${ry}" font-size="8.5" fill="#1e293b"><tspan font-weight="700">${i+1}.</tspan> ${name}</text>
+<text x="${PL + 300}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">${esp}</text>
+<text x="${PL + 370}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">λ ${lam}</text>
+<text x="${PL + 450}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">R ${Ri}</text>`
+  }).join('\n')
 
   const totalEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0)
   const cumpleU  = uMax && uCalc != null ? parseFloat(uCalc) <= uMax : null
-  const uBadge   = uCalc != null ? `<text x="${W/2}" y="${H - 6}" text-anchor="middle" font-size="9" fill="${cumpleU === false ? '#dc2626' : '#166534'}" font-weight="700">
-    U = ${parseFloat(uCalc).toFixed(4)} W/m²K${uMax ? ` — Límite DS N°15: ≤ ${uMax} W/m²K — ${cumpleU ? '✓ CUMPLE' : '✗ NO CUMPLE'}` : ''}</text>` : ''
+  const legendEndY = LEGEND_Y + 13 + capas.length * ROW_H
+  const uBadgeY    = legendEndY + 8
+  const H          = uBadgeY + (uCalc != null ? 20 : 6)
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
-${defs}
+<defs>
+  <clipPath id="csl-${uid}"><rect x="${PL}" y="${PT}" width="${gW}" height="${LAYER_H}"/></clipPath>
+  <pattern id="cs-insul-${uid}" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
+  <pattern id="cs-conc-${uid}"  patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
+  <pattern id="cs-wood-${uid}"  patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/><line x1="0" y1="4" x2="4" y2="4" stroke="#d97706" stroke-width="0.7" opacity="0.3"/></pattern>
+  <pattern id="cs-brick-${uid}" patternUnits="userSpaceOnUse" width="16" height="10"><rect x="0" y="0" width="16" height="10" fill="none" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="8" y1="0" x2="8" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="0" y1="5" x2="16" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/></pattern>
+  <pattern id="cs-air-${uid}"   patternUnits="userSpaceOnUse" width="10" height="10"><circle cx="5" cy="5" r="1.5" fill="#7dd3fc" opacity="0.4"/></pattern>
+  <pattern id="cs-mem-${uid}"   patternUnits="userSpaceOnUse" width="6" height="4"><line x1="0" y1="2" x2="6" y2="2" stroke="#a78bfa" stroke-width="2" opacity="0.6"/></pattern>
+  <pattern id="cs-metal-${uid}" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
+</defs>
 <rect width="${W}" height="${H}" fill="white" rx="6" stroke="#e2e8f0" stroke-width="1.5"/>
 <text x="${W/2}" y="16" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="700">${titulo}</text>
-<text x="${W/2}" y="28" text-anchor="middle" font-size="8.5" fill="#64748b">${label} · ${capas.length} capas · Espesor total: ${totalEsp.toFixed(0)} mm</text>
-<text x="${PL - 4}" y="${PT + gH/2 + 4}" text-anchor="end" font-size="9" fill="#475569" font-weight="700">INT</text>
-<text x="${PL + gW + 4}" y="${PT + gH/2 + 4}" text-anchor="start" font-size="9" fill="#475569" font-weight="700">EXT</text>
-<line x1="${PL}" y1="${PT-2}" x2="${PL}" y2="${PT+gH+2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
-<line x1="${PL+gW}" y1="${PT-2}" x2="${PL+gW}" y2="${PT+gH+2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
+<text x="${W/2}" y="29" text-anchor="middle" font-size="8.5" fill="#64748b">${label ? label + ' · ' : ''}${capas.length} capas · Espesor total: ${totalEsp.toFixed(0)} mm</text>
+<text x="${PL - 5}" y="${f(PT + LAYER_H/2 + 4)}" text-anchor="end" font-size="9.5" fill="#92400e" font-weight="700">INT</text>
+<text x="${PL + gW + 5}" y="${f(PT + LAYER_H/2 + 4)}" text-anchor="start" font-size="9.5" fill="#1e40af" font-weight="700">EXT</text>
+<line x1="${PL}" y1="${PT - 2}" x2="${PL}" y2="${PT + LAYER_H + 2}" stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3,2"/>
+<line x1="${PL+gW}" y1="${PT - 2}" x2="${PL+gW}" y2="${PT + LAYER_H + 2}" stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3,2"/>
+${cotaParts.join('\n')}
 ${layerParts.join('\n')}
-${tickEnd}
-<rect x="${PL}" y="${H-22}" width="${gW}" height="14" fill="#f1f5f9" rx="2"/>
-${uBadge}
+<line x1="${PL}" y1="${LEGEND_Y - 3}" x2="${PL+gW}" y2="${LEGEND_Y - 3}" stroke="#e2e8f0" stroke-width="1"/>
+<text x="${PL}" y="${LEGEND_Y + 9}" font-size="7.5" fill="#94a3b8" font-weight="600">N°  Material</text>
+<text x="${PL + 300}" y="${LEGEND_Y + 9}" font-size="7.5" fill="#94a3b8" text-anchor="end">Espesor</text>
+<text x="${PL + 370}" y="${LEGEND_Y + 9}" font-size="7.5" fill="#94a3b8" text-anchor="end">λ W/mK</text>
+<text x="${PL + 450}" y="${LEGEND_Y + 9}" font-size="7.5" fill="#94a3b8" text-anchor="end">R m²K/W</text>
+${legendRows}
+${uCalc != null ? `<rect x="${PL}" y="${uBadgeY - 2}" width="${gW}" height="15" fill="#f1f5f9" rx="2"/>
+<text x="${W/2}" y="${uBadgeY + 9}" text-anchor="middle" font-size="9" fill="${cumpleU === false ? '#dc2626' : '#166534'}" font-weight="700">U = ${parseFloat(uCalc).toFixed(4)} W/m²K${uMax ? ` — Límite DS N°15: ≤ ${uMax} W/m²K — ${cumpleU ? '✓ CUMPLE' : '✗ NO CUMPLE'}` : ''}</text>` : ''}
 </svg>`
 }
 
@@ -257,208 +292,273 @@ function escantillonSvgStr(opts) {
   } = opts
   if (!muroCapas?.length || !horizCapas?.length) return ''
 
-  const W = 720, H = 580
-  const PT = 56, PL = 24, PR = 100
+  const f   = n => Number(n).toFixed(1)
+  const uid = Math.random().toString(36).slice(2, 7)
 
-  // Tipo determina geometría: muro arriba (piso) vs muro abajo (techos)
+  // ── Canvas y geometría ────────────────────────────────────────────
+  const W       = 860
   const muroArriba = tipo === 'muro-piso'
 
-  // Dimensiones visuales fijas
-  const wallVisualW = 200    // ancho visual del muro en SVG
-  const wallVisualH = 310    // alto del muro
-  const horizVisualH = 130   // alto de la franja horizontal
-  const horizVisualW = W - PL - PR  // ancho de la franja
+  // Bloque del muro (bandas verticales)
+  const WALL_X  = 124   // deja 104px a la izquierda para INT + cotas horiz
+  const WALL_W  = 220   // ancho visual
+  const WALL_H  = 268   // alto visual
+  const COTA_H  = 32    // espacio reservado para cadena de cotas encima del muro
 
-  // Layout (coords)
-  const wallX = PL + 110     // muro desplazado dejando espacio para "interior" a la izq
-  const wallY = muroArriba ? PT : PT + horizVisualH
-  const horizX = PL
-  const horizY = muroArriba ? PT + wallVisualH : PT
+  // Bloque horizontal (piso/techo)
+  const HORIZ_X = 20
+  const HORIZ_W = W - HORIZ_X - 14   // 826 px
+  const HORIZ_H = 116
+  const HCOTA_X = HORIZ_X + 54       // x de la línea de cotas vertical del horiz
 
-  // Espesores reales para proporcionar widths
-  const muroTotEsp = muroCapas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0) || 1
-  const horizTotEsp = horizCapas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0) || 1
+  // Calcular Y según orientación
+  const TOP_PAD = 56
+  const WALL_Y = muroArriba
+    ? TOP_PAD + COTA_H
+    : TOP_PAD + HORIZ_H + 6 + COTA_H
+  const HORIZ_Y = muroArriba
+    ? WALL_Y + WALL_H
+    : TOP_PAD + 6
 
-  // Cámaras de aire: fracción fija para que no ocupen demasiado
-  const muroNCam = muroCapas.filter(c => c.esCamara).length
-  const horizNCam = horizCapas.filter(c => c.esCamara).length
+  const COTA_Y = WALL_Y - 12   // y de la cadena de cotas sobre el muro
+
+  // ── Proporcionar anchos/altos ─────────────────────────────────────
   const CAM_FRAC = 0.05
+  const muroTotEsp  = muroCapas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0) || 1
+  const muroNCam    = muroCapas.filter(c => c.esCamara).length
   const muroRealFrac = 1 - muroNCam * CAM_FRAC
-  const horizRealFrac = 1 - horizNCam * CAM_FRAC
-
   const muroLW = muroCapas.map(c => c.esCamara
-    ? wallVisualW * CAM_FRAC
-    : wallVisualW * muroRealFrac * (parseFloat(c.esp || 0) / muroTotEsp))
+    ? WALL_W * CAM_FRAC
+    : WALL_W * muroRealFrac * (parseFloat(c.esp || 0) / muroTotEsp))
+
+  const horizTotEsp = horizCapas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0) || 1
+  const horizNCam   = horizCapas.filter(c => c.esCamara).length
+  const horizRealFrac = 1 - horizNCam * CAM_FRAC
   const horizLH = horizCapas.map(c => c.esCamara
-    ? horizVisualH * CAM_FRAC
-    : horizVisualH * horizRealFrac * (parseFloat(c.esp || 0) / horizTotEsp))
+    ? HORIZ_H * CAM_FRAC
+    : HORIZ_H * horizRealFrac * (parseFloat(c.esp || 0) / horizTotEsp))
 
-  // Render capas del muro (bandas verticales)
-  let xCur = wallX
-  const wallLayers = muroCapas.map((c, i) => {
-    const w = muroLW[i]
-    const name = c.esCamara ? 'Cámara aire' : (c.mat || c.n || '—')
-    const col = fichaLayerColor(name)
-    const patKey = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat) ? col.pat : null
-    const rect = `<rect x="${xCur.toFixed(1)}" y="${wallY}" width="${w.toFixed(1)}" height="${wallVisualH}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1"/>`
-    const pat = patKey ? `<rect x="${xCur.toFixed(1)}" y="${wallY}" width="${w.toFixed(1)}" height="${wallVisualH}" fill="url(#es-${patKey})"/>` : ''
-    // Etiqueta vertical dentro (rotada -90°)
-    const lblText = name.length > 14 ? name.slice(0, 13) + '…' : name
-    const cx = xCur + w/2, cy = wallY + wallVisualH/2
-    const lbl = w > 24
-      ? `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" font-size="9" fill="#1e293b" font-weight="600" transform="rotate(-90 ${cx.toFixed(1)} ${cy.toFixed(1)})">${lblText}</text>`
-      : ''
-    // Espesor arriba (o abajo si muroAbajo)
-    const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
-    const espY = muroArriba ? wallY - 6 : wallY + wallVisualH + 12
-    const espLbl = (w > 18 && espStr) ? `<text x="${cx.toFixed(1)}" y="${espY.toFixed(1)}" text-anchor="middle" font-size="8" fill="#475569" font-weight="700">${espStr}</text>` : ''
-    // Número de capa pequeño
-    const numY = muroArriba ? wallY + 14 : wallY + wallVisualH - 8
-    const num = w > 14 ? `<circle cx="${cx.toFixed(1)}" cy="${numY.toFixed(1)}" r="7" fill="${col.stroke}" opacity="0.9"/><text x="${cx.toFixed(1)}" y="${(numY + 3).toFixed(1)}" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">${i + 1}</text>` : ''
-    xCur += w
-    return rect + pat + lbl + espLbl + num
-  }).join('\n')
-
-  // Render capas del horiz (bandas horizontales)
-  let yCur = horizY
-  const horizLayers = horizCapas.map((c, i) => {
-    const h = horizLH[i]
-    const name = c.esCamara ? 'Cámara aire' : (c.mat || c.n || '—')
-    const col = fichaLayerColor(name)
-    const patKey = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat) ? col.pat : null
-    const rect = `<rect x="${horizX}" y="${yCur.toFixed(1)}" width="${horizVisualW}" height="${h.toFixed(1)}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1"/>`
-    const pat = patKey ? `<rect x="${horizX}" y="${yCur.toFixed(1)}" width="${horizVisualW}" height="${h.toFixed(1)}" fill="url(#es-${patKey})"/>` : ''
-    const lblText = name.length > 26 ? name.slice(0, 25) + '…' : name
-    // Etiqueta a la derecha
-    const lblY = yCur + h/2 + 3
-    const lbl = h > 12 ? `<text x="${(horizX + horizVisualW - 8).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="end" font-size="9" fill="#1e293b" font-weight="600">${lblText}</text>` : ''
-    // Espesor a la izquierda
-    const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}mm`
-    const espLbl = h > 11 && espStr ? `<text x="${(horizX + 6).toFixed(1)}" y="${lblY.toFixed(1)}" font-size="8" fill="#475569" font-weight="700">${espStr}</text>` : ''
-    // Número de capa
-    const num = h > 14 ? `<circle cx="${(horizX + 32).toFixed(1)}" cy="${(yCur + h/2).toFixed(1)}" r="7" fill="${col.stroke}" opacity="0.9"/><text x="${(horizX + 32).toFixed(1)}" y="${(yCur + h/2 + 3).toFixed(1)}" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">${i + 1}</text>` : ''
-    yCur += h
-    return rect + pat + lbl + espLbl + num
-  }).join('\n')
-
-  // Detectar aislación en cada elemento
+  // ── Detectar aislación ────────────────────────────────────────────
   const muroAislIdx  = findAislacionIdx(muroCapas)
   const horizAislIdx = findAislacionIdx(horizCapas)
 
-  // Calcular posición visual de la capa de aislación en cada elemento (para línea de continuidad)
+  // ── Render capas del muro ─────────────────────────────────────────
+  let xCur = WALL_X
+  const wallRects  = []
+  const wallBadges = []
+  const cotaMuro   = []
+
+  // Línea horizontal de la cadena de cotas
+  cotaMuro.push(`<line x1="${WALL_X}" y1="${COTA_Y}" x2="${WALL_X + WALL_W}" y2="${COTA_Y}" stroke="#475569" stroke-width="1"/>`)
+  cotaMuro.push(`<line x1="${WALL_X}" y1="${COTA_Y}" x2="${WALL_X}" y2="${WALL_Y - 2}" stroke="#475569" stroke-width="0.9"/>`)
+
+  muroCapas.forEach((c, i) => {
+    const w    = muroLW[i]
+    const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.n || '—')
+    const col  = fichaLayerColor(name)
+    const hasPat = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat)
+    const espMm  = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
+    const cx = xCur + w/2
+
+    // Rect con clipPath
+    wallRects.push(`<rect x="${f(xCur)}" y="${WALL_Y}" width="${f(w)}" height="${WALL_H}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2" clip-path="url(#cwm-${uid})"/>`)
+    if (hasPat) wallRects.push(`<rect x="${f(xCur)}" y="${WALL_Y}" width="${f(w)}" height="${WALL_H}" fill="url(#es-${col.pat}-${uid})" clip-path="url(#cwm-${uid})"/>`)
+
+    // Badge numérico
+    if (w > 10) {
+      wallBadges.push(`<circle cx="${f(cx)}" cy="${WALL_Y + 14}" r="7.5" fill="${col.stroke}" opacity="0.9"/>`)
+      wallBadges.push(`<text x="${f(cx)}" y="${WALL_Y + 18}" text-anchor="middle" font-size="8.5" fill="white" font-weight="700">${i+1}</text>`)
+    }
+
+    // Cota: tick derecho + texto
+    const tickX = xCur + w
+    cotaMuro.push(`<line x1="${f(tickX)}" y1="${COTA_Y}" x2="${f(tickX)}" y2="${WALL_Y - 2}" stroke="#475569" stroke-width="0.9"/>`)
+    if (espMm) {
+      if (w >= 20) {
+        cotaMuro.push(`<text x="${f(cx)}" y="${COTA_Y - 4}" text-anchor="middle" font-size="8.5" fill="#1e293b" font-weight="700">${espMm}</text>`)
+      } else if (w >= 8) {
+        cotaMuro.push(`<text x="${f(cx)}" y="${COTA_Y - 4}" text-anchor="middle" font-size="7" fill="#1e293b" font-weight="700" transform="rotate(-55 ${f(cx)} ${COTA_Y - 4})">${espMm}</text>`)
+      }
+    }
+    xCur += w
+  })
+
+  // ── Render capas del horiz ────────────────────────────────────────
+  let yCur = HORIZ_Y
+  const horizRects  = []
+  const horizBadges = []
+  const cotaHoriz   = []
+
+  // Línea vertical de la cadena de cotas del horiz
+  cotaHoriz.push(`<line x1="${HCOTA_X}" y1="${HORIZ_Y}" x2="${HCOTA_X}" y2="${HORIZ_Y + HORIZ_H}" stroke="#475569" stroke-width="1"/>`)
+  cotaHoriz.push(`<line x1="${HCOTA_X}" y1="${HORIZ_Y}" x2="${HORIZ_X + 62}" y2="${HORIZ_Y}" stroke="#475569" stroke-width="0.9"/>`)
+
+  horizCapas.forEach((c, i) => {
+    const h    = horizLH[i]
+    const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.n || '—')
+    const col  = fichaLayerColor(name)
+    const hasPat = ['insul','conc','wood','brick','air','mem','metal'].includes(col.pat)
+    const espMm  = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
+    const cy = yCur + h/2
+
+    // Rect con clipPath
+    horizRects.push(`<rect x="${HORIZ_X}" y="${f(yCur)}" width="${HORIZ_W}" height="${f(h)}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2" clip-path="url(#cwh-${uid})"/>`)
+    if (hasPat) horizRects.push(`<rect x="${HORIZ_X}" y="${f(yCur)}" width="${HORIZ_W}" height="${f(h)}" fill="url(#es-${col.pat}-${uid})" clip-path="url(#cwh-${uid})"/>`)
+
+    // Badge a la derecha del muro (zona visible)
+    if (h > 12) {
+      const bx = WALL_X + WALL_W + 22
+      horizBadges.push(`<circle cx="${bx}" cy="${f(cy)}" r="7.5" fill="${col.stroke}" opacity="0.9"/>`)
+      horizBadges.push(`<text x="${bx}" y="${f(cy + 3)}" text-anchor="middle" font-size="8.5" fill="white" font-weight="700">${i+1}</text>`)
+    }
+
+    // Cota: tick inferior + texto a la izquierda
+    const tickY = yCur + h
+    cotaHoriz.push(`<line x1="${HCOTA_X - 4}" y1="${f(tickY)}" x2="${HCOTA_X + 4}" y2="${f(tickY)}" stroke="#475569" stroke-width="0.9"/>`)
+    if (espMm && h >= 14) {
+      cotaHoriz.push(`<text x="${HCOTA_X - 7}" y="${f(cy + 3.5)}" text-anchor="end" font-size="8.5" fill="#1e293b" font-weight="700">${espMm}</text>`)
+    }
+    yCur += h
+  })
+
+  // ── Zonas INT / EXT ───────────────────────────────────────────────
+  const intX = HORIZ_X, intW = WALL_X - HORIZ_X
+  const extX = WALL_X + WALL_W
+  const extW = HORIZ_W - intW - WALL_W
+  const zoneY = muroArriba ? WALL_Y : HORIZ_Y
+  const zoneH = muroArriba ? WALL_H : HORIZ_H
+  const intZone = `<rect x="${intX}" y="${zoneY}" width="${intW}" height="${zoneH}" fill="#fffbeb" opacity="0.5"/>
+<text x="${intX + intW/2}" y="${zoneY + zoneH/2}" text-anchor="middle" font-size="9" fill="#92400e" font-weight="800" opacity="0.65" transform="rotate(-90 ${intX + intW/2} ${zoneY + zoneH/2})">INTERIOR</text>`
+  const extZone = `<rect x="${extX}" y="${zoneY}" width="${extW}" height="${zoneH}" fill="#eff6ff" opacity="0.5"/>
+<text x="${extX + extW/2}" y="${zoneY + zoneH/2}" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="800" opacity="0.65" transform="rotate(-90 ${extX + extW/2} ${zoneY + zoneH/2})">EXTERIOR</text>`
+  const intLabel = `<text x="${WALL_X - 6}" y="${f(WALL_Y + WALL_H/2 + 4)}" text-anchor="end" font-size="10.5" fill="#92400e" font-weight="700">INT</text>`
+  const extLabel = `<text x="${WALL_X + WALL_W + 6}" y="${f(WALL_Y + WALL_H/2 + 4)}" text-anchor="start" font-size="10.5" fill="#1e40af" font-weight="700">EXT</text>`
+
+  // ── Continuidad de aislación ──────────────────────────────────────
   let muroAislX1 = null, muroAislX2 = null
   if (muroAislIdx >= 0) {
-    muroAislX1 = wallX + muroLW.slice(0, muroAislIdx).reduce((a, w) => a + w, 0)
+    muroAislX1 = WALL_X + muroLW.slice(0, muroAislIdx).reduce((a, w) => a + w, 0)
     muroAislX2 = muroAislX1 + muroLW[muroAislIdx]
   }
   let horizAislY1 = null, horizAislY2 = null
   if (horizAislIdx >= 0) {
-    horizAislY1 = horizY + horizLH.slice(0, horizAislIdx).reduce((a, h) => a + h, 0)
+    horizAislY1 = HORIZ_Y + horizLH.slice(0, horizAislIdx).reduce((a, h) => a + h, 0)
     horizAislY2 = horizAislY1 + horizLH[horizAislIdx]
   }
 
-  // Línea de continuidad de aislación + zona de puente térmico
-  // La idea: si la aislación NO continúa entre muro y piso, marcar la zona como puente térmico
-  let lineaAislacion = ''
-  let zonaPuente = ''
-  let estadoContinuidad = ''
+  let lineaAislacion = '', zonaPuente = '', estadoContinuidad = ''
   if (muroAislIdx >= 0 && horizAislIdx >= 0) {
-    // Determinar si las posiciones de aislación se solapan en el corner
-    // En muro-piso: aislación del muro va vertical, debería "tocar" la aislación del piso horizontal
-    // Líneas guía punteadas naranja conectando ambas zonas de aislación
-    const aislMuroMidX = (muroAislX1 + muroAislX2) / 2
-    const aislHorizMidY = (horizAislY1 + horizAislY2) / 2
-    lineaAislacion = `
-<line x1="${aislMuroMidX.toFixed(1)}" y1="${(muroArriba ? wallY + wallVisualH : wallY).toFixed(1)}"
-      x2="${aislMuroMidX.toFixed(1)}" y2="${aislHorizMidY.toFixed(1)}"
-      stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.85"/>
-<line x1="${aislMuroMidX.toFixed(1)}" y1="${aislHorizMidY.toFixed(1)}"
-      x2="${(horizX + horizVisualW - 20).toFixed(1)}" y2="${aislHorizMidY.toFixed(1)}"
-      stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.85"/>
-<text x="${(aislMuroMidX + 8).toFixed(1)}" y="${(muroArriba ? wallY + wallVisualH + 24 : wallY - 22).toFixed(1)}"
-      font-size="9" fill="#92400e" font-weight="700">↓ Aislación continua</text>`
-    estadoContinuidad = '✓ Ambos elementos tienen aislación identificada. Verifica en obra que la línea de aislación NO se interrumpa en el encuentro (riesgo de puente térmico si hay corte).'
+    const mx  = (muroAislX1 + muroAislX2) / 2
+    const hmy = (horizAislY1 + horizAislY2) / 2
+    const junctionY = muroArriba ? HORIZ_Y : WALL_Y
+    lineaAislacion = `<line x1="${f(mx)}" y1="${f(junctionY)}" x2="${f(mx)}" y2="${f(hmy)}" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.9"/>
+<line x1="${f(mx)}" y1="${f(hmy)}" x2="${HORIZ_X + HORIZ_W - 28}" y2="${f(hmy)}" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.9"/>
+<text x="${f(mx + 7)}" y="${f(junctionY + 16)}" font-size="8" fill="#92400e" font-weight="700">↕ aislación continua</text>`
+    estadoContinuidad = '✓ Ambos elementos tienen aislación identificada. Verificar continuidad en obra para evitar puentes térmicos.'
   } else if (muroAislIdx >= 0 || horizAislIdx >= 0) {
-    // Discontinuidad clara
-    const cornerX = muroArriba ? wallX : wallX
-    const cornerY = muroArriba ? wallY + wallVisualH : wallY
-    zonaPuente = `<rect x="${(cornerX - 20).toFixed(1)}" y="${(cornerY - 20).toFixed(1)}" width="60" height="40"
-      fill="#fee2e2" stroke="#dc2626" stroke-width="2" stroke-dasharray="4,2" opacity="0.7"/>
-<text x="${(cornerX + 10).toFixed(1)}" y="${(cornerY - 4).toFixed(1)}" font-size="9" fill="#991b1b" font-weight="700">⚠ PT</text>`
-    estadoContinuidad = `⚠ Solo ${muroAislIdx >= 0 ? muroLabel.toLowerCase() : horizLabel.toLowerCase()} tiene aislación identificada → puente térmico probable en la unión. Considera EIFS continuo o trasdosado.`
+    const ptCx = muroAislX1 != null ? (muroAislX1 + muroAislX2) / 2 : WALL_X + WALL_W/2
+    const ptCy = muroArriba ? HORIZ_Y : WALL_Y
+    zonaPuente = `<rect x="${f(ptCx - 24)}" y="${f(ptCy - 16)}" width="48" height="32" fill="#fee2e2" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="4,2" opacity="0.75" rx="4"/>
+<text x="${f(ptCx)}" y="${f(ptCy + 5)}" text-anchor="middle" font-size="9" fill="#991b1b" font-weight="800">⚠ PT</text>`
+    estadoContinuidad = `⚠ Solo ${muroAislIdx >= 0 ? muroLabel : horizLabel} tiene aislación identificada — probable puente térmico en la unión.`
   } else {
-    estadoContinuidad = '⚠ Ninguno de los dos elementos tiene una capa de aislación térmica claramente identificada en sus capas.'
+    estadoContinuidad = '⚠ Ningún elemento tiene aislación térmica identificada en sus capas.'
   }
 
-  // Etiquetas INT/EXT del muro
-  const muroLabelY = muroArriba ? wallY + wallVisualH + 30 : wallY - 30
-  const muroLabelTxt = `<text x="${(wallX + wallVisualW/2).toFixed(1)}" y="${muroLabelY.toFixed(1)}" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="700">${muroLabel}${muroSc ? ` · LOSCAT ${muroSc}` : ''}${muroU != null ? ` · U=${muroU}` : ''}</text>`
+  // ── Leyenda tabular ───────────────────────────────────────────────
+  const drawingBotY = Math.max(WALL_Y + WALL_H, HORIZ_Y + HORIZ_H)
+  const SEP_Y   = drawingBotY + 14
+  const ROW_H   = 15
+  const COL_ESP = 434, COL_LAM = 514, COL_R = 596
 
-  // Etiquetas del horiz
-  const horizLabelTxt = `<text x="${(W - PR + 10).toFixed(1)}" y="${(horizY + horizVisualH/2 - 8).toFixed(1)}" text-anchor="start" font-size="10" fill="#1e40af" font-weight="700">${horizLabel}</text>
-<text x="${(W - PR + 10).toFixed(1)}" y="${(horizY + horizVisualH/2 + 6).toFixed(1)}" text-anchor="start" font-size="8.5" fill="#64748b">${horizSc ? `LOSCAT ${horizSc}` : ''}${horizU != null ? ` · U=${horizU}` : ''}</text>`
+  function legendRows(capas, startY) {
+    return capas.map((c, i) => {
+      const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.n || '—')
+      const col  = fichaLayerColor(name)
+      const esp  = c.esCamara ? '—' : `${Math.round(parseFloat(c.esp || 0))} mm`
+      const lam  = (!c.esCamara && parseFloat(c.lam) > 0) ? parseFloat(c.lam).toFixed(3) : '—'
+      const Ri   = (!c.esCamara && parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0)
+        ? (parseFloat(c.esp)/1000/parseFloat(c.lam)).toFixed(3) : '—'
+      const ry   = startY + i * ROW_H
+      return `<rect x="24" y="${ry - 9}" width="9" height="9" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1" rx="1.5"/>
+<text x="36" y="${ry}" font-size="8.5" fill="#1e293b"><tspan font-weight="700">${i+1}.</tspan> ${name}</text>
+<text x="${COL_ESP}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">${esp}</text>
+<text x="${COL_LAM}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">λ ${lam}</text>
+<text x="${COL_R}"   y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">R ${Ri}</text>`
+    }).join('\n')
+  }
 
-  // Espacios INT (donde está el aire interior) y EXT (aire exterior)
-  // Para muro-piso: INT a la izquierda del muro y arriba del piso; EXT a la derecha del muro y abajo del piso
-  const intAreaX = PL
-  const intAreaY = muroArriba ? PT : PT + horizVisualH
-  const intAreaW = wallX - PL
-  const intAreaH = wallVisualH
-  const extAreaX = wallX + wallVisualW
-  const extAreaY = muroArriba ? PT : PT + horizVisualH
-  const extAreaW = W - PR - extAreaX
-  const extAreaH = wallVisualH
+  const muroHdrY    = SEP_Y + 12
+  const muroRowsY   = muroHdrY + 14
+  const horizHdrY   = muroRowsY + muroCapas.length * ROW_H + 10
+  const horizRowsY  = horizHdrY + 14
+  const analBoxY    = horizRowsY + horizCapas.length * ROW_H + 12
+  const H           = analBoxY + 36 + 12
 
-  const intHighlight = `<rect x="${intAreaX}" y="${intAreaY}" width="${intAreaW}" height="${intAreaH}" fill="#fffbeb" opacity="0.5"/>`
-  const extHighlight = `<rect x="${extAreaX}" y="${extAreaY}" width="${extAreaW}" height="${extAreaH}" fill="#eff6ff" opacity="0.5"/>`
-  const intText = `<text x="${(intAreaX + intAreaW/2).toFixed(1)}" y="${(intAreaY + intAreaH/2).toFixed(1)}" text-anchor="middle" font-size="13" fill="#92400e" font-weight="800" opacity="0.6">🏠 INTERIOR</text>`
-  const extText = `<text x="${(extAreaX + extAreaW/2).toFixed(1)}" y="${(extAreaY + extAreaH/2).toFixed(1)}" text-anchor="middle" font-size="13" fill="#1e40af" font-weight="800" opacity="0.6">🌤 EXTERIOR</text>`
+  const analBg     = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#dcfce7' : '#fef2f2'
+  const analBorder = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#86efac' : '#fca5a5'
+  const analColor  = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#166534' : '#991b1b'
 
+  // ── Títulos de elementos ──────────────────────────────────────────
   const tipoLabels = {
-    'muro-piso': 'Detalle constructivo · Encuentro Muro-Piso (planta baja)',
-    'muro-cubierta': 'Detalle constructivo · Encuentro Muro-Cubierta plana',
-    'muro-techumbre': 'Detalle constructivo · Encuentro Muro-Techumbre inclinada (alero)',
+    'muro-piso'     : 'Detalle constructivo · Encuentro Muro – Piso',
+    'muro-cubierta' : 'Detalle constructivo · Encuentro Muro – Cubierta plana',
+    'muro-techumbre': 'Detalle constructivo · Encuentro Muro – Techumbre',
   }
   const titleStr = tipoLabels[tipo] || 'Detalle constructivo'
 
-  // Caja de análisis al pie
-  const continuidadBg = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#dcfce7' : '#fef2f2'
-  const continuidadBorder = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#86efac' : '#fca5a5'
-  const continuidadColor = (muroAislIdx >= 0 && horizAislIdx >= 0) ? '#166534' : '#991b1b'
-  const analisisBox = `
-<rect x="${PL}" y="${H - 56}" width="${W - PL - 20}" height="44" fill="${continuidadBg}" stroke="${continuidadBorder}" stroke-width="1.5" rx="6"/>
-<text x="${PL + 10}" y="${H - 39}" font-size="10" fill="${continuidadColor}" font-weight="700">📊 Análisis de continuidad de aislación</text>
-<text x="${PL + 10}" y="${H - 21}" font-size="9" fill="${continuidadColor}">${estadoContinuidad}</text>`
+  const muroTotDisplay  = muroCapas.filter(c=>!c.esCamara).reduce((a,c)=>a+parseFloat(c.esp||0),0)
+  const horizTotDisplay = horizCapas.filter(c=>!c.esCamara).reduce((a,c)=>a+parseFloat(c.esp||0),0)
 
-  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${W}px;height:auto;background:#fff;border-radius:8px;border:1px solid #e2e8f0">
+  const wallTitleY  = muroArriba ? WALL_Y - COTA_H - 8 : WALL_Y + WALL_H + 18
+  const wallTitleEl = `<text x="${f(WALL_X + WALL_W/2)}" y="${wallTitleY}" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="700">${muroLabel}${muroSc ? ` · ${muroSc}` : ''}${muroU != null ? ` · U=${muroU}` : ''}</text>`
+
+  const hTitleX = 9, hTitleY = HORIZ_Y + HORIZ_H/2
+  const horizTitleEl = `<text x="${hTitleX}" y="${hTitleY}" text-anchor="middle" font-size="9.5" fill="#1e40af" font-weight="700" transform="rotate(-90 ${hTitleX} ${hTitleY})">${horizLabel}${horizSc ? ` · ${horizSc}` : ''}${horizU != null ? ` · U=${horizU}` : ''}</text>`
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${W}px;height:auto;display:block">
 <defs>
-  <pattern id="es-insul" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
-  <pattern id="es-conc" patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
-  <pattern id="es-wood" patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/></pattern>
-  <pattern id="es-brick" patternUnits="userSpaceOnUse" width="16" height="10"><rect x="0" y="0" width="16" height="10" fill="none" stroke="#f87171" stroke-width="0.8" opacity="0.5"/></pattern>
-  <pattern id="es-air" patternUnits="userSpaceOnUse" width="10" height="10"><circle cx="5" cy="5" r="1.5" fill="#7dd3fc" opacity="0.4"/></pattern>
-  <pattern id="es-mem" patternUnits="userSpaceOnUse" width="6" height="4"><line x1="0" y1="2" x2="6" y2="2" stroke="#a78bfa" stroke-width="2" opacity="0.6"/></pattern>
-  <pattern id="es-metal" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
+  <clipPath id="cwm-${uid}"><rect x="${WALL_X}" y="${WALL_Y}" width="${WALL_W}" height="${WALL_H}"/></clipPath>
+  <clipPath id="cwh-${uid}"><rect x="${HORIZ_X}" y="${HORIZ_Y}" width="${HORIZ_W}" height="${HORIZ_H}"/></clipPath>
+  <pattern id="es-insul-${uid}" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
+  <pattern id="es-conc-${uid}"  patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
+  <pattern id="es-wood-${uid}"  patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/><line x1="0" y1="4" x2="4" y2="4" stroke="#d97706" stroke-width="0.7" opacity="0.3"/></pattern>
+  <pattern id="es-brick-${uid}" patternUnits="userSpaceOnUse" width="16" height="10"><rect x="0" y="0" width="16" height="10" fill="none" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="8" y1="0" x2="8" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/><line x1="0" y1="5" x2="16" y2="5" stroke="#f87171" stroke-width="0.8" opacity="0.5"/></pattern>
+  <pattern id="es-air-${uid}"   patternUnits="userSpaceOnUse" width="10" height="10"><circle cx="5" cy="5" r="1.5" fill="#7dd3fc" opacity="0.4"/></pattern>
+  <pattern id="es-mem-${uid}"   patternUnits="userSpaceOnUse" width="6" height="4"><line x1="0" y1="2" x2="6" y2="2" stroke="#a78bfa" stroke-width="2" opacity="0.6"/></pattern>
+  <pattern id="es-metal-${uid}" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
 </defs>
-<rect width="${W}" height="${H}" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" rx="8"/>
-<text x="${W/2}" y="22" text-anchor="middle" font-size="13" fill="#1e40af" font-weight="800">${titleStr}</text>
-<text x="${W/2}" y="40" text-anchor="middle" font-size="10" fill="#64748b">Vista en sección · Espesores en mm · Identificación de continuidad de aislación</text>
+<rect width="${W}" height="${H}" fill="#f8fafc" rx="8" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="0" y="0" width="${W}" height="52" fill="#1e3a8a" rx="8"/>
+<rect x="0" y="44" width="${W}" height="8" fill="#1e3a8a"/>
+<text x="${W/2}" y="22" text-anchor="middle" font-size="13" fill="white" font-weight="800">${titleStr}</text>
+<text x="${W/2}" y="40" text-anchor="middle" font-size="9" fill="#bfdbfe">${muroLabel}: ${muroTotDisplay} mm · ${horizLabel}: ${horizTotDisplay} mm · espesores en mm · sección esquemática</text>
 
-${intHighlight}
-${extHighlight}
-${intText}
-${extText}
+${intZone}${extZone}${intLabel}${extLabel}
+${wallTitleEl}
+${horizTitleEl}
 
-${horizLayers}
-${wallLayers}
-
-${zonaPuente}
+${horizRects.join('\n')}
+${wallRects.join('\n')}
+${wallBadges.join('\n')}
+${horizBadges.join('\n')}
+${cotaMuro.join('\n')}
+${cotaHoriz.join('\n')}
 ${lineaAislacion}
+${zonaPuente}
 
-${muroLabelTxt}
-${horizLabelTxt}
-
-${analisisBox}
+<line x1="20" y1="${SEP_Y}" x2="${W - 10}" y2="${SEP_Y}" stroke="#e2e8f0" stroke-width="1.5"/>
+<text x="24" y="${muroHdrY}" font-size="10" fill="#1e40af" font-weight="700">🧱 ${muroLabel}</text>
+<text x="${COL_ESP}" y="${muroHdrY}" font-size="7.5" fill="#94a3b8" text-anchor="end">Espesor</text>
+<text x="${COL_LAM}" y="${muroHdrY}" font-size="7.5" fill="#94a3b8" text-anchor="end">λ W/mK</text>
+<text x="${COL_R}"   y="${muroHdrY}" font-size="7.5" fill="#94a3b8" text-anchor="end">R m²K/W</text>
+${legendRows(muroCapas, muroRowsY)}
+<line x1="24" y1="${horizHdrY - 5}" x2="${W - 10}" y2="${horizHdrY - 5}" stroke="#e2e8f0" stroke-width="1"/>
+<text x="24" y="${horizHdrY}" font-size="10" fill="#1e40af" font-weight="700">📐 ${horizLabel}</text>
+${legendRows(horizCapas, horizRowsY)}
+<rect x="20" y="${analBoxY}" width="${W - 30}" height="34" fill="${analBg}" stroke="${analBorder}" stroke-width="1.5" rx="6"/>
+<text x="30" y="${analBoxY + 13}" font-size="9.5" fill="${analColor}" font-weight="700">📊 Análisis de continuidad de aislación</text>
+<text x="30" y="${analBoxY + 27}" font-size="8.5" fill="${analColor}">${estadoContinuidad}</text>
 </svg>`
 }
 
@@ -3611,6 +3711,9 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   const [res, setRes] = useState(null)
   const [correc, setCorrec] = useState([])
   const [calcuando, setCalcuando] = useState(false)
+  // true = correcciones son sugerencias opcionales (ya cumple, cerca del límite)
+  // false = correcciones requeridas (no cumple U o hay condensación)
+  const [modoOptimiz, setModoOptimiz] = useState(false)
   const [solucion, setSolucion] = useState(null)
   const [origCapas, setOrigCapas] = useState(null)
   const [showHomolog, setShowHomolog] = useState(false)
@@ -3675,9 +3778,11 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
         const necesitaU = umax && u_actual > umax
         const optimizar = umax && u_actual > umax * 0.85
         const nec = r?.condInter || necesitaU || optimizar
+        const esOptimizOnly = optimizar && !necesitaU && !r?.condInter
         if (nec) {
+          setModoOptimiz(esOptimizOnly)
           setCalcuando(true)
-          const targetParaSugerir = (optimizar && !necesitaU && !r?.condInter) ? umax * 0.90 : umax
+          const targetParaSugerir = esOptimizOnly ? umax * 0.90 : umax
           ;(async () => {
             try {
               const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, targetParaSugerir)
@@ -3691,7 +3796,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
               if (myToken === opToken.current) setCalcuando(false)
             }
           })()
-        } else { setCorrec([]); setCalcuando(false) }
+        } else { setCorrec([]); setModoOptimiz(false); setCalcuando(false) }
       }
     } else {
       setRes(null); setCorrec([]); setCalcuando(false)
@@ -3764,14 +3869,14 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
         const necesitaU    = umax && u_actual > umax              // no cumple
         const optimizar    = umax && u_actual > umax * 0.85       // cerca del límite
         const necesita     = r?.condInter || necesitaU || optimizar
+        const esOptimizOnly = optimizar && !necesitaU && !r?.condInter
         if (necesita) {
+          setModoOptimiz(esOptimizOnly)
           setCalcuando(true)
           try {
-            // 🔥 Esperamos al motor asíncrono. El spinner se ve porque
-            // generarCorrecciones cede el hilo con setTimeout(0).
             // Para mostrar opciones de optimización aunque ya cumpla, le pasamos
             // un umaxTarget más estricto (90% del oficial) si estamos en modo optimizar.
-            const targetParaSugerir = (optimizar && !necesitaU && !r?.condInter)
+            const targetParaSugerir = esOptimizOnly
               ? umax * 0.90    // sugiere mejoras para llegar al 90% del límite
               : umax
             const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir)
@@ -3784,7 +3889,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
           } finally {
             if (myToken === opToken.current) setCalcuando(false)
           }
-        } else { setCorrec([]); setCalcuando(false) }
+        } else { setCorrec([]); setModoOptimiz(false); setCalcuando(false) }
       }
     } catch(e) {
       console.error('calcularConCapas error:', e)
@@ -3935,12 +4040,11 @@ ${'='.repeat(60)}`
     }
     const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
     if (necesita) {
+      setModoOptimiz(false)   // tras corregir, si aún falla → modo requerido
       const cvCorr = corr.capasCorregidas
       setCalcuando(true)
       try {
-        // 🔥 Esperamos al motor asíncrono. Cero setTimeouts falsos.
         const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax)
-        // Descartar resultado si otra operación tomó el token
         if (myToken !== opToken.current) return
         setCorrec(nuevasCorrec)
       } catch (e) {
@@ -3949,7 +4053,7 @@ ${'='.repeat(60)}`
       } finally {
         if (myToken === opToken.current) setCalcuando(false)
       }
-    } else { setCorrec([]); setCalcuando(false) }
+    } else { setCorrec([]); setModoOptimiz(false); setCalcuando(false) }
   }
 
   function getSvgString() {
@@ -4606,7 +4710,18 @@ ${cambios.length && solucion ? `
             {!calcuando&&correc.length>0&&(
               <>
                 <div style={S.sep}/>
-                <p style={S.h3}>Correcciones sugeridas (NCh853)</p>
+                {modoOptimiz ? (
+                  <>
+                    <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'9px 14px', marginBottom:8, fontSize:12 }}>
+                      <b style={{ color:'#166534' }}>✓ La solución ya cumple DS N°15</b>
+                      <span style={{ color:'#374151' }}> — U&nbsp;=&nbsp;{parseFloat(res?.U).toFixed(4)}&nbsp;W/m²K ≤ {umax}&nbsp;W/m²K.
+                      Las siguientes son sugerencias opcionales para optimizar el desempeño hacia&nbsp;U&nbsp;≤&nbsp;{(umax*0.9).toFixed(2)}&nbsp;W/m²K.</span>
+                    </div>
+                    <p style={S.h3}>💡 Sugerencias de optimización (opcional)</p>
+                  </>
+                ) : (
+                  <p style={S.h3}>⚠ Correcciones requeridas (NCh853)</p>
+                )}
                 {correc.map(c=>(
                   <div key={c.id} style={{ border:`1px solid ${c.color}`, borderRadius:6, padding:'10px 12px', marginBottom:8, background: c.compatible_loscat ? '#f0fdf4' : '#fff' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, flexWrap:'wrap' }}>
