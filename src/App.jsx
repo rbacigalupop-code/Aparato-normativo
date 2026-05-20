@@ -100,16 +100,17 @@ function capasParaSC(s) {
 function fichaLayerColor(nombre) {
   const n = (nombre || '').toLowerCase()
   if (n.includes('camara') || n.includes('aire')) return { fill: '#e0f2fe', stroke: '#7dd3fc', pat: 'air' }
-  if (n.includes('barrera') || n.includes('membrana') || n.includes('polietileno')) return { fill: '#ede9fe', stroke: '#a78bfa', pat: 'mem' }
-  if (n.includes('h.a') || n.includes('ha ') || n.includes('hormig') || n.includes('gravilla') || n.includes('malla at') || n.includes('nervad') || n.includes('losa')) return { fill: '#cbd5e1', stroke: '#64748b', pat: 'conc' }
-  if (n.includes('albanil') || n.includes('ladrillo') || n.includes('ceramica') || n.includes('bloque')) return { fill: '#fecaca', stroke: '#f87171', pat: 'brick' }
+  if (n.includes('barrera') || n.includes('membrana') || n.includes('polietileno') || n.includes('epdm') || n.includes('sbs')) return { fill: '#ede9fe', stroke: '#a78bfa', pat: 'mem' }
+  if (n.includes('h.a') || n.includes('ha ') || n.includes('hormig') || n.includes('gravilla') || n.includes('malla at') || n.includes('nervad') || n.includes('losa') || n.includes('radier') || n.includes('granit') || n.includes('marmol') || n.includes('piedra')) return { fill: '#cbd5e1', stroke: '#64748b', pat: 'conc' }
+  if (n.includes('albanil') || n.includes('ladrillo') || n.includes('ceramica') || n.includes('bloque') || n.includes('teja')) return { fill: '#fecaca', stroke: '#f87171', pat: 'brick' }
   if (n.includes('eps') || n.includes('xps') || n.includes('pu ') || n.includes('proy') || n.includes('lana') || n.includes('fibra') || n.includes('mineral') || n.includes('tiff') || n.includes('isop') || n.includes('sate') || n.includes('aislante')) return { fill: '#fef08a', stroke: '#f59e0b', pat: 'insul' }
-  if (n.includes('madera') || n.includes('osb') || n.includes('clt') || n.includes('pino') || n.includes('lvl') || n.includes('contrachap') || n.includes('tablon') || n.includes('cercha') || n.includes('viga') || n.includes('mdf')) return { fill: '#fde68a', stroke: '#d97706', pat: 'wood' }
-  if (n.includes('acero') || n.includes('zinc') || n.includes('galv')) return { fill: '#64748b', stroke: '#334155', pat: 'metal' }
-  if (n.includes('fibrocemento') || n.includes('fibro')) return { fill: '#d1d5db', stroke: '#9ca3af', pat: 'fibrc' }
-  if (n.includes('yeso') || n.includes('mortero') || n.includes('revoq') || n.includes('pasta') || n.includes('elastic') || n.includes('sto') || n.includes('mineral')) return { fill: '#f0fdf4', stroke: '#86efac', pat: 'plast' }
-  if (n.includes('vidrio') || n.includes('dvh') || n.includes('tvh') || n.includes('marco')) return { fill: '#bae6fd', stroke: '#0ea5e9', pat: 'glass' }
+  if (n.includes('madera') || n.includes('osb') || n.includes('clt') || n.includes('pino') || n.includes('lvl') || n.includes('contrachap') || n.includes('tablon') || n.includes('tablilla') || n.includes('machihembr') || n.includes('parquet') || n.includes('laminad') || n.includes('cedro') || n.includes('alerce') || n.includes('cercha') || n.includes('viga') || n.includes('mdf')) return { fill: '#fde68a', stroke: '#d97706', pat: 'wood' }
+  if (n.includes('acero') || n.includes('zinc') || n.includes('galv') || n.includes('alumin') || n.includes('cobre') || n.includes('titanio')) return { fill: '#64748b', stroke: '#334155', pat: 'metal' }
+  if (n.includes('fibrocemento') || n.includes('fibro') || n.includes('cementic') || n.includes('hardiboard') || n.includes('cedral')) return { fill: '#d1d5db', stroke: '#9ca3af', pat: 'fibrc' }
+  if (n.includes('yeso') || n.includes('mortero') || n.includes('revoq') || n.includes('revoc') || n.includes('pasta') || n.includes('elastic') || n.includes('latex') || n.includes('vinil') || n.includes('lino') || n.includes('eifs') || n.includes('etics') || n.includes('sto') || n.includes('mineral')) return { fill: '#f0fdf4', stroke: '#86efac', pat: 'plast' }
+  if (n.includes('vidrio') || n.includes('dvh') || n.includes('tvh') || n.includes('marco') || n.includes('polica')) return { fill: '#bae6fd', stroke: '#0ea5e9', pat: 'glass' }
   if (n.includes('corcho')) return { fill: '#fef9c3', stroke: '#fde047', pat: 'plain' }
+  if (n.includes('alfombra')) return { fill: '#fcd9a3', stroke: '#c2853f', pat: 'plain' }
   return { fill: '#f8fafc', stroke: '#cbd5e1', pat: 'plain' }
 }
 

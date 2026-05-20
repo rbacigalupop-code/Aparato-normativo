@@ -224,16 +224,88 @@ export const ACERO_PROT = [
 //                        Ej.: cubiertas de techumbre llevan usos:['techo']; revestimientos
 //                        exteriores de muro llevan usos:['muro'].
 export const MATS=[
-  {g:"Hormigon y mortero",items:[{n:"Hormigon armado",lam:2.50,mu:130},{n:"Hormigon simple",lam:1.63,mu:130},{n:"Mortero cemento",lam:1.40,mu:25},{n:"Mortero yeso",lam:0.40,mu:10}]},
-  {g:"Albanileria",items:[{n:"Ladrillo ceramico macizo",lam:0.70,mu:10},{n:"Ladrillo ceramico perforado",lam:0.48,mu:8},{n:"Bloque hormigon",lam:1.00,mu:15},{n:"Bloque ceramico poroso",lam:0.27,mu:5}]},
-  {g:"Madera y derivados",items:[{n:"Madera pino/coigue",lam:0.14,mu:50},{n:"OSB/MDF",lam:0.23,mu:200},{n:"Yeso carton",lam:0.26,mu:8},{n:"Fibrocemento",lam:0.23,mu:50},{n:"Contrachapado",lam:0.17,mu:300}]},
-  {g:"Aislantes termicos",items:[{n:"EPS 10kg/m3",lam:0.047,mu:40},{n:"EPS 15kg/m3",lam:0.043,mu:40},{n:"EPS 20kg/m3",lam:0.040,mu:60},{n:"XPS extruido",lam:0.036,mu:100},{n:"Lana vidrio 10kg",lam:0.040,mu:1},{n:"Lana vidrio 13kg",lam:0.036,mu:1},{n:"Lana mineral 30kg",lam:0.035,mu:1},{n:"PU proyectado",lam:0.026,mu:50},{n:"Fibra poliester",lam:0.038,mu:2},{n:"Corcho aglomerado",lam:0.045,mu:20},{n:"Lana oveja",lam:0.039,mu:1},{n:"Fibra madera",lam:0.040,mu:5}]},
+  // ── Hormigón y mortero ──────────────────────────────────────────────────────
+  {g:"Hormigon y mortero",items:[
+    {n:"Hormigon armado",         lam:2.50, mu:130},
+    {n:"Hormigon simple",         lam:1.63, mu:130},
+    {n:"Mortero cemento",         lam:1.40, mu:25},
+    {n:"Mortero yeso",            lam:0.40, mu:10},
+    {n:"Mortero cola ceramico",   lam:1.30, mu:25, usos:['muro','piso']},
+    {n:"Radier HA alisado",       lam:2.00, mu:130, usos:['piso']},
+  ]},
+  // ── Albanilería ─────────────────────────────────────────────────────────────
+  {g:"Albanileria",items:[
+    {n:"Ladrillo ceramico macizo",    lam:0.70, mu:10},
+    {n:"Ladrillo ceramico perforado", lam:0.48, mu:8},
+    {n:"Bloque hormigon",             lam:1.00, mu:15},
+    {n:"Bloque ceramico poroso",      lam:0.27, mu:5},
+  ]},
+  // ── Madera y derivados ───────────────────────────────────────────────────────
+  {g:"Madera y derivados",items:[
+    {n:"Madera pino/coigue",      lam:0.14, mu:50},
+    {n:"OSB/MDF",                 lam:0.23, mu:200},
+    {n:"Yeso carton",             lam:0.26, mu:8},
+    {n:"Fibrocemento",            lam:0.23, mu:50},
+    {n:"Contrachapado",           lam:0.17, mu:300},
+    {n:"CLT laminada",            lam:0.13, mu:50},
+    {n:"Tablon machihembrado",    lam:0.14, mu:50},
+  ]},
+  // ── Aislantes térmicos ───────────────────────────────────────────────────────
+  {g:"Aislantes termicos",items:[
+    {n:"EPS 10kg/m3",      lam:0.047, mu:40},
+    {n:"EPS 15kg/m3",      lam:0.043, mu:40},
+    {n:"EPS 20kg/m3",      lam:0.040, mu:60},
+    {n:"XPS extruido",     lam:0.036, mu:100},
+    {n:"Lana vidrio 10kg", lam:0.040, mu:1},
+    {n:"Lana vidrio 13kg", lam:0.036, mu:1},
+    {n:"Lana mineral 30kg",lam:0.035, mu:1},
+    {n:"PU proyectado",    lam:0.026, mu:50},
+    {n:"Fibra poliester",  lam:0.038, mu:2},
+    {n:"Corcho aglomerado",lam:0.045, mu:20},
+    {n:"Lana oveja",       lam:0.039, mu:1},
+    {n:"Fibra madera",     lam:0.040, mu:5},
+    {n:"PIR / PUR plancha",lam:0.024, mu:100},
+    {n:"Celulosa soplada", lam:0.040, mu:2},
+  ]},
+  // ── Revestimientos exteriores muro ───────────────────────────────────────────
+  // λ/μ según EN ISO 10456:2007, NCh853:2021 y fichas técnicas de fabricantes
   {g:"Revestimientos exteriores muro",items:[
-    {n:"Estuco cemento",lam:0.87,mu:15,usos:['muro']},
-    {n:"Ceramica/porcelanato",lam:1.30,mu:200,usos:['muro','piso']},
-    {n:"Pintura/estuco",lam:0.70,mu:25,usos:['muro']},
-    {n:"Vidrio monolitico",lam:1.00,mu:9999},
-    {n:"Lamina impermeable",lam:0.23,mu:9999},
+    {n:"Estuco cemento",                  lam:0.87,  mu:15,     usos:['muro']},
+    {n:"Ceramica/porcelanato",            lam:1.30,  mu:200,    usos:['muro','piso']},
+    {n:"Pintura / estuco fino",           lam:0.70,  mu:25,     usos:['muro']},
+    {n:"Ladrillo vista",                  lam:0.70,  mu:10,     usos:['muro']},
+    {n:"Plancha cementicia (Hardiboard)", lam:0.23,  mu:50,     usos:['muro']},
+    {n:"Machihembrado madera ext.",       lam:0.14,  mu:50,     usos:['muro']},
+    {n:"Tablilla cedro / alerce",         lam:0.12,  mu:50,     usos:['muro']},
+    {n:"Zinc titanio clic",               lam:110,   mu:100000, usos:['muro']},
+    {n:"Chapa aluminio lacado",           lam:160,   mu:100000, usos:['muro']},
+    {n:"Piedra natural (granito)",        lam:2.80,  mu:10000,  usos:['muro']},
+    {n:"EIFS (Sistema ETICS)",            lam:0.87,  mu:25,     usos:['muro']},
+    {n:"Mortero monocapa",                lam:0.87,  mu:20,     usos:['muro']},
+    {n:"Revestimiento PVC vinilico",      lam:0.16,  mu:50000,  usos:['muro']},
+    {n:"Vidrio monolitico",               lam:1.00,  mu:9999},
+    {n:"Lamina impermeable",              lam:0.23,  mu:9999},
+  ]},
+  // ── Terminaciones de piso ────────────────────────────────────────────────────
+  // EN ISO 10456:2007 §B.4 + fabricantes. usos:['piso'] para que solo aparezcan en pisos.
+  {g:"Terminaciones de piso",items:[
+    {n:"Parquet flotante (laminado)",  lam:0.16, mu:150,   usos:['piso']},
+    {n:"Parquet madera maciza",        lam:0.14, mu:50,    usos:['piso']},
+    {n:"Piso vinilico (LVT)",          lam:0.17, mu:10000, usos:['piso']},
+    {n:"Alfombra",                     lam:0.06, mu:3,     usos:['piso']},
+    {n:"Linóleo (4mm)",                lam:0.17, mu:1000,  usos:['piso']},
+    {n:"Mármol / Granito piso",        lam:2.80, mu:10000, usos:['piso','muro']},
+    {n:"Porcelanato piso (9mm)",       lam:1.30, mu:200,   usos:['piso']},
+    {n:"Gravilla balasto (cubierta)",  lam:2.00, mu:1,     usos:['piso','techo']},
+  ]},
+  // ── Terminaciones interiores muro y techo ────────────────────────────────────
+  {g:"Terminaciones interiores",items:[
+    {n:"Yeso proyectado / enlucido",   lam:0.40, mu:10,  usos:['muro','techo']},
+    {n:"Revoco cal interior",          lam:0.80, mu:6,   usos:['muro','techo']},
+    {n:"Pintura latex interior",       lam:0.70, mu:25,  usos:['muro','techo']},
+    {n:"Machihembrado interior",       lam:0.14, mu:50,  usos:['muro','techo']},
+    {n:"Baldosa ceramica interior",    lam:1.30, mu:200, usos:['muro','piso']},
+    {n:"Tablero DM pintado",           lam:0.21, mu:150, usos:['muro']},
   ]},
 ];
 export const ALL_MATS=MATS.flatMap(g=>g.items);
@@ -250,10 +322,33 @@ export const ALL_MATS=MATS.flatMap(g=>g.items);
 //   · Panel Sándwich (núcleo poliuretano 40 mm): λ=0.022 W/mK, μ=100 000
 //     (cara metálica exterior impermeable).  NCh853 / NCh184.
 export const CUBIERTAS_TECHUMBRE=[
-  { n:'PV-4 / PV-5 Zincalum',              lam:50,    mu:100000, esp:0.0005, cat:'cubierta' },
-  { n:'Teja Asfáltica (incl. fieltro)',    lam:0.17,  mu:3000,   esp:0.003,  cat:'cubierta' },
-  { n:'Fibrocemento Gran Onda (P7)',       lam:0.24,  mu:50,     esp:0.005,  cat:'cubierta' },
-  { n:'Panel Sandwich (Poliuretano 40mm)', lam:0.022, mu:100000, esp:0.04,   cat:'cubierta' },
+  // ── Metálicas / láminas ──────────────────────────────────────────────────────
+  // λ acero/zinc/aluminio >> 50 W/mK → contribución térmica despreciable en e<1mm
+  // μ=100000 → totalmente impermeable al vapor (EN ISO 10456:2007 §B.3)
+  { n:'PV-4 / PV-5 Zincalum',              lam:50,   mu:100000, esp:0.0005, cat:'cubierta' },
+  { n:'Zinc titanio clic (VMZINC)',         lam:110,  mu:100000, esp:0.0008, cat:'cubierta' },
+  { n:'Cobre laminado',                     lam:380,  mu:100000, esp:0.0006, cat:'cubierta' },
+  { n:'Plancha aluminio cubierta',          lam:160,  mu:100000, esp:0.0008, cat:'cubierta' },
+  // ── Tejas ────────────────────────────────────────────────────────────────────
+  // λ teja ceramica = 1.0 W/mK (EN ISO 10456 §B.4 — cerámica cocida)
+  // λ teja hormigon = 0.76 W/mK (hormigon poroso liviano)
+  { n:'Teja cerámica esmaltada (12mm)',     lam:1.00, mu:25,     esp:0.012,  cat:'cubierta' },
+  { n:'Teja hormigón (12mm)',               lam:0.76, mu:40,     esp:0.012,  cat:'cubierta' },
+  { n:'Teja madera / shingles (12mm)',      lam:0.12, mu:50,     esp:0.012,  cat:'cubierta' },
+  { n:'Teja Asfáltica (incl. fieltro)',     lam:0.17, mu:3000,   esp:0.003,  cat:'cubierta' },
+  // ── Fibrocemento / panel ──────────────────────────────────────────────────────
+  { n:'Fibrocemento Gran Onda (P7)',        lam:0.24, mu:50,     esp:0.005,  cat:'cubierta' },
+  { n:'Panel Sandwich (Poliuretano 40mm)',  lam:0.022,mu:100000, esp:0.04,   cat:'cubierta' },
+  { n:'Panel Sandwich lana mineral (60mm)', lam:0.040,mu:100000, esp:0.06,   cat:'cubierta' },
+  // ── Membranas (cubierta plana) ────────────────────────────────────────────────
+  // λ betún SBS = 0.17 W/mK; μ=50000 según EN 13969 / DIN 52123
+  // EPDM: μ≈100000 (prácticamente impermeable al vapor)
+  { n:'Membrana SBS bicapa (8mm)',          lam:0.17, mu:50000,  esp:0.008,  cat:'cubierta' },
+  { n:'Membrana EPDM (1.5mm)',              lam:0.25, mu:100000, esp:0.0015, cat:'cubierta' },
+  { n:'Membrana TPO (1.2mm)',               lam:0.25, mu:100000, esp:0.0012, cat:'cubierta' },
+  // ── Policarbonato / translúcido ───────────────────────────────────────────────
+  // λ PC alveolar = 0.21 W/mK; μ≈9999 (absorbe vapor pero no lo transmite fácil)
+  { n:'Policarbonato alveolar (6mm)',       lam:0.21, mu:9999,   esp:0.006,  cat:'cubierta' },
 ];
 
 // Alias semántico para el slot «Revestimiento Exterior» de muros.
