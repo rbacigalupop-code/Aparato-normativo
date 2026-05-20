@@ -8,6 +8,7 @@ export default function UserManager() {
     isAdmin,
     user,
     invitarUsuario,
+    absorberUsuario,
     listarUsuarios,
     listarInvitacionesPendientes,
     cancelarInvitacion,
@@ -25,6 +26,10 @@ export default function UserManager() {
   const [msg, setMsg] = useState(null)
   const [emailInvitar, setEmailInvitar] = useState('')
   const [rolInvitar, setRolInvitar] = useState('viewer')
+  // Form "absorber usuario existente"
+  const [emailAbsorber, setEmailAbsorber] = useState('')
+  const [rolAbsorber, setRolAbsorber] = useState('viewer')
+  const [absorbiendo, setAbsorbiendo] = useState(false)
 
   // Modal de confirmación de invitación exitosa
   const [confirmacionInvitacion, setConfirmacionInvitacion] = useState(null)
@@ -50,6 +55,58 @@ export default function UserManager() {
 
   // Mantener compatibilidad con el nombre anterior
   const cargarUsuarios = cargarTodo
+
+  // Absorber usuario existente (ya registrado en auth.users)
+  async function handleAbsorber(e) {
+    e.preventDefault()
+    setMsg(null)
+
+    // Validar email
+    const emailErr = validarEmail(emailAbsorber)
+    if (emailErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${emailErr}` })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+    // Validar diferente del usuario actual
+    const diffErr = validarEmailDiferente(emailAbsorber, user?.email)
+    if (diffErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${diffErr}` })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+    // Validar rol
+    const rolErr = validarRol(rolAbsorber)
+    if (rolErr) {
+      setMsg({ tipo: 'err', texto: `Error: ${rolErr}` })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+    // Validar que no esté ya en la org
+    const yaExiste = usuarios.some(u =>
+      (u.email || u.nombre_completo || '').toLowerCase() === emailAbsorber.trim().toLowerCase()
+    )
+    if (yaExiste) {
+      setMsg({ tipo: 'err', texto: 'Este usuario ya pertenece a tu organización' })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+
+    setAbsorbiendo(true)
+    const result = await absorberUsuario(emailAbsorber, rolAbsorber)
+    setAbsorbiendo(false)
+
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ ${result.mensaje || 'Usuario agregado correctamente'}` })
+      setEmailAbsorber('')
+      setRolAbsorber('viewer')
+      cargarUsuarios()
+      setTimeout(() => setMsg(null), 6000)
+    } else {
+      setMsg({ tipo: 'err', texto: `Error: ${result.error || 'No se pudo agregar el usuario'}` })
+      setTimeout(() => setMsg(null), 7000)
+    }
+  }
 
   // Invitar usuario
   async function handleInvitar(e) {
@@ -302,6 +359,43 @@ export default function UserManager() {
         </form>
         <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
           💡 El usuario debe registrarse con este email. Su perfil se vinculará automáticamente.
+        </div>
+      </div>
+
+      {/* ─── Absorber usuario existente ─────────────────────────────────────── */}
+      <div style={{ ...S.card, marginTop: 16, background: '#f8fafc', borderColor: '#cbd5e1' }}>
+        <h2 style={{ ...S.h2, color: '#475569' }}>🔗 Agregar usuario ya registrado</h2>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>
+          Si la persona ya creó una cuenta en NormaCheck (registrándose directamente, no por tu invitación), usa este formulario para <b>moverla a tu organización</b> y poder administrar sus privilegios. No envía email — la absorción es inmediata.
+        </div>
+        <form onSubmit={handleAbsorber}>
+          <div style={S.row}>
+            <div style={S.col(250)}>
+              <label style={S.label}>Email del usuario registrado</label>
+              <input
+                style={S.input}
+                type="email"
+                placeholder="usuario@ejemplo.com"
+                value={emailAbsorber}
+                onChange={e => setEmailAbsorber(e.target.value)}
+                required
+                disabled={absorbiendo}
+              />
+            </div>
+            <div style={S.col(140)}>
+              <label style={S.label}>Rol asignado</label>
+              <select style={S.input} value={rolAbsorber} onChange={e => setRolAbsorber(e.target.value)} disabled={absorbiendo}>
+                <option value="viewer">👁️ Viewer (lectura)</option>
+                <option value="admin">👨‍💼 Admin (completo)</option>
+              </select>
+            </div>
+            <button type="submit" style={S.btn('#475569')} disabled={absorbiendo}>
+              {absorbiendo ? 'Procesando…' : '🔗 Agregar a mi org'}
+            </button>
+          </div>
+        </form>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0', lineHeight: 1.5 }}>
+          ⚠ Solo funciona con usuarios que <b>ya tienen cuenta</b> en NormaCheck. Si el usuario no existe aún, usa "Invitar nuevo usuario" arriba para enviarle un email de registro. Si la persona tenía su propio workspace, este se desactivará automáticamente.
         </div>
       </div>
 

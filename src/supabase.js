@@ -259,6 +259,38 @@ export async function obtenerOrganizacionesUsuario(userId) {
   return data.map(p => p.organizaciones).filter(Boolean)
 }
 
+// Absorber usuario existente — agrega un usuario ya registrado en auth.users
+// a la organización del admin (sin enviar email de invitación).
+// Útil cuando el usuario se registró directamente y quedó en su propia org.
+// Requiere SQL function absorber_usuario_existente (sql/010_absorber_usuario.sql).
+export async function absorberUsuarioExistente(orgId, email, rol = 'viewer') {
+  if (!email || !email.includes('@')) {
+    return { ok: false, error: 'Email inválido' }
+  }
+  if (!orgId) {
+    return { ok: false, error: 'Organización no especificada' }
+  }
+  try {
+    const { data, error } = await supabase.rpc('absorber_usuario_existente', {
+      p_email: email.trim().toLowerCase(),
+      p_org_id: orgId,
+      p_rol: rol,
+    })
+    if (error) {
+      console.warn('absorberUsuarioExistente error:', error)
+      return { ok: false, error: error.message || 'Error al absorber usuario' }
+    }
+    // data viene como JSONB: { ok, error?, mensaje?, usuario? }
+    if (!data?.ok) {
+      return { ok: false, error: data?.error || 'No se pudo absorber el usuario' }
+    }
+    return { ok: true, mensaje: data.mensaje, usuario: data.usuario }
+  } catch (err) {
+    console.error('absorberUsuarioExistente exception:', err)
+    return { ok: false, error: 'Error procesando solicitud' }
+  }
+}
+
 // Invitar usuario a organización (con envío real de email vía Supabase Auth)
 export async function invitarUsuario(orgId, email, rol = 'viewer') {
   try {

@@ -7,6 +7,7 @@ import {
   obtenerPerfil,
   obtenerOrganizacionesUsuario,
   invitarUsuario,
+  absorberUsuarioExistente,
   listarUsuariosOrg,
   listarInvitacionesPendientes,
   cancelarInvitacion,
@@ -245,6 +246,15 @@ export function AuthProvider({ children }) {
     [orgActual]
   )
 
+  // Función: Absorber usuario ya registrado en auth.users (sin invitar por email)
+  const handleAbsorberUsuario = useCallback(
+    async (email, rol = 'viewer') => {
+      if (!orgActual) return { ok: false, error: 'No hay organización seleccionada' }
+      return await absorberUsuarioExistente(orgActual.id, email, rol)
+    },
+    [orgActual]
+  )
+
   // Función: Listar usuarios de la org
   const handleListarUsuarios = useCallback(async () => {
     if (!orgActual) return []
@@ -314,6 +324,7 @@ export function AuthProvider({ children }) {
 
     // Funciones de gestión de usuarios
     invitarUsuario: handleInvitarUsuario,
+    absorberUsuario: handleAbsorberUsuario,
     listarUsuarios: handleListarUsuarios,
     listarInvitacionesPendientes: handleListarInvitacionesPendientes,
     cancelarInvitacion: handleCancelarInvitacion,
