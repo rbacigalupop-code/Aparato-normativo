@@ -441,7 +441,38 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
 }
 
 // ─── Componente principal: TabDiag ───────────────────────────────────────────
-export default function TabDiag({ proy, setProy, getLetraOGUC }) {
+export default function TabDiag({ proy, setProy, getLetraOGUC, setTermica, plantillas }) {
+  // ── Modal de Plantillas Rápidas ──────────────────────────────────────────────
+  const [showPlantillas, setShowPlantillas] = useState(false)
+
+  function aplicarPlantilla(plantilla) {
+    if (!plantilla) return
+    // Aplicar campos del proy (uso, pisos, estructura), conservando lo que ya tiene el usuario
+    if (plantilla.proy) {
+      setProy(p => ({
+        ...p,
+        uso:        plantilla.proy.uso       || p.uso,
+        pisos:      plantilla.proy.pisos     || p.pisos,
+        estructura: plantilla.proy.estructura || p.estructura,
+      }))
+    }
+    // Aplicar valores RF/Rw a termica (MERGE, no reemplaza valores existentes)
+    if (plantilla.termica && setTermica) {
+      setTermica(t => {
+        const next = { ...t }
+        for (const [elem, vals] of Object.entries(plantilla.termica)) {
+          next[elem] = {
+            ...(next[elem] || {}),
+            // Solo escribir si el campo está vacío o no existe (no sobrescribir lo del usuario)
+            rf: next[elem]?.rf || vals.rf || '',
+            rw: next[elem]?.rw || vals.rw || '',
+          }
+        }
+        return next
+      })
+    }
+    setShowPlantillas(false)
+  }
   // Overrides se leen del localStorage (actualizados por AdminZonas)
   const [overrides, setOverrides] = useState(() => getOverrides())
 
@@ -532,6 +563,83 @@ export default function TabDiag({ proy, setProy, getLetraOGUC }) {
         ]}
         normativa="DS N°15 MINVU (vigente 28/11/2025) · OGUC Título 4 · NCh1079:2019 · LOFC Ed.17 2025 · NCh352"
       />
+      {/* ── PLANTILLAS RÁPIDAS POR USO ─────────────────────────────────────── */}
+      {plantillas?.length > 0 && (
+        <div style={{ ...S.card, background:'linear-gradient(135deg,#eff6ff,#f0f9ff)', border:'1.5px solid #bfdbfe' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#1e40af', marginBottom:4 }}>
+                ⚡ Plantillas rápidas por tipo de proyecto
+              </div>
+              <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>
+                Pre-carga valores RF y Rw normativos típicos según el uso. Los campos vacíos se completan; los que ya tienen valor se respetan. Tú eliges luego las soluciones LOSCAT en la pestaña Soluciones.
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPlantillas(true)}
+              style={{ padding:'10px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap', flexShrink:0 }}
+            >
+              📋 Elegir plantilla
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: lista de plantillas */}
+      {showPlantillas && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowPlantillas(false) }}
+          style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.7)', zIndex:9998, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+        >
+          <div style={{ background:'#fff', borderRadius:12, maxWidth:780, width:'100%', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ position:'sticky', top:0, background:'#fff', padding:'16px 24px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div>
+                <div style={{ fontSize:18, fontWeight:800, color:'#1e40af' }}>📋 Plantillas por tipo de proyecto</div>
+                <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>Selecciona la plantilla que mejor se ajuste a tu proyecto</div>
+              </div>
+              <button
+                onClick={() => setShowPlantillas(false)}
+                style={{ padding:'6px 14px', background:'#f1f5f9', color:'#475569', border:'none', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600 }}
+              >✕ Cerrar</button>
+            </div>
+            <div style={{ padding:'16px 24px', display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:12 }}>
+              {plantillas.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => aplicarPlantilla(p)}
+                  style={{
+                    textAlign:'left', background:'#f8fafc', border:'2px solid #e2e8f0',
+                    borderRadius:10, padding:'14px 16px', cursor:'pointer', transition:'all 0.15s',
+                    fontFamily:'inherit', color:'#1e293b',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#1e40af'; e.currentTarget.style.background = '#eff6ff' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc' }}
+                >
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                    <span style={{ fontSize:22 }}>{p.icono}</span>
+                    <span style={{ fontWeight:700, fontSize:13, color:'#1e40af' }}>{p.nombre}</span>
+                  </div>
+                  <div style={{ fontSize:11.5, color:'#475569', lineHeight:1.5, marginBottom:8 }}>{p.descripcion}</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:4, fontSize:10 }}>
+                    {p.proy?.uso && <span style={{ background:'#dbeafe', color:'#1e40af', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.uso}</span>}
+                    {p.proy?.pisos && <span style={{ background:'#e0e7ff', color:'#4338ca', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.pisos} pisos</span>}
+                    {p.proy?.estructura && <span style={{ background:'#f1f5f9', color:'#475569', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.estructura}</span>}
+                  </div>
+                  {p.termica && (
+                    <div style={{ marginTop:8, paddingTop:8, borderTop:'1px dashed #cbd5e1', fontSize:10, color:'#64748b', lineHeight:1.5 }}>
+                      <b>RF/Rw:</b> Muro {p.termica.muro?.rf}/{p.termica.muro?.rw}dB · Techo {p.termica.techo?.rf}/{p.termica.techo?.rw}dB · Tabique {p.termica.tabique?.rf}/{p.termica.tabique?.rw}dB
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div style={{ padding:'10px 24px 16px', fontSize:10.5, color:'#94a3b8', borderTop:'1px solid #f1f5f9', background:'#fafbfc', borderRadius:'0 0 12px 12px' }}>
+              💡 Los valores RF se basan en OGUC Art. 4.5.4 según el uso. Los valores Rw siguen NCh352. Estas son referencias para acelerar el ingreso — verifica que apliquen a tu proyecto antes de exportar.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── DATOS DEL PROYECTO ─────────────────────────────────── */}
       <div style={S.card}>
         <p style={S.h2}>Datos del proyecto</p>

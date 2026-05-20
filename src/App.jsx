@@ -4919,6 +4919,20 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
 
   // ── Formato de exportación ────────────────────────────────────────────────
   const [formatoExport, setFormatoExport] = useState('pdf')
+  // ── Vista previa (modal con iframe) ───────────────────────────────────────
+  const [previewHtml, setPreviewHtml] = useState(null)
+  // ESC cierra la vista previa + bloquea scroll del body mientras está abierta
+  useEffect(() => {
+    if (!previewHtml) return
+    const onKey = (e) => { if (e.key === 'Escape') setPreviewHtml(null) }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [previewHtml])
 
   const ELEMS_DEF = [
     { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: zona?.muro,  rfReq: RF_DEF[uso]?.muros_sep, rwReq: AC_DEF[uso]?.entre_unidades },
@@ -4980,7 +4994,9 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     }).filter(Boolean)
   }
 
-  async function exportarInforme() {
+  async function exportarInforme(modo = 'export') {
+    // modo === 'preview' → solo abrir vista previa (no consume token ni descarga)
+    // modo === 'export'  → flujo normal (consume token + descarga/imprime)
     // ── Módulos activos (respeta selección manual o usa defaults) ─────────────
     const _uso = proy.uso || ''
     const _reqTermica  = !!proy.zona
@@ -5007,14 +5023,15 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const tieneTermica = Object.keys(termica).some(k => termica[k]?.u || termica[k]?.solucion)
     const tieneCalcU   = Object.keys(calcUInit || {}).some(k => calcUInit[k]?.res)
     if (!tieneTermica && !tieneCalcU) faltantes.push('Datos térmicos (Térmica o Cálculo U)')
-    if (faltantes.length > 0) {
+    if (faltantes.length > 0 && modo === 'export') {
       const continuar = window.confirm(
         `⚠ El informe tiene datos incompletos:\n\n${faltantes.map(f => `  • ${f}`).join('\n')}\n\n¿Desea exportar el informe de todas formas?`
       )
       if (!continuar) return
     }
     // Verificar y consumir crédito de proyecto antes de generar
-    if (onExportar) {
+    // En modo 'preview' NO consumimos token — es solo visualización.
+    if (onExportar && modo === 'export') {
       const permitido = await onExportar()
       if (!permitido) return
     }
@@ -6166,6 +6183,12 @@ ${correccionesHtml}
 
     const nombreArchivo = (proy.nombre || 'informe').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim().replace(/\s+/g, '-') + '-' + fechaHoy.replace(/\//g, '-')
 
+    // ── Modo PREVIEW: abrir el modal en lugar de exportar ──────────────────────
+    if (modo === 'preview') {
+      setPreviewHtml({ html, nombreArchivo })
+      return
+    }
+
     if (formatoExport === 'html') {
       // ── Descarga directa como archivo HTML ──────────────────────────────
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
@@ -6366,8 +6389,17 @@ ${correccionesHtml}
                 ))}
               </div>
 
+              {/* Botón Vista Previa (no consume token) */}
+              <button
+                style={{ ...S.btn('#0369a1'), background:'#0369a1' }}
+                onClick={() => exportarInforme('preview')}
+                title="Revisar el informe antes de generar/descargar — no consume token"
+              >
+                👁 Vista previa
+              </button>
+
               {/* Botón principal */}
-              <button style={S.btn('#166534')} onClick={exportarInforme}>
+              <button style={S.btn('#166534')} onClick={() => exportarInforme('export')}>
                 {formatoExport === 'pdf'  && '🖨 Generar PDF'}
                 {formatoExport === 'html' && '⬇ Descargar HTML'}
                 {formatoExport === 'word' && '⬇ Descargar Word'}
@@ -6388,9 +6420,158 @@ ${correccionesHtml}
         Esta verificación es preliminar. El arquitecto responsable debe firmar el expediente DOM.
       </div>
       <NotasPanel tabKey="resultados" notas={notas} setNotas={setNotas} />
+
+      {/* ── Modal Vista Previa del Informe ─────────────────────────────────── */}
+      {previewHtml && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewHtml(null) }}
+          style={{
+            position:'fixed', inset:0, background:'rgba(15,23,42,0.85)', zIndex:9999,
+            display:'flex', flexDirection:'column', padding:'16px',
+          }}
+        >
+          {/* Toolbar superior */}
+          <div style={{
+            display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
+            padding:'8px 16px', background:'#1e40af', color:'#fff', borderRadius:'8px 8px 0 0',
+            boxShadow:'0 -2px 8px rgba(0,0,0,0.15)',
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <span style={{ fontSize:16, fontWeight:700 }}>👁 Vista previa del informe</span>
+              <span style={{ fontSize:11, opacity:0.85, padding:'2px 8px', background:'rgba(255,255,255,0.15)', borderRadius:4 }}>
+                {previewHtml.nombreArchivo}
+              </span>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button
+                onClick={() => {
+                  // Imprimir el iframe (atajo desde la vista previa)
+                  const iframe = document.getElementById('preview-iframe')
+                  if (iframe?.contentWindow) iframe.contentWindow.print()
+                }}
+                style={{ padding:'6px 14px', background:'#fff', color:'#1e40af', border:'none', borderRadius:6, fontWeight:700, cursor:'pointer', fontSize:12 }}
+              >
+                🖨 Imprimir
+              </button>
+              <button
+                onClick={() => {
+                  // Generar/descargar de verdad desde la vista previa
+                  setPreviewHtml(null)
+                  setTimeout(() => exportarInforme('export'), 50)
+                }}
+                style={{ padding:'6px 14px', background:'#16a34a', color:'#fff', border:'none', borderRadius:6, fontWeight:700, cursor:'pointer', fontSize:12 }}
+              >
+                ✓ Generar {formatoExport.toUpperCase()}
+              </button>
+              <button
+                onClick={() => setPreviewHtml(null)}
+                style={{ padding:'6px 14px', background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.3)', borderRadius:6, fontWeight:700, cursor:'pointer', fontSize:12 }}
+                title="Cerrar (ESC)"
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+          </div>
+          {/* iframe con el HTML del informe */}
+          <iframe
+            id="preview-iframe"
+            srcDoc={previewHtml.html}
+            style={{
+              flex:1, width:'100%', border:'none', background:'#fff',
+              borderRadius:'0 0 8px 8px', boxShadow:'0 4px 20px rgba(0,0,0,0.3)',
+            }}
+            title="Vista previa del informe DOM"
+          />
+        </div>
+      )}
     </div>
   )
 }
+
+// ─── PLANTILLAS RÁPIDAS POR USO ────────────────────────────────────────────────
+// Pre-cargan valores RF y Rw normativos típicos según el tipo de proyecto.
+// El usuario puede sobrescribir cualquier valor después. NO pre-asignan LOSCAT
+// (eso queda al criterio del proyectista en la pestaña Soluciones).
+const PLANTILLAS_USO = [
+  {
+    id: 'viv_unifamiliar_horm',
+    icono: '🏠',
+    nombre: 'Vivienda unifamiliar — Hormigón',
+    descripcion: 'Casa 1-2 pisos, muros HA o albañilería, techumbre liviana, sin medianeros.',
+    proy: { uso: 'Vivienda', pisos: '2', estructura: 'Hormigón armado' },
+    termica: {
+      muro:    { rf: 'F60', rw: '45' },
+      techo:   { rf: 'F30', rw: '45' },
+      piso:    { rf: 'F60', rw: '45' },
+      tabique: { rf: 'F30', rw: '40' },
+    },
+  },
+  {
+    id: 'viv_unifamiliar_madera',
+    icono: '🌲',
+    nombre: 'Vivienda unifamiliar — Madera',
+    descripcion: 'Casa con entramado de madera, plataforma, techumbre liviana.',
+    proy: { uso: 'Vivienda', pisos: '2', estructura: 'Madera' },
+    termica: {
+      muro:    { rf: 'F30', rw: '45' },
+      techo:   { rf: 'F15', rw: '45' },
+      piso:    { rf: 'F30', rw: '45' },
+      tabique: { rf: 'F15', rw: '40' },
+    },
+  },
+  {
+    id: 'viv_altura_horm',
+    icono: '🏢',
+    nombre: 'Vivienda en altura — Hormigón',
+    descripcion: 'Edificio residencial 3+ pisos, estructura HA, medianeros entre unidades.',
+    proy: { uso: 'Vivienda', pisos: '4', estructura: 'Hormigón armado' },
+    termica: {
+      muro:    { rf: 'F90', rw: '50' },
+      techo:   { rf: 'F60', rw: '50' },
+      piso:    { rf: 'F90', rw: '55' },
+      tabique: { rf: 'F60', rw: '45' },
+    },
+  },
+  {
+    id: 'oficina',
+    icono: '💼',
+    nombre: 'Oficina pequeña — Hormigón',
+    descripcion: 'Edificio de oficinas hasta 500 m², HA o albañilería.',
+    proy: { uso: 'Oficina', pisos: '3', estructura: 'Hormigón armado' },
+    termica: {
+      muro:    { rf: 'F60', rw: '40' },
+      techo:   { rf: 'F30', rw: '40' },
+      piso:    { rf: 'F60', rw: '40' },
+      tabique: { rf: 'F30', rw: '35' },
+    },
+  },
+  {
+    id: 'educacion',
+    icono: '🎓',
+    nombre: 'Educación pre/primaria — Hormigón',
+    descripcion: 'Establecimiento educacional <1.000 m², exigencias RF y Rw mayores.',
+    proy: { uso: 'Educacion', pisos: '2', estructura: 'Hormigón armado' },
+    termica: {
+      muro:    { rf: 'F60', rw: '45' },
+      techo:   { rf: 'F30', rw: '45' },
+      piso:    { rf: 'F60', rw: '45' },
+      tabique: { rf: 'F60', rw: '40' },
+    },
+  },
+  {
+    id: 'comercio',
+    icono: '🏬',
+    nombre: 'Comercio / Local pequeño',
+    descripcion: 'Local comercial hasta 500 m², HA o albañilería.',
+    proy: { uso: 'Comercio', pisos: '1', estructura: 'Hormigón armado' },
+    termica: {
+      muro:    { rf: 'F60', rw: '40' },
+      techo:   { rf: 'F30', rw: '40' },
+      piso:    { rf: 'F60', rw: '40' },
+      tabique: { rf: 'F30', rw: '35' },
+    },
+  },
+]
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', 'Resultados', '⚙ Admin']
@@ -6780,13 +6961,18 @@ function AppInner() {
         [elem]: { ...(t[elem] || {}), ...solData, rw: rwVal || (t[elem]?.rw || '') },
       }))
       // Pre-cargar capas con clave compuesta "estId::elemKey" → un panel propio en Cálculo U
+      // LIMPIEZA: al pasar a modo per-sistema, eliminar la entry global stale y la
+      // del MISMO sistema/elem (sobrescribir limpio, sin merge de correccionAplicada vieja).
       const calcUCapas = buildCalcUCapas()
-      setCalcUInit(prev => ({
-        ...prev,
-        [`${targetId}::${elem}`]: calcUCapas?.length
+      setCalcUInit(prev => {
+        const next = { ...prev }
+        delete next[elem]                       // eliminar global stale
+        delete next[`${targetId}::${elem}`]     // eliminar entry previa de este mismo target+elem
+        next[`${targetId}::${elem}`] = calcUCapas?.length
           ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } }
-          : null,
-      }))
+          : null
+        return next
+      })
       return
     }
 
@@ -6795,11 +6981,19 @@ function AppInner() {
       ...t,
       [elem]: { ...t[elem], ...solData, rw: rwVal || (t[elem]?.rw || '') },
     }))
+    // LIMPIEZA: al pasar a modo global, eliminar todas las entries per-sistema stale
+    // para este elemento ("*::elem") + sobrescribir la entry global limpia (no merge).
     const calcUCapas = buildCalcUCapas()
-    setCalcUInit(prev => ({
-      ...prev,
-      [elem]: calcUCapas?.length ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } } : null,
-    }))
+    setCalcUInit(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(k => {
+        if (k.endsWith('::' + elem)) delete next[k]
+      })
+      next[elem] = calcUCapas?.length
+        ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } }
+        : null
+      return next
+    })
     setTab(2)
   }
 
@@ -6885,7 +7079,7 @@ function AppInner() {
           <div className="nc-content">
             {tab === 0 && (
               <div>
-                <TabDiag proy={proy} setProy={setProy} getLetraOGUC={getLetraOGUC_loaded} />
+                <TabDiag proy={proy} setProy={setProy} getLetraOGUC={getLetraOGUC_loaded} setTermica={setTermica} plantillas={PLANTILLAS_USO} />
                 <div style={{ padding: '0 16px 16px' }}>
                   <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
                 </div>
