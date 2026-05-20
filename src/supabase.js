@@ -170,14 +170,33 @@ export async function signIn(email, password) {
   })
 
   if (error || !data.user) {
-    return { ok: false, error: error?.message || 'Email o contraseña incorrectos' }
+    // Traducir errores típicos de Supabase a mensajes amigables
+    const raw = (error?.message || '').toLowerCase()
+    let mensaje = error?.message || 'Email o contraseña incorrectos'
+
+    if (raw.includes('email not confirmed')) {
+      mensaje = 'Tu email aún no está confirmado. Revisa tu bandeja (y la carpeta de spam) y haz click en el link de confirmación.'
+    } else if (raw.includes('invalid login credentials') || raw.includes('invalid_credentials')) {
+      mensaje = 'Email o contraseña incorrectos. Verifica e intenta de nuevo.'
+    } else if (raw.includes('email link is invalid') || raw.includes('expired')) {
+      mensaje = 'El link de confirmación expiró. Pide uno nuevo desde "¿No tienes cuenta? Crear una".'
+    } else if (raw.includes('rate limit') || raw.includes('too many')) {
+      mensaje = 'Demasiados intentos. Espera unos minutos antes de volver a intentar.'
+    } else if (raw.includes('user not found')) {
+      mensaje = 'No existe una cuenta con este email. ¿Quieres crear una?'
+    }
+
+    return { ok: false, error: mensaje, errorCode: error?.code, raw: error?.message }
   }
 
   // Obtener perfil del usuario (crea uno si no existe)
   const perfil = await obtenerPerfil(data.user.id)
 
   if (!perfil) {
-    return { ok: false, error: 'Error al cargar o crear perfil' }
+    return {
+      ok: false,
+      error: 'Sesión iniciada pero no se pudo cargar tu perfil. Contacta al administrador.',
+    }
   }
 
   return { ok: true, user: data.user, perfil }

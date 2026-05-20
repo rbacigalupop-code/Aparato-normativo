@@ -81,7 +81,11 @@ export default function AuthGate({ children }) {
     setProcesando(true)
     const result = await signIn(formData.email, formData.password)
     if (!result.ok) {
-      setError(result.error?.message || 'Error al iniciar sesión')
+      // result.error puede ser string (desde supabase.js) o objeto (desde useAuth)
+      const msg = typeof result.error === 'string'
+        ? result.error
+        : (result.error?.message || 'Error al iniciar sesión')
+      setError(msg)
     }
     setProcesando(false)
   }
@@ -114,7 +118,10 @@ export default function AuthGate({ children }) {
     setProcesando(true)
     const result = await signUp(formData.email, formData.password, formData.nombreCompleto, formData.passwordConfirm)
     if (!result.ok) {
-      setError(result.error?.message || 'Error al crear la cuenta')
+      const msg = typeof result.error === 'string'
+        ? result.error
+        : (result.error?.message || 'Error al crear la cuenta')
+      setError(msg)
     } else {
       setModo('login')
       setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
