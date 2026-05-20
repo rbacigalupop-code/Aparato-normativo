@@ -5136,7 +5136,13 @@ ${capaLabels}
 }
 
 // ─── PESTAÑA DETALLES CONSTRUCTIVOS — Escantillones de uniones ──────────────────
-function TabDetalles({ proy, termica, calcUInit, notas, setNotas }) {
+function TabDetalles({ proy, termica, calcUInit, notas, setNotas, detallesIlustrados = [], setDetallesIlustrados }) {
+  // ── Sub-tab: 'auto' (escantillones algorítmicos) | 'ilustrados' (uploads del usuario)
+  const [subTab, setSubTab] = useState('ilustrados')
+  // Estado para upload modal + selección
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [editingDetalle, setEditingDetalle] = useState(null)  // detalle en edición de marcadores
+  const [viewingDetalle, setViewingDetalle] = useState(null)  // detalle en vista detallada
   // Helper: obtiene capas EFECTIVAS de un elemento (modif si existe, sino original LOSCAT)
   function obtenerCapas(elemKey) {
     // Prioridad 1: capas modificadas en calcUInit (match por solucion.cod)
@@ -5200,15 +5206,55 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas }) {
       <AyudaPanel
         titulo="Cómo usar — Detalles constructivos"
         pasos={[
-          'Esta pestaña genera <b>escantillones automáticos</b> de las uniones constructivas a partir de las soluciones LOSCAT aplicadas en tus elementos.',
-          'Para que aparezca un detalle, necesitas haber asignado solución en <b>Muro</b> y <b>Piso/Techo</b> (en Soluciones o Cálculo U).',
-          'Cada escantillón muestra: las capas en sección, la zona interior/exterior, y un <b>análisis automático de continuidad de aislación térmica</b>.',
-          'Si la línea naranja punteada es continua del muro al piso/techo → la envolvente térmica es continua. Si hay interrupción → riesgo de puente térmico.',
-          'Estos detalles son <b>diagramáticos</b> y sirven como guía conceptual. La definición exacta de la unión queda al criterio del proyectista.',
+          '<b>📐 Escantillones automáticos:</b> el sistema genera diagramas de las uniones a partir de las capas LOSCAT aplicadas. Útil para validación rápida de continuidad térmica.',
+          '<b>📷 Detalles ilustrados:</b> subís tus propios dibujos arquitectónicos (PNG/JPG, p.ej. isométricas dibujadas en Illustrator/SketchUp/Revit), colocás marcadores sobre los elementos del dibujo, y el sistema genera automáticamente la leyenda técnica con capas, espesores y análisis al lado.',
+          'En el informe DOM, los detalles ilustrados se incluyen como anexo arquitectónico junto con su análisis técnico.',
+          'La definición exacta de la unión y los detalles constructivos finales son responsabilidad del profesional proyectista.',
         ]}
         normativa="NCh853:2021 · MINVU Guía Puentes Térmicos · ISO 14683 · OGUC Art. 4.1.10"
       />
 
+      {/* Selector de sub-tab */}
+      <div style={{ display:'flex', gap:0, marginBottom:14, borderBottom:'2px solid #e2e8f0' }}>
+        {[
+          { id:'ilustrados', label:'📷 Mis detalles ilustrados', desc:'Subí tus dibujos arquitectónicos + análisis técnico automático' },
+          { id:'auto',       label:'📐 Escantillones automáticos', desc:'Diagramas generados desde las capas LOSCAT' },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setSubTab(t.id)}
+            style={{
+              padding:'10px 18px', background:'transparent', border:'none',
+              borderBottom: subTab === t.id ? '3px solid #1e40af' : '3px solid transparent',
+              marginBottom:-2, cursor:'pointer', fontSize:13,
+              fontWeight: subTab === t.id ? 700 : 500,
+              color: subTab === t.id ? '#1e40af' : '#64748b',
+              transition:'all 0.15s',
+            }}
+            title={t.desc}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'ilustrados' && (
+        <DetallesIlustradosPanel
+          detallesIlustrados={detallesIlustrados}
+          setDetallesIlustrados={setDetallesIlustrados}
+          termica={termica}
+          calcUInit={calcUInit}
+          proy={proy}
+          showUploadModal={showUploadModal}
+          setShowUploadModal={setShowUploadModal}
+          editingDetalle={editingDetalle}
+          setEditingDetalle={setEditingDetalle}
+          viewingDetalle={viewingDetalle}
+          setViewingDetalle={setViewingDetalle}
+        />
+      )}
+
+      {subTab === 'auto' && (<>
       {/* Selector de detalle */}
       <div style={S.card}>
         <p style={S.h2}>📐 Escantillones disponibles</p>
@@ -5333,14 +5379,475 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas }) {
           </div>
         </div>
       )}
+      </>)}
 
       <NotasPanel tabKey="detalles" notas={notas} setNotas={setNotas} />
     </div>
   )
 }
 
+// ─── PANEL: Detalles Ilustrados (uploads del usuario con marcadores) ────────────
+function DetallesIlustradosPanel({
+  detallesIlustrados, setDetallesIlustrados,
+  termica, calcUInit, proy,
+  showUploadModal, setShowUploadModal,
+  editingDetalle, setEditingDetalle,
+  viewingDetalle, setViewingDetalle,
+}) {
+  // Helper para resolver capas de un elemento (reusa lógica de getCapasParaSC)
+  function obtenerCapas(elemKey) {
+    const solCod = termica?.[elemKey]?.solucion?.cod
+    const entries = Object.entries(calcUInit || {})
+      .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v?.capas?.length)
+    if (entries.length && solCod) {
+      const match = entries.find(([, v]) => v?.solucion?.cod === solCod)
+      if (match) return { capas: match[1].capas, sc: solCod, U: match[1].res?.U }
+    }
+    if (entries.length) return { capas: entries[0][1].capas, sc: entries[0][1].solucion?.cod, U: entries[0][1].res?.U }
+    const sc = termica?.[elemKey]?.solucion
+    if (sc) {
+      const orig = getCapasParaSC(sc)
+      if (orig?.length) return { capas: orig, sc: sc.cod, U: sc.u }
+    }
+    return null
+  }
+
+  function eliminarDetalle(id) {
+    if (!window.confirm('¿Eliminar este detalle ilustrado? No se puede deshacer.')) return
+    setDetallesIlustrados(prev => prev.filter(d => d.id !== id))
+  }
+
+  return (
+    <div>
+      <div style={S.card}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:14 }}>
+          <div>
+            <p style={{ ...S.h2, marginBottom:4 }}>📷 Mis detalles ilustrados</p>
+            <div style={{ fontSize:11.5, color:'#64748b', lineHeight:1.5 }}>
+              Subí tus dibujos arquitectónicos (isométricas, secciones, esquinas). El sistema generará automáticamente la leyenda técnica con capas, espesores, λ y análisis higrotérmico al lado del dibujo.
+            </div>
+          </div>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            style={{ padding:'10px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap' }}
+          >
+            ＋ Subir nuevo detalle
+          </button>
+        </div>
+
+        {detallesIlustrados.length === 0 ? (
+          <div style={{ padding:'28px 20px', background:'#f8fafc', border:'1.5px dashed #cbd5e1', borderRadius:10, textAlign:'center' }}>
+            <div style={{ fontSize:32, marginBottom:10, opacity:0.5 }}>📐</div>
+            <div style={{ fontSize:13, color:'#475569', fontWeight:600, marginBottom:6 }}>Aún no has subido detalles arquitectónicos</div>
+            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.6, maxWidth:520, margin:'0 auto' }}>
+              Dibujá los detalles en tu herramienta favorita (Illustrator, SketchUp, Revit, AutoCAD, incluso a mano escaneada), exportá como PNG o JPG, y subílos aquí. Luego colocá marcadores sobre los elementos del dibujo (muro, piso, techo) y el sistema generará la documentación técnica automáticamente.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:14 }}>
+            {detallesIlustrados.map(d => (
+              <div key={d.id} style={{ border:'1px solid #e2e8f0', borderRadius:10, overflow:'hidden', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div style={{ position:'relative', background:'#f8fafc', minHeight:160, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <img src={d.imagenDataUrl} alt={d.nombre} style={{ maxWidth:'100%', maxHeight:200, display:'block' }} />
+                  {/* Marcadores como puntitos */}
+                  {d.marcadores?.map(m => (
+                    <div key={m.id} style={{
+                      position:'absolute', left:`${m.x * 100}%`, top:`${m.y * 100}%`,
+                      transform:'translate(-50%,-50%)',
+                      width:18, height:18, borderRadius:'50%',
+                      background: m.elemento ? '#1e40af' : '#94a3b8',
+                      color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:9, fontWeight:800, border:'2px solid #fff',
+                      boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
+                    }}>{m.label || '?'}</div>
+                  ))}
+                </div>
+                <div style={{ padding:'10px 14px' }}>
+                  <div style={{ fontSize:12.5, fontWeight:700, color:'#1e293b', marginBottom:2 }}>{d.nombre}</div>
+                  <div style={{ fontSize:10, color:'#64748b', marginBottom:8 }}>
+                    {d.tipo || 'otro'} · {d.marcadores?.length || 0} marcadores
+                  </div>
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button
+                      onClick={() => setViewingDetalle(d)}
+                      style={{ flex:1, padding:'5px 8px', background:'#1e40af', color:'#fff', border:'none', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer' }}
+                    >👁 Ver con análisis</button>
+                    <button
+                      onClick={() => setEditingDetalle(d)}
+                      style={{ padding:'5px 10px', background:'#f1f5f9', color:'#475569', border:'1px solid #cbd5e1', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer' }}
+                      title="Editar marcadores"
+                    >✏</button>
+                    <button
+                      onClick={() => eliminarDetalle(d.id)}
+                      style={{ padding:'5px 10px', background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer' }}
+                      title="Eliminar"
+                    >🗑</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal: Subir nuevo detalle */}
+      {showUploadModal && (
+        <UploadDetalleModal
+          onClose={() => setShowUploadModal(false)}
+          onUpload={(nuevoDetalle) => {
+            setDetallesIlustrados(prev => [...prev, nuevoDetalle])
+            setShowUploadModal(false)
+            // Abrir editor de marcadores inmediatamente
+            setEditingDetalle(nuevoDetalle)
+          }}
+        />
+      )}
+
+      {/* Modal: Editor de marcadores */}
+      {editingDetalle && (
+        <MarkerEditorModal
+          detalle={editingDetalle}
+          onClose={() => setEditingDetalle(null)}
+          onSave={(detalleActualizado) => {
+            setDetallesIlustrados(prev => prev.map(d => d.id === detalleActualizado.id ? detalleActualizado : d))
+            setEditingDetalle(null)
+          }}
+        />
+      )}
+
+      {/* Modal: Vista detallada con análisis técnico */}
+      {viewingDetalle && (
+        <ViewDetalleModal
+          detalle={viewingDetalle}
+          obtenerCapas={obtenerCapas}
+          proy={proy}
+          onClose={() => setViewingDetalle(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Modal: Subir nuevo detalle ilustrado ───────────────────────────────────────
+function UploadDetalleModal({ onClose, onUpload }) {
+  const [nombre, setNombre] = useState('')
+  const [tipo, setTipo] = useState('muro-piso')
+  const [imagenDataUrl, setImagenDataUrl] = useState(null)
+  const [imagenW, setImagenW] = useState(0)
+  const [imagenH, setImagenH] = useState(0)
+  const [error, setError] = useState('')
+
+  function handleFileChange(e) {
+    setError('')
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('El archivo debe ser una imagen (PNG, JPG, etc.)'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('La imagen debe pesar menos de 5MB. Comprimila o reducí su resolución.'); return }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      // Cargar para obtener dimensiones reales
+      const img = new Image()
+      img.onload = () => {
+        setImagenDataUrl(dataUrl)
+        setImagenW(img.naturalWidth)
+        setImagenH(img.naturalHeight)
+        if (!nombre) setNombre(file.name.replace(/\.[^.]+$/, ''))
+      }
+      img.onerror = () => setError('No se pudo cargar la imagen')
+      img.src = dataUrl
+    }
+    reader.onerror = () => setError('Error leyendo el archivo')
+    reader.readAsDataURL(file)
+  }
+
+  function handleSubmit() {
+    setError('')
+    if (!nombre.trim()) { setError('Ingresá un nombre para el detalle'); return }
+    if (!imagenDataUrl) { setError('Subí una imagen'); return }
+    const nuevo = {
+      id: 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      nombre: nombre.trim(),
+      tipo,
+      imagenDataUrl,
+      imagenW, imagenH,
+      marcadores: [],
+      createdAt: new Date().toISOString(),
+    }
+    onUpload(nuevo)
+  }
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.7)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+      <div style={{ background:'#fff', borderRadius:12, maxWidth:560, width:'100%', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ padding:'16px 24px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:16, fontWeight:800, color:'#1e40af' }}>＋ Subir detalle ilustrado</div>
+          <button onClick={onClose} style={{ padding:'4px 10px', background:'#f1f5f9', border:'none', borderRadius:5, cursor:'pointer', fontSize:12, fontWeight:600 }}>✕</button>
+        </div>
+        <div style={{ padding:'18px 24px' }}>
+          <label style={{ fontSize:11, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:0.4, marginBottom:4, display:'block' }}>Nombre del detalle</label>
+          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Encuentro muro-piso planta baja" style={{ width:'100%', padding:'8px 10px', border:'1px solid #cbd5e1', borderRadius:6, fontSize:13, marginBottom:14 }} />
+
+          <label style={{ fontSize:11, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:0.4, marginBottom:4, display:'block' }}>Tipo de unión</label>
+          <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ width:'100%', padding:'8px 10px', border:'1px solid #cbd5e1', borderRadius:6, fontSize:13, marginBottom:14, background:'#fff' }}>
+            <option value="muro-piso">Muro + Piso (planta baja)</option>
+            <option value="muro-cubierta">Muro + Cubierta plana</option>
+            <option value="muro-techumbre">Muro + Techumbre inclinada (alero)</option>
+            <option value="esquina-muros">Esquina muros perimetrales</option>
+            <option value="dintel-ventana">Dintel ventana / vierteaguas</option>
+            <option value="otro">Otro detalle</option>
+          </select>
+
+          <label style={{ fontSize:11, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:0.4, marginBottom:4, display:'block' }}>Imagen del detalle (PNG/JPG, máx. 5MB)</label>
+          <input type="file" accept="image/*" onChange={handleFileChange} style={{ width:'100%', marginBottom:14, fontSize:12 }} />
+
+          {imagenDataUrl && (
+            <div style={{ marginBottom:14, padding:8, background:'#f8fafc', borderRadius:8, border:'1px solid #e2e8f0' }}>
+              <img src={imagenDataUrl} alt="preview" style={{ maxWidth:'100%', maxHeight:240, display:'block', margin:'0 auto' }} />
+              <div style={{ marginTop:6, textAlign:'center', fontSize:10, color:'#64748b' }}>{imagenW} × {imagenH} px</div>
+            </div>
+          )}
+
+          {error && <div style={{ padding:'8px 12px', background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:6, color:'#991b1b', fontSize:12, marginBottom:14 }}>{error}</div>}
+
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
+            <button onClick={onClose} style={{ padding:'8px 16px', background:'#f1f5f9', color:'#475569', border:'none', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+            <button onClick={handleSubmit} style={{ padding:'8px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>Continuar → colocar marcadores</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal: Editor de marcadores sobre la imagen ───────────────────────────────
+function MarkerEditorModal({ detalle, onClose, onSave }) {
+  const [marcadores, setMarcadores] = useState(detalle.marcadores || [])
+  const imgRef = useRef(null)
+
+  function handleImageClick(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    if (x < 0 || x > 1 || y < 0 || y > 1) return
+    const nuevoLabel = String.fromCharCode(65 + marcadores.length) // A, B, C, D...
+    setMarcadores(prev => [...prev, {
+      id: 'mk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+      x, y,
+      elemento: '',  // se asigna luego
+      label: nuevoLabel,
+      nota: '',
+    }])
+  }
+
+  function eliminarMarcador(id) { setMarcadores(prev => prev.filter(m => m.id !== id)) }
+  function actualizarMarcador(id, campo, valor) {
+    setMarcadores(prev => prev.map(m => m.id === id ? { ...m, [campo]: valor } : m))
+  }
+
+  function guardar() {
+    onSave({ ...detalle, marcadores })
+  }
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.85)', zIndex:9999, display:'flex', alignItems:'stretch', padding:16 }}>
+      <div style={{ background:'#fff', borderRadius:12, flex:1, display:'flex', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.4)' }}>
+        {/* Imagen con marcadores (izq) */}
+        <div style={{ flex:'1 1 65%', background:'#0f172a', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', overflow:'auto' }}>
+          <div style={{ position:'relative', display:'inline-block' }}>
+            <img
+              ref={imgRef}
+              src={detalle.imagenDataUrl}
+              alt={detalle.nombre}
+              onClick={handleImageClick}
+              style={{ maxWidth:'100%', maxHeight:'calc(100vh - 80px)', display:'block', cursor:'crosshair' }}
+            />
+            {marcadores.map(m => (
+              <div key={m.id} style={{
+                position:'absolute', left:`${m.x * 100}%`, top:`${m.y * 100}%`,
+                transform:'translate(-50%,-50%)',
+                width:28, height:28, borderRadius:'50%',
+                background: m.elemento ? '#1e40af' : '#dc2626',
+                color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:13, fontWeight:800, border:'3px solid #fff',
+                boxShadow:'0 2px 8px rgba(0,0,0,0.5)',
+                pointerEvents:'none',
+              }}>{m.label}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Panel lateral (der): lista de marcadores */}
+        <div style={{ width:340, background:'#fff', borderLeft:'1px solid #e2e8f0', display:'flex', flexDirection:'column' }}>
+          <div style={{ padding:'14px 18px', borderBottom:'1px solid #e2e8f0' }}>
+            <div style={{ fontSize:15, fontWeight:800, color:'#1e40af', marginBottom:2 }}>✏ Editor de marcadores</div>
+            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>
+              <b>Clickea sobre la imagen</b> para agregar marcadores. Luego asigná a cada uno el elemento (muro, piso, techo, etc.) al que corresponde en el dibujo.
+            </div>
+          </div>
+          <div style={{ flex:1, overflowY:'auto', padding:'12px 16px' }}>
+            {marcadores.length === 0 ? (
+              <div style={{ padding:'40px 20px', textAlign:'center', color:'#94a3b8', fontSize:12, fontStyle:'italic' }}>
+                Click sobre la imagen para colocar el primer marcador
+              </div>
+            ) : (
+              marcadores.map(m => (
+                <div key={m.id} style={{ marginBottom:10, padding:10, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
+                    <div style={{ width:24, height:24, borderRadius:'50%', background: m.elemento ? '#1e40af' : '#dc2626', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, flexShrink:0 }}>{m.label}</div>
+                    <input value={m.label} onChange={e => actualizarMarcador(m.id, 'label', e.target.value.slice(0, 3).toUpperCase())} style={{ width:50, padding:'3px 6px', border:'1px solid #cbd5e1', borderRadius:4, fontSize:11, fontWeight:700, textAlign:'center' }} />
+                    <select value={m.elemento} onChange={e => actualizarMarcador(m.id, 'elemento', e.target.value)} style={{ flex:1, padding:'4px 6px', border:'1px solid #cbd5e1', borderRadius:4, fontSize:11, background:'#fff' }}>
+                      <option value="">— sin asignar —</option>
+                      <option value="muro">Muro</option>
+                      <option value="piso">Piso</option>
+                      <option value="techo">Techo / Cubierta</option>
+                      <option value="tabique">Tabique</option>
+                      <option value="ventana">Ventana</option>
+                      <option value="fundacion">Fundación</option>
+                      <option value="estructural">Elemento estructural</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                    <button onClick={() => eliminarMarcador(m.id)} style={{ padding:'3px 7px', background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5', borderRadius:4, fontSize:11, cursor:'pointer' }} title="Eliminar marcador">✕</button>
+                  </div>
+                  <input
+                    value={m.nota || ''}
+                    onChange={e => actualizarMarcador(m.id, 'nota', e.target.value)}
+                    placeholder="Nota opcional (ej: con barrera de vapor)"
+                    style={{ width:'100%', padding:'4px 7px', border:'1px solid #e2e8f0', borderRadius:4, fontSize:11 }}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+          <div style={{ padding:'12px 16px', borderTop:'1px solid #e2e8f0', display:'flex', gap:8 }}>
+            <button onClick={onClose} style={{ padding:'8px 14px', background:'#f1f5f9', color:'#475569', border:'none', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+            <button onClick={guardar} style={{ flex:1, padding:'8px 16px', background:'#16a34a', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>✓ Guardar marcadores</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal: Vista con análisis técnico automático ──────────────────────────────
+function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
+  // ESC para cerrar
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Agrupar marcadores por elemento — para generar la leyenda
+  const marcadoresPorElem = {}
+  ;(detalle.marcadores || []).forEach(m => {
+    if (!m.elemento) return
+    if (!marcadoresPorElem[m.elemento]) marcadoresPorElem[m.elemento] = []
+    marcadoresPorElem[m.elemento].push(m)
+  })
+
+  // Para cada elemento con marcador, obtener las capas
+  const elementosConData = Object.entries(marcadoresPorElem).map(([elem, marks]) => ({
+    elem, marks, capas: obtenerCapas(elem),
+  })).filter(e => e.capas)
+
+  const ELEM_LABELS = { muro:'Muro', piso:'Piso', techo:'Techo / Cubierta', tabique:'Tabique', ventana:'Ventana' }
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.85)', zIndex:9999, display:'flex', flexDirection:'column', padding:16 }}>
+      <div style={{ background:'#fff', borderRadius:12, flex:1, display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.4)' }}>
+        {/* Toolbar */}
+        <div style={{ padding:'12px 22px', background:'#1e40af', color:'#fff', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ fontSize:15, fontWeight:800 }}>👁 {detalle.nombre}</div>
+            <div style={{ fontSize:11, opacity:0.85 }}>{detalle.tipo} · {detalle.marcadores?.length || 0} marcadores · {elementosConData.length} elementos identificados</div>
+          </div>
+          <button onClick={onClose} style={{ padding:'6px 14px', background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.3)', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>✕ Cerrar (ESC)</button>
+        </div>
+
+        {/* Contenido: imagen + leyenda */}
+        <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
+          {/* Imagen */}
+          <div style={{ flex:'1 1 60%', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'center', overflow:'auto', padding:16 }}>
+            <div style={{ position:'relative', display:'inline-block', maxWidth:'100%' }}>
+              <img src={detalle.imagenDataUrl} alt={detalle.nombre} style={{ maxWidth:'100%', maxHeight:'calc(100vh - 120px)', display:'block' }} />
+              {(detalle.marcadores || []).map(m => (
+                <div key={m.id} style={{
+                  position:'absolute', left:`${m.x * 100}%`, top:`${m.y * 100}%`,
+                  transform:'translate(-50%,-50%)',
+                  width:30, height:30, borderRadius:'50%',
+                  background: m.elemento ? '#1e40af' : '#94a3b8',
+                  color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:14, fontWeight:800, border:'3px solid #fff',
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.4)',
+                }}>{m.label}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* Leyenda técnica automática */}
+          <div style={{ width:380, background:'#fff', borderLeft:'1px solid #e2e8f0', overflowY:'auto', padding:'18px 22px' }}>
+            <div style={{ fontSize:14, fontWeight:800, color:'#1e40af', marginBottom:14, paddingBottom:8, borderBottom:'2px solid #dbeafe' }}>
+              📋 Leyenda técnica
+            </div>
+
+            {elementosConData.length === 0 && (
+              <div style={{ padding:14, background:'#fef3c7', border:'1px solid #fde047', borderRadius:6, fontSize:11.5, color:'#92400e', lineHeight:1.55 }}>
+                ⚠ Ninguno de los marcadores tiene un elemento asignado, o los elementos no tienen solución LOSCAT. Editá los marcadores y/o asigná soluciones en la pestaña Soluciones.
+              </div>
+            )}
+
+            {elementosConData.map(({ elem, marks, capas }) => {
+              const muroAislIdx = findAislacionIdx(capas.capas)
+              return (
+                <div key={elem} style={{ marginBottom:18, padding:'12px 14px', background:'#f8fafc', borderLeft:'4px solid #1e40af', borderRadius:6 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                    {marks.map(m => (
+                      <div key={m.id} style={{ width:22, height:22, borderRadius:'50%', background:'#1e40af', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, flexShrink:0 }}>{m.label}</div>
+                    ))}
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#1e40af' }}>{ELEM_LABELS[elem] || elem}</div>
+                      {capas.sc && <div style={{ fontSize:10, color:'#64748b', fontFamily:'monospace' }}>LOSCAT {capas.sc}{capas.U ? ` · U=${parseFloat(capas.U).toFixed(4)} W/m²K` : ''}</div>}
+                    </div>
+                  </div>
+                  {marks.filter(m => m.nota).length > 0 && (
+                    <div style={{ marginBottom:6, fontSize:10.5, color:'#475569', fontStyle:'italic' }}>
+                      {marks.filter(m => m.nota).map(m => `${m.label}: ${m.nota}`).join(' · ')}
+                    </div>
+                  )}
+                  <div style={{ fontSize:10.5, color:'#64748b', textTransform:'uppercase', letterSpacing:0.4, marginBottom:4, marginTop:4, fontWeight:700 }}>Capas (int → ext)</div>
+                  <ol style={{ margin:'0 0 0 18px', padding:0, fontSize:11, lineHeight:1.65, color:'#1e293b' }}>
+                    {capas.capas.map((c, idx) => (
+                      <li key={idx} style={{ marginBottom:2, background: idx === muroAislIdx ? '#fef3c7' : 'transparent', padding: idx === muroAislIdx ? '1px 4px' : 0, borderRadius:3 }}>
+                        <b>{c.esCamara ? 'Cámara de aire' : (c.mat || c.n || '—')}</b>
+                        {!c.esCamara && c.esp && <span style={{ color:'#64748b' }}> · {Math.round(parseFloat(c.esp))} mm</span>}
+                        {!c.esCamara && c.lam && <span style={{ color:'#94a3b8', fontSize:10 }}> · λ={parseFloat(c.lam).toFixed(3)}</span>}
+                        {idx === muroAislIdx && <span style={{ color:'#d97706', fontWeight:700 }}> ← aislante</span>}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )
+            })}
+
+            {/* Condiciones de zona */}
+            {proy.zona && (
+              <div style={{ marginTop:14, padding:'10px 14px', background:'#eff6ff', borderRadius:6, fontSize:10.5, color:'#1e40af', lineHeight:1.5 }}>
+                <b>Condiciones Zona {proy.zona}:</b> Ti={ZONAS[proy.zona]?.Ti}°C · Te={ZONAS[proy.zona]?.Te}°C · HR={ZONAS[proy.zona]?.HR}%
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [] }) {
   // Fallbacks defensivos por si las props no están disponibles
   const getRFOGUC_loaded = getRFOGUC || (() => null)
   const getLetraOGUC_loaded = getLetraOGUC || (() => null)
@@ -6422,6 +6929,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
     ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
     ${detallesInforme.length > 0 ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
+    ${(detallesIlustrados?.length > 0) ? `<li><a href="#modulo-8b">Módulo 8b — Detalles arquitectónicos del proyectista</a><span class="toc-dots"></span><span class="toc-page">Dibujos + análisis</span></li>` : ''}
     <li><a href="#modulo-7">Módulo 7 — Responsabilidad profesional y firma</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 1.2.2</span></li>
   </ol>
 </div>
@@ -6605,6 +7113,71 @@ ${mods.notas ? notasHtml : ''}
 ${correccionesHtml}
 
 ${detallesHtml}
+
+${(() => {
+  // ── Módulo 8b — Detalles ilustrados (uploaded por el usuario) ──────────────
+  const detallesUsuario = []
+  // detallesIlustrados viene del closure
+  if (Array.isArray(detallesIlustrados) && detallesIlustrados.length > 0) {
+    const ELEM_LABELS_R = { muro:'Muro', piso:'Piso', techo:'Techo / Cubierta', tabique:'Tabique', ventana:'Ventana', fundacion:'Fundación', estructural:'Elemento estructural', otro:'Otro' }
+    const cards = detallesIlustrados.map(d => {
+      const marcadoresPorElem = {}
+      ;(d.marcadores || []).forEach(m => {
+        if (!m.elemento) return
+        if (!marcadoresPorElem[m.elemento]) marcadoresPorElem[m.elemento] = []
+        marcadoresPorElem[m.elemento].push(m)
+      })
+      const elementosConData = Object.entries(marcadoresPorElem).map(([elem, marks]) => ({
+        elem, marks, capas: obtenerCapasParaInforme(elem),
+      })).filter(e => e.capas)
+      const leyenda = elementosConData.map(({ elem, marks, capas }) => {
+        const aislIdx = findAislacionIdx(capas.capas)
+        const marksBadges = marks.map(m => `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1e40af;color:#fff;font-size:9pt;font-weight:800;text-align:center;line-height:18px;margin-right:3px">${m.label}</span>`).join('')
+        const capasList = capas.capas.map((c, idx) => {
+          const highlight = idx === aislIdx
+          return `<li style="margin-bottom:2px;${highlight ? 'background:#fef3c7;padding:1px 4px;border-radius:3px' : ''}">
+            <b>${c.esCamara ? 'Cámara de aire' : (c.mat || c.n || '—')}</b>
+            ${!c.esCamara && c.esp ? `<span style="color:#64748b"> · ${Math.round(parseFloat(c.esp))} mm</span>` : ''}
+            ${!c.esCamara && c.lam ? `<span style="color:#94a3b8;font-size:8.5pt"> · λ=${parseFloat(c.lam).toFixed(3)}</span>` : ''}
+            ${highlight ? '<span style="color:#d97706;font-weight:700"> ← aislante</span>' : ''}
+          </li>`
+        }).join('')
+        const notasMarcs = marks.filter(m => m.nota).map(m => `${m.label}: ${m.nota}`).join(' · ')
+        return `<div style="margin-bottom:12px;padding:10px 12px;background:#f8fafc;border-left:4px solid #1e40af;border-radius:6px;page-break-inside:avoid">
+          <div style="margin-bottom:4px">${marksBadges}<b style="color:#1e40af;font-size:10.5pt">${ELEM_LABELS_R[elem] || elem}</b>
+          ${capas.sc ? `<span style="color:#64748b;font-family:monospace;font-size:8.5pt;margin-left:6px">LOSCAT ${capas.sc}${capas.U ? ` · U=${parseFloat(capas.U).toFixed(4)}` : ''}</span>` : ''}</div>
+          ${notasMarcs ? `<div style="font-size:9pt;color:#475569;font-style:italic;margin-bottom:4px">${notasMarcs}</div>` : ''}
+          <ol style="margin:4px 0 0 18px;padding:0;font-size:9.5pt;line-height:1.6;color:#1e293b">${capasList}</ol>
+        </div>`
+      }).join('')
+
+      // Insertar imagen con marcadores como HTML (imagen + overlay)
+      // En el informe, mostramos la imagen + leyenda en columnas
+      return `<div style="page-break-inside:avoid;margin:18px 0;padding:14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
+        <h3 style="font-size:11pt;color:#1e40af;margin:0 0 4px;border-left:3px solid #93c5fd;padding-left:8px">${d.nombre}</h3>
+        <div style="font-size:9pt;color:#64748b;margin-bottom:10px">${d.tipo || 'otro'} · ${d.marcadores?.length || 0} marcadores · ${elementosConData.length} elementos identificados</div>
+        <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+          <div style="flex:1 1 55%;min-width:280px;position:relative;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;display:flex;align-items:center;justify-content:center">
+            <div style="position:relative;display:inline-block;max-width:100%">
+              <img src="${d.imagenDataUrl}" alt="${d.nombre}" style="max-width:100%;height:auto;display:block;border-radius:4px"/>
+              ${(d.marcadores || []).map(m => `<div style="position:absolute;left:${(m.x*100).toFixed(2)}%;top:${(m.y*100).toFixed(2)}%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:${m.elemento ? '#1e40af' : '#94a3b8'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10pt;font-weight:800;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4)">${m.label}</div>`).join('')}
+            </div>
+          </div>
+          <div style="flex:1 1 38%;min-width:240px">
+            ${leyenda || '<div style="padding:10px 14px;background:#fef3c7;border:1px solid #fde047;border-radius:6px;font-size:9pt;color:#92400e">Sin elementos asignados a los marcadores.</div>'}
+          </div>
+        </div>
+      </div>`
+    }).join('')
+    detallesUsuario.push(`
+<h2 id="modulo-8b" style="page-break-before:always">Módulo 8b — Detalles arquitectónicos del proyectista</h2>
+<div style="font-size:9pt;color:#64748b;margin-bottom:14px;line-height:1.6">
+  Esta sección presenta los <b>detalles constructivos dibujados por el profesional proyectista</b>, complementados con la documentación técnica generada automáticamente por NormaCheck a partir de las soluciones LOSCAT aplicadas. Cada marcador sobre el dibujo identifica un elemento constructivo cuyas capas, materiales, espesores y propiedades térmicas se listan en la leyenda lateral.
+</div>
+${cards}`)
+  }
+  return detallesUsuario.join('')
+})()}
 
 <!-- ══ MÓDULO 7 — RESPONSABILIDAD PROFESIONAL ══════════════════════════════ -->
 <h2 id="modulo-7" style="page-break-before:always">Módulo 7 — Responsabilidad Profesional y Firma</h2>
@@ -7150,6 +7723,10 @@ function AppInner() {
   const [notas, setNotas] = useState({})
   // modulosInforme: null = auto (determinado por uso/zona), o {termica,fuego,acustica,ventanas,notas,sistemas}
   const [modulosInforme, setModulosInforme] = useState(null)
+  // detallesIlustrados: lista de detalles arquitectónicos dibujados por el usuario
+  //  cada item: { id, nombre, tipo, imagenDataUrl, imagenW, imagenH, marcadores:[{id,x,y,elemento,label,nota}] }
+  //  x,y normalizados [0,1] respecto a las dimensiones de la imagen para ser resolution-independent
+  const [detallesIlustrados, setDetallesIlustrados] = useState([])
 
   const proyectos = useProjects(user?.id, orgActual?.id)
   const [proyectoActual, setProyectoActual] = useState(null)
@@ -7348,9 +7925,10 @@ function AppInner() {
       if (saved.proy)            setProy(saved.proy)
       if (saved.termica)         setTermica(saved.termica)
       if (saved.calcUInit)       setCalcUInit(saved.calcUInit)
-      if (saved.fachadas)        setFachadas(saved.fachadas)
-      if (saved.fachadasNextId)  setFachadasNextId(saved.fachadasNextId)
-      if (saved.notas)           setNotas(saved.notas)
+      if (saved.fachadas)          setFachadas(saved.fachadas)
+      if (saved.fachadasNextId)    setFachadasNextId(saved.fachadasNextId)
+      if (saved.notas)             setNotas(saved.notas)
+      if (saved.detallesIlustrados) setDetallesIlustrados(saved.detallesIlustrados)
     }
   }, [])
 
@@ -7358,11 +7936,11 @@ function AppInner() {
   useEffect(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, notas })
+      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, notas, detallesIlustrados })
       setHasUnsaved(true)
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [proy, termica, calcUInit, fachadas, fachadasNextId, notas])
+  }, [proy, termica, calcUInit, fachadas, fachadasNextId, notas, detallesIlustrados])
 
   // Callback que llama TabResultados antes de generar el informe
   async function onExportar() {
@@ -7400,16 +7978,17 @@ function AppInner() {
   }
 
   function getData() {
-    return { proy, termica, calcUInit, fachadas, fachadasNextId, notas }
+    return { proy, termica, calcUInit, fachadas, fachadasNextId, notas, detallesIlustrados }
   }
 
   function onCargar(data) {
-    if (data.proy)           setProy(data.proy)
-    if (data.termica)        setTermica(data.termica)
-    if (data.calcUInit)      setCalcUInit(data.calcUInit)
-    if (data.fachadas)       setFachadas(data.fachadas)
-    if (data.fachadasNextId) setFachadasNextId(data.fachadasNextId)
-    if (data.notas)          setNotas(data.notas)
+    if (data.proy)             setProy(data.proy)
+    if (data.termica)          setTermica(data.termica)
+    if (data.calcUInit)        setCalcUInit(data.calcUInit)
+    if (data.fachadas)         setFachadas(data.fachadas)
+    if (data.fachadasNextId)   setFachadasNextId(data.fachadasNextId)
+    if (data.notas)            setNotas(data.notas)
+    if (data.detallesIlustrados) setDetallesIlustrados(data.detallesIlustrados)
     setHasUnsaved(false)
   }
 
@@ -7615,8 +8194,8 @@ function AppInner() {
             {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
             {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
             {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-            {tab === 7 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} />}
-            {tab === 8 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
+            {tab === 7 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
+            {tab === 8 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
             {tab === 9 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
           {showAyuda && ayudaData[tab] && (
