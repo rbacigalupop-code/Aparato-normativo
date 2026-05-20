@@ -5235,8 +5235,46 @@ ${res.condInter
         } catch (e) { /* silent: si falla la homologación, omitir el panel */ }
       }
 
+      // ── Sello visual de estado del elemento ────────────────────────────────
+      // Lógica:
+      //   ok   → todos los parámetros aplicables cumplen y (si aplica) sin condensación
+      //   cond → U/RF/Rw cumplen pero hay riesgo higrotérmico (envolvente solamente)
+      //   no   → algún parámetro normativo no cumple
+      const fallos = []
+      if (el.umax && uCalcCorr != null && !cumpleU)
+        fallos.push(`U = ${parseFloat(uCalcCorr).toFixed(4)} W/m²K (máx ${el.umax})`)
+      if (el.rfReq && data?.rf && !cumpleRF)
+        fallos.push(`RF ${data.rf} (mín ${el.rfReq})`)
+      if (el.rwReq && rwNum && !cumpleRw)
+        fallos.push(`Rw ${rwNum} dB (mín ${el.rwReq} dB)`)
+      const hayCondensacion = !esTabiqueRpt && res?.condInter
+      let estadoElem, selloLabel, selloDetalle
+      if (fallos.length > 0) {
+        estadoElem = 'no'
+        selloLabel = '✗ NO CUMPLE'
+        selloDetalle = `Incumplimientos: ${fallos.join(' · ')}.${hayCondensacion ? ' Además existe riesgo de condensación intersticial.' : ''}`
+      } else if (hayCondensacion) {
+        estadoElem = 'cond'
+        selloLabel = '⚠ CONDENSACIÓN'
+        selloDetalle = 'Los parámetros U, RF y Rw cumplen, pero existe riesgo de condensación intersticial — requiere corrección antes de presentar al DOM.'
+      } else {
+        estadoElem = 'ok'
+        selloLabel = '✓ CUMPLE'
+        const cumplidos = []
+        if (el.umax && cumpleU) cumplidos.push('U')
+        if (el.rfReq && cumpleRF && data?.rf) cumplidos.push('RF')
+        if (el.rwReq && cumpleRw && rwNum) cumplidos.push('Rw')
+        if (!esTabiqueRpt && res && !res.condInter) cumplidos.push('higrotermia')
+        selloDetalle = `Todos los parámetros normativos${cumplidos.length ? ` (${cumplidos.join(', ')})` : ''} conformes a la exigencia.`
+      }
+      const selloHtml = `<div class="estado-banner estado-${estadoElem}">
+  <span class="sello">${selloLabel}</span>
+  <span class="detalle">${selloDetalle}</span>
+</div>`
+
       return `
 <h3>${el.label}${sc ? ` — LOSCAT ${sc.cod}` : ''}</h3>
+${selloHtml}
 ${sc ? `<div class="data-row">
   <div class="data-item"><label>Código LOSCAT</label><span>${sc.cod}</span></div>
   <div class="data-item"><label>Descripción</label><span>${sc.desc}</span></div>
@@ -5552,6 +5590,15 @@ ${notasEntries.map(([k, v]) => `
   .data-item span { font-weight: 700; font-size: 10pt }
   .resumen-ok  { background: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 12px 16px; font-size: 13pt; font-weight: 700; color: #166534; margin: 12px 0 }
   .resumen-no  { background: #fee2e2; border: 2px solid #fca5a5; border-radius: 8px; padding: 12px 16px; font-size: 13pt; font-weight: 700; color: #991b1b; margin: 12px 0 }
+  .estado-banner { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; margin: 8px 0 14px; font-size: 10pt; page-break-inside: avoid; border-left-width: 5px; border-left-style: solid }
+  .estado-banner .sello { font-size: 11pt; font-weight: 800; letter-spacing: 0.4px; padding: 4px 12px; border-radius: 20px; white-space: nowrap; flex-shrink: 0 }
+  .estado-banner .detalle { font-size: 9.5pt; line-height: 1.4; flex: 1 }
+  .estado-ok  { background: #f0fdf4; border-color: #16a34a; color: #15803d }
+  .estado-ok  .sello { background: #16a34a; color: #fff }
+  .estado-cond{ background: #fffbeb; border-color: #d97706; color: #92400e }
+  .estado-cond .sello { background: #d97706; color: #fff }
+  .estado-no  { background: #fef2f2; border-color: #dc2626; color: #991b1b }
+  .estado-no  .sello { background: #dc2626; color: #fff }
   hr.sep { margin: 24px 0; border: none; border-top: 1px dashed #cbd5e1 }
   .nota { font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 10px; text-align: center; line-height: 1.6 }
   .mem-desc { background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0369a1; border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 9.5pt; line-height: 1.7 }
