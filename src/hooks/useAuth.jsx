@@ -8,6 +8,8 @@ import {
   obtenerOrganizacionesUsuario,
   invitarUsuario,
   absorberUsuarioExistente,
+  setOrgRecibeSignups,
+  getOrgRecibeSignups,
   listarUsuariosOrg,
   listarInvitacionesPendientes,
   cancelarInvitacion,
@@ -255,6 +257,24 @@ export function AuthProvider({ children }) {
     [orgActual]
   )
 
+  // Función: Toggle de recibir-signups en la org actual
+  const handleSetRecibeSignups = useCallback(
+    async (recibe) => {
+      if (!orgActual) return { ok: false, error: 'No hay organización seleccionada' }
+      return await setOrgRecibeSignups(orgActual.id, recibe)
+    },
+    [orgActual]
+  )
+
+  // Función: Consultar estado actual de recibir-signups
+  const handleGetRecibeSignups = useCallback(
+    async () => {
+      if (!orgActual) return false
+      return await getOrgRecibeSignups(orgActual.id)
+    },
+    [orgActual]
+  )
+
   // Función: Listar usuarios de la org
   const handleListarUsuarios = useCallback(async () => {
     if (!orgActual) return []
@@ -325,6 +345,8 @@ export function AuthProvider({ children }) {
     // Funciones de gestión de usuarios
     invitarUsuario: handleInvitarUsuario,
     absorberUsuario: handleAbsorberUsuario,
+    setRecibeSignups: handleSetRecibeSignups,
+    getRecibeSignups: handleGetRecibeSignups,
     listarUsuarios: handleListarUsuarios,
     listarInvitacionesPendientes: handleListarInvitacionesPendientes,
     cancelarInvitacion: handleCancelarInvitacion,

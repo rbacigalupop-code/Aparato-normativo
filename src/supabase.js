@@ -291,6 +291,43 @@ export async function absorberUsuarioExistente(orgId, email, rol = 'viewer') {
   }
 }
 
+// Activar/desactivar: ¿esta organización recibe todos los nuevos signups directos como viewer?
+// Requiere SQL function set_org_recibe_signups (sql/011_org_receptora_signups.sql).
+export async function setOrgRecibeSignups(orgId, recibe) {
+  if (!orgId) return { ok: false, error: 'Organización no especificada' }
+  try {
+    const { data, error } = await supabase.rpc('set_org_recibe_signups', {
+      p_org_id: orgId,
+      p_recibe: !!recibe,
+    })
+    if (error) {
+      console.warn('setOrgRecibeSignups error:', error)
+      return { ok: false, error: error.message || 'Error al actualizar setting' }
+    }
+    if (!data?.ok) return { ok: false, error: data?.error || 'No se pudo actualizar' }
+    return { ok: true, recibe: data.recibe, mensaje: data.mensaje }
+  } catch (err) {
+    console.error('setOrgRecibeSignups exception:', err)
+    return { ok: false, error: 'Error procesando solicitud' }
+  }
+}
+
+// Consultar si esta organización es receptora de signups directos
+export async function getOrgRecibeSignups(orgId) {
+  if (!orgId) return false
+  try {
+    const { data, error } = await supabase.rpc('get_org_recibe_signups', { p_org_id: orgId })
+    if (error) {
+      console.warn('getOrgRecibeSignups error:', error)
+      return false
+    }
+    return !!data
+  } catch (err) {
+    console.error('getOrgRecibeSignups exception:', err)
+    return false
+  }
+}
+
 // Invitar usuario a organización (con envío real de email vía Supabase Auth)
 export async function invitarUsuario(orgId, email, rol = 'viewer') {
   try {

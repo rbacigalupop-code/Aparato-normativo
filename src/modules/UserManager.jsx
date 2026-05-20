@@ -9,6 +9,8 @@ export default function UserManager() {
     user,
     invitarUsuario,
     absorberUsuario,
+    setRecibeSignups,
+    getRecibeSignups,
     listarUsuarios,
     listarInvitacionesPendientes,
     cancelarInvitacion,
@@ -30,6 +32,9 @@ export default function UserManager() {
   const [emailAbsorber, setEmailAbsorber] = useState('')
   const [rolAbsorber, setRolAbsorber] = useState('viewer')
   const [absorbiendo, setAbsorbiendo] = useState(false)
+  // Toggle: ¿esta org recibe signups directos?
+  const [recibeSignups, setRecibeSignupsState] = useState(false)
+  const [togglingSignups, setTogglingSignups] = useState(false)
 
   // Modal de confirmación de invitación exitosa
   const [confirmacionInvitacion, setConfirmacionInvitacion] = useState(null)
@@ -38,8 +43,33 @@ export default function UserManager() {
   useEffect(() => {
     if (orgActual) {
       cargarTodo()
+      // También cargar el estado del toggle recibe-signups
+      ;(async () => {
+        const recibe = await getRecibeSignups()
+        setRecibeSignupsState(!!recibe)
+      })()
     }
   }, [orgActual])
+
+  // Toggle handler
+  async function handleToggleRecibeSignups() {
+    const nuevoEstado = !recibeSignups
+    const confirmar = nuevoEstado
+      ? '¿Activar recepción de signups?\n\nTODOS los nuevos usuarios que se registren directamente (sin invitación) quedarán automáticamente en esta organización como viewer. Podrás cambiar sus permisos después.'
+      : '¿Desactivar recepción de signups?\n\nLos nuevos usuarios volverán a crear su propia organización al registrarse. Tendrás que invitarlos o absorberlos manualmente.'
+    if (!window.confirm(confirmar)) return
+    setTogglingSignups(true)
+    const result = await setRecibeSignups(nuevoEstado)
+    setTogglingSignups(false)
+    if (result.ok) {
+      setRecibeSignupsState(result.recibe)
+      setMsg({ tipo: 'ok', texto: `✓ ${result.mensaje}` })
+      setTimeout(() => setMsg(null), 6000)
+    } else {
+      setMsg({ tipo: 'err', texto: `Error: ${result.error}` })
+      setTimeout(() => setMsg(null), 5000)
+    }
+  }
 
   // Cargar usuarios e invitaciones de la org
   async function cargarTodo() {
@@ -327,6 +357,60 @@ export default function UserManager() {
 
       {/* Mensaje */}
       {msg && <div style={{ ...(msg.tipo === 'ok' ? S.ok : S.err), marginBottom: 16 }}>{msg.texto}</div>}
+
+      {/* ─── Setting: Recibir signups directos ─────────────────────────────── */}
+      <div style={{
+        ...S.card,
+        background: recibeSignups ? 'linear-gradient(135deg,#dcfce7,#f0fdf4)' : '#fafbfc',
+        borderColor: recibeSignups ? '#86efac' : '#e2e8f0',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: recibeSignups ? '#15803d' : '#475569', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {recibeSignups ? '🟢' : '⚪'} Recepción automática de nuevos registros
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.55 }}>
+              {recibeSignups ? (
+                <>
+                  <b style={{ color: '#15803d' }}>ACTIVADO</b> — Todos los nuevos usuarios que se registren (por correo o por link) entrarán a <b>esta organización</b> automáticamente con rol <b>viewer</b>. No necesitas invitarlos uno por uno.
+                </>
+              ) : (
+                <>
+                  <b>DESACTIVADO</b> — Los nuevos usuarios que se registren directamente crearán su propio workspace separado. Necesitarás invitarlos o "absorberlos" para gestionarlos.
+                </>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={handleToggleRecibeSignups}
+            disabled={togglingSignups}
+            style={{
+              padding: '10px 18px',
+              background: recibeSignups ? '#fef2f2' : '#16a34a',
+              color: recibeSignups ? '#991b1b' : '#fff',
+              border: recibeSignups ? '1.5px solid #fca5a5' : 'none',
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: togglingSignups ? 'wait' : 'pointer',
+              whiteSpace: 'nowrap',
+              minWidth: 140,
+              opacity: togglingSignups ? 0.6 : 1,
+              transition: 'all 0.15s',
+            }}
+            title={recibeSignups
+              ? 'Desactivar — los nuevos usuarios volverán a crear su propio workspace'
+              : 'Activar — los nuevos usuarios entrarán a esta org como viewer automáticamente'}
+          >
+            {togglingSignups ? 'Procesando…' : (recibeSignups ? '⏸ Desactivar' : '▶ Activar')}
+          </button>
+        </div>
+        {recibeSignups && (
+          <div style={{ marginTop: 12, padding: '8px 12px', background: '#fffbeb', border: '1px dashed #fde68a', borderRadius: 6, fontSize: 11, color: '#92400e', lineHeight: 1.5 }}>
+            💡 <b>Recuerda:</b> los nuevos usuarios verán todos los proyectos y datos de esta organización con permisos de lectura. Si necesitas darles permisos de admin, hazlo manualmente desde la tabla de usuarios.
+          </div>
+        )}
+      </div>
 
       {/* ─── Invitar usuario ──────────────────────────────────────────────── */}
       <div style={S.card}>
