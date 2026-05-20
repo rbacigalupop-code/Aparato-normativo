@@ -4429,7 +4429,11 @@ ${cambios.length && solucion ? `
                 { label:'T sup. ext.',  val:`${tSupExt}°C`,                           bg:'#f8fafc', border:'#e2e8f0', col:'#374151' },
                 { label:'T sup. int.',  val:`${Tsi_int.toFixed(1)}°C`,                bg: cumpleFRsi?'#f0fdf4':'#fee2e2', border: cumpleFRsi?'#86efac':'#fca5a5', col: cumpleFRsi?'#166534':'#dc2626' },
                 { label:'fRsi',         val:`${fRsi.toFixed(3)}`,                     bg: cumpleFRsi?'#f0fdf4':'#fee2e2', border: cumpleFRsi?'#86efac':'#fca5a5', col: cumpleFRsi?'#166534':'#dc2626' },
-                { label:'Sup. exterior',val: supExtBajaTd?'Bajo Td':'Sobre Td',       bg: supExtBajaTd?'#fef9c3':'#f0fdf4', border: supExtBajaTd?'#fde047':'#86efac', col: supExtBajaTd?'#854d0e':'#166534' },
+                // T sup. ext < Td interior: NO es criterio normativo, solo informativo.
+                // NCh853 evalúa fRsi (interior) e intersticial. La cara exterior
+                // está en contacto con aire EXTERIOR, no interior — el Td interior
+                // no aplica físicamente para evaluar condensación superficial exterior.
+                { label:'Sup. exterior',val: supExtBajaTd?'Normal (frío)':'Sobre Td int.', bg: '#f1f5f9', border:'#cbd5e1', col:'#475569' },
                 { label:'Intersticial', val: res.condInter?'RIESGO':'SIN RIESGO',     bg: res.condInter?'#fee2e2':'#dcfce7', border: res.condInter?'#fca5a5':'#86efac', col: res.condInter?'#dc2626':'#166534' },
                 { label:'U calculado',  val:`${uCorrStr} W/m²K`,                      bg: colSem(uCalc)+'18', border: colSem(uCalc), col: colSem(uCalc) },
               ]).map(c=>(
@@ -4488,8 +4492,17 @@ ${cambios.length && solucion ? `
             <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:8 }}>
               {!res.condInter&&<div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#166534', fontWeight:600 }}>✓ Sin condensación intersticial — interfaces internas OK.</div>}
               {res.condInter&&<div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#991b1b', fontWeight:600 }}>⚠ Riesgo de condensación intersticial — reordena capas con ↑↓ y recalcula.</div>}
-              {supExtBajaTd&&elemTipo==='piso'&&<div style={{ background:'#fef9c3', border:'1px solid #fde047', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#713f12' }}><b>△ Condensación superficial exterior — caso aceptado en piso ventilado.</b> La cara inferior queda expuesta al sobramiento, no a un recinto habitable. La NCh853 exige control intersticial, no superficial en caras exteriores expuestas.</div>}
-              {supExtBajaTd&&elemTipo!=='piso'&&<div style={{ background:'#fef9c3', border:'1px solid #fde047', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#713f12' }}><b>△ Condensación superficial exterior.</b> T ext. ({tSupExt}°C) bajo el punto de rocío ({res.Tdew}°C). Verificar protección exterior (NCh853).</div>}
+              {supExtBajaTd && (
+                <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderLeft:'4px solid #0369a1', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#0c4a6e', lineHeight:1.6 }}>
+                  <b>ℹ Información — no es problema normativo.</b> La superficie exterior está a {tSupExt}°C, bajo el punto de rocío del aire interior ({res.Tdew}°C). Esto es <b>físicamente normal en invierno</b> y no constituye incumplimiento:
+                  <ul style={{ margin:'4px 0 0 18px', padding:0 }}>
+                    <li><b>NCh853:2021</b> evalúa condensación superficial <b>interior</b> (fRsi ≥ 0.83 ✓ aquí cumple) e <b>intersticial</b> (método Glaser). No exige verificar la cara exterior como criterio de cumplimiento.</li>
+                    <li>La cara exterior está en contacto con el <b>aire exterior</b> (no el interior). El punto de rocío relevante sería el exterior, que con HR 80% típica es cercano a Te — por lo que rara vez se condensa por aire exterior.</li>
+                    {elemTipo === 'piso' && <li>En <b>piso ventilado</b>, la cara inferior queda expuesta al sobramiento sin recinto habitable detrás — el comportamiento es esperado.</li>}
+                    <li>Solo importa para <b>durabilidad del material</b> si es poroso y queda expuesto (madera sin tratamiento, paneles fibrosos hidrofílicos). Para revestimientos cementicios, EIFS, fibrocemento, planchas metálicas con barrera o pinturas hidrofugantes <b>no aplica</b>.</li>
+                  </ul>
+                </div>
+              )}
               {supExtBajaTd&&elemTipo==='piso'&&(
                 <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#9a3412' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', cursor:'pointer' }} onClick={()=>setShowInterpret(v=>!v)}>
