@@ -3662,9 +3662,26 @@ ${'='.repeat(60)}`
     const r = corr.resultado
     setRes(r)
     setShowHomolog(false)
-    // Propagar corrección aplicada al padre.
+    // Propagar corrección aplicada al padre, incluyendo metadata de trazabilidad
+    // (para que el informe pueda listar qué correcciones fueron aplicadas).
     // Marcamos el flag para que useEffect([initData]) no vuelva a calcular.
-    if (onCalcUChange) { skipInitEffect.current = true; onCalcUChange(elemKey, { capas: nuevas, res: r }) }
+    if (onCalcUChange) {
+      skipInitEffect.current = true
+      const correccionAplicada = {
+        id:           corr.id,
+        titulo:       corr.titulo,
+        etiqueta:     corr.etiqueta,
+        sistema:      corr.sistema,
+        color:        corr.color,
+        descripcion:  corr.descripcion,
+        cambio:       corr.cambio,
+        impactoU:     corr.impactoU,
+        compatible_loscat: corr.compatible_loscat,
+        advertencias: corr.advertencias || [],
+        aplicada_en:  new Date().toISOString(),
+      }
+      onCalcUChange(elemKey, { capas: nuevas, res: r, correccionAplicada })
+    }
     const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
     if (necesita) {
       const cvCorr = corr.capasCorregidas
@@ -5561,6 +5578,131 @@ ${notasEntries.map(([k, v]) => `
   <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:10pt;white-space:pre-wrap;line-height:1.6;color:#1e293b">${v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
 </div>`).join('')}` : ''
 
+    // ── Módulo 6b — Correcciones C1-C8 aplicadas al diseño ─────────────────
+    // Lista de elementos con correccionAplicada registrada + modificaciones manuales
+    const ELEM_LABELS = { muro:'Muro de envolvente', techo:'Techumbre / cubierta', piso:'Piso ventilado', tabique:'Tabique interior', ventana:'Ventana' }
+    function labelElemRpt(elemKey) {
+      const k = elemKey.includes('::') ? elemKey.split('::').pop() : elemKey
+      return ELEM_LABELS[k] || k
+    }
+    function strategyFromId(id) {
+      if (!id) return { code: '—', nombre: 'Corrección personalizada' }
+      const m = String(id).match(/^c(\d+)_/i)
+      if (!m) return { code: '—', nombre: 'Corrección personalizada' }
+      const n = m[1]
+      const nombres = {
+        '1': 'EIFS / SATE — Aislación exterior con estuco',
+        '2': 'Fachada Ventilada',
+        '3': 'Trasdosado Interior',
+        '4': 'Aumento de espesor del aislante existente',
+        '5': 'Barrera de vapor en cara caliente',
+        '6': 'Sustitución de aislante por mejor λ',
+        '7': 'Reordenamiento de capas por difusividad',
+        '8': 'Sugerencia manual (no automatizada)',
+      }
+      return { code: 'C' + n, nombre: nombres[n] || 'Estrategia C' + n }
+    }
+
+    const correccionesPorElem = Object.entries(calcUInit || {})
+      .filter(([, v]) => v?.correccionAplicada)
+      .map(([k, v]) => ({ elemKey: k, label: labelElemRpt(k), data: v, corr: v.correccionAplicada }))
+
+    let correccionesHtml = ''
+    if (correccionesPorElem.length > 0) {
+      const tarjetas = correccionesPorElem.map(({ elemKey, label, data, corr }) => {
+        const strat = strategyFromId(corr.id)
+        const advHtml = (corr.advertencias?.length)
+          ? `<ul style="margin:6px 0 0 18px;padding:0;font-size:9pt;color:#475569;line-height:1.65">
+               ${corr.advertencias.map(a => `<li>${a}</li>`).join('')}
+             </ul>`
+          : ''
+        const uFinal = data.res?.U ? parseFloat(data.res.U).toFixed(4) : '—'
+        const fechaAplic = corr.aplicada_en
+          ? new Date(corr.aplicada_en).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })
+          : ''
+        return `<div style="background:#fff;border:1px solid #e2e8f0;border-left:5px solid ${corr.color || '#1e40af'};border-radius:8px;padding:14px 18px;margin:10px 0;page-break-inside:avoid">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="background:${corr.color || '#1e40af'};color:#fff;font-weight:800;font-size:11pt;padding:4px 12px;border-radius:6px;letter-spacing:0.5px">${strat.code}</span>
+      <span style="font-weight:700;font-size:11pt;color:#1e293b">${label}</span>
+      ${corr.etiqueta ? `<span style="background:#f1f5f9;color:#475569;font-size:9pt;padding:2px 8px;border-radius:4px;font-weight:600">${corr.etiqueta}</span>` : ''}
+      ${corr.compatible_loscat
+        ? '<span style="background:#dcfce7;color:#166534;font-size:8.5pt;padding:2px 8px;border-radius:4px;font-weight:700">✓ Compatible LOSCAT</span>'
+        : '<span style="background:#fef3c7;color:#92400e;font-size:8.5pt;padding:2px 8px;border-radius:4px;font-weight:700">⚠ Homologación requerida</span>'}
+    </div>
+    ${fechaAplic ? `<span style="font-size:8.5pt;color:#94a3b8">Aplicada: ${fechaAplic}</span>` : ''}
+  </div>
+  <div style="font-size:9.5pt;color:#1e40af;font-weight:700;margin-bottom:4px">Estrategia: ${strat.nombre}</div>
+  <div style="font-size:9.5pt;color:#1e293b;line-height:1.6;margin-bottom:8px">${corr.descripcion || corr.titulo || '—'}</div>
+  <table style="width:100%;font-size:9pt;margin:6px 0">
+    <tr>
+      <td style="background:#f8fafc;width:130px;font-weight:600;color:#475569;padding:5px 8px;border:1px solid #e2e8f0">Cambio aplicado</td>
+      <td style="padding:5px 8px;border:1px solid #e2e8f0;font-family:monospace;font-size:8.5pt">${corr.cambio || '—'}</td>
+    </tr>
+    <tr>
+      <td style="background:#f8fafc;font-weight:600;color:#475569;padding:5px 8px;border:1px solid #e2e8f0">U resultante</td>
+      <td style="padding:5px 8px;border:1px solid #e2e8f0"><b>${uFinal} W/m²K</b>${corr.impactoU ? ` <span style="color:#64748b;font-size:8.5pt">— ${corr.impactoU}</span>` : ''}</td>
+    </tr>
+    <tr>
+      <td style="background:#f8fafc;font-weight:600;color:#475569;padding:5px 8px;border:1px solid #e2e8f0">Higrotermia</td>
+      <td style="padding:5px 8px;border:1px solid #e2e8f0">${data.res?.condInter
+        ? '<span style="color:#dc2626;font-weight:700">⚠ Riesgo de condensación intersticial</span>'
+        : '<span style="color:#166534;font-weight:700">✓ Sin condensación</span>'}</td>
+    </tr>
+  </table>
+  ${advHtml ? `<div style="margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fde047;border-radius:6px">
+    <div style="font-weight:700;color:#92400e;font-size:9pt;margin-bottom:2px">⚠ Advertencias técnicas:</div>
+    ${advHtml}
+  </div>` : ''}
+</div>`
+      }).join('')
+
+      // Tabla resumen al inicio
+      const resumenTbl = `<table style="width:100%;margin:8px 0 14px">
+  <tr>
+    <th style="width:60px">Estrat.</th>
+    <th>Elemento</th>
+    <th>Estrategia aplicada</th>
+    <th style="width:90px">U final</th>
+    <th style="width:130px">Compatibilidad</th>
+  </tr>
+  ${correccionesPorElem.map(({ label, data, corr }) => {
+    const strat = strategyFromId(corr.id)
+    const uF = data.res?.U ? parseFloat(data.res.U).toFixed(4) : '—'
+    return `<tr>
+      <td style="text-align:center"><span style="background:${corr.color || '#1e40af'};color:#fff;font-weight:700;font-size:9pt;padding:2px 8px;border-radius:4px">${strat.code}</span></td>
+      <td><b>${label}</b></td>
+      <td style="font-size:9pt">${corr.etiqueta || strat.nombre}</td>
+      <td style="font-family:monospace;font-weight:700">${uF}</td>
+      <td>${corr.compatible_loscat
+        ? '<span class="badge-ok">LOSCAT</span>'
+        : '<span style="background:#fef3c7;color:#92400e;font-weight:700;padding:2px 8px;border-radius:4px">Homologación</span>'}</td>
+    </tr>`
+  }).join('')}
+</table>`
+
+      correccionesHtml = `
+<h2 id="modulo-6b">Módulo 6b — Correcciones aplicadas al diseño (C1–C8)</h2>
+<div style="font-size:9pt;color:#64748b;margin-bottom:10px;line-height:1.6">
+  Esta sección documenta las <b>estrategias de corrección normativa</b> aplicadas mediante el motor de cálculo de NormaCheck para resolver incumplimientos detectados (U sobre límite, condensación intersticial, o ambos). Cada estrategia (C1 a C8) está calibrada según <b>NCh853:2021</b> e <b>ISO 6946</b>, con penalización adicional por puentes térmicos cuando aplica.
+</div>
+${resumenTbl}
+${tarjetas}
+<div style="margin-top:14px;font-size:8.5pt;color:#64748b;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 14px;line-height:1.7">
+  <b>📘 Catálogo de estrategias disponibles en el motor NormaCheck:</b>
+  <ul style="margin:4px 0 0 16px;padding:0;line-height:1.7">
+    <li><b>C1</b> — Sistema EIFS/SATE: aislación exterior adherida + estuco cemento.</li>
+    <li><b>C2</b> — Fachada Ventilada: aislante + barrera transpirable + cámara + fibrocemento.</li>
+    <li><b>C3</b> — Trasdosado Interior: yeso cartón + barrera vapor + aislación interior.</li>
+    <li><b>C4</b> — Aumento de espesor del aislante existente (mantiene material).</li>
+    <li><b>C5</b> — Inserción de barrera de vapor en cara caliente (resuelve condensación).</li>
+    <li><b>C6</b> — Sustitución del aislante por otro de mejor λ a igual espesor.</li>
+    <li><b>C7</b> — Reordenamiento de capas por difusividad al vapor (μ alto interior).</li>
+    <li><b>C8</b> — Sugerencias manuales (no automatizables): cambio de uso, replanteo arquitectónico, ensayos in-situ, etc.</li>
+  </ul>
+</div>`
+    }
+
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5740,6 +5882,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.acustica ? `<li><a href="#modulo-4">Módulo 4 — Aislamiento Acústico</a><span class="toc-dots"></span><span class="toc-page">OGUC · NCh352</span></li>` : ''}
     ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
+    ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
     <li><a href="#modulo-7">Módulo 7 — Responsabilidad profesional y firma</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 1.2.2</span></li>
   </ol>
 </div>
@@ -5919,6 +6062,8 @@ ${mods.acustica ? `<h2 id="modulo-4">Módulo 4 — Aislamiento Acústico (OGUC A
 ${mods.ventanas ? vpctHtml : ''}
 
 ${mods.notas ? notasHtml : ''}
+
+${correccionesHtml}
 
 <!-- ══ MÓDULO 7 — RESPONSABILIDAD PROFESIONAL ══════════════════════════════ -->
 <h2 id="modulo-7" style="page-break-before:always">Módulo 7 — Responsabilidad Profesional y Firma</h2>
@@ -6668,7 +6813,7 @@ function AppInner() {
     setCalcUInit(prev => ({ ...prev, [elemKey]: null }))
   }
 
-  function onCalcUChange(elemKey, { capas, res }) {
+  function onCalcUChange(elemKey, { capas, res, correccionAplicada }) {
     // Actualizar calcUInit con las capas modificadas y el resultado calculado.
     // Así exportarInforme y los checks siempre usan el U más reciente del usuario.
     setCalcUInit(prev => ({
@@ -6677,6 +6822,11 @@ function AppInner() {
         ...(prev[elemKey] || {}),
         capas,
         res,  // resultado calcGlaser: { U, Rtot, condInter, ifaces, Tdew, ... }
+        // Si viene una corrección, registrarla. Si no viene pero ya había una
+        // previa, preservarla (caso: usuario editó capas tras aplicar corrección).
+        ...(correccionAplicada
+          ? { correccionAplicada }
+          : (prev[elemKey]?.correccionAplicada ? { correccionAplicada: prev[elemKey].correccionAplicada } : {})),
       }
     }))
   }
