@@ -1240,6 +1240,18 @@ export async function obtenerUsuariosActivos(orgId, limit = 5) {
   }
 }
 
+// ─── Uso de plataforma (métricas para panel Admin) ────────────────────────────
+export async function obtenerUsagePlatforma() {
+  try {
+    const { data, error } = await supabase.rpc('get_platform_usage')
+    if (error) throw error
+    return { ok: true, data }
+  } catch (err) {
+    console.warn('obtenerUsagePlatforma error:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function formatTiempoTranscurrido(fechaISO) {
   if (!fechaISO) return '—'
