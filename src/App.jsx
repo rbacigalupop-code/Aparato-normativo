@@ -5993,15 +5993,23 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const haySistemas  = (proy.estructuras?.length || 0) > 1
   const hayVentanas  = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
   const hayNotas     = Object.values(notas || {}).some(v => v?.toString().trim())
+  // Hay escantillones si existe solución/capas para muro + al menos piso o techo
+  const hayEscantillones = !!(
+    (termica?.muro?.solucion || Object.keys(calcUInit || {}).some(k => (k === 'muro' || k.endsWith('::muro')) && calcUInit[k]?.capas?.length)) &&
+    (['piso','techo'].some(el =>
+      termica?.[el]?.solucion || Object.keys(calcUInit || {}).some(k => (k === el || k.endsWith('::' + el)) && calcUInit[k]?.capas?.length)
+    ))
+  )
 
   // Valor efectivo de cada módulo: modulosInforme sobreescribe el default
   const mods = {
-    termica:  modulosInforme?.termica  ?? true,
-    fuego:    modulosInforme?.fuego    ?? reqFuego,
-    acustica: modulosInforme?.acustica ?? reqAcustica,
-    sistemas: modulosInforme?.sistemas ?? haySistemas,
-    ventanas: modulosInforme?.ventanas ?? hayVentanas,
-    notas:    modulosInforme?.notas    ?? hayNotas,
+    termica:       modulosInforme?.termica       ?? true,
+    fuego:         modulosInforme?.fuego         ?? reqFuego,
+    acustica:      modulosInforme?.acustica      ?? reqAcustica,
+    sistemas:      modulosInforme?.sistemas      ?? haySistemas,
+    ventanas:      modulosInforme?.ventanas      ?? hayVentanas,
+    notas:         modulosInforme?.notas         ?? hayNotas,
+    escantillones: modulosInforme?.escantillones ?? hayEscantillones,
   }
   function toggleMod(key) {
     setModulosInforme(prev => ({ ...(prev || mods), [key]: !(prev?.[key] ?? mods[key]) }))
@@ -6831,7 +6839,7 @@ ${tarjetas}
     ].filter(d => d.cond)
 
     let detallesHtml = ''
-    if (detallesInforme.length > 0 && muroInfo) {
+    if (mods.escantillones && detallesInforme.length > 0 && muroInfo) {
       const cards = detallesInforme.map(d => {
         const muroAislIdx  = findAislacionIdx(muroInfo.capas)
         const horizAislIdx = findAislacionIdx(d.info.capas)
@@ -7059,7 +7067,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
     ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
-    ${detallesInforme.length > 0 ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
+    ${(mods.escantillones && detallesInforme.length > 0) ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
     ${(detallesIlustrados?.length > 0) ? `<li><a href="#modulo-8b">Módulo 8b — Detalles arquitectónicos del proyectista</a><span class="toc-dots"></span><span class="toc-page">Dibujos + análisis</span></li>` : ''}
     <li><a href="#modulo-7">Módulo 7 — Responsabilidad profesional y firma</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 1.2.2</span></li>
   </ol>
@@ -7600,6 +7608,11 @@ ${cards}`)
               key: 'notas', icon: '📝', label: 'Notas del proyectista',
               norma: '',
               req: false, reqMsg: hayNotas ? 'Hay notas ingresadas' : 'Sin notas',
+            },
+            {
+              key: 'escantillones', icon: '📐', label: 'Escantillones de unión',
+              norma: 'NCh853:2021 · Guía MINVU Puentes Térmicos · ISO 14683',
+              req: false, reqMsg: hayEscantillones ? 'Capas disponibles para muro + piso/techo' : 'Sin soluciones LOSCAT en muro y piso/techo',
             },
           ].map(({ key, icon, label, norma, req, reqMsg }) => {
             const activo = mods[key]
