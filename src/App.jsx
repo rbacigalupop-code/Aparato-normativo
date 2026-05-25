@@ -6012,6 +6012,8 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const [formatoExport, setFormatoExport] = useState('pdf')
   // ── Vista previa (modal con iframe) ───────────────────────────────────────
   const [previewHtml, setPreviewHtml] = useState(null)
+  // ── Estado de generación PDF (spinner mientras html2pdf trabaja) ───────────
+  const [generandoPdf, setGenerandoPdf] = useState(false)
   // ESC cierra la vista previa + bloquea scroll del body mientras está abierta
   useEffect(() => {
     if (!previewHtml) return
@@ -7457,12 +7459,83 @@ ${cards}`)
       setTimeout(() => URL.revokeObjectURL(url), 5000)
 
     } else {
-      // ── PDF vía diálogo de impresión del navegador (formato por defecto) ─
-      const w = window.open('', '_blank')
-      if (!w) { alert('El navegador bloqueó la ventana emergente. Permite pop-ups para este sitio y vuelve a intentarlo.'); return }
-      w.document.write(html)
-      w.document.close()
-      setTimeout(() => w.print(), 1000)
+      // ── PDF vía html2pdf.js — descarga directa, sin diálogo de impresión ──
+      setGenerandoPdf(true)
+      try {
+        // Importación dinámica (lazy chunk, ~1.5 MB, solo se carga al exportar)
+        const mod = await import('html2pdf.js')
+        const html2pdf = mod.default ?? mod
+
+        // ── Contenedor temporal off-screen para renderizado ──────────────────
+        const container = document.createElement('div')
+        container.innerHTML = html
+        container.style.cssText = 'position:absolute;left:-9999px;top:0;width:820px;background:#fff;'
+        document.body.appendChild(container)
+
+        // ── Inyectar estilos que activan reglas @media print sin la query ────
+        // html2pdf renderiza con estilos "pantalla"; el running-header y los
+        // page-break de h2 viven dentro de @media print, así que los forzamos.
+        const pdfStyle = document.createElement('style')
+        pdfStyle.textContent = `
+          h2 { page-break-before: always !important }
+          h2:first-of-type, h2#modulo-0 { page-break-before: avoid !important }
+          .cover-page { page-break-after: always !important }
+          .running-header {
+            display: flex !important;
+            position: relative !important;
+            top: auto !important; left: auto !important; right: auto !important;
+            padding: 3px 8px;
+            margin: 0 0 14px;
+            border-radius: 4px;
+            background: linear-gradient(135deg,#1e40af,#0369a1);
+            color: #fff;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 8pt;
+          }
+        `
+        container.prepend(pdfStyle)
+
+        try {
+          await html2pdf().set({
+            margin: [15, 12, 12, 12],       // mm: top, right, bottom, left
+            filename: `${nombreArchivo}.pdf`,
+            image: { type: 'jpeg', quality: 0.93 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              windowWidth: 820,
+              logging: false,
+            },
+            jsPDF: {
+              unit: 'mm',
+              format: 'a4',
+              orientation: 'portrait',
+              compress: true,
+            },
+            pagebreak: {
+              mode: ['css', 'legacy'],
+              avoid: ['.fig', '.estado-banner', '.firma-box', '.toc', '.traz-box', 'tr'],
+            },
+          }).from(container).save()
+        } finally {
+          document.body.removeChild(container)
+        }
+
+      } catch (err) {
+        console.error('[exportar PDF]', err)
+        // Fallback: ventana de impresión clásica (por si falla el import o el render)
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+        const blobUrl = URL.createObjectURL(blob)
+        const w = window.open(blobUrl, '_blank')
+        if (!w) {
+          alert('No se pudo generar el PDF. Descarga el informe en formato HTML como alternativa.')
+        } else {
+          setTimeout(() => { w.print(); setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000) }, 1200)
+        }
+      } finally {
+        setGenerandoPdf(false)
+      }
     }
   }
 
@@ -7596,9 +7669,9 @@ ${cards}`)
               {/* Píldoras de formato */}
               <div style={{ display: 'flex', gap: 0, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
                 {[
-                  { id: 'pdf',  icon: '🖨',  label: 'PDF',  title: 'Abre el diálogo de impresión → Guardar como PDF' },
-                  { id: 'html', icon: '🌐',  label: 'HTML', title: 'Descarga el informe como archivo HTML (se abre en cualquier navegador)' },
-                  { id: 'word', icon: '📄',  label: 'Word', title: 'Descarga el informe como archivo .doc (se abre en Microsoft Word o LibreOffice)' },
+                  { id: 'pdf',  icon: '📥', label: 'PDF',  title: 'Descarga directa del informe como archivo .pdf (sin diálogo de impresión)' },
+                  { id: 'html', icon: '🌐', label: 'HTML', title: 'Descarga el informe como archivo HTML (se abre en cualquier navegador)' },
+                  { id: 'word', icon: '📄', label: 'Word', title: 'Descarga el informe como archivo .doc (se abre en Microsoft Word o LibreOffice)' },
                 ].map((f, i) => (
                   <button key={f.id}
                     title={f.title}
@@ -7625,15 +7698,22 @@ ${cards}`)
               </button>
 
               {/* Botón principal */}
-              <button style={S.btn('#166534')} onClick={() => exportarInforme('export')}>
-                {formatoExport === 'pdf'  && '🖨 Generar PDF'}
-                {formatoExport === 'html' && '⬇ Descargar HTML'}
-                {formatoExport === 'word' && '⬇ Descargar Word'}
+              <button
+                style={{ ...S.btn('#166534'), opacity: generandoPdf ? 0.7 : 1, cursor: generandoPdf ? 'wait' : 'pointer' }}
+                onClick={() => exportarInforme('export')}
+                disabled={generandoPdf}
+              >
+                {generandoPdf
+                  ? '⏳ Generando PDF…'
+                  : formatoExport === 'pdf'  ? '📥 Descargar PDF'
+                  : formatoExport === 'html' ? '⬇ Descargar HTML'
+                  :                            '⬇ Descargar Word'
+                }
               </button>
 
               {/* Descripción breve del formato */}
               <span style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
-                {formatoExport === 'pdf'  && 'El navegador abre el diálogo de impresión — elige «Guardar como PDF»'}
+                {formatoExport === 'pdf'  && 'Descarga directa — sin diálogo de impresión'}
                 {formatoExport === 'html' && 'Archivo .html — se abre en cualquier navegador, fácil de compartir'}
                 {formatoExport === 'word' && 'Archivo .doc — compatible con Microsoft Word y LibreOffice Writer'}
               </span>
@@ -7681,13 +7761,13 @@ ${cards}`)
               </button>
               <button
                 onClick={() => {
-                  // Generar/descargar de verdad desde la vista previa
+                  // Descargar/generar de verdad desde la vista previa
                   setPreviewHtml(null)
                   setTimeout(() => exportarInforme('export'), 50)
                 }}
                 style={{ padding:'6px 14px', background:'#16a34a', color:'#fff', border:'none', borderRadius:6, fontWeight:700, cursor:'pointer', fontSize:12 }}
               >
-                ✓ Generar {formatoExport.toUpperCase()}
+                {formatoExport === 'pdf' ? '📥 Descargar PDF' : `⬇ Descargar ${formatoExport.toUpperCase()}`}
               </button>
               <button
                 onClick={() => setPreviewHtml(null)}
