@@ -37,6 +37,7 @@ import DesgloseR  from './components/calculou/DesgloseR.jsx'
 import EnergeticoHome   from './modules/energetico/EnergeticoHome.jsx'
 import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
 import DemandaAnual    from './modules/energetico/DemandaAnual.jsx'
+import Detalles        from './modules/energetico/Detalles.jsx'
 import Renovables      from './modules/energetico/Renovables.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
 import { isPro } from './lib/plan.js'
@@ -3618,10 +3619,17 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
   const Tdew   = parseFloat(res.Tdew)
   // Filtrar valores válidos para min/max (temps puede tener menos puntos que rsAcum)
   const tempsValidos = temps.filter(t => typeof t === 'number' && !isNaN(t))
+  // Si no hay temperaturas válidas o Tdew es NaN, no podemos graficar — salida segura
+  if (tempsValidos.length === 0 || isNaN(Tdew)) return null
+
   const tMin   = Math.min(...tempsValidos, Tdew) - 1
   const tMax   = Math.max(...tempsValidos, Tdew) + 1
+  if (isNaN(tMin) || isNaN(tMax) || tMax === tMin) return null
 
-  function xPx(rel) { return PAD.l + rel * gW }
+  function xPx(rel) {
+    if (typeof rel !== 'number' || isNaN(rel)) return PAD.l
+    return PAD.l + rel * gW
+  }
   function yPx(t)   {
     if (typeof t !== 'number' || isNaN(t)) return PAD.t + gH  // posición segura
     return PAD.t + gH - ((t - tMin) / (tMax - tMin)) * gH
@@ -3639,14 +3647,20 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
   // Línea de punto de rocío (horizontal)
   const yTd = yPx(Tdew)
 
-  // Etiquetas de capas (centradas en cada segmento)
+  // Etiquetas de capas (centradas en cada segmento) — filtra inválidos
   const capaLabels = capas
     .filter(c => !c.esCamara)
     .map((c, i) => {
-      const x0 = xPx(rsAcum[i + 1] - (Rs[i + 1] || 0) / Rtot)
-      const x1 = xPx(rsAcum[i + 1])
-      return { label: (c.mat || c.name || '').split(' ').slice(0, 2).join(' '), cx: (x0 + x1) / 2 }
+      const rNext = rsAcum[i + 1]
+      if (typeof rNext !== 'number' || isNaN(rNext)) return null
+      const rCur = rNext - (Rs[i + 1] || 0) / Rtot
+      const x0 = xPx(rCur)
+      const x1 = xPx(rNext)
+      const cx = (x0 + x1) / 2
+      if (isNaN(cx)) return null
+      return { label: (c.mat || c.name || '').split(' ').slice(0, 2).join(' '), cx }
     })
+    .filter(Boolean)
 
   return (
     <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block', marginBottom: 4 }} xmlns="http://www.w3.org/2000/svg">
@@ -8005,7 +8019,7 @@ const PLANTILLAS_USO = [
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '📐 Detalles', 'Resultados', '⚙ Admin']
-const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '📊 Demanda', '🌱 Renovables']
+const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '📊 Demanda', '🔬 Detalles', '🌱 Renovables']
 
 export default function App() {
   return (
@@ -8548,6 +8562,13 @@ function AppInner() {
               </PaywallGate>
             )}
             {energTab === 3 && (
+              <Detalles
+                proy={proy}
+                calcUInit={calcUInit}
+                perfil={perfil}
+              />
+            )}
+            {energTab === 4 && (
               <Renovables
                 proy={proy}
                 calcUInit={calcUInit}

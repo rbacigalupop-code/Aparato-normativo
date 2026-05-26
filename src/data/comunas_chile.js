@@ -548,7 +548,6 @@ export function obtenerDistribuidoraAlt(comunaKey) {
   return DISTRIBUIDORA_ALT[key] || null
 }
 
-/**
 // Etiquetas legibles para regiones
 export const REGIONES_LABELS = {
   'XV':  'XV · Arica y Parinacota',

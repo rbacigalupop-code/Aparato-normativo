@@ -12,9 +12,9 @@ import AyudaEnergetico from './AyudaEnergetico.jsx'
 const ROADMAP = [
   { id: 's1', sprint: 1, label: 'Configuración energética + Payback en correcciones', estado: 'completado' },
   { id: 's2', sprint: 2, label: 'Energías renovables (FV · Solar térmico · Bomba de calor)', estado: 'completado' },
-  { id: 's3', sprint: 3, label: 'Demanda energética anual + Sobrecalentamiento verano', estado: 'activo' },
-  { id: 's4', sprint: 4, label: 'Puentes térmicos catalogados (Ψ) + Ventanas detalladas', estado: 'proximo' },
-  { id: 's5', sprint: 5, label: 'Calculadora higrotérmica dinámica (inspirada WUFI) + Índice moho VTT', estado: 'pendiente' },
+  { id: 's3', sprint: 3, label: 'Demanda energética anual + Sobrecalentamiento verano', estado: 'completado' },
+  { id: 's4', sprint: 4, label: 'Puentes térmicos catalogados (Ψ) + Ventanas detalladas', estado: 'activo' },
+  { id: 's5', sprint: 5, label: 'Calculadora higrotérmica dinámica (inspirada WUFI) + Índice moho VTT', estado: 'proximo' },
   { id: 's6', sprint: 6, label: 'Informe ejecutivo + CEV estimada + Comparativas', estado: 'pendiente' },
 ]
 
