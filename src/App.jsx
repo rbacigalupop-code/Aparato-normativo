@@ -36,6 +36,7 @@ import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
 import EnergeticoHome   from './modules/energetico/EnergeticoHome.jsx'
 import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
+import DemandaAnual    from './modules/energetico/DemandaAnual.jsx'
 import Renovables      from './modules/energetico/Renovables.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
 import { isPro } from './lib/plan.js'
@@ -8004,7 +8005,7 @@ const PLANTILLAS_USO = [
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '📐 Detalles', 'Resultados', '⚙ Admin']
-const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '🌱 Renovables']
+const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '📊 Demanda', '🌱 Renovables']
 
 export default function App() {
   return (
@@ -8538,6 +8539,15 @@ function AppInner() {
               />
             )}
             {energTab === 2 && (
+              <PaywallGate perfil={perfil} feature="Demanda energética anual">
+                <DemandaAnual
+                  proy={proy}
+                  calcUInit={calcUInit}
+                  fachadas={fachadas}
+                />
+              </PaywallGate>
+            )}
+            {energTab === 3 && (
               <Renovables
                 proy={proy}
                 calcUInit={calcUInit}

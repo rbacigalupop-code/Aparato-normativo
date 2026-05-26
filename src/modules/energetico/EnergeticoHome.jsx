@@ -10,9 +10,9 @@ import { labelPlan, estaEnTrial, diasRestantesTrial } from '../../lib/plan.js'
 
 const ROADMAP = [
   { id: 's1', sprint: 1, label: 'Configuración energética + Payback en correcciones', estado: 'completado' },
-  { id: 's2', sprint: 2, label: 'Energías renovables (FV · Solar térmico · Bomba de calor)', estado: 'activo' },
-  { id: 's3', sprint: 3, label: 'Demanda energética anual + Sobrecalentamiento verano', estado: 'proximo' },
-  { id: 's4', sprint: 4, label: 'Puentes térmicos catalogados (Ψ) + Ventanas detalladas', estado: 'pendiente' },
+  { id: 's2', sprint: 2, label: 'Energías renovables (FV · Solar térmico · Bomba de calor)', estado: 'completado' },
+  { id: 's3', sprint: 3, label: 'Demanda energética anual + Sobrecalentamiento verano', estado: 'activo' },
+  { id: 's4', sprint: 4, label: 'Puentes térmicos catalogados (Ψ) + Ventanas detalladas', estado: 'proximo' },
   { id: 's5', sprint: 5, label: 'Calculadora higrotérmica dinámica (inspirada WUFI) + Índice moho VTT', estado: 'pendiente' },
   { id: 's6', sprint: 6, label: 'Informe ejecutivo + CEV estimada + Comparativas', estado: 'pendiente' },
 ]
