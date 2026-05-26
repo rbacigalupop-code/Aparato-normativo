@@ -5,6 +5,8 @@ import {
   obtenerActividadOrganizacion,
   obtenerUsuariosActivos,
   obtenerUsagePlatforma,
+  obtenerRecibeSignups,
+  setRecibeSignups,
 } from '../supabase'
 
 // ─── Límites del plan Supabase Free ──────────────────────────────────────────
@@ -18,6 +20,8 @@ export default function AdminStats() {
   const [actividad, setActividad]       = useState([])
   const [usuariosActivos, setUsuariosActivos] = useState([])
   const [usage, setUsage]               = useState(null)
+  const [recibeSignups, setRecibeSignupsState] = useState(null)   // null = cargando
+  const [togglingSignups, setTogglingSignups]  = useState(false)
   const [cargando, setCargando]         = useState(false)
   const [error, setError]               = useState(null)
 
@@ -29,11 +33,12 @@ export default function AdminStats() {
     setCargando(true)
     setError(null)
     try {
-      const [statsRes, actividadRes, usuariosRes, usageRes] = await Promise.all([
+      const [statsRes, actividadRes, usuariosRes, usageRes, signupsRes] = await Promise.all([
         obtenerStatsOrganizacion(orgActual.id),
         obtenerActividadOrganizacion(orgActual.id, 20),
         obtenerUsuariosActivos(orgActual.id, 5),
         obtenerUsagePlatforma(),
+        obtenerRecibeSignups(orgActual.id),
       ])
 
       if (statsRes.ok) setStats(statsRes.data)
@@ -42,12 +47,23 @@ export default function AdminStats() {
       setActividad(actividadRes || [])
       setUsuariosActivos(usuariosRes || [])
       if (usageRes.ok) setUsage(usageRes.data)
+      if (signupsRes.ok) setRecibeSignupsState(signupsRes.data)
     } catch (err) {
       console.error('Error cargando datos:', err)
       setError('Error al cargar los datos')
     } finally {
       setCargando(false)
     }
+  }
+
+  async function toggleRecibeSignups() {
+    if (togglingSignups || !orgActual?.id) return
+    setTogglingSignups(true)
+    const nuevoValor = !recibeSignups
+    const res = await setRecibeSignups(orgActual.id, nuevoValor)
+    if (res.ok) setRecibeSignupsState(nuevoValor)
+    else setError('No se pudo cambiar el ajuste de registro. Intenta de nuevo.')
+    setTogglingSignups(false)
   }
 
   if (!isAdmin) {
@@ -74,6 +90,14 @@ export default function AdminStats() {
       </div>
 
       {error && <div style={{ ...S.err, marginBottom: 16 }}>{error}</div>}
+
+      {/* ── Registro abierto ──────────────────────────────────────────────── */}
+      <RecibeSignupsCard
+        activo={recibeSignups}
+        cargando={cargando || recibeSignups === null}
+        toggling={togglingSignups}
+        onToggle={toggleRecibeSignups}
+      />
 
       {/* ── Cards resumen org ──────────────────────────────────────────────── */}
       <div style={S.cardsGrid}>
@@ -163,6 +187,71 @@ export default function AdminStats() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Toggle: registro abierto ─────────────────────────────────────────────────
+function RecibeSignupsCard({ activo, cargando, toggling, onToggle }) {
+  const encendido = activo === true
+
+  return (
+    <div style={{
+      ...S.card,
+      marginBottom: 16,
+      borderLeft: `4px solid ${encendido ? '#16a34a' : '#94a3b8'}`,
+      display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap',
+    }}>
+      {/* Ícono + estado */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
+        <span style={{ fontSize: 28 }}>{encendido ? '🟢' : '⚫'}</span>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+            Registro abierto
+          </div>
+          <div style={{
+            fontSize: 11, fontWeight: 600, marginTop: 2,
+            color: encendido ? '#16a34a' : '#64748b',
+          }}>
+            {cargando ? 'Verificando…' : encendido ? 'ACTIVO' : 'INACTIVO'}
+          </div>
+        </div>
+      </div>
+
+      {/* Descripción */}
+      <div style={{ flex: 1, minWidth: 200 }}>
+        {encendido ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#374151', lineHeight: 1.6 }}>
+            Cualquier persona que se registre con email/contraseña queda automáticamente
+            en <b>esta organización</b> como <b>viewer</b>. Lo verás de inmediato en el panel
+            y podrás cambiarle el rol cuando quieras.
+          </p>
+        ) : (
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
+            Los usuarios que se registren directamente crearán <b>su propio workspace</b> y
+            no aparecerán en tu organización. Activa esta opción para captarlos automáticamente.
+          </p>
+        )}
+      </div>
+
+      {/* Botón */}
+      <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center' }}>
+        <button
+          onClick={onToggle}
+          disabled={cargando || toggling}
+          style={{
+            padding: '7px 18px', borderRadius: 6, fontWeight: 700, fontSize: 12,
+            cursor: cargando || toggling ? 'not-allowed' : 'pointer',
+            border: 'none',
+            background: encendido ? '#fee2e2' : '#dcfce7',
+            color:      encendido ? '#991b1b' : '#166534',
+            opacity:    cargando || toggling ? 0.6 : 1,
+            transition: 'all 0.2s',
+          }}
+        >
+          {toggling ? '⏳ Guardando…' : encendido ? '🔴 Desactivar' : '🟢 Activar'}
+        </button>
       </div>
     </div>
   )

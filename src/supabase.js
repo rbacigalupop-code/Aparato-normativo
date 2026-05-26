@@ -1252,6 +1252,34 @@ export async function obtenerUsagePlatforma() {
   }
 }
 
+// ─── Org receptora de signups directos ────────────────────────────────────────
+export async function obtenerRecibeSignups(orgId) {
+  if (!orgId) return { ok: false, data: false }
+  try {
+    const { data, error } = await supabase.rpc('get_org_recibe_signups', { p_org_id: orgId })
+    if (error) throw error
+    return { ok: true, data: !!data }
+  } catch (err) {
+    console.warn('obtenerRecibeSignups error:', err)
+    return { ok: false, data: false }
+  }
+}
+
+export async function setRecibeSignups(orgId, recibe) {
+  if (!orgId) return { ok: false, error: 'Sin orgId' }
+  try {
+    const { data, error } = await supabase.rpc('set_org_recibe_signups', {
+      p_org_id: orgId,
+      p_recibe: recibe,
+    })
+    if (error) throw error
+    return { ok: data?.ok ?? true, mensaje: data?.mensaje }
+  } catch (err) {
+    console.warn('setRecibeSignups error:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function formatTiempoTranscurrido(fechaISO) {
   if (!fechaISO) return '—'
