@@ -193,3 +193,53 @@ html, body {
 }
 .nc-mono    { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .nc-display { font-family: var(--font-display); font-style: var(--display-italic); }
+
+/* ── Aplicación de tema al contenedor principal ────────────────────────────
+   El contenedor `.nc-app` tiene background hardcoded en inline-style, así que
+   debemos sobreescribirlo con !important para que el tema sea visible.
+   Para el tema "base" los tokens coinciden con los valores originales, así
+   que no hay cambio visual.
+*/
+.nc-app {
+  background: var(--bg) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-body) !important;
+  min-height: 100vh;
+}
+
+/* Tabs: fondo intermedio del tema */
+.nc-tabs {
+  background: var(--bg-alt) !important;
+}
+
+/* En temas oscuros (tech), las cards/paneles que usan blanco hardcoded
+   resultarían ilegibles. Convertimos blanco/grises claros a `--surface`
+   y aplicamos color de texto del tema. */
+[data-theme="tech"] [style*="background: #fff"],
+[data-theme="tech"] [style*="background:#fff"],
+[data-theme="tech"] [style*="background: #ffffff"],
+[data-theme="tech"] [style*="background:#ffffff"],
+[data-theme="tech"] [style*="background: white"],
+[data-theme="tech"] [style*="background:white"],
+[data-theme="tech"] [style*="background: #f8fafc"],
+[data-theme="tech"] [style*="background:#f8fafc"] {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+}
+[data-theme="tech"] [style*="color: #1e293b"],
+[data-theme="tech"] [style*="color:#1e293b"],
+[data-theme="tech"] [style*="color: #374151"],
+[data-theme="tech"] [style*="color:#374151"] {
+  color: var(--ink) !important;
+}
+[data-theme="tech"] [style*="color: #64748b"],
+[data-theme="tech"] [style*="color:#64748b"],
+[data-theme="tech"] [style*="color: #94a3b8"],
+[data-theme="tech"] [style*="color:#94a3b8"] {
+  color: var(--ink-3) !important;
+}
+[data-theme="tech"] [style*="border: 1px solid #e2e8f0"],
+[data-theme="tech"] [style*="border:1px solid #e2e8f0"],
+[data-theme="tech"] [style*="border: 1px solid #f1f5f9"] {
+  border-color: var(--line) !important;
+}
