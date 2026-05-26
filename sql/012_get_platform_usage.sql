@@ -24,7 +24,7 @@ AS $$
     'total_templates',      (SELECT COUNT(*) FROM proyectos WHERE COALESCE(is_template, false)),
     'total_usuarios',       (SELECT COUNT(*) FROM perfiles_usuario),
     'total_orgs',           (SELECT COUNT(*) FROM organizaciones),
-    'tokens_legado',        (SELECT COUNT(*) FROM tokens_legado WHERE NOT COALESCE(migrado_en, false)),
+    'tokens_legado',        (SELECT COUNT(*) FROM tokens_legado WHERE migrado_en IS NULL),
     'registros_auditoria',  (SELECT COUNT(*) FROM registro_auditoria)
   )
 $$;
