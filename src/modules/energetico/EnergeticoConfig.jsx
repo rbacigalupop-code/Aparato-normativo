@@ -79,6 +79,9 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
   const sistemaAcsId = cfg.sistemaACS || 'calefon_gas'
   const sistemaCocId = cfg.sistemaCocina || 'gas_glp'
 
+  // Tipo de proyecto (default: unifamiliar)
+  const tipoProy = cfg.tipoProyecto || 'unifamiliar'
+
   // Precio del combustible: override del usuario o el referencial de la macrozona
   const precioRef = combCalef?.precios?.[macrozona] || 0
   const precioComb = cfg.precioCombustible ?? precioRef
@@ -142,6 +145,62 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
         ]}
         normativa="DS N°15 MINVU · NCh853:2021 · Tarifas CNE BT1-A"
       />
+
+      {/* ── Tipo de proyecto (alcance v1) ────────────────────────────────── */}
+      <div style={{ marginBottom: 14 }}>
+        <Card titulo="🏗 Tipo de proyecto" descripcion="Esta versión del módulo Energético está optimizada para viviendas. Para edificios comerciales, oficinas o educacionales se recomienda software especializado.">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            {[
+              { id: 'unifamiliar', icon: '🏠', label: 'Vivienda unifamiliar', desc: 'Casa individual con envolvente completa expuesta. ACH típico 0.8.' },
+              { id: 'depto',       icon: '🏢', label: 'Vivienda en altura',   desc: 'Departamento con muros medianeros (menor envolvente expuesta). ACH típico 0.6.' },
+            ].map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => patchCfg({ tipoProyecto: t.id })}
+                style={{
+                  padding: '12px 14px', textAlign: 'left',
+                  background: tipoProy === t.id ? 'var(--accent-bg)' : 'var(--surface)',
+                  border: `1.5px solid ${tipoProy === t.id ? 'var(--accent)' : 'var(--line)'}`,
+                  borderRadius: 8, cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', gap: 4,
+                  fontFamily: 'var(--font-ui)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 20 }}>{t.icon}</span>
+                  <span style={{
+                    fontSize: 13, fontWeight: 700,
+                    color: tipoProy === t.id ? 'var(--accent)' : 'var(--ink)',
+                  }}>
+                    {t.label}
+                  </span>
+                  {tipoProy === t.id && (
+                    <span style={{
+                      marginLeft: 'auto', fontSize: 9, fontWeight: 700,
+                      background: 'var(--accent)', color: '#fff',
+                      padding: '2px 6px', borderRadius: 99,
+                    }}>SELECCIONADO</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                  {t.desc}
+                </div>
+              </button>
+            ))}
+          </div>
+          <div style={{
+            marginTop: 10, padding: '8px 12px',
+            background: 'var(--bg-alt)', border: '1px solid var(--line-soft)',
+            borderRadius: 6, fontSize: 10, color: 'var(--ink-3)', lineHeight: 1.5,
+          }}>
+            ℹ Esta selección informa el contexto del proyecto. La calificación <b>CEV oficial MINVU</b> y
+            los benchmarks (Casa Pasiva, Vivienda Social DS19) aplican a ambos tipos. Para edificios no
+            residenciales (oficinas, comercio, salud, educación) se requeriría un módulo dedicado con
+            otros parámetros de ocupación y certificación (CES MOP, LEED, EDGE).
+          </div>
+        </Card>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
 

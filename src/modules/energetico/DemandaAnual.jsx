@@ -34,10 +34,13 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
   const zonaEf = cfg.zonaDS15 || proy?.zona || 'D'
   const comunaKey = cfg.comunaKey || null
 
+  // Defaults según tipo de proyecto: deptos suelen tener menos infiltración
+  const achDefault = cfg.tipoProyecto === 'depto' ? 0.6 : 0.8
+
   // Inputs editables por el usuario
   const [areaUtil,   setAreaUtil]   = useState(proy?.superficie || 100)
   const [alturaCielo, setAlturaCielo] = useState(2.5)
-  const [ach,        setAch]        = useState(0.8)
+  const [ach,        setAch]        = useState(achDefault)
   const [vidrioTipo, setVidrioTipo] = useState('dvh_4_12_4')
   const [proteccion, setProteccion] = useState(1.0)
   const [masaTermica, setMasaTermica] = useState('media')

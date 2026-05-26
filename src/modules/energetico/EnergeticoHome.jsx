@@ -35,10 +35,23 @@ export default function EnergeticoHome({ perfil, proy, onIrAConfig }) {
         marginBottom: 24,
       }}>
         <div style={{
-          fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.5,
-          opacity: 0.85, marginBottom: 6,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: 6, flexWrap: 'wrap', gap: 8,
         }}>
-          Módulo Energético Avanzado · Plan {labelPlan(perfil)}
+          <div style={{
+            fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.5, opacity: 0.85,
+          }}>
+            Módulo Energético Avanzado · Plan {labelPlan(perfil)}
+          </div>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.35)',
+            padding: '3px 10px', borderRadius: 99,
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+          }}>
+            🏠 v1 · Foco en viviendas
+          </div>
         </div>
         <h1 style={{
           margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: -0.5,
@@ -49,7 +62,8 @@ export default function EnergeticoHome({ perfil, proy, onIrAConfig }) {
         </h1>
         <p style={{ fontSize: 13, margin: '8px 0 0', maxWidth: 680, opacity: 0.92, lineHeight: 1.5 }}>
           Calcula la demanda anual, evalúa renovables, cuantifica el payback de cada mejora y
-          genera informes ejecutivos para clientes, mandantes y oferentes.
+          genera informes ejecutivos para clientes, mandantes y oferentes. Optimizado para
+          <b style={{ color: '#fff' }}> viviendas unifamiliares y departamentos</b> bajo normativa chilena.
         </p>
 
         {enTrial && (
