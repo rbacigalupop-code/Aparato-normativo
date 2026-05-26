@@ -31,6 +31,7 @@ import { obtenerHDD18 } from '../../data/grados_dia.js'
 import {
   listarComunasOrdenadas,
   obtenerZonaDS15Comuna,
+  obtenerDistribuidoraComuna,
   ZONA_DS15_LABELS,
   REGIONES_LABELS,
 } from '../../data/comunas_chile.js'
@@ -56,14 +57,18 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
   const zonaEfectiva = zonaDerivadaComuna || cfg.zonaDS15 || proy?.zona || null
   const macrozona = zonaEfectiva ? zonaOGUCaMacrozona(zonaEfectiva) : 'centro'
 
-  // Cuando el usuario selecciona una comuna, sincronizamos zona y macrozona
-  // automáticamente en configEnergetica.
+  // Cuando el usuario selecciona una comuna, sincronizamos zona, macrozona,
+  // distribuidora eléctrica y tarifa referencial automáticamente.
   function elegirComuna(nuevaKey) {
     const z = obtenerZonaDS15Comuna(nuevaKey)
+    const distribId = obtenerDistribuidoraComuna(nuevaKey)
+    const distrib   = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
     patchCfg({
-      comunaKey: nuevaKey,
-      zonaDS15:  z || null,
-      macrozona: z ? zonaOGUCaMacrozona(z) : 'centro',
+      comunaKey:    nuevaKey,
+      zonaDS15:     z || null,
+      macrozona:    z ? zonaOGUCaMacrozona(z) : 'centro',
+      distribuidora: distribId,
+      tarifaElec:   distrib?.tarifa_clp_kwh ?? TARIFA_ELEC_DEFAULT,
     })
   }
 
@@ -130,7 +135,8 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
           { campo: 'Comuna — la eliges tú directamente (~346 comunas chilenas)', origen: 'usuario' },
           { campo: 'Zona DS N°15 y HDD18 — se derivan automáticamente de la comuna', origen: 'auto' },
           { campo: 'Macrozona (norte/centro/sur/austral) — auto desde zona DS N°15', origen: 'auto' },
-          { campo: 'Tarifa eléctrica BT1-A — referencial por distribuidora (editable)', origen: 'usuario' },
+          { campo: 'Distribuidora eléctrica — sugerida por zona de concesión SEC', origen: 'auto' },
+          { campo: 'Tarifa BT1-A referencial — promedio actual por distribuidora (editable)', origen: 'auto' },
           { campo: 'Precio combustible — referencial por macrozona (editable)', origen: 'usuario' },
         ]}
         normativa="DS N°15 MINVU · NCh853:2021 · Tarifas CNE BT1-A"
@@ -175,7 +181,7 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
         </Card>
 
         {/* ── Electricidad ───────────────────────────────────────────────── */}
-        <Card titulo="⚡ Tarifa eléctrica" descripcion="Define la tarifa BT1-A real del cliente.">
+        <Card titulo="⚡ Tarifa eléctrica" descripcion="Distribuidora y tarifa sugeridas según la comuna.">
           <Field label="Distribuidora">
             <select
               value={cfg.distribuidora || 'otro'}
@@ -189,6 +195,12 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
                 <option key={d.id} value={d.id}>{d.nombre} ({d.tarifa_clp_kwh} CLP/kWh)</option>
               ))}
             </select>
+            {comunaKey && (
+              <div style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <BadgeOrigen origen="auto" small label="Auto" />
+                <span>Sugerida por zona de concesión SEC para tu comuna</span>
+              </div>
+            )}
           </Field>
           <Field label="Tarifa CLP/kWh (editable)">
             <input

@@ -400,6 +400,91 @@ export const COMUNAS_CHILE = {
   torres_del_paine:            { region: 'XII', zona_ds15: 'H' },
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// DISTRIBUIDORAS ELÉCTRICAS POR COMUNA
+// ═════════════════════════════════════════════════════════════════════════════
+// Mapeo basado en zonas de concesión legalmente definidas por la SEC.
+// IDs deben coincidir con los de DISTRIBUIDORAS_ELEC en combustibles.js.
+//
+// Distribuidoras principales chilenas:
+//   · cge:       Compañía General de Electricidad (XV, I, II, III, IV, VI, VII,
+//                XVI, V interior, RM periferia, Concepción Metropolitano)
+//   · enel:      Enel Distribución (RM urbana — ex Chilectra)
+//   · chilquinta:Chilquinta Energía (V costera: Valparaíso, Viña, Quilpué, etc.)
+//   · frontel:   Saesa Frontel (VIII rural, IX Araucanía)
+//   · saesa:     Saesa (XIV, X mayoría)
+//   · luzosorno: Sociedad Austral Generación (X — Osorno y alrededores)
+//   · edelaysen: Edelaysén (XI Aysén)
+//   · edelmag:   Edelmag (XII Magallanes)
+//   · otro:      Sistemas aislados (Isla de Pascua SASIPA, Juan Fernández, etc.)
+
+// Distribuidora dominante por región (la mayoría de las comunas de la región)
+const DISTRIBUIDORA_POR_REGION = {
+  'XV':  'cge',
+  'I':   'cge',
+  'II':  'cge',
+  'III': 'cge',
+  'IV':  'cge',
+  'V':   'chilquinta',   // mayoría costera; interior usa CGE (ver overrides)
+  'RM':  'enel',
+  'VI':  'cge',
+  'VII': 'cge',
+  'XVI': 'cge',
+  'VIII':'frontel',      // mayoría sur de la región; Concepción Metro es CGE
+  'IX':  'frontel',
+  'XIV': 'saesa',
+  'X':   'saesa',        // mayoría; Osorno y alrededores es Luz Osorno
+  'XI':  'edelaysen',
+  'XII': 'edelmag',
+}
+
+// Overrides específicos: comunas que NO siguen el patrón de su región
+const DISTRIBUIDORA_OVERRIDE = {
+  // ─── V Valparaíso — interior continental usa CGE ─────────────────────────
+  'los_andes': 'cge', 'calle_larga': 'cge', 'rinconada': 'cge', 'san_esteban': 'cge',
+  'san_felipe': 'cge', 'catemu': 'cge', 'llaillay': 'cge', 'panquehue': 'cge',
+  'putaendo':   'cge', 'santa_maria': 'cge',
+  'la_ligua':   'cge', 'cabildo':     'cge', 'petorca':     'cge',
+  // V Aislados (servicios pequeños)
+  'isla_de_pascua': 'otro',
+  'juan_fernandez': 'otro',
+
+  // ─── RM Metropolitana — periferia rural puede ser CGE ────────────────────
+  // (Casi toda la RM es Enel; los siguientes pueden tener CGE en zonas rurales)
+  'san_jose_de_maipo': 'cge',  // precordillera
+  'alhue':             'cge',
+
+  // ─── VIII Biobío — Concepción Metropolitano es CGE (no Frontel) ─────────
+  'concepcion':         'cge', 'talcahuano': 'cge', 'hualpen': 'cge',
+  'san_pedro_de_la_paz':'cge', 'chiguayante':'cge', 'penco':   'cge',
+  'tome':               'cge', 'hualqui':    'cge', 'florida': 'cge',
+  'santa_juana':        'cge', 'coronel':    'cge', 'lota':    'cge',
+
+  // ─── X Los Lagos — área Osorno usa Luz Osorno ────────────────────────────
+  'osorno':              'luzosorno', 'puerto_octay': 'luzosorno',
+  'puyehue':             'luzosorno', 'purranque':    'luzosorno',
+  'rio_negro':           'luzosorno',
+  'san_juan_de_la_costa':'luzosorno', 'san_pablo':    'luzosorno',
+  // X — Comunas aisladas continental que pueden tener Edelaysén
+  'chaiten':    'saesa',  // mantenemos saesa, no edelaysen como antes pensaba
+  'futaleufu':  'saesa',
+  'hualaihue':  'saesa',
+  'palena':     'saesa',
+}
+
+/**
+ * Devuelve el id de la distribuidora eléctrica que opera en una comuna.
+ * Si la comuna no se encuentra → 'otro' (tarifa promedio).
+ */
+export function obtenerDistribuidoraComuna(comunaKey) {
+  if (!comunaKey) return 'otro'
+  const key = comunaKey.toLowerCase().replace(/\s/g, '_')
+  if (DISTRIBUIDORA_OVERRIDE[key]) return DISTRIBUIDORA_OVERRIDE[key]
+  const comuna = COMUNAS_CHILE[key]
+  if (!comuna) return 'otro'
+  return DISTRIBUIDORA_POR_REGION[comuna.region] || 'otro'
+}
+
 // Etiquetas legibles para regiones
 export const REGIONES_LABELS = {
   'XV':  'XV · Arica y Parinacota',
