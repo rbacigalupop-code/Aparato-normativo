@@ -72,10 +72,20 @@ export const IRRADIACION_POR_ZONA = {
   'H': { anual: 2.7, fc_fv: 0.096 },
 }
 
+import { obtenerZonaDS15Comuna } from './comunas_chile.js'
+
 export function obtenerIrradiacion(comunaKey, zonaDS15 = null) {
-  const c = IRRADIACION_SOLAR[comunaKey?.toLowerCase()?.replace(/\s/g, '_')]
+  const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
+  const c = IRRADIACION_SOLAR[key]
   if (c) return c
-  if (zonaDS15 && IRRADIACION_POR_ZONA[zonaDS15]) return IRRADIACION_POR_ZONA[zonaDS15]
+  // Zona DS15 derivada de la comuna en COMUNAS_CHILE
+  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaComuna && IRRADIACION_POR_ZONA[zonaComuna]) {
+    return { ...IRRADIACION_POR_ZONA[zonaComuna], verano: null, invierno: null }
+  }
+  if (zonaDS15 && IRRADIACION_POR_ZONA[zonaDS15]) {
+    return { ...IRRADIACION_POR_ZONA[zonaDS15], verano: null, invierno: null }
+  }
   return { anual: 5.0, verano: 6.5, invierno: 3.5, fc_fv: 0.178 }  // Santiago default
 }
 
@@ -95,8 +105,12 @@ export const T_MEDIA_INVIERNO = {
 }
 
 export function obtenerTinvierno(comunaKey, zonaDS15 = null) {
-  const t = T_MEDIA_INVIERNO[comunaKey?.toLowerCase()?.replace(/\s/g, '_')]
+  const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
+  const t = T_MEDIA_INVIERNO[key]
   if (t != null) return t
-  // Fallback aproximado por zona
-  return ({ 'A': 13, 'B': 11, 'C': 9, 'D': 7, 'E': 5.5, 'F': 5, 'G': 3, 'H': 1.5 })[zonaDS15] ?? 7
+  // Fallback aproximado por zona (primero deriva de comuna)
+  const tablas = { 'A': 13, 'B': 11, 'C': 9, 'D': 7, 'E': 5.5, 'F': 5, 'G': 3, 'H': 1.5 }
+  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaComuna && tablas[zonaComuna]) return tablas[zonaComuna]
+  return tablas[zonaDS15] ?? 7
 }

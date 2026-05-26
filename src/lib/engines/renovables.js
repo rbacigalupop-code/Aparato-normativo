@@ -129,7 +129,8 @@ export function analizarFV({
   fraccionCobertura = 1.0,
 }) {
   const comunaKey = proy.configEnergetica?.comunaKey || proy.comuna?.toLowerCase()?.replace(/\s/g, '_')
-  const irrad = obtenerIrradiacion(comunaKey, proy.zona)
+  const zonaEfectiva = proy.configEnergetica?.zonaDS15 || proy.zona
+  const irrad = obtenerIrradiacion(comunaKey, zonaEfectiva)
 
   const kWp = kWpForzar != null
     ? Number(kWpForzar)
@@ -212,15 +213,16 @@ export function analizarSolarTermico({
   combustibleACS = null,   // si null, asume electricidad (peor caso)
   tarifaElec = TARIFA_ELEC_DEFAULT,
 }) {
+  const zonaEfectiva = proy.configEnergetica?.zonaDS15 || proy.zona
   const sistema = recomendarSistemaST(personas)
   const demanda = demandaACS(personas)
-  const cobertura = COBERTURA_ACS[proy.zona] || 0.65
+  const cobertura = COBERTURA_ACS[zonaEfectiva] || 0.65
 
   const energiaSolar = Math.round(demanda * cobertura)
   const energiaApoyo = demanda - energiaSolar
 
   // Ahorro económico: lo que dejas de gastar en el combustible actual
-  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(proy.zona)
+  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(zonaEfectiva)
   const combId = combustibleACS || proy.configEnergetica?.combustibleCalef || 'elec_resistiva'
   const cu = clpKwhUtil(combId, macrozona, tarifaElec) || (tarifaElec / 0.95)
   const ahorroClp = Math.round(energiaSolar * cu)
@@ -296,14 +298,15 @@ export function analizarBdC({
   if (!bdc) return null
 
   const comunaKey = proy.configEnergetica?.comunaKey || proy.comuna?.toLowerCase()?.replace(/\s/g, '_')
-  const tInv = obtenerTinvierno(comunaKey, proy.zona)
+  const zonaEfectiva = proy.configEnergetica?.zonaDS15 || proy.zona
+  const tInv = obtenerTinvierno(comunaKey, zonaEfectiva)
 
   const cop = copEstacional(tipoBdC, tInv)
   const consumoElecBdC = demandaTermicaKwh / cop
   const costoBdC = Math.round(consumoElecBdC * tarifaElec)
 
   // Sistema actual (referencia para comparar)
-  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(proy.zona)
+  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(zonaEfectiva)
   const combActualId = proy.configEnergetica?.combustibleCalef || 'lena_no_cert'
   const cuActual = clpKwhUtil(combActualId, macrozona, tarifaElec) || 80
   const costoActual = Math.round(demandaTermicaKwh * cuActual)
@@ -361,9 +364,10 @@ export function estimarDemandaTermica(proy, calcUInit = {}, hdd18 = 1500) {
     const u = parseFloat(data.res.U)
     qAnual += u * area * hdd18 * 24 / 1000  // kWh/año
   }
-  // Si no hay cálculos U → estimación gruesa por zona
+  // Si no hay cálculos U → estimación gruesa por zona (prioriza zonaDS15 derivada)
   if (qAnual === 0) {
-    qAnual = ({ A: 2500, B: 4000, C: 6000, D: 8000, E: 11000, F: 14000, G: 17000, H: 20000 })[proy?.zona] || 8000
+    const zonaEf = proy?.configEnergetica?.zonaDS15 || proy?.zona
+    qAnual = ({ A: 2500, B: 4000, C: 6000, D: 8000, E: 11000, F: 14000, G: 17000, H: 20000 })[zonaEf] || 8000
   }
   return Math.round(qAnual)
 }

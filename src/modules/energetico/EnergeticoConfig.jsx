@@ -27,7 +27,13 @@ import {
   zonaOGUCaMacrozona,
   clpKwhUtil,
 } from '../../data/combustibles.js'
-import { COMUNAS_LISTA, obtenerHDD18 } from '../../data/grados_dia.js'
+import { obtenerHDD18 } from '../../data/grados_dia.js'
+import {
+  listarComunasOrdenadas,
+  obtenerZonaDS15Comuna,
+  ZONA_DS15_LABELS,
+  REGIONES_LABELS,
+} from '../../data/comunas_chile.js'
 
 export default function EnergeticoConfig({ proy, onChangeProy }) {
   const cfg = proy?.configEnergetica || {}
@@ -39,8 +45,27 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
     })
   }
 
-  // Defaults derivados
-  const macrozona = cfg.macrozona || zonaOGUCaMacrozona(proy?.zona)
+  // ── Resolución de zona/macrozona ──────────────────────────────────────────
+  // Prioridad de fuente de verdad para el módulo Energético:
+  //   1. comunaKey en configEnergetica → deriva zona oficial DS N°15
+  //   2. cfg.zonaDS15 manual (override)
+  //   3. proy.zona del módulo Normativo (fallback)
+  const comunaKey = cfg.comunaKey || ''
+  const zonaDerivadaComuna = obtenerZonaDS15Comuna(comunaKey)
+  const zonaEfectiva = zonaDerivadaComuna || cfg.zonaDS15 || proy?.zona || null
+  const macrozona = zonaEfectiva ? zonaOGUCaMacrozona(zonaEfectiva) : 'centro'
+
+  // Cuando el usuario selecciona una comuna, sincronizamos zona y macrozona
+  // automáticamente en configEnergetica.
+  function elegirComuna(nuevaKey) {
+    const z = obtenerZonaDS15Comuna(nuevaKey)
+    patchCfg({
+      comunaKey: nuevaKey,
+      zonaDS15:  z || null,
+      macrozona: z ? zonaOGUCaMacrozona(z) : 'centro',
+    })
+  }
+
   const tarifaElec = cfg.tarifaElec ?? TARIFA_ELEC_DEFAULT
   const combCalefId = cfg.combustibleCalef || 'lena_no_cert'
   const combCalef = COMBUSTIBLES_CALEFACCION.find(c => c.id === combCalefId)
@@ -56,9 +81,16 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
     ? tarifaElec / combCalef.rendTipico
     : (precioComb && combCalef) ? precioComb / (combCalef.pci_kwh_unidad * combCalef.rendTipico) : 0
 
-  // HDD18 detectado
-  const comunaKey = cfg.comunaKey || ''
-  const hdd18 = obtenerHDD18(comunaKey, proy?.zona)
+  // HDD18 detectado (la función ya prioriza catálogo detallado → zona de comuna)
+  const hdd18 = obtenerHDD18(comunaKey, zonaEfectiva)
+
+  // Lista de comunas agrupadas por región para el selector
+  const todasComunas = listarComunasOrdenadas()
+  const comunasPorRegion = todasComunas.reduce((acc, c) => {
+    if (!acc[c.region]) acc[c.region] = { label: c.regionLabel, items: [] }
+    acc[c.region].items.push(c)
+    return acc
+  }, {})
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
@@ -86,18 +118,39 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
 
         {/* ── Localización ───────────────────────────────────────────────── */}
-        <Card titulo="📍 Localización" descripcion="La comuna determina los grados-día y el clima.">
-          <Field label="Comuna">
-            <select value={comunaKey} onChange={e => patchCfg({ comunaKey: e.target.value })} style={inputStyle}>
+        <Card titulo="📍 Localización" descripcion="La comuna determina la zona DS N°15, los grados-día y el clima.">
+          <Field label="Comuna (todas las ~346 de Chile)">
+            <select value={comunaKey} onChange={e => elegirComuna(e.target.value)} style={inputStyle}>
               <option value="">— Selecciona comuna —</option>
-              {COMUNAS_LISTA.map(c => (
-                <option key={c.key} value={c.key}>{c.nombre} (Z{c.zona_ds15} · HDD {c.hdd18})</option>
+              {Object.entries(comunasPorRegion).map(([regionCode, data]) => (
+                <optgroup key={regionCode} label={data.label}>
+                  {data.items.map(c => (
+                    <option key={c.key} value={c.key}>
+                      {c.nombre} (Zona {c.zona_ds15})
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </Field>
-          <DataRow label="Zona DS N°15" value={proy?.zona || '—'} />
+          <DataRow
+            label="Zona DS N°15 (auto)"
+            value={zonaEfectiva ? ZONA_DS15_LABELS[zonaEfectiva] || zonaEfectiva : '—'}
+            highlight={!!zonaDerivadaComuna}
+          />
           <DataRow label="Macrozona" value={MACROZONAS[macrozona]?.label || macrozona} />
           <DataRow label="Grados-día base 18°C" value={`${hdd18} °C·día`} highlight />
+          {zonaEfectiva && proy?.zona && zonaEfectiva !== proy.zona && (
+            <div style={{
+              marginTop: 8, fontSize: 10, color: 'var(--warn)',
+              background: 'var(--warn-bg)', border: '1px solid var(--warn)',
+              padding: '6px 10px', borderRadius: 6, lineHeight: 1.5,
+            }}>
+              ⚠ La zona del proyecto Normativo es <b>{proy.zona}</b>, pero la comuna seleccionada
+              corresponde a zona <b>{zonaEfectiva}</b>. El módulo Energético usa la zona derivada
+              de la comuna (más precisa). Revisa la pestaña Diagnóstico si quieres sincronizarlas.
+            </div>
+          )}
         </Card>
 
         {/* ── Electricidad ───────────────────────────────────────────────── */}

@@ -151,15 +151,23 @@ export function analizarCorreccion({
   const u0       = parseFloat(uAntes)
   if (isNaN(uDespues) || isNaN(u0) || u0 <= uDespues) return null
 
-  // 1) HDD18 por comuna o zona OGUC
-  const comunaKey = proy?.comunaKey || proy?.comuna?.toLowerCase()?.replace(/\s/g, '_')
-  const hdd18     = obtenerHDD18(comunaKey, proy?.zona)
+  // 1) HDD18: prioriza configEnergetica.comunaKey/zonaDS15 sobre proy.zona
+  const comunaKey = configEnergetica?.comunaKey
+    || proy?.configEnergetica?.comunaKey
+    || proy?.comunaKey
+    || proy?.comuna?.toLowerCase()?.replace(/\s/g, '_')
+  const zonaEfectiva = configEnergetica?.zonaDS15
+    || proy?.configEnergetica?.zonaDS15
+    || proy?.zona
+  const hdd18 = obtenerHDD18(comunaKey, zonaEfectiva)
 
   // 2) Ahorro kWh anual
   const ahorroKwh = ahorroTermicoAnual(u0, uDespues, areaM2, hdd18)
 
-  // 3) Resolver macrozona si falta
-  const macrozona = configEnergetica?.macrozona || zonaOGUCaMacrozona(proy?.zona)
+  // 3) Resolver macrozona: prioriza la guardada en configEnergetica
+  const macrozona = configEnergetica?.macrozona
+    || proy?.configEnergetica?.macrozona
+    || zonaOGUCaMacrozona(zonaEfectiva)
 
   // 4) Ahorro económico
   const econ = ahorroEconomicoAnual(ahorroKwh, { ...configEnergetica, macrozona })

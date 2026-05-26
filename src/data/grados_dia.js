@@ -68,13 +68,29 @@ export const HDD18_POR_ZONA_DS15 = {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+import { COMUNAS_CHILE, obtenerZonaDS15Comuna } from './comunas_chile.js'
+
+/**
+ * Obtiene HDD18 de una comuna.
+ * Prioridad: GRADOS_DIA detallado (28 comunas) → HDD18_POR_ZONA_DS15 (zona de la
+ * comuna en COMUNAS_CHILE) → fallback zonaDS15 pasado → Santiago.
+ */
 export function obtenerHDD18(comunaKey, zonaDS15 = null) {
-  const c = GRADOS_DIA[comunaKey?.toLowerCase()?.replace(/\s/g, '_')]
-  if (c) return c.hdd18
+  const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
+  // 1. Tabla detallada (más precisa)
+  const detallado = GRADOS_DIA[key]
+  if (detallado) return detallado.hdd18
+  // 2. Zona DS N°15 oficial de la comuna
+  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaComuna && HDD18_POR_ZONA_DS15[zonaComuna]) return HDD18_POR_ZONA_DS15[zonaComuna]
+  // 3. Zona pasada explícitamente
   if (zonaDS15 && HDD18_POR_ZONA_DS15[zonaDS15]) return HDD18_POR_ZONA_DS15[zonaDS15]
-  return 1480 // Santiago como default razonable
+  // 4. Default Santiago
+  return 1480
 }
 
+// Lista ordenada — para retrocompatibilidad con código anterior.
+// Para uso nuevo: usa listarComunasOrdenadas() de comunas_chile.js.
 export const COMUNAS_LISTA = Object.keys(GRADOS_DIA)
   .map(k => ({ key: k, nombre: k.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' '), ...GRADOS_DIA[k] }))
   .sort((a, b) => a.nombre.localeCompare(b.nombre))
