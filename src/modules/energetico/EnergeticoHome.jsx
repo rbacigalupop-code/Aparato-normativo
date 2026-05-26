@@ -7,6 +7,7 @@
 
 import React from 'react'
 import { labelPlan, estaEnTrial, diasRestantesTrial } from '../../lib/plan.js'
+import AyudaEnergetico from './AyudaEnergetico.jsx'
 
 const ROADMAP = [
   { id: 's1', sprint: 1, label: 'Configuración energética + Payback en correcciones', estado: 'completado' },
@@ -64,6 +65,26 @@ export default function EnergeticoHome({ perfil, proy, onIrAConfig }) {
           </div>
         )}
       </div>
+
+      {/* Guía de bienvenida */}
+      <AyudaEnergetico
+        icon="🚀"
+        titulo="Módulo Energético Avanzado"
+        intro="Este módulo va más allá del cumplimiento normativo OGUC: calcula la demanda energética anual del proyecto, evalúa renovables, cuantifica el ahorro de cada mejora y genera informes ejecutivos. Trabaja sobre los datos ya capturados en el módulo Normativo."
+        pasos={[
+          'Empieza en <b>⚙ Configuración</b>: define la <b>comuna</b> (de ahí se deriva la zona DS N°15 oficial y los grados-día) y el <b>combustible</b> real del cliente.',
+          'En <b>📐 Cálculo U del módulo Normativo</b> aparecerán automáticamente los chips de <b>costo · ahorro · payback</b> sobre cada corrección propuesta.',
+          'Ve a <b>📊 Demanda</b> para el balance térmico anual del proyecto completo: kWh/m²·año + calificación A+→G + análisis de sobrecalentamiento de verano.',
+          'En <b>🌱 Renovables</b> dimensiona FV (Ley 21.118), solar térmico (Ley 20.365) y bomba de calor con COP corregido por clima local.',
+        ]}
+        origenDatos={[
+          { campo: 'Zona DS N°15 y grados-día — derivados de la comuna que elijas en ⚙ Configuración', origen: 'energetico:configuracion' },
+          { campo: 'Áreas y transmitancia U de la envolvente — desde tus cálculos del módulo Normativo', origen: 'normativo:calculo-u' },
+          { campo: 'Áreas de ventanas por orientación — desde la pestaña Ventana del módulo Normativo', origen: 'normativo:ventana' },
+          { campo: 'Superficie útil del proyecto — desde Diagnóstico del módulo Normativo', origen: 'normativo:diagnostico' },
+        ]}
+        normativa="ISO 13790 · CTE-HE simplificado · Ley 21.118 (Net-billing) · Ley 20.365 (Solar térmico SST)"
+      />
 
       {/* Estado del proyecto actual */}
       <div style={{ marginBottom: 24 }}>

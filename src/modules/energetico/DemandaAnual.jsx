@@ -27,6 +27,7 @@ import {
 } from '../../lib/engines/demanda.js'
 import { BENCHMARKS_DEMANDA } from '../../data/clima_anual.js'
 import { ZONA_DS15_LABELS } from '../../data/comunas_chile.js'
+import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 export default function DemandaAnual({ proy, calcUInit, fachadas }) {
   const cfg = proy?.configEnergetica || {}
@@ -71,6 +72,28 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
       <Hero balance={balance} />
+
+      <AyudaEnergetico
+        icon="📊"
+        titulo="Demanda energética anual"
+        intro="Calcula la demanda térmica neta de la vivienda (kWh/m²·año) y la asigna una calificación A+→G en la escala chilena. El balance considera pérdidas por envolvente e infiltración, ganancias solares por orientación e internas, y aplica el factor de utilización ISO 13790."
+        pasos={[
+          'Asegúrate de tener <b>cálculos U completos</b> en el módulo Normativo (pestaña Cálculo U) — son la base de las pérdidas por envolvente.',
+          'Si tienes <b>fachadas registradas</b> (pestaña Ventana), las áreas de ventana por orientación se cargan automáticamente.',
+          'Ajusta el <b>ACH</b> (hermeticidad) según el tipo de vivienda: 0.6 nueva hermética, 0.8 estándar, 1.2 usada, 2.0 antigua.',
+          'Cambia el <b>tipo de vidrio</b> y <b>protección solar</b> para ver cómo afectan tanto la demanda de invierno como el sobrecalentamiento de verano.',
+          'En la sección de <b>Verano</b>, define la <b>masa térmica</b> de la vivienda y si tiene <b>ventilación nocturna</b> para refinar el índice de sobrecalentamiento.',
+        ]}
+        origenDatos={[
+          { campo: 'Transmitancia U de cada elemento (muro, piso, techo) — calcUInit', origen: 'normativo:calculo-u' },
+          { campo: 'Áreas de ventanas por orientación N/E/S/O — fachadas', origen: 'normativo:ventana' },
+          { campo: 'Superficie útil — desde Diagnóstico del proyecto', origen: 'normativo:diagnostico' },
+          { campo: 'Zona DS N°15 y HDD18 — derivados de la comuna configurada', origen: 'energetico:configuracion' },
+          { campo: 'Radiación solar vertical por orientación — calculado según zona', origen: 'auto' },
+          { campo: 'ACH, tipo vidrio, protección, masa térmica, ventilación nocturna — los defines tú', origen: 'usuario' },
+        ]}
+        normativa="ISO 13790:2008 (Energy performance of buildings) · CTE-HE simplificado · NCh853:2021"
+      />
 
       {/* ── Sin datos previos? ──────────────────────────────────────────── */}
       {sinDatosEnvolvente && (
@@ -203,10 +226,36 @@ function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, 
 
       {/* Resultados */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 14 }}>
-        <BigKPI label="Pérdidas envolvente" value={`${(balance.perdidas.envolvente/1000).toFixed(1)}k kWh`} sub={`${elementos.length} elementos`} color="var(--bad)" />
-        <BigKPI label="Pérdidas infiltración" value={`${(balance.perdidas.infiltracion/1000).toFixed(1)}k kWh`} sub={`${ach} ACH`} color="var(--bad)" />
-        <BigKPI label="Ganancias solares" value={`${(balance.ganancias.solares/1000).toFixed(1)}k kWh`} sub="por ventanas" color="var(--ok)" />
-        <BigKPI label="Ganancias internas" value={`${(balance.ganancias.internas/1000).toFixed(1)}k kWh`} sub="ocupantes + equipos" color="var(--ok)" />
+        <BigKPI
+          label="Pérdidas envolvente"
+          value={`${(balance.perdidas.envolvente/1000).toFixed(1)}k kWh`}
+          sub={`${elementos.length} elementos`}
+          color="var(--bad)"
+          badge={elementos.length > 0 ? <BadgeOrigen origen="normativo:calculo-u" small /> : null}
+        />
+        <BigKPI
+          label="Pérdidas infiltración"
+          value={`${(balance.perdidas.infiltracion/1000).toFixed(1)}k kWh`}
+          sub={`${ach} ACH`}
+          color="var(--bad)"
+          badge={<BadgeOrigen origen="usuario" small />}
+        />
+        <BigKPI
+          label="Ganancias solares"
+          value={`${(balance.ganancias.solares/1000).toFixed(1)}k kWh`}
+          sub="por ventanas"
+          color="var(--ok)"
+          badge={(ventanas.areasVidrio.N + ventanas.areasVidrio.E + ventanas.areasVidrio.S + ventanas.areasVidrio.O) > 0
+            ? <BadgeOrigen origen="normativo:ventana" small />
+            : <BadgeOrigen origen="auto" small label="Sin ventanas" />}
+        />
+        <BigKPI
+          label="Ganancias internas"
+          value={`${(balance.ganancias.internas/1000).toFixed(1)}k kWh`}
+          sub="ocupantes + equipos"
+          color="var(--ok)"
+          badge={<BadgeOrigen origen="auto" small label="4.5 W/m²" />}
+        />
       </div>
 
       {/* Factor de utilización */}
@@ -383,10 +432,13 @@ function Card({ titulo, subtitulo, children }) {
   )
 }
 
-function BigKPI({ label, value, sub, color }) {
+function BigKPI({ label, value, sub, color, badge }) {
   return (
     <div>
-      <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-3)', fontWeight: 600 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+        <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--ink-3)', fontWeight: 600 }}>{label}</span>
+        {badge}
+      </div>
       <div style={{ fontSize: 20, fontWeight: 700, color: color || 'var(--ink)', fontFamily: 'var(--font-display)', lineHeight: 1.1, marginTop: 3 }}>{value}</div>
       {sub && <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>}
     </div>

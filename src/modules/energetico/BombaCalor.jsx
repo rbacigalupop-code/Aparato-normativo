@@ -8,6 +8,7 @@ import { analizarBdC, estimarDemandaTermica } from '../../lib/engines/renovables
 import { TARIFA_ELEC_DEFAULT, COMBUSTIBLES_CALEFACCION } from '../../data/combustibles.js'
 import { PRECIOS_BDC } from '../../data/precios_renovables.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 const TIPOS_BDC = ['split_aire_aire', 'aerotermia_agua', 'geotermica', 'bdc_acs_dedicada']
 
@@ -36,6 +37,27 @@ export default function BombaCalor({ proy, calcUInit }) {
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
       <Hero />
 
+      <AyudaEnergetico
+        icon="🌡️"
+        titulo="Bomba de calor — comparador de 4 tipos"
+        intro="Compara 4 tecnologías de bomba de calor (split aire-aire, aerotermia agua, geotérmica y BdC dedicada a ACS) contra tu sistema actual. El COP se corrige automáticamente por la temperatura media de invierno de tu comuna — clave para evitar sorpresas en zonas frías."
+        pasos={[
+          'La <b>demanda térmica anual</b> se estima desde los cálculos U del módulo Normativo. Si no tienes cálculos U, ajústala manualmente.',
+          'Define la <b>potencia térmica requerida</b>. Regla práctica: 50-80 W por m² (clima frío, mayor).',
+          'La <b>T° media invierno</b> de tu comuna determina el COP real de cada equipo. En zonas F-H la BdC aire-aire pierde rendimiento — la aerotermia con inverter o geotérmica compensan mejor.',
+          'Revisa la <b>tabla resumen</b> al final: muestra el caso base (tu combustible actual) vs los 4 tipos de BdC en costo anual, ahorro y payback.',
+        ]}
+        origenDatos={[
+          { campo: 'Demanda térmica anual — calculada desde calcUInit + HDD18', origen: 'normativo:calculo-u' },
+          { campo: 'T° media invierno (JJA) — por comuna del proyecto', origen: 'energetico:configuracion' },
+          { campo: 'Combustible actual del cliente — definido en Configuración', origen: 'energetico:configuracion' },
+          { campo: 'Tarifa eléctrica — para costo operacional BdC', origen: 'energetico:configuracion' },
+          { campo: 'COP nominal por tipo (3.5 split · 4.0 aerotermia · 5.0 geotérmica) — catálogo industria', origen: 'auto' },
+          { campo: 'Potencia térmica requerida — la defines tú', origen: 'usuario' },
+        ]}
+        normativa="NCh2989/1 (Clasificación BdC) · NCh3304 (Eficiencia mínima EER/COP) · ISO 13256 / EN 14511"
+      />
+
       {/* ── Configuración ─────────────────────────────────────── */}
       <Card titulo="🏠 Demanda térmica del proyecto">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
@@ -46,8 +68,18 @@ export default function BombaCalor({ proy, calcUInit }) {
               onChange={e => setDemandaKwh(Number(e.target.value) || 0)}
               style={inputStyle}
             />
-            <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 4 }}>
-              {demandaEstimada > 0 ? `Estimado del proyecto: ${demandaEstimada.toLocaleString('es-CL')} kWh/año` : 'Sin cálculo U previo'}
+            <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {demandaEstimada > 0 ? (
+                <>
+                  <BadgeOrigen origen="normativo:calculo-u" small />
+                  <span>Estimado del proyecto: {demandaEstimada.toLocaleString('es-CL')} kWh/año</span>
+                </>
+              ) : (
+                <>
+                  <BadgeOrigen origen="auto" small label="Default" />
+                  <span>Sin cálculo U previo — completa el módulo Normativo para mejor precisión</span>
+                </>
+              )}
             </div>
           </Field>
           <Field label="Potencia térmica requerida (kW)">

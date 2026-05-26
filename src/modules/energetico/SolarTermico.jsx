@@ -6,6 +6,7 @@ import React, { useState } from 'react'
 import { analizarSolarTermico } from '../../lib/engines/renovables.js'
 import { TARIFA_ELEC_DEFAULT, SISTEMAS_ACS } from '../../data/combustibles.js'
 import { FRANQUICIA_LEY_20365 } from '../../data/precios_renovables.js'
+import AyudaEnergetico from './AyudaEnergetico.jsx'
 
 export default function SolarTermico({ proy }) {
   const cfg = proy?.configEnergetica || {}
@@ -30,6 +31,25 @@ export default function SolarTermico({ proy }) {
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
       <Hero />
+
+      <AyudaEnergetico
+        icon="♨️"
+        titulo="Solar térmico para ACS (Ley 20.365)"
+        intro="Calcula la cobertura de agua caliente sanitaria que puede aportar un sistema solar térmico, según la radiación de tu comuna, y aplica la franquicia tributaria de la Ley 20.365 si el valor de la vivienda califica."
+        pasos={[
+          'Indica el <b>número de personas residentes</b>. La app dimensiona el sistema (200L / 300L / 500L de acumulador).',
+          'Define el <b>valor de la vivienda en UF</b>: si es ≤2000 UF aplica el 100% del beneficio tributario (~55% del costo). Entre 2000-3000 UF aplica parcialmente (~25%). Sobre 3000 UF no aplica.',
+          'Selecciona el <b>sistema ACS actual</b> que vas a reemplazar/complementar — el ahorro depende del combustible que dejas de gastar.',
+          'La <b>cobertura solar</b> depende de la zona DS N°15 (Norte ~80%, Centro ~70%, Sur ~55%, Austral ~35%). El resto lo aporta el sistema de apoyo.',
+        ]}
+        origenDatos={[
+          { campo: 'Zona DS N°15 — define cobertura solar anual', origen: 'energetico:configuracion' },
+          { campo: 'Tarifa eléctrica y combustible ACS — para cálculo de ahorro', origen: 'energetico:configuracion' },
+          { campo: 'Demanda ACS — calculada con 40 L/persona/día a 45°C', origen: 'auto' },
+          { campo: 'Nº personas y valor UF — los defines tú', origen: 'usuario' },
+        ]}
+        normativa="Ley 20.365 (2009) · Ley 21.706 (extensión 2027) · NCh3076:2008 (Colectores solares planos)"
+      />
 
       {/* ── Configuración ─────────────────────────────────────── */}
       <Card titulo="👨‍👩‍👧 Configuración de la vivienda">

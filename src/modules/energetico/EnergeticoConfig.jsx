@@ -34,6 +34,7 @@ import {
   ZONA_DS15_LABELS,
   REGIONES_LABELS,
 } from '../../data/comunas_chile.js'
+import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 export default function EnergeticoConfig({ proy, onChangeProy }) {
   const cfg = proy?.configEnergetica || {}
@@ -114,6 +115,26 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
           demanda económica anual.
         </p>
       </div>
+
+      <AyudaEnergetico
+        icon="⚙"
+        titulo="Configuración energética del proyecto"
+        intro="Esta pestaña define los parámetros base que alimentarán todos los cálculos económicos y de renovables. La comuna es la entrada más importante: de ella se derivan automáticamente la zona DS N°15 oficial, los grados-día de calefacción (HDD18) y la radiación solar."
+        pasos={[
+          'Selecciona la <b>comuna</b> del proyecto del catálogo completo (~346 comunas). Si no encuentras tu comuna, elige la más cercana.',
+          'Verifica la <b>tarifa eléctrica</b>. Si conoces la del cliente (último recibo), usa ese valor. Si no, la app sugiere por distribuidora.',
+          'Indica el <b>combustible real de calefacción</b> usado en el hogar (no el ideal). Los precios por macrozona son referenciales — sobrescríbelos si conoces el local.',
+          'Define los sistemas de <b>ACS</b> (agua caliente sanitaria) y <b>cocina</b>. Esto afecta el análisis de solar térmico y bomba de calor en la pestaña Renovables.',
+        ]}
+        origenDatos={[
+          { campo: 'Comuna — la eliges tú directamente (~346 comunas chilenas)', origen: 'usuario' },
+          { campo: 'Zona DS N°15 y HDD18 — se derivan automáticamente de la comuna', origen: 'auto' },
+          { campo: 'Macrozona (norte/centro/sur/austral) — auto desde zona DS N°15', origen: 'auto' },
+          { campo: 'Tarifa eléctrica BT1-A — referencial por distribuidora (editable)', origen: 'usuario' },
+          { campo: 'Precio combustible — referencial por macrozona (editable)', origen: 'usuario' },
+        ]}
+        normativa="DS N°15 MINVU · NCh853:2021 · Tarifas CNE BT1-A"
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
 

@@ -6,6 +6,7 @@
 import React, { useState } from 'react'
 import { analizarFV } from '../../lib/engines/renovables.js'
 import { TARIFA_ELEC_DEFAULT } from '../../data/combustibles.js'
+import AyudaEnergetico from './AyudaEnergetico.jsx'
 
 const CONSUMO_TIPICO = {
   bajo:   2400,   // 200 kWh/mes — vivienda pequeña, 1-2 personas
@@ -47,6 +48,26 @@ export default function SolarFV({ proy }) {
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
       <Hero />
+
+      <AyudaEnergetico
+        icon="☀️"
+        titulo="Solar fotovoltaico (Net-billing)"
+        intro="Dimensiona un sistema fotovoltaico residencial bajo la Ley 21.118 (Net-billing). Calcula producción anual basada en la irradiación solar de la comuna del proyecto, ahorro económico (autoconsumo + inyección a la red) y payback de la inversión."
+        pasos={[
+          'Indica el <b>consumo eléctrico anual</b> del hogar. Si no lo sabes, elige un perfil (Bajo ≈ 200 kWh/mes · Medio ≈ 350 · Alto ≈ 600).',
+          'La app dimensiona automáticamente los <b>kWp óptimos</b> para cubrir tu consumo según la irradiación de tu comuna.',
+          'Revisa la <b>comparativa de 3 tamaños</b> (rec. -1 / rec. / rec. +2 kWp) para ver el sweet spot económico.',
+          'Si el sistema cubre más del 70% del consumo, considera batería para aumentar autoconsumo (Sprint futuro).',
+        ]}
+        origenDatos={[
+          { campo: 'Comuna del proyecto — para irradiación solar (kWh/m²·día)', origen: 'energetico:configuracion' },
+          { campo: 'Tarifa eléctrica BT1-A — para cálculo de ahorro', origen: 'energetico:configuracion' },
+          { campo: 'Factor de capacidad FV — calculado según comuna (Atacama 26%, RM 19%, Sur 13%)', origen: 'auto' },
+          { campo: 'Performance Ratio (0.78) y degradación (0.5%/año) — estándares industria', origen: 'auto' },
+          { campo: 'Consumo del hogar — perfil o ingreso manual', origen: 'usuario' },
+        ]}
+        normativa="Ley 21.118 (Net-billing 2018) · DS 88/2020 MINENERGÍA · NCh Elec. 4/2003"
+      />
 
       {/* ── Configuración ─────────────────────────────────────── */}
       <Card titulo="📊 Consumo eléctrico del hogar">
