@@ -1151,9 +1151,11 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     }
   }
 
-  // ── C2 — Fachada Ventilada ────────────────────────────────────────────────────
+  // ── C2 — Fachada Ventilada (solo elementos verticales: muro / tabique) ──────
+  // No tiene sentido constructivo en piso ni techo: la fachada ventilada es una
+  // técnica de envolvente vertical con cámara entre aislante y revestimiento.
   await _YIELD();
-  {
+  if(elemTipo==='muro'||elemTipo==='tabique'){
     for(const alt of AISLS){
       await _YIELD();
       const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_ext'&&clasificarCapa(c)!=='humedad');
@@ -1180,9 +1182,13 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     }
   }
 
-  // ── C3 — Trasdosado Interior ──────────────────────────────────────────────────
+  // ── C3 — Trasdosado Interior (solo elementos verticales: muro / tabique) ────
+  // El trasdosado interior con yeso cartón + barrera de vapor + aislante es una
+  // intervención típica de envolvente vertical, no aplica a piso ni techo
+  // (donde la solución equivalente sería un falso cielo o piso flotante,
+  // con materiales y montaje distintos).
   await _YIELD();
-  if(necesitaCond||necesitaU){
+  if((necesitaCond||necesitaU) && (elemTipo==='muro'||elemTipo==='tabique')){
     for(const alt of AISLS){
       await _YIELD();
       const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_int'&&clasificarCapa(c)!=='vapor');
