@@ -36,6 +36,7 @@ import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
 import EnergeticoHome   from './modules/energetico/EnergeticoHome.jsx'
 import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
+import Renovables      from './modules/energetico/Renovables.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
 import { isPro } from './lib/plan.js'
 import { analizarCorreccion } from './lib/engines/economic.js'
@@ -8003,7 +8004,7 @@ const PLANTILLAS_USO = [
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '📐 Detalles', 'Resultados', '⚙ Admin']
-const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración']
+const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '🌱 Renovables']
 
 export default function App() {
   return (
@@ -8534,6 +8535,13 @@ function AppInner() {
               <EnergeticoConfig
                 proy={proy}
                 onChangeProy={setProy}
+              />
+            )}
+            {energTab === 2 && (
+              <Renovables
+                proy={proy}
+                calcUInit={calcUInit}
+                perfil={perfil}
               />
             )}
           </div>

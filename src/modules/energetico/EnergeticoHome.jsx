@@ -9,9 +9,9 @@ import React from 'react'
 import { labelPlan, estaEnTrial, diasRestantesTrial } from '../../lib/plan.js'
 
 const ROADMAP = [
-  { id: 's1', sprint: 1, label: 'Configuración energética + Payback en correcciones', estado: 'activo' },
-  { id: 's2', sprint: 2, label: 'Energías renovables (FV · Solar térmico · Bomba de calor)', estado: 'proximo' },
-  { id: 's3', sprint: 3, label: 'Demanda energética anual + Sobrecalentamiento verano', estado: 'pendiente' },
+  { id: 's1', sprint: 1, label: 'Configuración energética + Payback en correcciones', estado: 'completado' },
+  { id: 's2', sprint: 2, label: 'Energías renovables (FV · Solar térmico · Bomba de calor)', estado: 'activo' },
+  { id: 's3', sprint: 3, label: 'Demanda energética anual + Sobrecalentamiento verano', estado: 'proximo' },
   { id: 's4', sprint: 4, label: 'Puentes térmicos catalogados (Ψ) + Ventanas detalladas', estado: 'pendiente' },
   { id: 's5', sprint: 5, label: 'Calculadora higrotérmica dinámica (inspirada WUFI) + Índice moho VTT', estado: 'pendiente' },
   { id: 's6', sprint: 6, label: 'Informe ejecutivo + CEV estimada + Comparativas', estado: 'pendiente' },
@@ -118,23 +118,25 @@ export default function EnergeticoHome({ perfil, proy, onIrAConfig }) {
             }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: item.estado === 'activo' ? 'var(--accent)' : 'var(--bg-alt)',
-                color: item.estado === 'activo' ? '#fff' : 'var(--ink-3)',
+                background: item.estado === 'completado' ? 'var(--ok)'
+                          : item.estado === 'activo' ? 'var(--accent)' : 'var(--bg-alt)',
+                color: item.estado === 'completado' || item.estado === 'activo' ? '#fff' : 'var(--ink-3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontWeight: 700, fontSize: 13,
                 fontFamily: 'var(--font-num)',
                 flexShrink: 0,
               }}>
-                {item.sprint}
+                {item.estado === 'completado' ? '✓' : item.sprint}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
                   {item.label}
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>
-                  {item.estado === 'activo'    && '🟢 En desarrollo activo'}
-                  {item.estado === 'proximo'   && '🟡 Próximo sprint'}
-                  {item.estado === 'pendiente' && '⚪ Programado'}
+                  {item.estado === 'completado' && '✅ Completado'}
+                  {item.estado === 'activo'     && '🟢 En desarrollo activo'}
+                  {item.estado === 'proximo'    && '🟡 Próximo sprint'}
+                  {item.estado === 'pendiente'  && '⚪ Programado'}
                 </div>
               </div>
             </div>
