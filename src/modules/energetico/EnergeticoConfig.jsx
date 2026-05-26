@@ -32,6 +32,7 @@ import {
   listarComunasOrdenadas,
   obtenerZonaDS15Comuna,
   obtenerDistribuidoraComuna,
+  obtenerDistribuidoraAlt,
   ZONA_DS15_LABELS,
   REGIONES_LABELS,
 } from '../../data/comunas_chile.js'
@@ -195,12 +196,41 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
                 <option key={d.id} value={d.id}>{d.nombre} ({d.tarifa_clp_kwh} CLP/kWh)</option>
               ))}
             </select>
-            {comunaKey && (
-              <div style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <BadgeOrigen origen="auto" small label="Auto" />
-                <span>Sugerida por zona de concesión SEC para tu comuna</span>
-              </div>
-            )}
+            {comunaKey && (() => {
+              const distrAlt = obtenerDistribuidoraAlt(comunaKey)
+              const distrAltMeta = distrAlt ? DISTRIBUIDORAS_ELEC.find(d => d.id === distrAlt) : null
+              return (
+                <>
+                  <div style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <BadgeOrigen origen="auto" small label="Auto" />
+                    <span>Sugerida por zona de concesión SEC para tu comuna</span>
+                  </div>
+                  {distrAltMeta && (
+                    <div style={{
+                      marginTop: 6, padding: '6px 10px',
+                      background: 'var(--warn-bg)', border: '1px solid var(--warn)',
+                      borderRadius: 6, fontSize: 10, color: 'var(--warn)', lineHeight: 1.5,
+                    }}>
+                      ⓘ <b>Dualidad detectada:</b> en esta comuna también opera{' '}
+                      <b>{distrAltMeta.nombre}</b> ({distrAltMeta.tarifa_clp_kwh} CLP/kWh).
+                      Verifica con el cliente cuál es su empresa real (típicamente
+                      depende de si está en zona urbana o rural).{' '}
+                      <button
+                        type="button"
+                        onClick={() => patchCfg({ distribuidora: distrAlt, tarifaElec: distrAltMeta.tarifa_clp_kwh })}
+                        style={{
+                          background: 'var(--warn)', color: '#fff', border: 'none',
+                          borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 700,
+                          cursor: 'pointer', marginLeft: 4,
+                        }}
+                      >
+                        Cambiar a {distrAltMeta.nombre.split(' ')[0]}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </Field>
           <Field label="Tarifa CLP/kWh (editable)">
             <input

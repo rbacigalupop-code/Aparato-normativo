@@ -450,9 +450,17 @@ const DISTRIBUIDORA_OVERRIDE = {
   'juan_fernandez': 'otro',
 
   // ─── RM Metropolitana — periferia rural puede ser CGE ────────────────────
-  // (Casi toda la RM es Enel; los siguientes pueden tener CGE en zonas rurales)
-  'san_jose_de_maipo': 'cge',  // precordillera
+  'san_jose_de_maipo': 'cge',
   'alhue':             'cge',
+
+  // ─── XVI Ñuble — COPELEC en sectores rurales / pequeñas comunas ─────────
+  // Cabeceras urbanas (Chillán, San Carlos, etc.) son CGE; COPELEC predomina
+  // en cooperativas rurales y comunas con baja densidad.
+  'coihueco':    'copelec', 'el_carmen':  'copelec', 'pinto':       'copelec',
+  'pemuco':      'copelec', 'san_ignacio':'copelec', 'niquen':      'copelec',
+  'san_nicolas': 'copelec', 'yungay':     'copelec', 'portezuelo':  'copelec',
+  'ranquil':     'copelec', 'treguaco':   'copelec', 'ninhue':      'copelec',
+  'cobquecura':  'copelec', 'san_fabian': 'copelec', 'quirihue':    'copelec',
 
   // ─── VIII Biobío — Concepción Metropolitano es CGE (no Frontel) ─────────
   'concepcion':         'cge', 'talcahuano': 'cge', 'hualpen': 'cge',
@@ -460,16 +468,61 @@ const DISTRIBUIDORA_OVERRIDE = {
   'tome':               'cge', 'hualqui':    'cge', 'florida': 'cge',
   'santa_juana':        'cge', 'coronel':    'cge', 'lota':    'cge',
 
+  // ─── XIV Los Ríos — Frontel en zona norte (Mariquina, Máfil, Lanco) ─────
+  'mariquina': 'frontel', 'mafil': 'frontel', 'lanco': 'frontel',
+
   // ─── X Los Lagos — área Osorno usa Luz Osorno ────────────────────────────
   'osorno':              'luzosorno', 'puerto_octay': 'luzosorno',
   'puyehue':             'luzosorno', 'purranque':    'luzosorno',
   'rio_negro':           'luzosorno',
   'san_juan_de_la_costa':'luzosorno', 'san_pablo':    'luzosorno',
-  // X — Comunas aisladas continental que pueden tener Edelaysén
-  'chaiten':    'saesa',  // mantenemos saesa, no edelaysen como antes pensaba
-  'futaleufu':  'saesa',
-  'hualaihue':  'saesa',
-  'palena':     'saesa',
+  // X — Comunas aisladas continental
+  'chaiten':    'saesa', 'futaleufu':  'saesa',
+  'hualaihue':  'saesa', 'palena':     'saesa',
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DUALIDAD DE DISTRIBUIDORAS — comunas con presencia mixta urbano/rural.
+// En Chile es común que el sector urbano lo sirva una distribuidora "grande"
+// (CGE/Enel/Chilquinta) mientras una cooperativa o Frontel atienda lo rural.
+// Aquí guardamos la "distribuidora alternativa" típica para esos casos.
+// ─────────────────────────────────────────────────────────────────────────────
+const DISTRIBUIDORA_ALT = {
+  // ─── XVI Ñuble — Chillán urbano CGE + COPELEC rural/periferia ────────────
+  'chillan':       'copelec', 'chillan_viejo': 'copelec',
+  'san_carlos':    'copelec', 'bulnes':        'copelec',
+  'quillon':       'copelec',
+
+  // ─── VIII Biobío — Conce Metro CGE + Frontel periferia rural ─────────────
+  'florida':       'frontel',
+  'santa_juana':   'frontel',
+  'arauco':        'frontel',  // Conce sur fronteriza
+
+  // ─── VIII Biobío rural — Frontel + cooperativas locales ──────────────────
+  'cabrero':       'cge',      // Frontel + algunos sectores CGE
+  'yumbel':        'cge',
+  'laja':          'cge',
+  'mulchen':       'cge',      // sectores con CGE rural
+
+  // ─── IX Araucanía — Frontel + cooperativas locales (COOPELAN, etc.) ─────
+  'loncoche':      'cge',      // límite Araucanía/Los Ríos
+  'curacautin':    'cge',      // zona cordillera con presencia mixta
+
+  // ─── XIV Los Ríos — Saesa + Frontel norte ────────────────────────────────
+  'valdivia':      'frontel',  // Saesa urbano + Frontel periferia
+  'panguipulli':   'frontel',
+  'los_lagos':     'frontel',
+
+  // ─── X Los Lagos — Saesa + Luz Osorno limítrofes ─────────────────────────
+  'frutillar':     'luzosorno',
+  'llanquihue':    'luzosorno',
+
+  // ─── V Valparaíso costera — Chilquinta + CGE rural ───────────────────────
+  'quillota':      'cge',
+  'calera':        'cge',
+  'hijuelas':      'cge',
+  'limache':       'cge',
+  'olmue':         'cge',
 }
 
 /**
@@ -485,6 +538,17 @@ export function obtenerDistribuidoraComuna(comunaKey) {
   return DISTRIBUIDORA_POR_REGION[comuna.region] || 'otro'
 }
 
+/**
+ * Devuelve la distribuidora alternativa si la comuna tiene dualidad
+ * (típicamente urbano vs rural). Retorna null si no hay dualidad conocida.
+ */
+export function obtenerDistribuidoraAlt(comunaKey) {
+  if (!comunaKey) return null
+  const key = comunaKey.toLowerCase().replace(/\s/g, '_')
+  return DISTRIBUIDORA_ALT[key] || null
+}
+
+/**
 // Etiquetas legibles para regiones
 export const REGIONES_LABELS = {
   'XV':  'XV · Arica y Parinacota',

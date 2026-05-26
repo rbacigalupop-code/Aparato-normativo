@@ -19,15 +19,16 @@ export const MACROZONAS = {
 // ─── DISTRIBUIDORAS ELÉCTRICAS chilenas (8 principales) ─────────────────────
 // Tarifa BT1-A residencial promedio 2026 — CLP/kWh
 export const DISTRIBUIDORAS_ELEC = [
-  { id: 'enel',       nombre: 'Enel Distribución',  zonas: ['RM', 'V'],                  tarifa_clp_kwh: 175 },
-  { id: 'cge',        nombre: 'CGE',                zonas: ['IV', 'V', 'VI', 'VII', 'XIV'], tarifa_clp_kwh: 188 },
-  { id: 'chilquinta', nombre: 'Chilquinta',         zonas: ['V'],                        tarifa_clp_kwh: 195 },
-  { id: 'saesa',      nombre: 'Saesa',              zonas: ['X', 'XIV'],                 tarifa_clp_kwh: 215 },
-  { id: 'frontel',    nombre: 'Frontel',            zonas: ['VIII', 'IX'],               tarifa_clp_kwh: 222 },
-  { id: 'edelmag',    nombre: 'Edelmag',            zonas: ['XII'],                      tarifa_clp_kwh: 235 },
-  { id: 'luzosorno',  nombre: 'Luz Osorno',         zonas: ['X'],                        tarifa_clp_kwh: 210 },
-  { id: 'edelaysen',  nombre: 'Edelaysén',          zonas: ['XI'],                       tarifa_clp_kwh: 245 },
-  { id: 'otro',       nombre: 'Otro / Promedio',    zonas: [],                           tarifa_clp_kwh: 180 },
+  { id: 'enel',       nombre: 'Enel Distribución',          zonas: ['RM', 'V'],                       tarifa_clp_kwh: 175 },
+  { id: 'cge',        nombre: 'CGE',                        zonas: ['IV', 'V', 'VI', 'VII', 'XIV'],   tarifa_clp_kwh: 188 },
+  { id: 'chilquinta', nombre: 'Chilquinta',                 zonas: ['V'],                             tarifa_clp_kwh: 195 },
+  { id: 'copelec',    nombre: 'COPELEC (Coop. Ñuble)',      zonas: ['XVI', 'VIII'],                   tarifa_clp_kwh: 198 },
+  { id: 'frontel',    nombre: 'Frontel (Saesa Group)',      zonas: ['VIII', 'IX', 'XIV'],             tarifa_clp_kwh: 222 },
+  { id: 'saesa',      nombre: 'Saesa',                      zonas: ['X', 'XIV'],                      tarifa_clp_kwh: 215 },
+  { id: 'luzosorno',  nombre: 'Luz Osorno (Saesa Group)',   zonas: ['X'],                             tarifa_clp_kwh: 210 },
+  { id: 'edelaysen',  nombre: 'Edelaysén',                  zonas: ['XI'],                            tarifa_clp_kwh: 245 },
+  { id: 'edelmag',    nombre: 'Edelmag',                    zonas: ['XII'],                           tarifa_clp_kwh: 235 },
+  { id: 'otro',       nombre: 'Otro / Coop. local',         zonas: [],                                tarifa_clp_kwh: 180 },
 ]
 
 export const TARIFA_ELEC_DEFAULT = 180 // CLP/kWh — promedio nacional BT1-A
