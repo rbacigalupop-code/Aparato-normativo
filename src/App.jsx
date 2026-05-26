@@ -31,6 +31,9 @@ import AdminStats from './modules/AdminStats.jsx'
 import AdminTokens from './modules/AdminTokens.jsx'
 import UserHeader from './components/UserHeader.jsx'
 import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
+import ResultadoU from './components/calculou/ResultadoU.jsx'
+import DesgloseR  from './components/calculou/DesgloseR.jsx'
+import CurvaGlaser from './components/calculou/CurvaGlaser.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -4526,6 +4529,17 @@ ${cambios.length && solucion ? `
           )}
 
           <div style={S.card}>
+            {/* ── Resultado U destacado (Design) ─────────────────────────────── */}
+            {!esTabique && umax && (
+              <div style={{ marginBottom: 14 }}>
+                <ResultadoU
+                  uTotal={uCalc}
+                  uMax={umax}
+                  zona={proy.zona || '—'}
+                />
+              </div>
+            )}
+
             {/* ── Cards de resumen ───────────────────────────────────────────── */}
             <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
               {(esTabique ? [
@@ -4554,6 +4568,33 @@ ${cambios.length && solucion ? `
               {dU > 0 && <span style={{ fontSize:11, color:'#64748b', marginLeft:8 }}>U ISO 6946: {res.U} + ΔU: {dU.toFixed(3)} = {uCorrStr} W/m²K</span>}
             </div>}
 
+            {/* ── Desglose de R (Design) ──────────────────────────────────────── */}
+            {!esTabique && res.Rs?.length > 0 && (
+              <div style={{
+                background: 'var(--bg-alt)',
+                border: '1px solid var(--line-soft)',
+                borderRadius: 8,
+                padding: '14px 18px',
+                marginBottom: 12,
+              }}>
+                <DesgloseR
+                  capas={capas
+                    .filter(c => c.esCamara || (parseFloat(c.esp) > 0))
+                    .map((c, i) => ({
+                      n: c.esCamara
+                        ? 'Cámara aire'
+                        : (c.mat || '—'),
+                      esp: parseFloat(c.esp) || 0,
+                      lam: parseFloat(c.lam) || 0.04,
+                      R: res.Rs?.[i + 1],   // Rs[0]=RSi, Rs[1..n]=capas, Rs[n+1]=RSe
+                      highlight: !c.esCamara && parseFloat(c.lam) > 0 && parseFloat(c.lam) <= 0.05,
+                    }))}
+                  rsi={res.Rs?.[0] ?? 0.13}
+                  rse={res.Rs?.[res.Rs.length - 1] ?? 0.04}
+                />
+              </div>
+            )}
+
             {/* ── Nota técnica tabique (sin Glaser) ──────────────────────────── */}
             {esTabique && (
               <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#0369a1', marginBottom:8 }}>
@@ -4561,11 +4602,29 @@ ${cambios.length && solucion ? `
               </div>
             )}
 
-            {/* ── Gráfico SVG (solo envolvente) ──────────────────────────────── */}
+            {/* ── Gráfico Glaser (solo envolvente) ───────────────────────────── */}
             {!esTabique && <>
-              <GraficoGlaser ref={graphRef} res={res} capas={capas} elemTipo={elemTipo} />
-              <div style={{ fontSize:9, color:'#94a3b8', marginBottom:10 }}>
-                Azul = temperatura · Naranja = punto de rocío · Rojo = interfaz con riesgo
+              {/* Gráfico nuevo de Design (presión real vs saturación) */}
+              <CurvaGlaser
+                capas={capas
+                  .filter(c => c.esCamara || (parseFloat(c.esp) > 0))
+                  .map(c => ({
+                    n: c.esCamara
+                      ? 'Cámara'
+                      : (c.mat || '—').split(' ').slice(0, 2).join(' '),
+                    esp: parseFloat(c.esp) || 10,
+                  }))}
+                presionReal={res.ifaces?.map(f => f.pvReal) || []}
+                presionSat={res.ifaces?.map(f => f.pvSat) || []}
+                temperaturas={(res.temps || []).slice(1, -1)}
+                condensacion={!!res.condInter}
+              />
+              {/* Gráfico antiguo oculto — necesario para conservar el export DOM (graphRef) */}
+              <div style={{ position:'absolute', left:'-9999px', top:0, width:0, height:0, overflow:'hidden' }} aria-hidden="true">
+                <GraficoGlaser ref={graphRef} res={res} capas={capas} elemTipo={elemTipo} />
+              </div>
+              <div style={{ fontSize:10, color:'var(--ink-3)', marginTop:6, marginBottom:10 }}>
+                Curva de presión de vapor según método Glaser (NCh1973 / ISO 13788).
               </div>
             </>}
 
