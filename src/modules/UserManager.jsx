@@ -9,6 +9,8 @@ export default function UserManager() {
     orgActual,
     isAdmin,
     user,
+    perfil,
+    refrescarPerfil,
     invitarUsuario,
     absorberUsuario,
     setRecibeSignups,
@@ -226,6 +228,10 @@ export default function UserManager() {
     if (res.ok) {
       setMsg({ tipo: 'ok', texto: `Plan cambiado a ${nuevoPlan}` })
       cargarUsuarios()
+      // Si el cambio es sobre mi propio perfil, refrescar useAuth en vivo
+      if (perfilId === perfil?.id && refrescarPerfil) {
+        await refrescarPerfil()
+      }
     } else {
       setMsg({ tipo: 'err', texto: `Error: ${res.error}` })
     }
@@ -240,6 +246,9 @@ export default function UserManager() {
     if (res.ok) {
       setMsg({ tipo: 'ok', texto: `✓ Prueba de ${dias} días activada` })
       cargarUsuarios()
+      if (perfilId === perfil?.id && refrescarPerfil) {
+        await refrescarPerfil()
+      }
     } else {
       setMsg({ tipo: 'err', texto: `Error: ${res.error}` })
     }

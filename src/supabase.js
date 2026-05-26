@@ -218,7 +218,7 @@ export async function getSession() {
 export async function obtenerPerfil(userId) {
   const { data, error } = await supabase
     .from('perfiles_usuario')
-    .select('id, user_id, nombre_completo, rol, activo, organizacion_id, ultimo_acceso, created_at')
+    .select('id, user_id, nombre_completo, rol, activo, organizacion_id, ultimo_acceso, created_at, plan, trial_expira')
     .eq('user_id', userId)
     .maybeSingle()  // Changed from .single() to handle empty result gracefully (406 error)
 

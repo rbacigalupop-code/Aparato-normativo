@@ -139,6 +139,16 @@ export function AuthProvider({ children }) {
     setTokens(tokensData)
   }, [user?.id])
 
+  // Recargar perfil completo (después de cambiar plan, rol, etc.)
+  const refrescarPerfil = useCallback(async () => {
+    if (!user?.id) return
+    const nuevoPerfil = await obtenerPerfil(user.id)
+    if (nuevoPerfil) {
+      setPerfil(nuevoPerfil)
+      if (nuevoPerfil.organizaciones) setOrgActual(nuevoPerfil.organizaciones)
+    }
+  }, [user?.id])
+
   // Consumir 1 token al generar informe
   const handleConsumirToken = useCallback(async () => {
     if (!user?.id) return { ok: false, error: 'Sin sesión' }
@@ -356,6 +366,9 @@ export function AuthProvider({ children }) {
     reactivarYEnviarEmail: handleReactivarYEnviarEmail,
     eliminarUsuario: handleEliminarUsuario,
     generarLinkInvitacion,
+
+    // Refrescar perfil del usuario actual (cambio plan, rol, etc.)
+    refrescarPerfil,
 
     // Sistema de Tokens
     tokens, // { disponibles, usados }
