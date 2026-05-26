@@ -31,8 +31,14 @@ import AdminStats from './modules/AdminStats.jsx'
 import AdminTokens from './modules/AdminTokens.jsx'
 import UserHeader from './components/UserHeader.jsx'
 import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
+import ModeSwitcher from './components/ModeSwitcher.jsx'
 import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
+import EnergeticoHome   from './modules/energetico/EnergeticoHome.jsx'
+import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
+import PaywallGate      from './modules/energetico/PaywallGate.jsx'
+import { isPro } from './lib/plan.js'
+import { analizarCorreccion } from './lib/engines/economic.js'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -3705,7 +3711,7 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
 })
 
 // ─── PANEL CÁLCULO U (componente por elemento) ────────────────────────────────
-function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU, onCalcUChange }) {
+function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU, onCalcUChange, perfil }) {
   // elemKey puede ser simple ('muro') o compuesto ('abc123::muro').
   // elemId es siempre el tipo de elemento para las comprobaciones condicionales.
   const elemId = elemKey.includes('::') ? elemKey.split('::').pop() : elemKey
@@ -4764,7 +4770,20 @@ ${cambios.length && solucion ? `
                 ) : (
                   <p style={S.h3}>⚠ Correcciones requeridas (NCh853)</p>
                 )}
-                {correc.map(c=>(
+                {correc.map(c=>{
+                  // ── Análisis económico (solo Pro) ─────────────────────────
+                  const usuarioPro = isPro(perfil)
+                  const areaDef = elemId === 'piso' || elemId === 'techo' || elemTipo === 'techumbre' ? 40 : elemId === 'tabique' ? 20 : 30
+                  const econ = usuarioPro
+                    ? analizarCorreccion({
+                        correccion: c,
+                        uAntes:     parseFloat(res?.U) || 0,
+                        areaM2:     areaDef,
+                        proy:       proy,
+                        configEnergetica: proy?.configEnergetica,
+                      })
+                    : null
+                  return (
                   <div key={c.id} style={{ border:`1px solid ${c.color}`, borderRadius:6, padding:'10px 12px', marginBottom:8, background: c.compatible_loscat ? '#f0fdf4' : '#fff' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, flexWrap:'wrap' }}>
                       <div style={{ flex:1, minWidth:0 }}>
@@ -4786,6 +4805,53 @@ ${cambios.length && solucion ? `
                         <div style={{ fontSize:12, marginTop:2, color:'#1e293b' }}>{c.descripcion}</div>
                         {/* Cambio → impacto */}
                         <div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>{c.cambio} → {c.impactoU}</div>
+
+                        {/* ── Chips de análisis económico (Pro) ─────────── */}
+                        {econ && (
+                          <div style={{
+                            display:'flex', gap:6, flexWrap:'wrap', marginTop:8,
+                            paddingTop:8, borderTop:'1px dashed #e2e8f0',
+                          }}>
+                            <span title={`Rango: CLP ${econ.rangoMin.toLocaleString('es-CL')} – ${econ.rangoMax.toLocaleString('es-CL')} para ${areaDef} m²`}
+                              style={{ fontSize:11, fontWeight:700, background:'#fef3c7', color:'#92400e', border:'1px solid #fde047', borderRadius:6, padding:'3px 8px', display:'inline-flex', alignItems:'center', gap:4 }}>
+                              💰 CLP {econ.costoTotal.toLocaleString('es-CL')}
+                            </span>
+                            <span title={`Ahorro estimado para ${areaDef} m² de elemento, HDD18 ${econ.detalle.hdd18}`}
+                              style={{ fontSize:11, fontWeight:700, background:'#dbeafe', color:'#1e40af', border:'1px solid #93c5fd', borderRadius:6, padding:'3px 8px' }}>
+                              ⚡ {econ.ahorroKwh.toLocaleString('es-CL')} kWh/año
+                            </span>
+                            <span title={`Combustible: ${econ.combustibleId} a ${econ.clpKwhUtil} CLP/kWh útil`}
+                              style={{ fontSize:11, fontWeight:700, background:'#dcfce7', color:'#166534', border:'1px solid #86efac', borderRadius:6, padding:'3px 8px' }}>
+                              💵 CLP {econ.ahorroClp.toLocaleString('es-CL')}/año
+                            </span>
+                            {econ.paybackSimpleAnios != null && (
+                              <span title={`Descontado 5%: ${econ.paybackDescAnios} años · VAN30: CLP ${econ.vanProyecto30.toLocaleString('es-CL')}`}
+                                style={{ fontSize:11, fontWeight:700, background:'#ede9fe', color:'#5b21b6', border:'1px solid #c4b5fd', borderRadius:6, padding:'3px 8px' }}>
+                                ⏳ Payback {econ.paybackSimpleAnios} años
+                              </span>
+                            )}
+                            {econ.emisionesCo2Anual > 0 && (
+                              <span title="Emisiones CO₂eq evitadas anualmente"
+                                style={{ fontSize:11, fontWeight:700, background:'#f0fdf4', color:'#15803d', border:'1px solid #bbf7d0', borderRadius:6, padding:'3px 8px' }}>
+                                🌱 {econ.emisionesCo2Anual} kg CO₂/año
+                              </span>
+                            )}
+                            <span style={{ fontSize:9, color:'#94a3b8', alignSelf:'center', fontStyle:'italic' }}>
+                              Referencial — superficie tipo {areaDef} m²
+                            </span>
+                          </div>
+                        )}
+
+                        {/* ── Hint para usuarios free ───────────────────── */}
+                        {!usuarioPro && (
+                          <div style={{
+                            marginTop:6, fontSize:10, color:'#94a3b8',
+                            fontStyle:'italic', display:'flex', alignItems:'center', gap:4,
+                          }}>
+                            🔒 Activa el plan Pro para ver costo, ahorro y payback de esta corrección
+                          </div>
+                        )}
+
                         {/* Advertencias constructivas */}
                         {c.advertencias?.length > 0 && (
                           <ul style={{ margin:'6px 0 0', padding:'0 0 0 16px', fontSize:11, color:'#92400e', lineHeight:1.5 }}>
@@ -4805,7 +4871,8 @@ ${cambios.length && solucion ? `
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </>
             )}
 
@@ -4879,7 +4946,7 @@ const CALC_U_ELEM_CFG = {
   tabique: { elemTipo:'muro',      label:'Tabique',          color:'#b45309', umaxKey:null    },
 }
 
-function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNotas }) {
+function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNotas, perfil }) {
   const zona       = proy.zona ? ZONAS[proy.zona] : null
   const estructuras = proy.estructuras || []
 
@@ -4955,6 +5022,7 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
             headerColor={p.headerColor}
             onLimpiarCalcU={onLimpiarCalcU}
             onCalcUChange={onCalcUChange}
+            perfil={perfil}
           />
         ))}
       </div>
@@ -7935,6 +8003,7 @@ const PLANTILLAS_USO = [
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '📐 Detalles', 'Resultados', '⚙ Admin']
+const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración']
 
 export default function App() {
   return (
@@ -7979,6 +8048,8 @@ function AdminPanel({ onOverridesChanged }) {
 function AppInner() {
   const { user, perfil, orgActual, isAdmin, tokens, consumirToken } = useAuth()
   const [theme, setTheme] = useTheme('base')
+  const [appMode, setAppMode] = useState('normativo')   // 'normativo' | 'energetico'
+  const [energTab, setEnergTab] = useState(0)           // sub-tabs del módulo energético
   const [tab, setTab] = useState(0)
   const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: 'Vivienda', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
@@ -8401,14 +8472,17 @@ function AppInner() {
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
           <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build 2026-05-14·calcudata-sync</div>
         </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <ModeSwitcher mode={appMode} onChange={setAppMode} perfil={perfil} />
+        </div>
         {proy.zona && (
-          <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
+          <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }} className="nc-header-info">
             Zona {proy.zona} — {proy.uso || 'sin uso'} {proy.nombre && `| ${proy.nombre}`}
           </div>
         )}
         <button
           onClick={() => setShowProjects(true)}
-          style={{ marginLeft: proy.zona ? 8 : 'auto', background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'#fff', borderRadius:8, padding:'5px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}
+          style={{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'#fff', borderRadius:8, padding:'5px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}
         >
           📁 Proyectos {hasUnsaved && proyectoActual && <span style={{ background:'#f59e0b', borderRadius:10, padding:'1px 6px', fontSize:10 }}>●</span>}
         </button>
@@ -8423,8 +8497,11 @@ function AppInner() {
         </div>
       )}
       <div style={{ ...S.tabs, alignItems: 'center' }} className="nc-tabs">
-        {TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)}
-        {ayudaData[tab] && (
+        {appMode === 'normativo'
+          ? TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)
+          : ENERG_TABS.map((t, i) => <button key={t} style={S.tab(energTab === i)} onClick={() => setEnergTab(i)}>{t}</button>)
+        }
+        {appMode === 'normativo' && ayudaData[tab] && (
           <button
             className="nc-sidebar-btn"
             onClick={() => setShowAyuda(v => !v)}
@@ -8443,32 +8520,52 @@ function AppInner() {
         )}
       </div>
       <div style={S.body} className="nc-body">
-        <div className={showAyuda && ayudaData[tab] ? 'nc-with-sidebar' : ''}>
+        {appMode === 'energetico' ? (
+          // ── Módulo Energético ──────────────────────────────────────────
           <div className="nc-content">
-            {tab === 0 && (
-              <div>
-                <TabDiag proy={proy} setProy={setProy} getLetraOGUC={getLetraOGUC_loaded} termica={termica} setTermica={setTermica} plantillas={PLANTILLAS_USO} />
-                <div style={{ padding: '0 16px 16px' }}>
-                  <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
+            {energTab === 0 && (
+              <EnergeticoHome
+                perfil={perfil}
+                proy={proy}
+                onIrAConfig={() => setEnergTab(1)}
+              />
+            )}
+            {energTab === 1 && (
+              <EnergeticoConfig
+                proy={proy}
+                onChangeProy={setProy}
+              />
+            )}
+          </div>
+        ) : (
+          // ── Módulo Normativo (original) ────────────────────────────────
+          <div className={showAyuda && ayudaData[tab] ? 'nc-with-sidebar' : ''}>
+            <div className="nc-content">
+              {tab === 0 && (
+                <div>
+                  <TabDiag proy={proy} setProy={setProy} getLetraOGUC={getLetraOGUC_loaded} termica={termica} setTermica={setTermica} plantillas={PLANTILLAS_USO} />
+                  <div style={{ padding: '0 16px 16px' }}>
+                    <NotasPanel tabKey="diagnostico" notas={notas} setNotas={setNotas} />
+                  </div>
                 </div>
+              )}
+              {tab === 1 && <TabSoluciones proy={proy} setProy={setProy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
+              {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
+              {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
+              {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
+              {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} perfil={perfil} />}
+              {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
+              {tab === 7 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
+              {tab === 8 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
+              {tab === 9 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
+            </div>
+            {showAyuda && ayudaData[tab] && (
+              <div className="nc-sidebar">
+                <AyudaPanel {...ayudaData[tab]} alwaysOpen />
               </div>
             )}
-            {tab === 1 && <TabSoluciones proy={proy} setProy={setProy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
-            {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
-            {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
-            {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
-            {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} />}
-            {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-            {tab === 7 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
-            {tab === 8 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
-            {tab === 9 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
           </div>
-          {showAyuda && ayudaData[tab] && (
-            <div className="nc-sidebar">
-              <AyudaPanel {...ayudaData[tab]} alwaysOpen />
-            </div>
-          )}
-        </div>
+        )}
       </div>
       <ProjectManager
         open={showProjects}

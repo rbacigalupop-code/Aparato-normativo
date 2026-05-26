@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { validarEmail, validarRol, validarEmailDiferente, validarEmailUnico } from '../utils/validation'
+import { activarPruebaPro, cambiarPlanUsuario } from '../supabase'
+import { labelPlan } from '../lib/plan'
 
 export default function UserManager() {
   const {
@@ -216,6 +218,32 @@ export default function UserManager() {
       setMsg({ tipo: 'err', texto: 'Error al actualizar rol' })
     }
     setTimeout(() => setMsg(null), 4000)
+  }
+
+  // Cambiar plan (free / pro)
+  async function handleCambiarPlan(perfilId, nuevoPlan) {
+    const res = await cambiarPlanUsuario(perfilId, nuevoPlan)
+    if (res.ok) {
+      setMsg({ tipo: 'ok', texto: `Plan cambiado a ${nuevoPlan}` })
+      cargarUsuarios()
+    } else {
+      setMsg({ tipo: 'err', texto: `Error: ${res.error}` })
+    }
+    setTimeout(() => setMsg(null), 4000)
+  }
+
+  // Activar prueba Pro por N días
+  async function handleActivarPrueba(perfilId, nombre) {
+    const dias = parseInt(window.prompt(`¿Cuántos días de prueba Pro otorgar a "${nombre}"?`, '14'), 10)
+    if (!dias || dias <= 0) return
+    const res = await activarPruebaPro(perfilId, dias)
+    if (res.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ Prueba de ${dias} días activada` })
+      cargarUsuarios()
+    } else {
+      setMsg({ tipo: 'err', texto: `Error: ${res.error}` })
+    }
+    setTimeout(() => setMsg(null), 4500)
   }
 
   // Desactivar usuario
@@ -597,7 +625,7 @@ export default function UserManager() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr>
-                  {['Email', 'Nombre', 'Rol', 'Estado', 'Último acceso', 'Acciones'].map(h => (
+                  {['Email', 'Nombre', 'Rol', 'Plan', 'Estado', 'Último acceso', 'Acciones'].map(h => (
                     <th
                       key={h}
                       style={{
@@ -642,6 +670,50 @@ export default function UserManager() {
                           <option value="viewer">👁️ Viewer</option>
                           <option value="admin">👨‍💼 Admin</option>
                         </select>
+                      </td>
+                      {/* Plan — selector + botón prueba */}
+                      <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <select
+                              style={{
+                                fontSize: 11, border: '1px solid #e2e8f0',
+                                borderRadius: 4, padding: '3px 6px', cursor: 'pointer',
+                                background: u.plan === 'pro' ? '#fef3c7' : u.plan === 'trial' ? '#dbeafe' : '#fff',
+                                color: u.plan === 'pro' ? '#92400e' : u.plan === 'trial' ? '#1e40af' : '#475569',
+                                fontWeight: 600,
+                              }}
+                              value={u.plan === 'trial' ? 'trial' : (u.plan || 'free')}
+                              onChange={e => {
+                                if (e.target.value === 'trial') return  // se activa con el botón
+                                handleCambiarPlan(u.id, e.target.value)
+                              }}
+                              disabled={cargando}
+                            >
+                              <option value="free">🆓 Free</option>
+                              <option value="trial" disabled={u.plan !== 'trial'}>🎁 Trial</option>
+                              <option value="pro">⭐ Pro</option>
+                            </select>
+                          </div>
+                          {u.plan === 'trial' && u.trial_expira && (
+                            <span style={{ fontSize: 9, color: '#1e40af', fontStyle: 'italic' }}>
+                              hasta {new Date(u.trial_expira).toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                          {(u.plan === 'free' || !u.plan) && u.activo && (
+                            <button
+                              onClick={() => handleActivarPrueba(u.id, u.nombre_completo)}
+                              style={{
+                                fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                                background: '#dbeafe', color: '#1e40af', border: '1px solid #93c5fd',
+                                borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}
+                              title="Activar prueba Pro temporal"
+                            >
+                              🎁 Activar prueba
+                            </button>
+                          )}
+                        </div>
                       </td>
                       {/* Estado */}
                       <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9' }}>

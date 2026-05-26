@@ -411,7 +411,7 @@ export async function invitarUsuario(orgId, email, rol = 'viewer') {
 export async function listarUsuariosOrg(orgId) {
   const { data, error } = await supabase
     .from('perfiles_usuario')
-    .select('id, user_id, nombre_completo, rol, activo, ultimo_acceso, created_at')
+    .select('id, user_id, nombre_completo, rol, activo, ultimo_acceso, created_at, plan, trial_expira')
     .eq('organizacion_id', orgId)
     .not('user_id', 'is', null) // Solo usuarios registrados
     .order('created_at', { ascending: false })
@@ -1276,6 +1276,37 @@ export async function setRecibeSignups(orgId, recibe) {
     return { ok: data?.ok ?? true, mensaje: data?.mensaje }
   } catch (err) {
     console.warn('setRecibeSignups error:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
+// ─── Planes de usuario (Pro / Trial / Free) ──────────────────────────────────
+export async function activarPruebaPro(perfilId, dias = 14) {
+  if (!perfilId) return { ok: false, error: 'Sin perfilId' }
+  try {
+    const { data, error } = await supabase.rpc('activar_prueba_pro', {
+      p_perfil_id: perfilId, p_dias: dias,
+    })
+    if (error) throw error
+    return data?.ok ? data : { ok: false, error: data?.error || 'Error desconocido' }
+  } catch (err) {
+    console.warn('activarPruebaPro error:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
+export async function cambiarPlanUsuario(perfilId, plan) {
+  if (!perfilId || !['free', 'pro'].includes(plan)) {
+    return { ok: false, error: 'Parámetros inválidos' }
+  }
+  try {
+    const { data, error } = await supabase.rpc('cambiar_plan_usuario', {
+      p_perfil_id: perfilId, p_plan: plan,
+    })
+    if (error) throw error
+    return data?.ok ? data : { ok: false, error: data?.error || 'Error desconocido' }
+  } catch (err) {
+    console.warn('cambiarPlanUsuario error:', err)
     return { ok: false, error: err.message }
   }
 }
