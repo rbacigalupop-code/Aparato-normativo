@@ -33,7 +33,6 @@ import UserHeader from './components/UserHeader.jsx'
 import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
 import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
-import CurvaGlaser from './components/calculou/CurvaGlaser.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -4602,29 +4601,11 @@ ${cambios.length && solucion ? `
               </div>
             )}
 
-            {/* ── Gráfico Glaser (solo envolvente) ───────────────────────────── */}
+            {/* ── Gráfico SVG (solo envolvente) ──────────────────────────────── */}
             {!esTabique && <>
-              {/* Gráfico nuevo de Design (presión real vs saturación) */}
-              <CurvaGlaser
-                capas={capas
-                  .filter(c => c.esCamara || (parseFloat(c.esp) > 0))
-                  .map(c => ({
-                    n: c.esCamara
-                      ? 'Cámara'
-                      : (c.mat || '—').split(' ').slice(0, 2).join(' '),
-                    esp: parseFloat(c.esp) || 10,
-                  }))}
-                presionReal={res.ifaces?.map(f => f.pvReal) || []}
-                presionSat={res.ifaces?.map(f => f.pvSat) || []}
-                temperaturas={(res.temps || []).slice(1, -1)}
-                condensacion={!!res.condInter}
-              />
-              {/* Gráfico antiguo oculto — necesario para conservar el export DOM (graphRef) */}
-              <div style={{ position:'absolute', left:'-9999px', top:0, width:0, height:0, overflow:'hidden' }} aria-hidden="true">
-                <GraficoGlaser ref={graphRef} res={res} capas={capas} elemTipo={elemTipo} />
-              </div>
-              <div style={{ fontSize:10, color:'var(--ink-3)', marginTop:6, marginBottom:10 }}>
-                Curva de presión de vapor según método Glaser (NCh1973 / ISO 13788).
+              <GraficoGlaser ref={graphRef} res={res} capas={capas} elemTipo={elemTipo} />
+              <div style={{ fontSize:9, color:'#94a3b8', marginBottom:10 }}>
+                Azul = temperatura · Naranja = punto de rocío · Rojo = interfaz con riesgo
               </div>
             </>}
 
