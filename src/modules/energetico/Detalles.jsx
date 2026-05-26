@@ -7,11 +7,13 @@
 import React, { useState } from 'react'
 import PuentesTermicos     from './PuentesTermicos.jsx'
 import VentanasDetalladas  from './VentanasDetalladas.jsx'
+import Higrotermico        from './Higrotermico.jsx'
 import PaywallGate         from './PaywallGate.jsx'
 
 const SUB_TABS = [
-  { id: 'pt',  label: '🌉 Puentes Térmicos', color: '#7c3aed' },
-  { id: 'vd',  label: '🪟 Ventanas Detalladas', color: '#0891b2' },
+  { id: 'pt',  label: '🌉 Puentes Térmicos',     color: '#7c3aed' },
+  { id: 'vd',  label: '🪟 Ventanas Detalladas',  color: '#0891b2' },
+  { id: 'hg',  label: '💧 Higrotérmico (WUFI)',  color: '#0e7490' },
 ]
 
 export default function Detalles({ proy, calcUInit, perfil }) {
@@ -47,6 +49,7 @@ export default function Detalles({ proy, calcUInit, perfil }) {
         <div>
           {activeSub === 'pt' && <PuentesTermicos     proy={proy} calcUInit={calcUInit} />}
           {activeSub === 'vd' && <VentanasDetalladas  proy={proy} />}
+          {activeSub === 'hg' && <Higrotermico        proy={proy} calcUInit={calcUInit} />}
         </div>
       </div>
     </PaywallGate>
