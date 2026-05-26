@@ -212,34 +212,154 @@ html, body {
   background: var(--bg-alt) !important;
 }
 
-/* En temas oscuros (tech), las cards/paneles que usan blanco hardcoded
-   resultarían ilegibles. Convertimos blanco/grises claros a `--surface`
-   y aplicamos color de texto del tema. */
-[data-theme="tech"] [style*="background: #fff"],
-[data-theme="tech"] [style*="background:#fff"],
-[data-theme="tech"] [style*="background: #ffffff"],
-[data-theme="tech"] [style*="background:#ffffff"],
-[data-theme="tech"] [style*="background: white"],
-[data-theme="tech"] [style*="background:white"],
-[data-theme="tech"] [style*="background: #f8fafc"],
-[data-theme="tech"] [style*="background:#f8fafc"] {
+/* ─────────────────────────────────────────────────────────────────────────────
+   OVERRIDES UNIVERSALES PARA TEMAS NO-BASE
+   ─────────────────────────────────────────────────────────────────────────────
+   Reemplaza los colores hardcoded en inline-styles por las variables del tema.
+   Solo se activan cuando data-theme != "base" — el tema base no se toca.
+   Selectores por substring del atributo style: detectan formatos comunes
+   (con/sin espacio después de ':', con/sin '#', etc.).
+─────────────────────────────────────────────────────────────────────────────── */
+
+/* ═══ Superficies blancas → --surface (cards, paneles) ═══ */
+[data-theme]:not([data-theme="base"]) [style*="background: #fff"],
+[data-theme]:not([data-theme="base"]) [style*="background:#fff"],
+[data-theme]:not([data-theme="base"]) [style*="background: white"],
+[data-theme]:not([data-theme="base"]) [style*="background:white"],
+[data-theme]:not([data-theme="base"]) [style*="background: #ffffff"],
+[data-theme]:not([data-theme="base"]) [style*="background:#ffffff"],
+[data-theme]:not([data-theme="base"]) [style*="background-color: #fff"],
+[data-theme]:not([data-theme="base"]) [style*="background-color:#fff"] {
   background: var(--surface) !important;
+}
+
+/* ═══ Fondos sutiles grises → --bg-alt ═══ */
+[data-theme]:not([data-theme="base"]) [style*="background: #f8fafc"],
+[data-theme]:not([data-theme="base"]) [style*="background:#f8fafc"],
+[data-theme]:not([data-theme="base"]) [style*="background: #f1f5f9"],
+[data-theme]:not([data-theme="base"]) [style*="background:#f1f5f9"] {
+  background: var(--bg-alt) !important;
+}
+
+/* ═══ Fondos accent (azulados info) → --accent-bg ═══ */
+[data-theme]:not([data-theme="base"]) [style*="background: #eff6ff"],
+[data-theme]:not([data-theme="base"]) [style*="background:#eff6ff"],
+[data-theme]:not([data-theme="base"]) [style*="background: #dbeafe"],
+[data-theme]:not([data-theme="base"]) [style*="background:#dbeafe"],
+[data-theme]:not([data-theme="base"]) [style*="background: #e0f2fe"],
+[data-theme]:not([data-theme="base"]) [style*="background:#e0f2fe"] {
+  background: var(--accent-bg) !important;
+}
+
+/* ═══ Fondos verde éxito → --ok-bg ═══ */
+[data-theme]:not([data-theme="base"]) [style*="background: #dcfce7"],
+[data-theme]:not([data-theme="base"]) [style*="background:#dcfce7"],
+[data-theme]:not([data-theme="base"]) [style*="background: #f0fdf4"],
+[data-theme]:not([data-theme="base"]) [style*="background:#f0fdf4"] {
+  background: var(--ok-bg) !important;
+}
+
+/* ═══ Fondos amarillo warning → --warn-bg ═══ */
+[data-theme]:not([data-theme="base"]) [style*="background: #fef3c7"],
+[data-theme]:not([data-theme="base"]) [style*="background:#fef3c7"],
+[data-theme]:not([data-theme="base"]) [style*="background: #fef9c3"],
+[data-theme]:not([data-theme="base"]) [style*="background:#fef9c3"] {
+  background: var(--warn-bg) !important;
+}
+
+/* ═══ Fondos rojo error → --bad-bg ═══ */
+[data-theme]:not([data-theme="base"]) [style*="background: #fee2e2"],
+[data-theme]:not([data-theme="base"]) [style*="background:#fee2e2"],
+[data-theme]:not([data-theme="base"]) [style*="background: #fef2f2"],
+[data-theme]:not([data-theme="base"]) [style*="background:#fef2f2"] {
+  background: var(--bad-bg) !important;
+}
+
+/* ═══ Texto principal oscuro → --ink ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #1e293b"],
+[data-theme]:not([data-theme="base"]) [style*="color:#1e293b"],
+[data-theme]:not([data-theme="base"]) [style*="color: #0f172a"],
+[data-theme]:not([data-theme="base"]) [style*="color:#0f172a"] {
   color: var(--ink) !important;
 }
-[data-theme="tech"] [style*="color: #1e293b"],
-[data-theme="tech"] [style*="color:#1e293b"],
-[data-theme="tech"] [style*="color: #374151"],
-[data-theme="tech"] [style*="color:#374151"] {
-  color: var(--ink) !important;
+
+/* ═══ Texto secundario → --ink-2 ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #374151"],
+[data-theme]:not([data-theme="base"]) [style*="color:#374151"],
+[data-theme]:not([data-theme="base"]) [style*="color: #475569"],
+[data-theme]:not([data-theme="base"]) [style*="color:#475569"] {
+  color: var(--ink-2) !important;
 }
-[data-theme="tech"] [style*="color: #64748b"],
-[data-theme="tech"] [style*="color:#64748b"],
-[data-theme="tech"] [style*="color: #94a3b8"],
-[data-theme="tech"] [style*="color:#94a3b8"] {
+
+/* ═══ Texto suave → --ink-3 ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #64748b"],
+[data-theme]:not([data-theme="base"]) [style*="color:#64748b"],
+[data-theme]:not([data-theme="base"]) [style*="color: #94a3b8"],
+[data-theme]:not([data-theme="base"]) [style*="color:#94a3b8"],
+[data-theme]:not([data-theme="base"]) [style*="color: #cbd5e1"],
+[data-theme]:not([data-theme="base"]) [style*="color:#cbd5e1"] {
   color: var(--ink-3) !important;
 }
-[data-theme="tech"] [style*="border: 1px solid #e2e8f0"],
-[data-theme="tech"] [style*="border:1px solid #e2e8f0"],
-[data-theme="tech"] [style*="border: 1px solid #f1f5f9"] {
+
+/* ═══ Texto accent (azul) → --accent ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #1e40af"],
+[data-theme]:not([data-theme="base"]) [style*="color:#1e40af"],
+[data-theme]:not([data-theme="base"]) [style*="color: #0369a1"],
+[data-theme]:not([data-theme="base"]) [style*="color:#0369a1"],
+[data-theme]:not([data-theme="base"]) [style*="color: #0c4a6e"],
+[data-theme]:not([data-theme="base"]) [style*="color:#0c4a6e"],
+[data-theme]:not([data-theme="base"]) [style*="color: #0284c7"],
+[data-theme]:not([data-theme="base"]) [style*="color:#0284c7"] {
+  color: var(--accent) !important;
+}
+
+/* ═══ Texto verde éxito → --ok ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #166534"],
+[data-theme]:not([data-theme="base"]) [style*="color:#166534"],
+[data-theme]:not([data-theme="base"]) [style*="color: #16a34a"],
+[data-theme]:not([data-theme="base"]) [style*="color:#16a34a"] {
+  color: var(--ok) !important;
+}
+
+/* ═══ Texto warning → --warn ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #92400e"],
+[data-theme]:not([data-theme="base"]) [style*="color:#92400e"],
+[data-theme]:not([data-theme="base"]) [style*="color: #713f12"],
+[data-theme]:not([data-theme="base"]) [style*="color:#713f12"],
+[data-theme]:not([data-theme="base"]) [style*="color: #f59e0b"],
+[data-theme]:not([data-theme="base"]) [style*="color:#f59e0b"] {
+  color: var(--warn) !important;
+}
+
+/* ═══ Texto rojo error → --bad ═══ */
+[data-theme]:not([data-theme="base"]) [style*="color: #991b1b"],
+[data-theme]:not([data-theme="base"]) [style*="color:#991b1b"],
+[data-theme]:not([data-theme="base"]) [style*="color: #dc2626"],
+[data-theme]:not([data-theme="base"]) [style*="color:#dc2626"] {
+  color: var(--bad) !important;
+}
+
+/* ═══ Bordes grises → --line / --line-soft ═══ */
+[data-theme]:not([data-theme="base"]) [style*="border: 1px solid #e2e8f0"],
+[data-theme]:not([data-theme="base"]) [style*="border:1px solid #e2e8f0"],
+[data-theme]:not([data-theme="base"]) [style*="border-color: #e2e8f0"],
+[data-theme]:not([data-theme="base"]) [style*="border-color:#e2e8f0"],
+[data-theme]:not([data-theme="base"]) [style*="border-bottom: 2px solid #e2e8f0"],
+[data-theme]:not([data-theme="base"]) [style*="border-bottom:2px solid #e2e8f0"] {
   border-color: var(--line) !important;
+}
+
+[data-theme]:not([data-theme="base"]) [style*="border: 1px solid #f1f5f9"],
+[data-theme]:not([data-theme="base"]) [style*="border:1px solid #f1f5f9"],
+[data-theme]:not([data-theme="base"]) [style*="border-bottom: 1px solid #f1f5f9"],
+[data-theme]:not([data-theme="base"]) [style*="border-bottom:1px solid #f1f5f9"] {
+  border-color: var(--line-soft) !important;
+}
+
+/* ═══ Bordes accent → --accent ═══ */
+[data-theme]:not([data-theme="base"]) [style*="border: 1px solid #bfdbfe"],
+[data-theme]:not([data-theme="base"]) [style*="border:1px solid #bfdbfe"],
+[data-theme]:not([data-theme="base"]) [style*="border: 1.5px solid #1e40af"],
+[data-theme]:not([data-theme="base"]) [style*="border:1.5px solid #1e40af"] {
+  border-color: var(--accent) !important;
 }
