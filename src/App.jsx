@@ -30,6 +30,7 @@ import UserManager from './modules/UserManager.jsx'
 import AdminStats from './modules/AdminStats.jsx'
 import AdminTokens from './modules/AdminTokens.jsx'
 import UserHeader from './components/UserHeader.jsx'
+import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
 
@@ -7937,6 +7938,7 @@ function AdminPanel({ onOverridesChanged }) {
 
 function AppInner() {
   const { user, perfil, orgActual, isAdmin, tokens, consumirToken } = useAuth()
+  const [theme, setTheme] = useTheme('base')
   const [tab, setTab] = useState(0)
   const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: 'Vivienda', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
@@ -8370,7 +8372,8 @@ function AppInner() {
         >
           📁 Proyectos {hasUnsaved && proyectoActual && <span style={{ background:'#f59e0b', borderRadius:10, padding:'1px 6px', fontSize:10 }}>●</span>}
         </button>
-        <div style={{ marginLeft: 12 }}>
+        <ThemePicker theme={theme} onChange={setTheme} />
+        <div style={{ marginLeft: 4 }}>
           <UserHeader />
         </div>
       </div>
