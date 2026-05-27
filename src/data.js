@@ -1296,8 +1296,14 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   //   para bloquear el vapor antes de la zona fría donde podría condensar.
   //   Estrategia: separar aislantes, ordenar el RESTO por μ descendente int→ext,
   //   y mantener el aislante en el centro.
+  //
+  //   ⚠ RESTRICCIÓN CONSTRUCTIVA: en techumbre/cubierta el orden es rígido
+  //   (cubierta exterior obligatoria + cielo interior obligatorio). Reordenar
+  //   puede dar resultado matemáticamente correcto pero CONSTRUCTIVAMENTE
+  //   IMPOSIBLE (yeso cartón al exterior, OSB al interior expuesto, etc.).
+  //   Para techos preferir C5 (barrera vapor) o C3 (trasdosado interior).
   await _YIELD();
-  if(necesitaCond){
+  if(necesitaCond && elemTipo !== 'techumbre' && elemTipo !== 'techo'){
     // Solo intentar si la composición tiene materiales con diferencias significativas de μ
     const noCamaras = cv.filter(c => !c.esCamara && !c.camara);
     const mus = noCamaras.map(c => parseFloat(c.mu) || 1);

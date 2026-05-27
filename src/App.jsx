@@ -7655,6 +7655,12 @@ ${cards}`)
         `
         container.prepend(pdfStyle)
 
+        // Esperar 2 frames + 400ms para que el browser pinte completamente
+        // (imágenes base64, SVGs, fonts). Sin esto html2canvas a veces captura
+        // antes de que las imágenes terminen de cargar → PDF en blanco.
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+        await new Promise(r => setTimeout(r, 400))
+
         try {
           await html2pdf().set({
             margin: [15, 12, 12, 12],       // mm: top, right, bottom, left
@@ -7663,8 +7669,11 @@ ${cards}`)
             html2canvas: {
               scale: 2,
               useCORS: true,
-              windowWidth: 820,
+              allowTaint: true,             // permite SVG inline complejos
               logging: false,
+              backgroundColor: '#ffffff',   // fuerza fondo blanco (evita transparencia)
+              imageTimeout: 15000,          // 15s timeout para imágenes
+              // windowWidth removido — usar ancho real del container (820px)
             },
             jsPDF: {
               unit: 'mm',
