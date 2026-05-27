@@ -25,6 +25,7 @@ import {
   establecerTokens,
   resetearTokensUsados,
   listarUsuariosConTokens,
+  registrarSesionLogin,
   supabase,
 } from '../supabase'
 import {
@@ -93,6 +94,10 @@ export function AuthProvider({ children }) {
       // Limpiar tokens del URL después de autenticarse
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         limpiarTokensDelUrl()
+      }
+      // Registrar sesión de login (calendario de actividad) — solo en SIGNED_IN real
+      if (event === 'SIGNED_IN' && sess?.user) {
+        registrarSesionLogin().catch(() => {})  // fail-silent (no bloquea login)
       }
       if (sess?.user) {
         cargarDatosUsuario(sess.user.id)

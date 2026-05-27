@@ -8,6 +8,7 @@ import {
   obtenerRecibeSignups,
   setRecibeSignups,
 } from '../supabase'
+import ActividadUsuarios from './ActividadUsuarios.jsx'
 
 // ─── Límites del plan Supabase Free ──────────────────────────────────────────
 const LIMITE_DB_MB   = 500    // 500 MB base de datos
@@ -187,6 +188,11 @@ export default function AdminStats() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* ── Calendario de actividad por usuario ──────────────────────────── */}
+      <div style={{ marginTop: 24 }}>
+        <ActividadUsuarios />
       </div>
     </div>
   )

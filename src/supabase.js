@@ -1311,6 +1311,45 @@ export async function cambiarPlanUsuario(perfilId, plan) {
   }
 }
 
+// ─── Tracking de sesiones (calendario de actividad) ──────────────────────────
+export async function registrarSesionLogin() {
+  try {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : null
+    const { data, error } = await supabase.rpc('registrar_sesion_login', { p_user_agent: ua })
+    if (error) throw error
+    return { ok: true, sesionId: data }
+  } catch (err) {
+    console.warn('registrarSesionLogin error:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
+export async function obtenerActividadUsuarios(orgId, diasAtras = 60) {
+  if (!orgId) return { ok: false, data: [] }
+  try {
+    const { data, error } = await supabase.rpc('actividad_usuarios_org', {
+      p_org_id: orgId, p_dias_atras: diasAtras,
+    })
+    if (error) throw error
+    return { ok: true, data: data || [] }
+  } catch (err) {
+    console.warn('obtenerActividadUsuarios error:', err)
+    return { ok: false, data: [], error: err.message }
+  }
+}
+
+export async function obtenerResumenActividad(orgId) {
+  if (!orgId) return { ok: false, data: null }
+  try {
+    const { data, error } = await supabase.rpc('resumen_actividad_org', { p_org_id: orgId })
+    if (error) throw error
+    return { ok: true, data }
+  } catch (err) {
+    console.warn('obtenerResumenActividad error:', err)
+    return { ok: false, data: null, error: err.message }
+  }
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function formatTiempoTranscurrido(fechaISO) {
   if (!fechaISO) return '—'
