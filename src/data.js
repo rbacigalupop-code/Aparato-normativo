@@ -308,7 +308,8 @@ export const MATS=[
     {n:"Tablero DM pintado",           lam:0.21, mu:150, usos:['muro']},
   ]},
 ];
-export const ALL_MATS=MATS.flatMap(g=>g.items);
+// ALL_MATS se exporta después de CUBIERTAS_TECHUMBRE (línea ~352) para que
+// las cubiertas también se encuentren al buscar materiales por nombre.
 
 // ─── CUBIERTAS DE TECHUMBRE ───────────────────────────────────────────────────
 // Lista cerrada y exclusiva para el slot «Cubierta / Terminación» de techumbres.
@@ -350,6 +351,12 @@ export const CUBIERTAS_TECHUMBRE=[
   // λ PC alveolar = 0.21 W/mK; μ≈9999 (absorbe vapor pero no lo transmite fácil)
   { n:'Policarbonato alveolar (6mm)',       lam:0.21, mu:9999,   esp:0.006,  cat:'cubierta' },
 ];
+
+// ALL_MATS — todos los materiales disponibles para LOOKUP por nombre (no para
+// renderizado de UI; el dropdown sigue usando MATS + filterMatsByElem). Incluye
+// CUBIERTAS_TECHUMBRE para que `ALL_MATS.find(...)` encuentre PV-4 Zincalum,
+// tejas, paneles sándwich, etc. y autocomplete sus λ, μ y espesor sugerido.
+export const ALL_MATS = [...MATS.flatMap(g=>g.items), ...CUBIERTAS_TECHUMBRE];
 
 // Alias semántico para el slot «Revestimiento Exterior» de muros.
 // Corresponde exactamente a CAPAS_CIERRE_EXT (definido más abajo). Se re-exporta

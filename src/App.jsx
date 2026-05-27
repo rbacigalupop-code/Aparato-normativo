@@ -3861,7 +3861,15 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   }
   function setMat(id, matName) {
     const m = ALL_MATS.find(x => x.n === matName)
-    if (m) setCapas(cs => cs.map(c => c.id === id ? { ...c, mat: m.n, lam: String(m.lam), mu: String(m.mu) } : c))
+    if (m) setCapas(cs => cs.map(c => c.id === id ? {
+      ...c,
+      mat: m.n,
+      lam: String(m.lam),
+      mu: String(m.mu),
+      // Si el catálogo trae espesor sugerido (cubiertas: esp en METROS),
+      // autocompletar en mm. Materiales generales (sin esp) no tocan el campo.
+      ...(m.esp ? { esp: String(m.esp * 1000) } : {}),
+    } : c))
     else setCapas(cs => cs.map(c => c.id === id ? { ...c, mat: matName } : c))
   }
   function addCamara() {
