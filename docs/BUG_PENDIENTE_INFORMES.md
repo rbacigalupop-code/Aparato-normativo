@@ -1,9 +1,38 @@
 # 🔴 BUG CRÍTICO PENDIENTE — Discrepancia calculadora vs informe
 
 **Reportado:** 2026-05-27
+**Evidencia confirmada:** 2026-05-27 (mismo día — caso real comparado)
 **Severidad:** Alta
 **Estado:** Banner defensivo desplegado · Fix pendiente
-**Punto de retoma:** commit `<este_commit>` en adelante
+**Punto de retoma:** commit `e4c3310` en adelante
+
+---
+
+## 🎯 EVIDENCIA CONCRETA DEL BUG (caso real reportado)
+
+**Mismo elemento (Cubierta/Techo · LOSCAT 1.1.G.M1.2 · Zona E)** muestra dos órdenes de capas distintos según dónde se mire:
+
+### En la calculadora (pestaña Cálculo U):
+```
+Capas (int → ext):
+  1. OSB/MDF       (μ=200)   ← BARRERA al interior
+  2. Lana mineral
+  3. Yeso cartón
+→ Glaser: ✓ SIN CONDENSACIÓN
+```
+
+### En la previsualización del informe:
+```
+Capas (int → ext):
+  1. Yeso cartón
+  2. Lana mineral
+  3. OSB/MDF       (μ=200)   ← BARRERA al exterior
+→ Glaser: ⚠ CONDENSACIÓN en interfaz 2 (margen −1064 Pa)
+```
+
+**U calculado en ambos: 0.2192 W/m²K (idéntico)** porque la suma de R es independiente del orden — pero Glaser SÍ depende del orden de capas.
+
+El usuario aplicó **reordenamiento C7** en la calculadora (mover OSB al interior para bloquear vapor), pero el informe muestra el **orden original del LOSCAT** y por eso detecta condensación que ya no existe.
 
 ---
 
