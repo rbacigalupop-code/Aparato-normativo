@@ -6259,21 +6259,46 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       .catch(() => '')
 
     // Helper: busca calcUData para un elemento en claves simples Y compuestas.
-    // PRIORIDAD:
-    // 1. Entry cuyo solucion.cod coincide con la solución actualmente aplicada
-    //    en termica[elemKey] — evita usar capas STALE de soluciones antiguas.
-    // 2. Si no hay match, el de peor U (más conservador).
+    // PRIORIDAD (en orden, primero que matchee):
+    // 1. Entry con correccionAplicada (estado más reciente del usuario, ej:
+    //    reordenamiento, sustitución de aislante, etc.). Crítico para no
+    //    mostrar el orden original cuando ya se aplicó una corrección.
+    // 2. Entry cuyo solucion.cod coincide con termica[elemKey] (solución
+    //    actualmente aplicada) — evita usar capas STALE de soluciones antiguas.
+    // 3. Entry con capas modificadas manualmente (capas presentes + sin match
+    //    de solución).
+    // 4. Fallback: el de peor U (más conservador).
     function getCalcUData(elemKey) {
       const entries = Object.entries(calcUInit || {})
         .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v)
       if (!entries.length) return null
-      // Buscar match con la solución ACTUAL aplicada
+
+      // 1) Prioridad MÁXIMA: entries con correccionAplicada
+      //    (representan el estado actual modificado del usuario)
+      const conCorreccion = entries.filter(([, v]) => v?.correccionAplicada)
+      if (conCorreccion.length) {
+        // Si hay varias correcciones, tomar la más reciente por aplicada_en
+        conCorreccion.sort((a, b) => {
+          const ta = new Date(a[1].correccionAplicada?.aplicada_en || 0).getTime()
+          const tb = new Date(b[1].correccionAplicada?.aplicada_en || 0).getTime()
+          return tb - ta
+        })
+        return conCorreccion[0][1]
+      }
+
+      // 2) Match exacto con la solución actualmente aplicada
       const solActual = termica?.[elemKey]?.solucion?.cod
       if (solActual) {
         const matching = entries.find(([, v]) => v?.solucion?.cod === solActual)
         if (matching) return matching[1]
       }
-      // Fallback: ordenar por U descendente → tomar el peor caso
+
+      // 3) Entries con capas modificadas (tienen capas pero sin solucion.cod
+      //    que matchee — probablemente edición manual del usuario)
+      const conCapas = entries.filter(([, v]) => v?.capas?.length > 0)
+      if (conCapas.length === 1) return conCapas[0][1]
+
+      // 4) Fallback: peor U
       entries.sort((a, b) => parseFloat(b[1]?.res?.U || 0) - parseFloat(a[1]?.res?.U || 0))
       return entries[0][1]
     }
