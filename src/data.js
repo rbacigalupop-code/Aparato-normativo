@@ -1373,7 +1373,14 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     const espesorAislante = aislantes.reduce((s, c) => s + (parseFloat(c.esp) * 1000 || 0), 0);
 
     // Sugerencia 1: si hay capa con μ muy alto al exterior, sugerir invertir
-    if (muMax >= muMin * 10) {
+    //
+    // ⚠ RESTRICCIÓN CONSTRUCTIVA (misma que C7): en techumbre/cubierta el
+    // orden es rígido — la cubierta exterior (PV-4 Zincalum, teja, panel
+    // sándwich, etc.) NO puede moverse al interior porque deja la estructura
+    // expuesta a la lluvia. Para techumbres preferir las otras sugerencias
+    // C8 (aumentar aislante, cámara ventilada, control HR) o C5 (barrera
+    // vapor) que SÍ son constructivamente válidas.
+    if (muMax >= muMin * 10 && elemTipo !== 'techumbre' && elemTipo !== 'techo') {
       const capaAlta = noCamaras.find(c => (parseFloat(c.mu) || 1) === muMax);
       const idxAlta = cv.findIndex(c => c === capaAlta);
       // Capa está en mitad exterior si idx >= n/2 (centrado al medio)
