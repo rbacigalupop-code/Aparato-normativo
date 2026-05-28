@@ -1300,6 +1300,75 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     }
   }
 
+  // ── C5b — Barrera de vapor + Cubierta ventilada (BV + cámara ventilada) ─────
+  // Aplica SOLO si C5 sola no logró eliminar la condensación. Caso típico:
+  // cubierta con revestimiento exterior de alto μ (OSB 20mm, fibrocemento
+  // grueso, etc.) que bloquea la salida del vapor restante incluso con BV en
+  // cara caliente → vapor se acumula en la interfaz aislante-revestimiento.
+  //
+  // Solución constructiva (ISO 6946 §6.9.2 + NCh853:2021):
+  //   1) BV en cara caliente del aislante
+  //   2) Cámara ventilada (>=30mm) entre aislante y revestimiento exterior
+  //      con aberturas en alero y coronamiento.
+  //
+  // Por qué solo para techumbre: la cámara ventilada exterior es práctica común
+  // en cubiertas (rain screen, espacios bajo teja, etc.). En muros existe pero
+  // ya está cubierta por C2 (Fachada Ventilada).
+  //
+  // Modelo Glaser (ISO 6946 §6.9.2): en cubierta con cámara ventilada las
+  // capas SOBRE la cámara están a condiciones exteriores y NO contribuyen al
+  // cálculo higrotérmico. Por eso truncamos cv hasta el aislante inclusive
+  // para la simulación, mientras que capasCorregidas (lo que se aplica al UI)
+  // incluye BV + cámara + capas exteriores originales.
+  await _YIELD();
+  const c5_aplicado = correcciones.some(c => c.id === 'c5_barrera_vapor');
+  if (necesitaCond && !c5_aplicado &&
+      !cv.some(c => clasificarCapa(c) === 'vapor') &&
+      (elemTipo === 'techumbre' || elemTipo === 'techo')) {
+    const idxAis = cv.findIndex(c => clasificarCapa(c) === 'aislante');
+    // Solo intentar si hay aislante Y al menos una capa al exterior del aislante
+    // (sino la cámara no tendría sentido — no hay nada que cubra).
+    if (idxAis >= 0 && idxAis < cv.length - 1) {
+      // Stack visual (capasCorregidas): cv original + BV antes aislante + cámara después
+      const cvConBV = insertarBVAntesAislante(cv, {..._BVap});
+      const idxAisBV = cvConBV.findIndex(c => clasificarCapa(c) === 'aislante');
+      const camaraVent = { esCamara: true, n: 'Cámara ventilada (≥30mm)', esp: 0.030, camaraVentilada: true };
+      const cvVisual = validarCierre(
+        [...cvConBV.slice(0, idxAisBV + 1), camaraVent, ...cvConBV.slice(idxAisBV + 1)],
+        elemTipo
+      );
+      // Stack para Glaser (truncado): solo capas hasta el aislante inclusive,
+      // simulando que la cámara venteada deja las capas posteriores a condiciones
+      // exteriores (ISO 6946 §6.9.2). No usamos validarCierre acá porque en una
+      // cubierta ventilada el aislante es la última capa térmicamente significativa
+      // — la cámara venteada actúa de "exterior" y no necesita un cierre adicional
+      // que falsearía Pvsat en la interfaz con la cámara.
+      const cvTruncado = [...cvConBV.slice(0, idxAisBV + 1)];
+      const rN = _calcGlaserSimple(cvTruncado, ti, te, hr, elemTipo);
+      if (rN && !rN.condInter && (!targetAjustado || parseFloat(rN.U || 99) <= targetAjustado)) {
+        correcciones.push({
+          id: 'c5b_bv_camara_ventilada',
+          titulo: 'C5b — Barrera de vapor + Cubierta ventilada (cámara tras aislante)',
+          etiqueta: 'BV + Cámara',
+          sistema: 'BV + Cámara ventilada',
+          color: '#0369a1',
+          compatible_loscat: false,
+          descripcion: 'Solución combinada para cubiertas con condensación intersticial donde la barrera de vapor sola no basta (típicamente por revestimiento exterior de alto μ como OSB o fibrocemento grueso que bloquea la salida del vapor restante). Combina: 1) Barrera de vapor de polietileno (μ=9999, 0.2mm) en cara caliente, antes del aislante. 2) Cámara ventilada (≥30mm) tras el aislante con aberturas continuas en alero y coronamiento. Según ISO 6946 §6.9.2, en cubierta ventilada las capas sobre la cámara no contribuyen al cálculo higrotérmico.',
+          cambio: '+ Barrera vapor PE (cara caliente) + Cámara ventilada 30mm tras aislante',
+          capasCorregidas: cvVisual,
+          resultado: rN,
+          impactoU: 'U ' + rN.U + ' W/m²K' + (umaxTarget && parseFloat(rN.U) <= umaxTarget ? ' ✓' : ''),
+          advertencias: withPenaltyAviso([
+            '⚠ IMPORTANTE: tras aplicar, marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.2).',
+            'La cámara debe tener aberturas continuas en alero y coronamiento (entrada y salida de aire por convección).',
+            'El sellado perimetral de la barrera de vapor en penetraciones es obligatorio (OGUC Art. 4.1.10).',
+            'NCh853:2021 §6.9.2 / ASHRAE 160',
+          ])
+        });
+      }
+    }
+  }
+
   // ── C6 — Sustituir aislante por material de mejor λ ──────────────────────────
   await _YIELD();
   if(idxA>=0&&(necesitaCond||necesitaU)){
