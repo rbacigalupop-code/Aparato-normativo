@@ -921,6 +921,18 @@ function clasificarCapa(c){
   const n=(c.n||c.mat||'').toLowerCase();
   const lam=parseFloat(c.lam)||1;
   const mu =parseFloat(c.mu) ||1;
+  // Cubiertas / revestimientos metálicos exteriores: tienen μ altísimo
+  // (≈100000) pero son CUBIERTA / rev_ext, NO barrera de vapor. Constructivamente
+  // van al exterior y no protegen al aislante del vapor interior (al contrario,
+  // lo trampolinan). Se detectan ANTES del bloque 'vapor' para que no se
+  // confundan con una BV. Una BV real es una lámina/film interior.
+  // Nota: usamos términos específicos (no 'acero' a secas) para no atrapar
+  // perfiles estructurales como "Correa acero" que van en el núcleo, no al
+  // exterior. 'acero gal'(vanizado) sí es cladding y se captura abajo.
+  const esCubiertaMetalica = n.includes('zinc')||n.includes('aluminio')||
+    n.includes('cobre')||n.includes('pv-4')||n.includes('pv-5')||
+    n.includes('pv4')||n.includes('pv5');
+  if(esCubiertaMetalica) return 'rev_ext';
   // Barreras de vapor: μ extremadamente alto o nombre explícito
   if(mu>=5000||n.includes('barrera de v')||n.includes('polietileno')||n.includes('polyethylene')) return 'vapor';
   // Barreras de humedad: transpirables pero impermeables al agua
