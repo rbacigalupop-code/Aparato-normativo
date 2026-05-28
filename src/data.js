@@ -980,6 +980,21 @@ function insertarTrasRevInt(cv,capa){
   return [capa,...cv];
 }
 
+// Detecta si ya existe una barrera de vapor CONSTRUCTIVA (lado caliente del
+// aislante). No considera "vapor" a las capas exteriores aunque tengan μ alto
+// (PV-4 Zincalum, zinc titanio, aluminio lacado, etc. tienen μ=100000 pero son
+// CUBIERTAS, no BV — constructivamente trampolinan el vapor en vez de pararlo).
+//
+// Sin este chequeo, C5/C5b se saltaban en cubiertas con plancha metálica
+// exterior porque `cv.some(vapor)` daba true por la plancha, no por una BV real.
+function yaTieneBVInterior(cv){
+  const idxAis=cv.findIndex(c=>clasificarCapa(c)==='aislante');
+  // Sin aislante: comportamiento conservador (cualquier vapor en cv cuenta)
+  if(idxAis<0) return cv.some(c=>clasificarCapa(c)==='vapor');
+  // Con aislante: solo vapor en las capas INTERIORES al aislante (idx < idxAis)
+  return cv.slice(0,idxAis).some(c=>clasificarCapa(c)==='vapor');
+}
+
 // Inserta una capa (típicamente barrera de vapor) JUSTO ANTES del primer
 // aislante, garantizando que quede del lado CALIENTE del aislante (cara
 // interior). Esto es la regla constructiva correcta para una BV según
@@ -1283,7 +1298,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   // cubierta con yeso cartón al exterior del aislante → BV caía mal posicionada
   // → C5 fallaba la validación y caía a fallback manual C8.
   await _YIELD();
-  if(necesitaCond&&!cv.some(c=>clasificarCapa(c)==='vapor')){
+  if(necesitaCond&&!yaTieneBVInterior(cv)){
     const cvCerrado=validarCierre(insertarBVAntesAislante(cv,{..._BVap}),elemTipo);
     const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
     if(rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado)){
@@ -1323,7 +1338,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   await _YIELD();
   const c5_aplicado = correcciones.some(c => c.id === 'c5_barrera_vapor');
   if (necesitaCond && !c5_aplicado &&
-      !cv.some(c => clasificarCapa(c) === 'vapor') &&
+      !yaTieneBVInterior(cv) &&
       (elemTipo === 'techumbre' || elemTipo === 'techo')) {
     const idxAis = cv.findIndex(c => clasificarCapa(c) === 'aislante');
     // Solo intentar si hay aislante Y al menos una capa al exterior del aislante
