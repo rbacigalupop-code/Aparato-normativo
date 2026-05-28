@@ -980,6 +980,29 @@ function insertarTrasRevInt(cv,capa){
   return [capa,...cv];
 }
 
+// Inserta una capa (típicamente barrera de vapor) JUSTO ANTES del primer
+// aislante, garantizando que quede del lado CALIENTE del aislante (cara
+// interior). Esto es la regla constructiva correcta para una BV según
+// NCh853:2021 — siempre en cara caliente, nunca fría.
+//
+// Por qué no usamos `insertarTrasRevInt`:
+//   · Esa función inserta tras el PRIMER rev_int encontrado en la lista
+//   · Si el usuario armó una composición con un yeso cartón al EXTERIOR del
+//     aislante (composición válida pero inusual, ej: techumbres con yeso
+//     bajo la cubierta metálica), la BV terminaba del lado frío → inútil
+//     constructivamente y Glaser seguía detectando condensación → C5 no
+//     pasaba la validación → fallback manual innecesario.
+//
+// Fallbacks (por orden):
+//   1. Si hay aislante → insertar inmediatamente ANTES
+//   2. Si no hay aislante pero hay rev_int → comportamiento legado (tras rev_int)
+//   3. Si no hay ni aislante ni rev_int → al inicio del stack (interior)
+function insertarBVAntesAislante(cv,capa){
+  const idxAis=cv.findIndex(c=>clasificarCapa(c)==='aislante');
+  if(idxAis>=0) return [...cv.slice(0,idxAis),capa,...cv.slice(idxAis)];
+  return insertarTrasRevInt(cv,capa);
+}
+
 // ─── Glaser ligero (sin ISO 6946) — SOLO para generarCorrecciones ────────────
 // Las capas construidas con AISLS nunca tienen `estructura_integrada`, así que
 // podemos usar la suma de serie pura y ahorrarnos la doble pasada de ISO 6946.
@@ -1254,9 +1277,14 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   }
 
   // ── C5 — Barrera de vapor en cara caliente ────────────────────────────────────
+  // Usa insertarBVAntesAislante (no insertarTrasRevInt) para garantizar que la
+  // BV quede del lado CALIENTE del aislante, sin importar dónde el usuario haya
+  // puesto el revestimiento interior. Caso reportado 2026-05-27: composición
+  // cubierta con yeso cartón al exterior del aislante → BV caía mal posicionada
+  // → C5 fallaba la validación y caía a fallback manual C8.
   await _YIELD();
   if(necesitaCond&&!cv.some(c=>clasificarCapa(c)==='vapor')){
-    const cvCerrado=validarCierre(insertarTrasRevInt(cv,{..._BVap}),elemTipo);
+    const cvCerrado=validarCierre(insertarBVAntesAislante(cv,{..._BVap}),elemTipo);
     const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
     if(rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado)){
       correcciones.push({
