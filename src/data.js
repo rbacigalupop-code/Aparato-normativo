@@ -969,8 +969,12 @@ function validarCierre(cv,tipoElem){
   const ultima=funcR[funcR.length-1];
   // Exterior: si la última capa no puede quedar expuesta → agregar rev_ext
   if(debeProtegerse(ultima)){
+    // Techumbre: usar un material de CUBIERTA real (Fibrocemento Gran Onda P7,
+    // producto de techumbre chileno) en vez de un 'Fibrocemento' genérico que
+    // se asocia a revestimiento de muro. μ=50 (bajo) → no recrea trampa de
+    // vapor. Muro/piso: CAPAS_CIERRE_EXT habitual (estuco/revestimiento).
     const ext=tipoElem==='techumbre'
-      ? {n:'Fibrocemento',lam:0.23,esp:0.006,mu:50,_rol:'cierre_ext'}
+      ? {n:'Fibrocemento Gran Onda (P7)',lam:0.24,esp:0.005,mu:50,_rol:'cierre_ext'}
       : {...CAPAS_CIERRE_EXT[0],_rol:'cierre_ext'};
     r=[...r,ext];
   }
