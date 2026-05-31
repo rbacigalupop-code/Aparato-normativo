@@ -6546,7 +6546,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [] }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [] }) {
   // Fallbacks defensivos por si las props no están disponibles
   const getRFOGUC_loaded = getRFOGUC || (() => null)
   const getLetraOGUC_loaded = getLetraOGUC || (() => null)
@@ -6562,6 +6562,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const reqAcustica  = !!(AC_DEF[uso] && (AC_DEF[uso].entre_unidades || AC_DEF[uso].entre_pisos || AC_DEF[uso].fachada))
   const haySistemas  = (proy.estructuras?.length || 0) > 1
   const hayVentanas  = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
+  const hayPuertas   = (puertas || []).some(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
   const hayNotas     = Object.values(notas || {}).some(v => v?.toString().trim())
   // Hay escantillones si existe solución/capas para muro + al menos piso o techo
   const hayEscantillones = !!(
@@ -6578,6 +6579,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     acustica:      modulosInforme?.acustica      ?? reqAcustica,
     sistemas:      modulosInforme?.sistemas      ?? haySistemas,
     ventanas:      modulosInforme?.ventanas      ?? hayVentanas,
+    puertas:       modulosInforme?.puertas       ?? hayPuertas,
     notas:         modulosInforme?.notas         ?? hayNotas,
     escantillones: modulosInforme?.escantillones ?? hayEscantillones,
   }
@@ -6660,6 +6662,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const _reqAcustica = !!(AC_DEF[_uso] && (AC_DEF[_uso].entre_unidades || AC_DEF[_uso].entre_pisos || AC_DEF[_uso].fachada))
     const _haySistemas = (proy.estructuras?.length || 0) > 1
     const _hayVentanas = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
+    const _hayPuertas  = (puertas || []).some(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
     const _hayNotas    = Object.values(notas || {}).some(v => v?.toString().trim())
     const mods = {
       termica:  modulosInforme?.termica  ?? true,
@@ -6667,6 +6670,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       acustica: modulosInforme?.acustica ?? _reqAcustica,
       sistemas: modulosInforme?.sistemas ?? _haySistemas,
       ventanas: modulosInforme?.ventanas ?? _hayVentanas,
+      puertas:  modulosInforme?.puertas  ?? _hayPuertas,
       notas:    modulosInforme?.notas    ?? _hayNotas,
     }
 
@@ -7265,6 +7269,70 @@ ${glaserHtml}`
 </table>`
     }
 
+    // ── Puertas — registro del proyecto (4 ejes normativos) ───────────────────
+    const puertasValidas = (puertas || []).filter(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
+    let puertasHtml = ''
+    if (puertasValidas.length > 0) {
+      const puertasRows = puertasValidas.map((p, idx) => {
+        const r = calcularPuertaCombinada({
+          ancho_m: parseFloat(p.ancho), alto_m: parseFloat(p.alto),
+          hojaId: p.hojaId, marcoId: p.marcoId, selloId: p.selloId,
+        })
+        if (!r) return ''
+        const usoOGUC = (p.uso === 'acceso_vivienda' || p.uso === 'acceso_unidades' || p.uso === 'evacuacion_escalera')
+          ? 'acceso_principal' : 'interior_recinto'
+        const vT = cumpleDS15Puerta(r.U, proy.zona)
+        const vF = cumpleRFPuerta(r.rf, p.uso)
+        const vA = cumpleRWPuerta(r.rw, p.uso)
+        const vD = cumpleOGUC(r.anchoLibre_m, r.altoLibre_m, usoOGUC)
+        const cumpleAll = vT?.cumple && vF?.cumple && vA?.cumple && vD?.cumple
+        const cellState = (ok, txt) => `<span class="${ok ? 'badge-ok' : 'badge-no'}" style="font-size:8.5pt">${txt}</span>`
+        return `<tr>
+          <td>${idx + 1}</td>
+          <td><b>${p.nombre || `Puerta ${idx + 1}`}</b><br><span style="font-size:8.5pt;color:#64748b">${p.uso.replace(/_/g, ' ')}</span></td>
+          <td>${p.ancho} × ${p.alto} m<br><span style="font-size:8.5pt;color:#64748b">libre ${r.anchoLibre_m} × ${r.altoLibre_m}</span></td>
+          <td style="font-size:9pt">${r.componentes.hoja.nombre}<br>${r.componentes.marco.nombre}<br>${r.componentes.sello.nombre}</td>
+          <td><b>${r.U}</b> W/m²K<br>${vT ? cellState(vT.cumple, vT.cumple ? `≤ ${vT.umax}` : `> ${vT.umax}`) : '—'}</td>
+          <td><b>${r.rf}</b><br>${vF ? cellState(vF.cumple, vF.cumple ? `≥ ${vF.rfRequerido}` : `req. ${vF.rfRequerido}`) : '—'}</td>
+          <td><b>${r.rw}</b> dB<br>${vA ? cellState(vA.cumple, vA.cumple ? `≥ ${vA.rwRequerido}` : `req. ${vA.rwRequerido} dB`) : '—'}</td>
+          <td>${vD ? cellState(vD.cumple, vD.cumple ? 'OGUC ✓' : `mín ${vD.anchoMinReq}×${vD.altoMinReq}`) : '—'}</td>
+          <td><span class="${cumpleAll ? 'badge-ok' : 'badge-no'}">${cumpleAll ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+        </tr>`
+      }).filter(Boolean).join('')
+
+      // Resumen agregado
+      const total = puertasValidas.length
+      const cumpleNum = puertasValidas.filter(p => {
+        const r = calcularPuertaCombinada({ ancho_m: parseFloat(p.ancho), alto_m: parseFloat(p.alto), hojaId: p.hojaId, marcoId: p.marcoId, selloId: p.selloId })
+        if (!r) return false
+        const usoOGUC = (p.uso === 'acceso_vivienda' || p.uso === 'acceso_unidades' || p.uso === 'evacuacion_escalera') ? 'acceso_principal' : 'interior_recinto'
+        const vT = cumpleDS15Puerta(r.U, proy.zona), vF = cumpleRFPuerta(r.rf, p.uso), vA = cumpleRWPuerta(r.rw, p.uso), vD = cumpleOGUC(r.anchoLibre_m, r.altoLibre_m, usoOGUC)
+        return vT?.cumple && vF?.cumple && vA?.cumple && vD?.cumple
+      }).length
+
+      puertasHtml = `
+<h2 id="modulo-5c">Módulo 5b — Puertas del proyecto (4 ejes normativos)</h2>
+<h3>Detalle por puerta</h3>
+<table>
+  <tr>
+    <th>#</th><th>Nombre / Uso</th><th>Dimensiones</th><th>Componentes (hoja / marco / sello)</th>
+    <th>Térmica (DS N°15)</th><th>Fuego (LOFC Ed.17)</th><th>Acústica (NCh352)</th><th>Dimens. (OGUC IV)</th><th>Estado</th>
+  </tr>
+  ${puertasRows}
+  <tr style="font-weight:700;background:#f1f5f9">
+    <td colspan="8">Resumen: ${cumpleNum} de ${total} puertas cumplen los 4 ejes normativos</td>
+    <td><span class="${cumpleNum === total ? 'badge-ok' : 'badge-no'}">${cumpleNum === total ? 'OK' : 'REVISAR'}</span></td>
+  </tr>
+</table>
+<div style="font-size:8.5pt;color:#64748b;margin-top:4px">
+  Cálculo U combinado según <b>NCh3079 / ISO 10077-1</b> (U_hoja·A_hoja + U_marco·A_marco + Ψ_sello·L_sello) / A_total.
+  RF del conjunto = mínimo entre hoja y marco (<b>LOFC Ed.17 §7</b>).
+  R'w = R'w hoja + bonus sello perimetral (<b>NCh352:2013</b>).
+  Dimensiones libres de paso según <b>OGUC Tít. IV</b> (Art. 4.1.7 acceso vivienda · Art. 4.2.13 evacuación).
+  Para certificación final: solicitar ensayos in situ (NCh352) y EN 1634-1 (RF) al fabricante.
+</div>`
+    }
+
     // ── Notas del proyectista ─────────────────────────────────────────────────
     const TAB_NAMES_RPT = { diagnostico:'Diagnóstico', soluciones:'Soluciones', termica:'Térmica', fuego:'Fuego', acustica:'Acústica', calcU:'Cálculo U', ventana:'Ventana', resultados:'Resultados' }
     const notasEntries = Object.entries(notas || {}).filter(([, v]) => v?.trim())
@@ -7658,6 +7726,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.fuego    ? `<li><a href="#modulo-3">Módulo 3 — Resistencia al Fuego</a><span class="toc-dots"></span><span class="toc-page">OGUC · LOFC Ed.17</span></li>` : ''}
     ${mods.acustica ? `<li><a href="#modulo-4">Módulo 4 — Aislamiento Acústico</a><span class="toc-dots"></span><span class="toc-page">OGUC · NCh352</span></li>` : ''}
     ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
+    ${mods.puertas ? `<li><a href="#modulo-5c">Módulo 5b — Puertas (4 ejes normativos)</a><span class="toc-dots"></span><span class="toc-page">DS N°15 · LOFC · NCh352 · OGUC IV</span></li>` : ''}
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
     ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
     ${(mods.escantillones && detallesInforme.length > 0) ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
@@ -7839,6 +7908,8 @@ ${mods.acustica ? `<h2 id="modulo-4">Módulo 4 — Aislamiento Acústico (OGUC A
 </table>` : ''}
 
 ${mods.ventanas ? vpctHtml : ''}
+
+${mods.puertas ? puertasHtml : ''}
 
 ${mods.notas ? notasHtml : ''}
 
@@ -8141,6 +8212,11 @@ ${cards}`)
               key: 'ventanas', icon: '🪟', label: 'Ventanas y Vanos (VPCT)',
               norma: 'DS N°15 Tabla 3 · OGUC Art. 4.1.10',
               req: false, reqMsg: hayVentanas ? 'Datos de fachadas completados' : 'Sin datos de fachadas',
+            },
+            {
+              key: 'puertas', icon: '🚪', label: 'Puertas (4 ejes normativos)',
+              norma: 'DS N°15 · LOFC Ed.17 · NCh352 · OGUC Tít. IV',
+              req: false, reqMsg: hayPuertas ? `${(puertas || []).length} puertas configuradas` : 'Sin componentes seleccionados en puertas',
             },
             {
               key: 'notas', icon: '📝', label: 'Notas del proyectista',
@@ -9063,7 +9139,7 @@ function AppInner() {
               {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 7 && <TabPuerta proy={proy} puertas={puertas} setPuertas={setPuertas} puertasNextId={puertasNextId} setPuertasNextId={setPuertasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 8 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
-              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
+              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
               {tab === 10 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
             </div>
             {showAyuda && ayudaData[tab] && (
