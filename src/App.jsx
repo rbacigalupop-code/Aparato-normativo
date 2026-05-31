@@ -39,6 +39,15 @@ import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
 import DemandaAnual    from './modules/energetico/DemandaAnual.jsx'
 import Detalles        from './modules/energetico/Detalles.jsx'
 import PuertasDetalladas from './modules/energetico/PuertasDetalladas.jsx'
+import {
+  HOJAS as PUERTA_HOJAS, MARCOS_PUERTA, SELLOS as PUERTA_SELLOS,
+  RF_MINIMO_POR_USO as PUERTA_RF_MIN, RW_MINIMO_POR_USO as PUERTA_RW_MIN,
+  SUGERENCIAS_POR_ZONA as PUERTA_SUG_ZONA,
+} from './data/puertas_detalladas.js'
+import {
+  calcularPuertaCombinada, cumpleDS15Puerta,
+  cumpleRFPuerta, cumpleRWPuerta, cumpleOGUC,
+} from './lib/engines/puertas_detalladas.js'
 import Renovables      from './modules/energetico/Renovables.jsx'
 import InformeEjecutivo from './modules/energetico/InformeEjecutivo.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
@@ -5344,6 +5353,286 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
   )
 }
 
+// ─── PESTAÑA PUERTA ────────────────────────────────────────────────────────────
+// Mirror estructural de TabVentana: usa los mismos helpers S.* y el mismo
+// patrón visual (calculadora arriba + lista del proyecto + resumen normativo).
+// Valida 4 ejes (térmica DS N°15 · fuego LOFC Ed.17 · acústica NCh352 ·
+// dimensiones OGUC Tít. IV).
+function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId, notas, setNotas }) {
+  const zona = proy.zona || 'D'
+  const sugZona = PUERTA_SUG_ZONA[zona] || PUERTA_SUG_ZONA.D
+
+  // ─── Calculadora U puerta (single, espejo de la calc Uw de Ventana) ───────
+  const [hojaCalc, setHojaCalc] = useState('')
+  const [marcoCalc, setMarcoCalc] = useState('')
+  const [selloCalc, setSelloCalc] = useState('')
+  const [anchoCalc, setAnchoCalc] = useState('')
+  const [altoCalc, setAltoCalc] = useState('')
+  const [resCalc, setResCalc] = useState(null)
+
+  function calcularU() {
+    const a = parseFloat(anchoCalc), h = parseFloat(altoCalc)
+    if (!hojaCalc || !marcoCalc || !selloCalc || !a || !h) return
+    const r = calcularPuertaCombinada({
+      ancho_m: a, alto_m: h, hojaId: hojaCalc, marcoId: marcoCalc, selloId: selloCalc,
+    })
+    setResCalc(r)
+  }
+
+  // ─── Lista de puertas del proyecto (estado lifted) ────────────────────────
+  function addPuerta() {
+    setPuertas(prev => [...prev, {
+      id: puertasNextId,
+      nombre: `Puerta ${prev.length + 1}`,
+      uso: 'acceso_vivienda', ancho: '0.85', alto: '2.00',
+      hojaId: sugZona.hoja, marcoId: sugZona.marco, selloId: sugZona.sello,
+    }])
+    setPuertasNextId(n => n + 1)
+  }
+  function removePuerta(id) {
+    if (puertas.length <= 1) { alert('Debe haber al menos una puerta en el proyecto.'); return }
+    if (!confirm('¿Eliminar esta puerta?')) return
+    setPuertas(prev => prev.filter(p => p.id !== id))
+  }
+  function updP(id, field, val) { setPuertas(prev => prev.map(p => p.id === id ? { ...p, [field]: val } : p)) }
+
+  // Aplicar defaults sugerencia zona a puertas sin componentes seteados
+  // (los dos defaults vienen con hojaId vacío para que el seteo respete la zona)
+  const puertasConDefaults = puertas.map(p => ({
+    ...p,
+    hojaId:  p.hojaId  || sugZona.hoja,
+    marcoId: p.marcoId || sugZona.marco,
+    selloId: p.selloId || sugZona.sello,
+  }))
+
+  // Cálculo por puerta + validaciones de 4 ejes
+  const puertasCalc = puertasConDefaults.map(p => {
+    const a = parseFloat(p.ancho), h = parseFloat(p.alto)
+    if (!a || !h) return { ...p, r: null, v: null }
+    const r = calcularPuertaCombinada({
+      ancho_m: a, alto_m: h, hojaId: p.hojaId, marcoId: p.marcoId, selloId: p.selloId,
+    })
+    if (!r) return { ...p, r: null, v: null }
+    const usoOGUC = p.uso === 'acceso_vivienda' || p.uso === 'acceso_unidades' || p.uso === 'evacuacion_escalera'
+      ? 'acceso_principal' : 'interior_recinto'
+    const v = {
+      termica: cumpleDS15Puerta(r.U, zona),
+      fuego:   cumpleRFPuerta(r.rf, p.uso),
+      acust:   cumpleRWPuerta(r.rw, p.uso),
+      dimens:  cumpleOGUC(r.anchoLibre_m, r.altoLibre_m, usoOGUC),
+    }
+    const cumpleAll = v.termica?.cumple && v.fuego?.cumple && v.acust?.cumple && v.dimens?.cumple
+    return { ...p, r, v, cumpleAll }
+  })
+
+  const totalPuertas = puertasCalc.length
+  const cumpleN = puertasCalc.filter(p => p.cumpleAll).length
+
+  return (
+    <div>
+      <AyudaPanel
+        titulo="Cómo usar — Calculadora de puerta y registro de puertas del proyecto"
+        pasos={[
+          'Usa la <b>Calculadora U puerta</b> para obtener U combinado de UNA configuración (hoja + marco + sello) según ISO 10077-1.',
+          'En el <b>Registro del proyecto</b>, cada fila representa una puerta real de la edificación (acceso principal, acceso a patio/loggia, dormitorio, baño, cuarto técnico, etc.).',
+          'Por defecto el proyecto arranca con <b>dos puertas</b> típicas de vivienda: acceso principal + acceso a patio/loggia.',
+          'Para cada puerta indicá: <b>nombre, uso, dimensiones (ancho/alto), hoja, marco y sello</b>. El uso determina los mínimos RF (LOFC) y R\'w (NCh352).',
+          'Las 4 columnas de cumplimiento (U / RF / R\'w / Dim.) se calculan en vivo. Verde = cumple · Rojo = no cumple.',
+          'El <b>resumen normativo</b> al final agrega todas las puertas para la verificación global.',
+        ]}
+        normativa="DS N°15 (Umax) · LOFC Ed.17 (RF) · NCh352:2013 (R'w) · OGUC Tít. IV (dimensiones) · NCh3079 / ISO 10077-1 (U combinado)"
+      />
+
+      {/* ── Calculadora U puerta ─────────────────────────────────────────────── */}
+      <div style={S.card}>
+        <p style={S.h2}>Calculadora U puerta (NCh3079 / ISO 10077-1)</p>
+        <div style={{ ...S.row, marginBottom: 12 }}>
+          <div style={S.col}>
+            <span style={S.label}>Hoja</span>
+            <select style={{ ...S.sel, width: 280 }} value={hojaCalc} onChange={e => setHojaCalc(e.target.value)}>
+              <option value="">Seleccionar hoja...</option>
+              {PUERTA_HOJAS.map(h => <option key={h.id} value={h.id}>{h.nombre} (U={h.u}, {h.rf})</option>)}
+            </select>
+          </div>
+          <div style={S.col}>
+            <span style={S.label}>Marco</span>
+            <select style={{ ...S.sel, width: 240 }} value={marcoCalc} onChange={e => setMarcoCalc(e.target.value)}>
+              <option value="">Seleccionar marco...</option>
+              {MARCOS_PUERTA.map(m => <option key={m.id} value={m.id}>{m.nombre} (U={m.u})</option>)}
+            </select>
+          </div>
+          <div style={S.col}>
+            <span style={S.label}>Sello perimetral</span>
+            <select style={{ ...S.sel, width: 240 }} value={selloCalc} onChange={e => setSelloCalc(e.target.value)}>
+              <option value="">Seleccionar sello...</option>
+              {PUERTA_SELLOS.map(s => <option key={s.id} value={s.id}>{s.nombre} (Ψ={s.psi}, +{s.bonus_rw_db}dB)</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={S.row}>
+          <div style={S.col}>
+            <span style={S.label}>Ancho total (m)</span>
+            <input style={{ ...S.input, width: 90 }} value={anchoCalc} onChange={e => setAnchoCalc(e.target.value)} placeholder="0.90" />
+          </div>
+          <div style={S.col}>
+            <span style={S.label}>Alto total (m)</span>
+            <input style={{ ...S.input, width: 90 }} value={altoCalc} onChange={e => setAltoCalc(e.target.value)} placeholder="2.00" />
+          </div>
+          <div style={{ ...S.col, justifyContent: 'flex-end' }}>
+            <button style={S.btn()} onClick={calcularU}>Calcular U puerta</button>
+          </div>
+        </div>
+        {resCalc && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+              U puerta = <span style={{ color: colSem(parseFloat(resCalc.U)) }}>{resCalc.U} W/m²K</span>
+              {' · '}RF: <b>{resCalc.rf}</b>
+              {' · '}R'w: <b>{resCalc.rw} dB</b>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              U = ({resCalc.componentes.hoja.u}×{resCalc.A_hoja} + {resCalc.componentes.marco.u}×{resCalc.A_marco} + {resCalc.componentes.sello.psi}×{resCalc.L_sello}) / {resCalc.A_total} m²
+              {' · '}Ancho libre paso: {resCalc.anchoLibre_m} m
+            </div>
+            <div style={{ marginTop: 6, fontSize: 12, color: '#0369a1' }}>
+              → Copia estos valores al registro de puertas abajo, o ajustá según el uso real.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Registro de puertas del proyecto ──────────────────────────────────── */}
+      <div style={S.card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <p style={{ ...S.h2, margin: 0 }}>Registro de puertas del proyecto — Zona {zona}</p>
+          <button style={S.btn('#1e40af')} onClick={addPuerta}>+ Agregar puerta</button>
+        </div>
+        <p style={{ fontSize: 12, color: '#64748b', marginTop: -2, marginBottom: 16 }}>
+          Cada fila es una puerta del proyecto. Editá nombre, uso, dimensiones y componentes.
+          El sistema valida los 4 ejes normativos en vivo.
+        </p>
+
+        {puertasCalc.map((p, idx) => (
+          <div key={p.id} style={{ marginBottom: 10, padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+            {/* Fila 1: nombre + uso + dimensiones + botón borrar */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 8 }}>
+              <div style={{ minWidth: 20, fontSize: 12, fontWeight: 700, color: '#1e40af', paddingBottom: 3 }}>{idx + 1}</div>
+              <div style={S.col}>
+                <span style={S.label}>Nombre</span>
+                <input style={{ ...S.input, width: 200 }} value={p.nombre} onChange={e => updP(p.id, 'nombre', e.target.value)} placeholder={`Puerta ${idx + 1}`} />
+              </div>
+              <div style={S.col}>
+                <span style={S.label}>Uso</span>
+                <select style={{ ...S.sel, width: 220 }} value={p.uso} onChange={e => updP(p.id, 'uso', e.target.value)}>
+                  <option value="acceso_vivienda">Acceso vivienda (envolvente)</option>
+                  <option value="acceso_unidades">Entre unidades</option>
+                  <option value="evacuacion_escalera">Salida evacuación</option>
+                  <option value="interior_dormitorio">Interior — dormitorio</option>
+                  <option value="estudio_oficina">Estudio / oficina</option>
+                  <option value="cuarto_tecnico">Cuarto técnico</option>
+                  <option value="cuarto_basura">Sala basura</option>
+                  <option value="cuarto_maquinas">Cuarto máquinas</option>
+                  <option value="ascensor_maquinas">Sala máq. ascensor</option>
+                </select>
+              </div>
+              <div style={S.col}>
+                <span style={S.label}>Ancho (m)</span>
+                <input style={{ ...S.input, width: 80 }} value={p.ancho} onChange={e => updP(p.id, 'ancho', e.target.value)} placeholder="0.90" />
+              </div>
+              <div style={S.col}>
+                <span style={S.label}>Alto (m)</span>
+                <input style={{ ...S.input, width: 80 }} value={p.alto} onChange={e => updP(p.id, 'alto', e.target.value)} placeholder="2.00" />
+              </div>
+              <div style={{ ...S.col, justifyContent: 'flex-end' }}>
+                <button
+                  style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                  onClick={() => removePuerta(p.id)}
+                  title="Eliminar puerta"
+                >✕</button>
+              </div>
+            </div>
+
+            {/* Fila 2: hoja + marco + sello + chips de cumplimiento */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 20 }} />
+              <div style={S.col}>
+                <span style={S.label}>Hoja</span>
+                <select style={{ ...S.sel, width: 280 }} value={p.hojaId} onChange={e => updP(p.id, 'hojaId', e.target.value)}>
+                  {PUERTA_HOJAS.map(h => <option key={h.id} value={h.id}>{h.nombre} (U={h.u}, {h.rf})</option>)}
+                </select>
+              </div>
+              <div style={S.col}>
+                <span style={S.label}>Marco</span>
+                <select style={{ ...S.sel, width: 220 }} value={p.marcoId} onChange={e => updP(p.id, 'marcoId', e.target.value)}>
+                  {MARCOS_PUERTA.map(m => <option key={m.id} value={m.id}>{m.nombre} (U={m.u})</option>)}
+                </select>
+              </div>
+              <div style={S.col}>
+                <span style={S.label}>Sello</span>
+                <select style={{ ...S.sel, width: 220 }} value={p.selloId} onChange={e => updP(p.id, 'selloId', e.target.value)}>
+                  {PUERTA_SELLOS.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+              </div>
+              {p.r && (
+                <div style={{ ...S.col, gap: 3, alignItems: 'flex-end' }}>
+                  <span style={S.label}>Resultado (4 ejes)</span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <span style={S.badge(p.v?.termica?.cumple)} title={`U=${p.r.U} (max ${p.v?.termica?.umax})`}>U {p.r.U}</span>
+                    <span style={S.badge(p.v?.fuego?.cumple)} title={`RF requerido: ${p.v?.fuego?.rfRequerido}`}>{p.r.rf}</span>
+                    <span style={S.badge(p.v?.acust?.cumple)} title={`R'w mín: ${p.v?.acust?.rwRequerido} dB`}>{p.r.rw} dB</span>
+                    <span style={S.badge(p.v?.dimens?.cumple)} title={`Mín OGUC: ${p.v?.dimens?.anchoMinReq}×${p.v?.dimens?.altoMinReq} m`}>{p.r.anchoLibre_m}×{p.r.altoLibre_m}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Resumen normativo ────────────────────────────────────────────────── */}
+      <div style={S.card}>
+        <p style={S.h3}>Resumen normativo de puertas — Zona {zona}</p>
+        <table style={S.table}>
+          <thead>
+            <tr>
+              <th style={S.th}>#</th>
+              <th style={S.th}>Nombre</th>
+              <th style={S.th}>Uso</th>
+              <th style={S.th}>Dimensiones (m)</th>
+              <th style={S.th}>U (W/m²K)</th>
+              <th style={S.th}>RF</th>
+              <th style={S.th}>R'w (dB)</th>
+              <th style={S.th}>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {puertasCalc.map((p, idx) => (
+              <tr key={p.id}>
+                <td style={S.td}>{idx + 1}</td>
+                <td style={S.td}><b>{p.nombre}</b></td>
+                <td style={S.td}><span style={{ fontSize: 11 }}>{p.uso.replace(/_/g, ' ')}</span></td>
+                <td style={S.td}>{p.ancho} × {p.alto}</td>
+                <td style={{ ...S.td, fontWeight: 700, color: p.v?.termica?.cumple ? '#166534' : '#991b1b' }}>{p.r?.U ?? '—'}</td>
+                <td style={{ ...S.td, fontWeight: 700, color: p.v?.fuego?.cumple ? '#166534' : '#991b1b' }}>{p.r?.rf ?? '—'}</td>
+                <td style={{ ...S.td, fontWeight: 700, color: p.v?.acust?.cumple ? '#166534' : '#991b1b' }}>{p.r?.rw ?? '—'}</td>
+                <td style={S.td}><span style={S.badge(p.cumpleAll)}>{p.cumpleAll ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+              </tr>
+            ))}
+            <tr style={{ background: '#f1f5f9', fontWeight: 700 }}>
+              <td style={S.td} colSpan={7}>Total: {cumpleN} de {totalPuertas} puertas cumplen los 4 ejes</td>
+              <td style={S.td}><span style={S.badge(cumpleN === totalPuertas)}>{cumpleN === totalPuertas ? 'OK' : 'REVISAR'}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+          * Cumple = los 4 ejes normativos OK: U (DS N°15) + RF (LOFC) + R'w (NCh352) + dimensiones libres (OGUC Tít. IV).
+        </div>
+      </div>
+
+      <NotasPanel tabKey="puerta" notas={notas} setNotas={setNotas} />
+    </div>
+  )
+}
+
 // ─── SVG GLASER (pure JS, sin React) ─────────────────────────────────────────
 function glaserSvgStr(res, capas) {
   if (!res?.temps?.length) return ''
@@ -8235,6 +8524,13 @@ function AppInner() {
   ])
   const [fachadasNextId, setFachadasNextId] = useState(4)
 
+  // State lifted from TabPuerta — defaults: acceso principal + acceso a patio
+  const [puertas, setPuertas] = useState([
+    { id: 1, nombre: 'Acceso principal',      uso: 'acceso_vivienda', ancho: '0.90', alto: '2.00', hojaId: '', marcoId: '', selloId: '' },
+    { id: 2, nombre: 'Acceso a patio/loggia', uso: 'acceso_vivienda', ancho: '0.80', alto: '2.00', hojaId: '', marcoId: '', selloId: '' },
+  ])
+  const [puertasNextId, setPuertasNextId] = useState(3)
+
   // Inyectar CSS responsive móvil
   useEffect(() => {
     if (document.getElementById('nc-mobile-css')) return
@@ -8619,7 +8915,7 @@ function AppInner() {
               {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
               {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} perfil={perfil} />}
               {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-              {tab === 7 && <PuertasDetalladas proy={proy} />}
+              {tab === 7 && <TabPuerta proy={proy} puertas={puertas} setPuertas={setPuertas} puertasNextId={puertasNextId} setPuertasNextId={setPuertasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 8 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
               {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
               {tab === 10 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
