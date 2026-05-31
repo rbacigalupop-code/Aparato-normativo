@@ -5353,6 +5353,147 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
   )
 }
 
+// ─── Panel de incumplimientos por puerta ─────────────────────────────────────
+// Para cada eje normativo que falla (térmica/fuego/acústica/dimensiones),
+// cita la norma específica + la magnitud del incumplimiento + acciones
+// concretas para resolverlo (qué hoja/marco/sello/dimensión cambiar).
+function IncumplimientosPanelPuerta({ puerta: p, zona }) {
+  const issues = []
+
+  // ── Térmica (DS N°15 Tabla 1) ────────────────────────────────────────────
+  if (p.v?.termica && !p.v.termica.cumple) {
+    const hojaActualU = p.r.componentes.hoja.u
+    const mejoresHojas = PUERTA_HOJAS
+      .filter(h => h.u < hojaActualU)
+      .sort((a, b) => a.u - b.u)
+      .slice(0, 3)
+      .map(h => `${h.nombre} (U=${h.u})`)
+      .join(' · ')
+    issues.push({
+      icon: '🌡',
+      titulo: 'Térmica — U excede el máximo',
+      norma: `DS N°15 MINVU Tabla 1 · Zona ${zona} · Umax ≤ ${p.v.termica.umax} W/m²K`,
+      problema: `U actual = ${p.r.U} W/m²K · excede en ${(p.r.U - p.v.termica.umax).toFixed(2)} W/m²K`,
+      soluciones: [
+        mejoresHojas
+          ? `Cambiar la <b>hoja</b> a una con menor U. Opciones: ${mejoresHojas}.`
+          : `Considerar puerta Casa Pasiva certificada (U=0.8) — única opción debajo del actual.`,
+        `Cambiar el <b>marco</b> a PVC reforzado (U=2.0) o PVC premium 7 cámaras (U=1.2).`,
+        `Mejorar el <b>sello perimetral</b> a "EPDM perimetral + umbral" o "Doble junta acústica" para reducir infiltraciones.`,
+      ],
+    })
+  }
+
+  // ── Fuego (LOFC Ed.17) ───────────────────────────────────────────────────
+  if (p.v?.fuego && !p.v.fuego.cumple) {
+    const cortafuegos = PUERTA_HOJAS
+      .filter(h => /^F(30|60|90|120)/.test(h.rf))
+      .map(h => `${h.nombre} (${h.rf})`)
+      .join(' · ')
+    issues.push({
+      icon: '🔥',
+      titulo: 'Fuego — RF insuficiente',
+      norma: `LOFC Ed.17 2025 · Uso "${p.uso.replace(/_/g, ' ')}" · RF mínima ${p.v.fuego.rfRequerido}`,
+      problema: `RF actual = ${p.r.rf} · ${p.v.fuego.nota || ''}`,
+      soluciones: [
+        `Cambiar la <b>hoja</b> a un modelo cortafuego certificado: ${cortafuegos}.`,
+        `Verificar que el <b>marco</b> también tenga clasificación RF compatible (acero con RPT mín. F30, madera maciza para F0).`,
+        `Solicitar al fabricante la <b>certificación de ensayo EN 1634-1</b> con el marco específico instalado.`,
+        `Verificar gomas intumescentes en el perímetro (obligatorias en F60+).`,
+      ],
+    })
+  }
+
+  // ── Acústica (NCh352:2013) ───────────────────────────────────────────────
+  if (p.v?.acust && !p.v.acust.cumple) {
+    const hojaActualRw = p.r.componentes.hoja.rw
+    const mejoresAcust = PUERTA_HOJAS
+      .filter(h => h.rw > hojaActualRw)
+      .sort((a, b) => b.rw - a.rw)
+      .slice(0, 3)
+      .map(h => `${h.nombre} (R'w=${h.rw} dB)`)
+      .join(' · ')
+    issues.push({
+      icon: '🔊',
+      titulo: "Acústica — R'w insuficiente",
+      norma: `NCh352:2013 · Uso "${p.uso.replace(/_/g, ' ')}" · R'w mínimo ${p.v.acust.rwRequerido} dB`,
+      problema: `R'w actual = ${p.r.rw} dB · faltan ${Math.abs(p.v.acust.margen)} dB`,
+      soluciones: [
+        mejoresAcust
+          ? `Cambiar la <b>hoja</b> a una más másica/aislada: ${mejoresAcust}.`
+          : `Considerar puerta acústica certificada con núcleo de lana mineral densa o panel sándwich.`,
+        `Mejorar el <b>sello perimetral</b> a "Doble junta + umbral acústico" (aporta +8 dB).`,
+        `Verificar continuidad del sello en TODO el perímetro (cualquier rendija reduce ≥5 dB el desempeño).`,
+        `Para R'w ≥ 40 dB suele requerirse ensayo NCh352 in situ con la puerta instalada.`,
+      ],
+    })
+  }
+
+  // ── Dimensiones (OGUC Tít. IV) ───────────────────────────────────────────
+  if (p.v?.dimens && !p.v.dimens.cumple) {
+    const articulo = p.uso === 'evacuacion_escalera'
+      ? 'OGUC Art. 4.2.13 · Puerta de evacuación'
+      : (p.uso === 'acceso_vivienda' || p.uso === 'acceso_unidades')
+        ? 'OGUC Art. 4.1.7 · Acceso vivienda'
+        : 'OGUC Tít. IV · Puerta interior'
+    // Aproximación: cuánto más necesita
+    const faltaAncho = p.v.dimens.anchoOK ? 0 : (p.v.dimens.anchoMinReq - p.v.dimens.anchoActual)
+    const faltaAlto  = p.v.dimens.altoOK  ? 0 : (p.v.dimens.altoMinReq  - p.v.dimens.altoActual)
+    const soluciones = []
+    if (!p.v.dimens.anchoOK) {
+      soluciones.push(`Aumentar el <b>ancho TOTAL</b> en al menos ${(faltaAncho + 0.01).toFixed(2)} m (libre actual ${p.v.dimens.anchoActual} m vs req. ${p.v.dimens.anchoMinReq} m).`)
+      soluciones.push(`O usar un <b>marco más delgado</b> (60 mm en vez de 80 mm) para ganar ancho libre sin tocar el vano.`)
+    }
+    if (!p.v.dimens.altoOK) {
+      soluciones.push(`Aumentar el <b>alto TOTAL</b> en al menos ${(faltaAlto + 0.01).toFixed(2)} m (libre actual ${p.v.dimens.altoActual} m vs req. ${p.v.dimens.altoMinReq} m).`)
+    }
+    if (p.v.dimens.abreHacia && p.v.dimens.abreHacia !== 'cualquiera') {
+      soluciones.push(`<b>Verificar sentido de apertura:</b> debe abrir hacia <b>${p.v.dimens.abreHacia}</b> según el uso (revisar planos).`)
+    }
+    issues.push({
+      icon: '📐',
+      titulo: 'Dimensiones — paso libre insuficiente',
+      norma: `${articulo} · mín ${p.v.dimens.anchoMinReq} × ${p.v.dimens.altoMinReq} m libres de paso`,
+      problema: `Ancho libre: ${p.v.dimens.anchoActual} m ${p.v.dimens.anchoOK ? '✓' : '✗'} · Alto libre: ${p.v.dimens.altoActual} m ${p.v.dimens.altoOK ? '✓' : '✗'}`,
+      soluciones,
+    })
+  }
+
+  if (!issues.length) return null
+
+  return (
+    <div style={{ marginTop: 10, padding: '10px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>
+        ❌ Incumplimientos detectados ({issues.length})
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {issues.map((it, i) => (
+          <div key={i} style={{ background: '#fff', borderRadius: 6, padding: '8px 10px', border: '1px solid #fee2e2' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 14 }}>{it.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{it.titulo}</span>
+            </div>
+            <div style={{ fontSize: 11, color: '#0369a1', marginBottom: 3, fontWeight: 600 }}>
+              📖 Norma: {it.norma}
+            </div>
+            <div style={{ fontSize: 11, color: '#7c2d12', marginBottom: 6 }}>
+              ⚠ {it.problema}
+            </div>
+            <div style={{ fontSize: 11, color: '#1e293b', fontWeight: 600, marginBottom: 3 }}>
+              💡 Cómo resolverlo:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: '#475569', lineHeight: 1.6 }}>
+              {it.soluciones.map((sol, j) => (
+                <li key={j} dangerouslySetInnerHTML={{ __html: sol }} />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── PESTAÑA PUERTA ────────────────────────────────────────────────────────────
 // Mirror estructural de TabVentana: usa los mismos helpers S.* y el mismo
 // patrón visual (calculadora arriba + lista del proyecto + resumen normativo).
@@ -5584,6 +5725,11 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
                 </div>
               )}
             </div>
+
+            {/* Panel de incumplimientos: solo si algún eje falla — cita norma + cómo resolver */}
+            {p.r && !p.cumpleAll && (
+              <IncumplimientosPanelPuerta puerta={p} zona={zona} />
+            )}
           </div>
         ))}
       </div>
