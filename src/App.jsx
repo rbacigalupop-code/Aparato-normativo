@@ -70,7 +70,7 @@ const calcU_ISO6946 = calcU_ISO6946_completo
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
   app: { fontFamily: 'system-ui,sans-serif', fontSize: 13, color: '#1e293b', minHeight: '100vh', background: '#f1f5f9' },
-  header: { background: 'linear-gradient(135deg,#1e40af,#0369a1)', color: '#fff', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12 },
+  header: { background: 'linear-gradient(135deg,#1e40af,#0369a1)', color: '#fff', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   tabs: { display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 8px 0', flexWrap: 'wrap' },
   tab: (a) => ({ padding: '7px 14px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', fontSize: 12, fontWeight: a ? 700 : 400, background: a ? '#fff' : 'transparent', color: a ? '#1e40af' : '#64748b' }),
   body: { padding: 16, maxWidth: 1100, margin: '0 auto' },
@@ -8759,7 +8759,34 @@ function AppInner() {
     const st = document.createElement('style')
     st.id = 'nc-mobile-css'
     st.textContent = `
-      /* ── Sidebar desktop ─────────────────────────── */
+      /* ═══ Easing curves (Emil Kowalski) ═════════════════════════════════ */
+      :root {
+        --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+        --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      }
+
+      /* ═══ Button polish global (Emil's :active scale + ease-out) ═══════ */
+      button {
+        transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), opacity 160ms var(--ease-out);
+      }
+      @media (hover: hover) and (pointer: fine) {
+        button:hover:not(:disabled) { filter: brightness(1.05); }
+      }
+      button:active:not(:disabled) { transform: scale(0.97); }
+
+      /* ═══ Header global — prevenir overflow en mobile/tablet ═══════════ */
+      .nc-header { min-width: 0; }
+      .nc-header > * { min-width: 0; }
+      .nc-header img { max-width: 30vw; }
+
+      /* ═══ Hero gradient banners (TabPuerta, módulos) ═══════════════════ */
+      .nc-hero {
+        overflow-wrap: anywhere;
+        word-break: normal;
+      }
+      .nc-hero h2 { font-size: clamp(15px, 4vw, 24px) !important; line-height: 1.2; }
+
+      /* ═══ Sidebar desktop ══════════════════════════════════════════════ */
       @media (min-width: 641px) {
         .nc-with-sidebar {
           display: flex;
@@ -8782,22 +8809,72 @@ function AppInner() {
         }
         .nc-sidebar::-webkit-scrollbar { width: 4px; }
         .nc-sidebar::-webkit-scrollbar-thumb { background: #bfdbfe; border-radius: 4px; }
-        /* Ocultar paneles inline cuando sidebar activo */
         .nc-has-sidebar .nc-ayuda-inline { display: none !important; }
       }
-      /* ── Móvil ───────────────────────────────────── */
+
+      /* ═══ Tablet (641-1024px) ═════════════════════════════════════════ */
+      @media (min-width: 641px) and (max-width: 1024px) {
+        .nc-body { padding: 12px !important; }
+        .nc-header { padding: 8px 14px !important; }
+        .nc-header img { height: 56px !important; }
+        .nc-hero { padding: 14px 18px !important; }
+      }
+
+      /* ═══ Móvil (≤640px) ══════════════════════════════════════════════ */
       @media (max-width: 640px) {
         .nc-body { padding: 8px !important; }
         .nc-tabs { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .nc-tabs::-webkit-scrollbar { display: none; }
-        .nc-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        /* Tablas con scroll horizontal + indicador visual de scroll */
+        .nc-table-scroll {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          position: relative;
+          background:
+            linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) 0 0,
+            linear-gradient(to right, rgba(255,255,255,0), #fff 70%) 100% 0,
+            radial-gradient(farthest-side at 0 50%, rgba(15,23,42,0.18), rgba(0,0,0,0)) 0 0,
+            radial-gradient(farthest-side at 100% 50%, rgba(15,23,42,0.18), rgba(0,0,0,0)) 100% 0;
+          background-repeat: no-repeat;
+          background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+          background-attachment: local, local, scroll, scroll;
+        }
         .nc-table-scroll table { min-width: 480px; }
         .nc-table-scroll select { width: 130px !important; min-width: 0 !important; }
         .nc-table-scroll input { width: 48px !important; min-width: 0 !important; }
+
+        /* Header principal: logo más chico + ocultar info redundante */
+        .nc-header { padding: 6px 10px !important; gap: 8px !important; }
+        .nc-header img { height: 44px !important; max-width: 22vw; }
         .nc-header-info { display: none !important; }
         .nc-header-subtitle { display: none !important; }
+
+        /* Hero banners: tipografía más compacta + padding reducido */
+        .nc-hero { padding: 12px 14px !important; }
+        .nc-hero h2 { font-size: 16px !important; line-height: 1.25; }
+        .nc-hero p { font-size: 11px !important; }
+
+        /* Inputs y selects sueltos (fuera de tablas): no exceder pantalla */
+        input[type="text"], input[type="number"], input:not([type]), select, textarea {
+          max-width: 100% !important;
+        }
+
+        /* Sidebar y botón sidebar: ocultos en mobile */
         .nc-sidebar { display: none !important; }
         .nc-sidebar-btn { display: none !important; }
+      }
+
+      /* ═══ Mobile chico (≤375px iPhone SE) ═════════════════════════════ */
+      @media (max-width: 375px) {
+        .nc-header img { height: 36px !important; }
+        .nc-hero h2 { font-size: 14px !important; }
+      }
+
+      /* ═══ Reduced motion ═════════════════════════════════════════════ */
+      @media (prefers-reduced-motion: reduce) {
+        button { transition: none; }
+        button:active { transform: none; }
       }
     `
     document.head.appendChild(st)
@@ -9015,7 +9092,7 @@ function AppInner() {
 
   return (
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
-      <div style={S.header}>
+      <div style={S.header} className="nc-header">
         {/* Logo NormaCheck */}
         <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
