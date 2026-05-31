@@ -28,9 +28,10 @@ export default function UserHeader() {
   const tokenColor = tokensAgotados ? '#991b1b' : tokensBajos ? '#a16207' : '#1e40af'
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="nc-user-header" style={{ position: 'relative', minWidth: 0, maxWidth: '100%' }}>
       <button
         onClick={() => setShowMenu(!showMenu)}
+        title={nombreUsuario}
         style={{
           background: 'rgba(255,255,255,0.15)',
           border: '1px solid rgba(255,255,255,0.3)',
@@ -43,6 +44,9 @@ export default function UserHeader() {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
+          maxWidth: '100%',
+          minWidth: 0,
+          overflow: 'hidden',
         }}
       >
         <span style={{
@@ -52,6 +56,7 @@ export default function UserHeader() {
           borderRadius: 4,
           fontSize: 10,
           fontWeight: 600,
+          flexShrink: 0,
         }}>
           {rol}
         </span>
@@ -67,13 +72,26 @@ export default function UserHeader() {
             display: 'flex',
             alignItems: 'center',
             gap: 3,
+            flexShrink: 0,
           }}
           title={`${tokensDisponibles} informe${tokensDisponibles !== 1 ? 's' : ''} disponible${tokensDisponibles !== 1 ? 's' : ''}`}
         >
           🎫 {tokensDisponibles}
         </span>
-        <span>{nombreUsuario}</span>
-        <span style={{ fontSize: 10 }}>▼</span>
+        {/* Nombre usuario: oculto en mobile (clase nc-user-name), truncado con ellipsis en desktop */}
+        <span
+          className="nc-user-name"
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: 180,
+            minWidth: 0,
+          }}
+        >
+          {nombreUsuario}
+        </span>
+        <span style={{ fontSize: 10, flexShrink: 0 }}>▼</span>
       </button>
 
       {/* Dropdown menu */}

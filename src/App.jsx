@@ -8818,6 +8818,12 @@ function AppInner() {
         .nc-header { padding: 8px 14px !important; }
         .nc-header img { height: 56px !important; }
         .nc-hero { padding: 14px 18px !important; }
+        /* Nombre de usuario más compacto en tablet (todavía visible) */
+        .nc-user-name { max-width: 120px !important; }
+      }
+      /* Tablet chico (641-820px): ocultar nombre, dejar solo badges */
+      @media (min-width: 641px) and (max-width: 820px) {
+        .nc-user-name { display: none !important; }
       }
 
       /* ═══ Móvil (≤640px) ══════════════════════════════════════════════ */
@@ -8849,6 +8855,8 @@ function AppInner() {
         .nc-header img { height: 44px !important; max-width: 22vw; }
         .nc-header-info { display: none !important; }
         .nc-header-subtitle { display: none !important; }
+        /* UserHeader mobile: ocultar nombre + nombre dropdown abre desde el botón */
+        .nc-user-name { display: none !important; }
 
         /* Hero banners: tipografía más compacta + padding reducido */
         .nc-hero { padding: 12px 14px !important; }
