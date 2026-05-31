@@ -38,6 +38,7 @@ import EnergeticoHome   from './modules/energetico/EnergeticoHome.jsx'
 import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
 import DemandaAnual    from './modules/energetico/DemandaAnual.jsx'
 import Detalles        from './modules/energetico/Detalles.jsx'
+import PuertasDetalladas from './modules/energetico/PuertasDetalladas.jsx'
 import Renovables      from './modules/energetico/Renovables.jsx'
 import InformeEjecutivo from './modules/energetico/InformeEjecutivo.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
@@ -8022,7 +8023,7 @@ const PLANTILLAS_USO = [
 ]
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
-const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '📐 Detalles', 'Resultados', '⚙ Admin']
+const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '🚪 Puerta', '📐 Detalles', 'Resultados', '⚙ Admin']
 const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '📊 Demanda', '🔬 Detalles', '🌱 Renovables', '📑 Informe']
 
 export default function App() {
@@ -8203,6 +8204,17 @@ function AppInner() {
       normativa: 'DS N°15 MINVU Tabla 3 (VPCT) · EN 10077 (Uw) · NCh-EN 12207 · OGUC Art. 4.1.10',
     },
     7: {
+      titulo: 'Puertas detalladas (4 ejes normativos)',
+      pasos: [
+        'Selecciona primero el <b>uso</b> de la puerta (acceso vivienda, evacuación, cuarto técnico, etc.) — fija los mínimos de RF y R\'w.',
+        'Define <b>dimensiones</b> totales en metros (incluido el marco).',
+        'Elige <b>hoja</b>, <b>marco</b> y <b>sello perimetral</b>. La app sugiere lo apropiado a tu zona DS N°15.',
+        'Los <b>4 chips de cumplimiento</b> arriba muestran de un vistazo: U (térmica), RF (fuego), R\'w (acústica), dimensiones (OGUC).',
+        'Usa el <b>comparativo</b> al final para ver tu config vs sugerida vs Casa Pasiva.',
+      ],
+      normativa: 'DS N°15 (U) · LOFC Ed.17 (RF) · NCh352 (R\'w) · OGUC Tít. IV (dimensiones) · ISO 10077-1',
+    },
+    9: {
       titulo: 'Resumen y exportación',
       pasos: [
         'Consolida automáticamente los datos de <b>Diagnóstico, Soluciones, Térmica, Fuego y Acústica</b>.',
@@ -8607,9 +8619,10 @@ function AppInner() {
               {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
               {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} perfil={perfil} />}
               {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
-              {tab === 7 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
-              {tab === 8 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
-              {tab === 9 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
+              {tab === 7 && <PuertasDetalladas proy={proy} />}
+              {tab === 8 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
+              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
+              {tab === 10 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
             </div>
             {showAyuda && ayudaData[tab] && (
               <div className="nc-sidebar">
