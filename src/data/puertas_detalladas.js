@@ -256,6 +256,72 @@ export const UMAX_PUERTA_DS15 = {
   'A': 5.8, 'B': 4.6, 'C': 4.0, 'D': 3.6, 'E': 3.0, 'F': 2.4, 'G': 2.0, 'H': 1.8,
 }
 
+// ═══ TIPOLOGÍAS DE PUERTA ════════════════════════════════════════════════════
+// Tipo de apertura / configuración constructiva. Afecta principalmente al
+// detalle del sello perimetral y a la complejidad de instalación.
+// La calculadora U trata todas como rectangulares — la tipología es metadata
+// descriptiva para el proyectista y para el informe DOM.
+export const TIPOLOGIAS_PUERTA = [
+  {
+    id: '1_hoja_batiente',
+    nombre: '1 hoja batiente',
+    icono: '🚪',
+    nota: 'La más común. Sello perimetral en 3 lados + umbral.',
+  },
+  {
+    id: '2_hojas_batientes',
+    nombre: '2 hojas batientes (doble)',
+    icono: '🚪',
+    nota: 'Hoja activa + hoja pasiva con pasador. Sello central crítico para acústica.',
+  },
+  {
+    id: 'corredera_2_hojas',
+    nombre: 'Corredera 2 hojas',
+    icono: '↔',
+    nota: 'Sello tipo cepillo en jambas + umbral guía. Menor estanqueidad típica que la batiente.',
+  },
+  {
+    id: 'corredera_3_hojas',
+    nombre: 'Corredera 3 hojas',
+    icono: '↔',
+    nota: 'Mayor área de paso. Sello cepillo en cada hoja.',
+  },
+  {
+    id: 'plegable',
+    nombre: 'Plegable (acordeón)',
+    icono: '🪟',
+    nota: 'Múltiples hojas articuladas. Sellos entre hojas + umbral inferior.',
+  },
+  {
+    id: 'pivotante',
+    nombre: 'Pivotante (eje central)',
+    icono: '🌀',
+    nota: 'Eje vertical descentrado. Marco continuo arriba/abajo. Frecuente en accesos arquitectónicos.',
+  },
+  {
+    id: 'automatica_corredera',
+    nombre: 'Automática corredera',
+    icono: '🤖',
+    nota: 'Apertura motorizada. Sello tipo escobilla + brush perimetral. Para accesos comerciales / hospitales.',
+  },
+  {
+    id: 'garaje_basculante',
+    nombre: 'Garaje basculante',
+    icono: '🚗',
+    nota: 'Apertura superior. Sello perimetral en goma. Para acceso vehicular.',
+  },
+  {
+    id: 'garaje_seccional',
+    nombre: 'Garaje seccional',
+    icono: '🚗',
+    nota: 'Paneles articulados que suben al techo. Mejor aislación que basculante.',
+  },
+]
+
+export function obtenerTipologiaPuerta(id) {
+  return TIPOLOGIAS_PUERTA.find(t => t.id === id) || null
+}
+
 // ═══ SUGERENCIAS POR ZONA ════════════════════════════════════════════════════
 // Configuración recomendada para acceso principal de vivienda según zona DS N°15.
 export const SUGERENCIAS_POR_ZONA = {

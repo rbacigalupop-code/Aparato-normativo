@@ -2735,8 +2735,11 @@ const MAT_ESCAL = [
   { id:'mamp',   label:'Mampostería de ladrillo/bloque',    rfBase:'F60',  nota:'RF intrínseca ≥ F60 según espesor (e ≥ 110 mm). Ver LOFC Ed.17 Tabla A2.' },
 ]
 
-function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja }) {
-  const [matId, setMatId] = useState('ha')
+function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matIdProp, setMatId: setMatIdProp }) {
+  // Si recibe matId/setMatId por props (lifted), los usa; si no, state local (retrocompat)
+  const [matIdLocal, setMatIdLocal] = useState('ha')
+  const matId = matIdProp ?? matIdLocal
+  const setMatId = setMatIdProp ?? setMatIdLocal
   const uso = proy.uso || ''
   const pisos = parseInt(proy.pisos) || 0
 
@@ -2945,7 +2948,7 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja }) {
 }
 
 // ─── PESTAÑA FUEGO ────────────────────────────────────────────────────────────
-function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, getRFDeLetra, ogucData }) {
+function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, getRFDeLetra, ogucData, escaleras, setEscaleras }) {
   const uso = proy.uso || 'Vivienda'
   const rfDef = RF_DEF[uso] || {}
   const letraOGUCFn = getLetraOGUC || (() => null)
@@ -2963,8 +2966,10 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   // el usuario puede habilitarlas manualmente si su proyecto las incluye.
   const pisosNum = Number(proy.pisos) || 0
   const escalerasObligatorias = pisosNum >= 2
-  const [incluirEscaleras, setIncluirEscaleras] = useState(escalerasObligatorias)
-  // Si el usuario cambia los pisos a 2+, fuerza incluirEscaleras = true.
+  // El estado vive en App.jsx (lifted) — TabFuego y el Informe lo comparten.
+  const incluirEscaleras = !!escaleras?.incluido
+  const setIncluirEscaleras = (v) => setEscaleras(prev => ({ ...prev, incluido: typeof v === 'function' ? v(prev?.incluido) : v }))
+  // Si pisos sube a 2+, fuerza incluido=true automáticamente.
   useEffect(() => { if (escalerasObligatorias && !incluirEscaleras) setIncluirEscaleras(true) }, [escalerasObligatorias])  // eslint-disable-line react-hooks/exhaustive-deps
   const mostrarEscaleras = escalerasObligatorias || incluirEscaleras
 
@@ -3321,6 +3326,8 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
           letraOGUC={letraOGUC}
           rfReqEscalera={rfReqFromOGUC('escaleras') || rfDef.escaleras || null}
           rfReqCaja={rfReqFromOGUC('cajas_esc') || null}
+          matId={escaleras?.matId || 'ha'}
+          setMatId={(v) => setEscaleras(prev => ({ ...prev, matId: typeof v === 'function' ? v(prev?.matId) : v }))}
         />
       )}
 
@@ -6546,7 +6553,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [] }) {
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, escaleras, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [] }) {
   // Fallbacks defensivos por si las props no están disponibles
   const getRFOGUC_loaded = getRFOGUC || (() => null)
   const getLetraOGUC_loaded = getLetraOGUC || (() => null)
@@ -6563,6 +6570,8 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const haySistemas  = (proy.estructuras?.length || 0) > 1
   const hayVentanas  = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
   const hayPuertas   = (puertas || []).some(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
+  const _pisosNum    = Number(proy.pisos) || 0
+  const hayEscaleras = _pisosNum >= 2 || !!escaleras?.incluido
   const hayNotas     = Object.values(notas || {}).some(v => v?.toString().trim())
   // Hay escantillones si existe solución/capas para muro + al menos piso o techo
   const hayEscantillones = !!(
@@ -6580,6 +6589,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     sistemas:      modulosInforme?.sistemas      ?? haySistemas,
     ventanas:      modulosInforme?.ventanas      ?? hayVentanas,
     puertas:       modulosInforme?.puertas       ?? hayPuertas,
+    escaleras:     modulosInforme?.escaleras     ?? hayEscaleras,
     notas:         modulosInforme?.notas         ?? hayNotas,
     escantillones: modulosInforme?.escantillones ?? hayEscantillones,
   }
@@ -6663,15 +6673,18 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const _haySistemas = (proy.estructuras?.length || 0) > 1
     const _hayVentanas = fachadas?.some(f => parseFloat(f.vanos) > 0 || parseFloat(f.areaFachada) > 0)
     const _hayPuertas  = (puertas || []).some(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
+    const _pisosNumE   = Number(proy.pisos) || 0
+    const _hayEscaleras = _pisosNumE >= 2 || !!escaleras?.incluido
     const _hayNotas    = Object.values(notas || {}).some(v => v?.toString().trim())
     const mods = {
-      termica:  modulosInforme?.termica  ?? true,
-      fuego:    modulosInforme?.fuego    ?? _reqFuego,
-      acustica: modulosInforme?.acustica ?? _reqAcustica,
-      sistemas: modulosInforme?.sistemas ?? _haySistemas,
-      ventanas: modulosInforme?.ventanas ?? _hayVentanas,
-      puertas:  modulosInforme?.puertas  ?? _hayPuertas,
-      notas:    modulosInforme?.notas    ?? _hayNotas,
+      termica:   modulosInforme?.termica   ?? true,
+      fuego:     modulosInforme?.fuego     ?? _reqFuego,
+      acustica:  modulosInforme?.acustica  ?? _reqAcustica,
+      sistemas:  modulosInforme?.sistemas  ?? _haySistemas,
+      ventanas:  modulosInforme?.ventanas  ?? _hayVentanas,
+      puertas:   modulosInforme?.puertas   ?? _hayPuertas,
+      escaleras: modulosInforme?.escaleras ?? _hayEscaleras,
+      notas:     modulosInforme?.notas     ?? _hayNotas,
     }
 
     // ── Validación de completitud ──────────────────────────────────────────────
@@ -7333,6 +7346,95 @@ ${glaserHtml}`
 </div>`
     }
 
+    // ── Escaleras de evacuación — OGUC Art. 4.5.7 ─────────────────────────────
+    let escalerasHtml = ''
+    if (mods.escaleras) {
+      const pisosE = Number(proy.pisos) || 0
+      const escObligatorias = pisosE >= 2
+      // Cargar requisitos RF directo del OGUC (igual que TabFuego)
+      const usoR = proy.uso || ''
+      let rfReqEsc = null
+      let rfReqCajaEsc = null
+      try {
+        const letraE = ogucData && proy.destinoOGUC && proy.areaConst
+          ? getLetraOGUC?.(proy.destinoOGUC, parseFloat(proy.areaConst), 'segura')
+          : null
+        if (letraE && getRFDeLetra) {
+          rfReqEsc = getRFDeLetra(letraE, 'escaleras') || null
+          rfReqCajaEsc = getRFDeLetra(letraE, 'cajas_esc') || null
+        }
+      } catch (_) {}
+      // Fallback a RF_DEF si no se pudo derivar del OGUC
+      if (!rfReqEsc && usoR && RF_DEF[usoR]?.escaleras) rfReqEsc = RF_DEF[usoR].escaleras
+      if (!rfReqCajaEsc && usoR && requiereCajaEscalera(usoR, pisosE) && RF_DEF[usoR]?.cajas_esc) {
+        rfReqCajaEsc = RF_DEF[usoR].cajas_esc
+      }
+      // Material seleccionado por el usuario
+      const mat = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha')) || MAT_ESCAL[0]
+      const rfBaseN = mat.rfBase ? rfStringToNumber(mat.rfBase) : 0
+      const cumpleEsc = !rfReqEsc || !mat.rfBase || rfBaseN >= rfStringToNumber(rfReqEsc)
+      const necesitaCaja = requiereCajaEscalera(usoR, pisosE)
+
+      escalerasHtml = `
+<h2 id="modulo-5d">Módulo 5c — Escaleras de evacuación (OGUC Art. 4.5.7)</h2>
+<div style="font-size:10pt;color:#475569;margin-bottom:8px;line-height:1.5">
+  ${escObligatorias
+    ? `<b>Proyecto de ${pisosE} pisos:</b> las escaleras de evacuación son <b>OBLIGATORIAS</b> por OGUC Art. 4.5.7.`
+    : `<b>Proyecto de ${pisosE || 1} piso:</b> escaleras de evacuación no son exigibles, pero el proyectista las incluyó voluntariamente en el informe.`}
+</div>
+<h3>Exigencias RF</h3>
+<table>
+  <tr><th>Elemento</th><th>RF mínima requerida</th><th>Referencia OGUC</th><th>Estado</th></tr>
+  <tr>
+    <td><b>Escalera (peldaños + estructura)</b></td>
+    <td><b>${rfReqEsc || '—'}</b></td>
+    <td>OGUC Tabla 1 Col. (9)</td>
+    <td>${rfReqEsc
+      ? `<span class="${cumpleEsc ? 'badge-ok' : 'badge-no'}">${cumpleEsc ? 'CUMPLE' : 'NO CUMPLE'}</span>`
+      : '<span style="color:#94a3b8">Sin exigencia para este uso/pisos</span>'}</td>
+  </tr>
+  <tr>
+    <td><b>Caja de escalera (recinto de protección)</b></td>
+    <td><b>${rfReqCajaEsc || '—'}</b></td>
+    <td>OGUC Tabla 1 Col. (4)</td>
+    <td>${necesitaCaja
+      ? (rfReqCajaEsc
+        ? `<span class="${cumpleEsc ? 'badge-ok' : 'badge-no'}">${cumpleEsc ? 'CUMPLE' : 'NO CUMPLE'}</span>`
+        : '<span style="color:#94a3b8">Exigida — definir material</span>')
+      : '<span style="color:#94a3b8">Caja no exigida para este uso/pisos</span>'}</td>
+  </tr>
+</table>
+<h3>Solución constructiva propuesta</h3>
+<table>
+  <tr><th>Material</th><th>RF intrínseca</th><th>Recubrimiento / espesor</th><th>Norma respaldo</th></tr>
+  <tr>
+    <td><b>${mat.label}</b></td>
+    <td><b>${mat.rfBase || 'según protección'}</b></td>
+    <td>${mat.id === 'ha' ? '≥ 20 mm' : mat.id === 'mamp' ? '≥ 110 mm espesor' : mat.id === 'madera' ? '≥ 90 mm sección' : mat.id === 'clt' ? '≥ 90 mm espesor' : '—'}</td>
+    <td><span style="font-size:8.5pt;color:#64748b">${mat.nota}</span></td>
+  </tr>
+</table>
+<h3>Tabla de referencia — materiales aceptables</h3>
+<table>
+  <tr><th>Material</th><th>RF base</th><th>Cumple ${rfReqEsc || '—'}</th></tr>
+  ${MAT_ESCAL.map(m => {
+    const rfN = m.rfBase ? rfStringToNumber(m.rfBase) : 0
+    const ok = rfReqEsc && m.rfBase ? rfN >= rfStringToNumber(rfReqEsc) : null
+    const isSel = m.id === (escaleras?.matId || 'ha')
+    return `<tr style="${isSel ? 'background:#eff6ff;font-weight:600' : ''}">
+      <td>${isSel ? '➤ ' : ''}${m.label}</td>
+      <td>${m.rfBase || '—'}</td>
+      <td>${ok === null ? '<span style="color:#94a3b8">—</span>' : ok ? '<span class="badge-ok">✓</span>' : '<span class="badge-no">✗</span>'}</td>
+    </tr>`
+  }).join('')}
+</table>
+<div style="font-size:8.5pt;color:#64748b;margin-top:6px;line-height:1.5">
+  <b>OGUC Art. 4.5.7</b> · <b>LOFC Ed.17 2025 Tabla A2/A4/A6</b> · <b>NCh430</b> (HA) · <b>NCh850</b> (ensayo RF).
+  La <b>caja de escalera</b> (recinto cerrado de protección) debe garantizar evacuación segura — sus muros y puerta requieren RF según Col. (4) de la Tabla 1.
+  Para escaleras de acero sin protección certificada: respaldar con ensayo NCh850 específico.
+</div>`
+    }
+
     // ── Notas del proyectista ─────────────────────────────────────────────────
     const TAB_NAMES_RPT = { diagnostico:'Diagnóstico', soluciones:'Soluciones', termica:'Térmica', fuego:'Fuego', acustica:'Acústica', calcU:'Cálculo U', ventana:'Ventana', resultados:'Resultados' }
     const notasEntries = Object.entries(notas || {}).filter(([, v]) => v?.trim())
@@ -7727,6 +7829,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.acustica ? `<li><a href="#modulo-4">Módulo 4 — Aislamiento Acústico</a><span class="toc-dots"></span><span class="toc-page">OGUC · NCh352</span></li>` : ''}
     ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
     ${mods.puertas ? `<li><a href="#modulo-5c">Módulo 5b — Puertas (4 ejes normativos)</a><span class="toc-dots"></span><span class="toc-page">DS N°15 · LOFC · NCh352 · OGUC IV</span></li>` : ''}
+    ${mods.escaleras ? `<li><a href="#modulo-5d">Módulo 5c — Escaleras de evacuación</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 4.5.7 · LOFC Ed.17</span></li>` : ''}
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
     ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
     ${(mods.escantillones && detallesInforme.length > 0) ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
@@ -7910,6 +8013,8 @@ ${mods.acustica ? `<h2 id="modulo-4">Módulo 4 — Aislamiento Acústico (OGUC A
 ${mods.ventanas ? vpctHtml : ''}
 
 ${mods.puertas ? puertasHtml : ''}
+
+${mods.escaleras ? escalerasHtml : ''}
 
 ${mods.notas ? notasHtml : ''}
 
@@ -8217,6 +8322,16 @@ ${cards}`)
               key: 'puertas', icon: '🚪', label: 'Puertas (4 ejes normativos)',
               norma: 'DS N°15 · LOFC Ed.17 · NCh352 · OGUC Tít. IV',
               req: false, reqMsg: hayPuertas ? `${(puertas || []).length} puertas configuradas` : 'Sin componentes seleccionados en puertas',
+            },
+            {
+              key: 'escaleras', icon: '🚶', label: 'Escaleras de evacuación',
+              norma: 'OGUC Art. 4.5.7 · LOFC Ed.17 · NCh430 · NCh850',
+              req: _pisosNum >= 2,
+              reqMsg: _pisosNum >= 2
+                ? `Proyecto de ${_pisosNum} pisos — exigible OGUC Art. 4.5.7`
+                : escaleras?.incluido
+                  ? `Incluida voluntariamente (proyecto de 1 piso)`
+                  : 'Proyecto de 1 piso — no exigible',
             },
             {
               key: 'notas', icon: '📝', label: 'Notas del proyectista',
@@ -8753,6 +8868,13 @@ function AppInner() {
   ])
   const [puertasNextId, setPuertasNextId] = useState(3)
 
+  // State lifted from TabFuego (CalcRFEscalera) — para que el informe pueda
+  // mostrar la sección de escaleras de evacuación (OGUC Art. 4.5.7)
+  const [escaleras, setEscaleras] = useState({
+    incluido: false,        // se autocompleta a true si pisos ≥ 2 (vía TabFuego)
+    matId: 'ha',            // material por defecto: hormigón armado
+  })
+
   // Inyectar CSS responsive móvil
   useEffect(() => {
     if (document.getElementById('nc-mobile-css')) return
@@ -9218,13 +9340,13 @@ function AppInner() {
               )}
               {tab === 1 && <TabSoluciones proy={proy} setProy={setProy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
               {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
-              {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} />}
+              {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} escaleras={escaleras} setEscaleras={setEscaleras} />}
               {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
               {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} perfil={perfil} />}
               {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 7 && <TabPuerta proy={proy} puertas={puertas} setPuertas={setPuertas} puertasNextId={puertasNextId} setPuertasNextId={setPuertasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 8 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
-              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
+              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} escaleras={escaleras} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
               {tab === 10 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
             </div>
             {showAyuda && ayudaData[tab] && (
