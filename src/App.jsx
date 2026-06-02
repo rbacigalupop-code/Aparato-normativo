@@ -3014,8 +3014,12 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
     // Cajas de escalera y Escaleras: sólo aparecen en la tabla cuando corresponde
     // (edificación ≥ 2 pisos, o 1 piso con habilitación manual del usuario).
     ...(mostrarEscaleras ? [
+      // Si la caja de escalera no es exigida para este uso+pisos, marcamos
+      // noAplica=true para que el render muestre "— no aplica" en vez del
+      // valor teórico OGUC (que confunde — sugiere un requisito que no aplica).
       { id:'cajas_esc',  label:'Cajas de escalera / ascensores / ductos',
         rfReq: rfReqFromOGUC('cajas_esc'),
+        noAplica: !requiereCajaEscalera(uso, proy.pisos),
         obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (4) cajas de escalera` : requiereCajaEscalera(uso, proy.pisos) ? 'OGUC Art. 4.5.7 — caja de escalera exigida según uso y pisos.' : 'OGUC Art. 4.5.7 — caja de escalera no exigida para este uso/pisos.' },
       { id:'escaleras',  label:'Escaleras / Vías de escape',
         rfReq: rfReqFromOGUC('escaleras') || rfDef.escaleras,
@@ -3176,11 +3180,13 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
             <th style={S.th}>Estado</th>
           </tr></thead>
           <tbody>
-            {elems.map(({ id, label, rfReq, obs }) => {
+            {elems.map(({ id, label, rfReq, obs, noAplica }) => {
               const rfManual = termica['rf_' + id]?.rf || ''
               const rfSol = rfFromSol[id] || ''
               const rfP = rfManual || rfSol
-              const cumple = !rfReq || !rfP || rfN(rfP) >= rfN(rfReq)
+              // Si el elemento no aplica para este proyecto (ej. caja de
+              // escalera en 1 piso vivienda), no se evalúa cumplimiento.
+              const cumple = noAplica || !rfReq || !rfP || rfN(rfP) >= rfN(rfReq)
               const sol = solForElem[id]
               const rfInvalid = rfManual && !VALID_RF.includes(rfManual)
               return (
@@ -3231,13 +3237,17 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                     {rfInvalid && <div style={{ fontSize:10, color:'#dc2626' }}>⚠ valor fuera de norma</div>}
                     {!rfManual && rfSol && <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>}
                   </td>
-                  <td style={{ ...S.td, color: rfReq?'#dc2626':'#94a3b8', fontWeight: rfReq?700:'normal' }}>
-                    {rfReq ? `≥ ${rfReq}` : '—'}
+                  <td style={{ ...S.td, color: noAplica?'#94a3b8':(rfReq?'#dc2626':'#94a3b8'), fontWeight: (rfReq && !noAplica)?700:'normal' }}>
+                    {noAplica
+                      ? <span title={`Valor OGUC teórico (≥ ${rfReq || '—'}) — no se exige para este uso/pisos`}>— no aplica</span>
+                      : (rfReq ? `≥ ${rfReq}` : '—')}
                   </td>
                   <td style={S.td}>
-                    {rfP && rfReq
-                      ? <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
-                      : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
+                    {noAplica
+                      ? <span style={{ fontSize:11, color:'#94a3b8', fontStyle:'italic' }}>No exigida</span>
+                      : (rfP && rfReq
+                        ? <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
+                        : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>)}
                   </td>
                 </tr>
               )
