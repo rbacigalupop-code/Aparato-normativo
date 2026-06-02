@@ -3026,6 +3026,32 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   useEffect(() => { if (escalerasObligatorias && !incluirEscaleras) setIncluirEscaleras(true) }, [escalerasObligatorias])  // eslint-disable-line react-hooks/exhaustive-deps
   const mostrarEscaleras = escalerasObligatorias || incluirEscaleras
 
+  // ── Auto-sync: cuando el usuario cambia el material en CalcRFEscalera,
+  // actualizamos el dropdown 'RF propuesta' de Escaleras y Caja escalera
+  // al rfBase del material elegido. Sin esto, queda stale (el dropdown
+  // muestra el valor del material previo). Reporte usuario 2026-05-27:
+  // material cambiado a HA prefabricado F90 pero dropdown seguía en F30.
+  useEffect(() => {
+    if (!mostrarEscaleras) return
+    const matEsc = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha'))
+    if (matEsc?.rfBase && termica?.rf_escaleras?.rf !== matEsc.rfBase) {
+      setTermica(t => ({ ...t, rf_escaleras: { ...(t.rf_escaleras || {}), rf: matEsc.rfBase } }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escaleras?.matId, mostrarEscaleras])
+  useEffect(() => {
+    if (!mostrarEscaleras) return
+    const cajaActiva = (escaleras?.tieneCaja === null || escaleras?.tieneCaja === undefined)
+      ? requiereCajaEscalera(uso, pisosNum)
+      : !!escaleras?.tieneCaja
+    if (!cajaActiva) return
+    const matCaja = MAT_ESCAL.find(m => m.id === (escaleras?.matCajaId || 'ha'))
+    if (matCaja?.rfBase && termica?.rf_cajas_esc?.rf !== matCaja.rfBase) {
+      setTermica(t => ({ ...t, rf_cajas_esc: { ...(t.rf_cajas_esc || {}), rf: matCaja.rfBase } }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escaleras?.matCajaId, escaleras?.tieneCaja, mostrarEscaleras])
+
   const VALID_RF = ['F0','F15','F30','F60','F90','F120','F150','F180']
 
   // ── Resolución RF según OGUC Tabla 1 cuando hay m² y destino OGUC ──────────
