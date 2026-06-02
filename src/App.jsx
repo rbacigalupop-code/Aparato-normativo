@@ -9276,6 +9276,11 @@ function AppInner() {
     document.head.appendChild(st)
   }, [])
 
+  // Modal de bienvenida al cargar la app: se muestra cuando hay autoguardado
+  // detectado, para que el usuario elija (1) continuar el borrador, (2) abrir
+  // proyecto guardado, o (3) crear nuevo. Si no hay autoguardado, se omite.
+  const [showWelcome, setShowWelcome] = useState(false)
+
   // Restore autosave on mount — incluir puertas + escaleras para que no se
   // pierdan al recargar la app (reportado por usuario 2026-05-27).
   useEffect(() => {
@@ -9291,8 +9296,40 @@ function AppInner() {
       if (saved.escaleras)         setEscaleras(saved.escaleras)
       if (saved.notas)             setNotas(saved.notas)
       if (saved.detallesIlustrados) setDetallesIlustrados(saved.detallesIlustrados)
+      // Solo mostrar modal si el borrador tiene contenido real (nombre,
+      // soluciones o datos en alguna pestaña). Borrador vacío → directo.
+      const tieneContenido = !!(saved.proy?.nombre || saved.proy?.comuna
+        || Object.keys(saved.termica || {}).length
+        || Object.keys(saved.calcUInit || {}).length)
+      if (tieneContenido) setShowWelcome(true)
     }
   }, [])
+
+  // Reset completo del state a defaults — usado por 'Crear nuevo proyecto'
+  // en el modal de bienvenida.
+  function nuevoProyecto() {
+    if (!confirm('¿Crear proyecto nuevo? Se perderán los datos del borrador actual a menos que ya los hayas guardado en "📁 Proyectos".')) return
+    setProy({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: 'Vivienda', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
+    setTermica({})
+    setCalcUInit({})
+    setFachadas([
+      { id: 1, nombre: '', orient: 'N',  areaFachada: '', vanos: '', uw: '' },
+      { id: 2, nombre: '', orient: 'OP', areaFachada: '', vanos: '', uw: '' },
+      { id: 3, nombre: '', orient: 'S',  areaFachada: '', vanos: '', uw: '' },
+    ])
+    setFachadasNextId(4)
+    setPuertas([
+      { id: 1, nombre: 'Acceso principal',      uso: 'acceso_vivienda', ancho: '0.90', alto: '2.00', hojaId: '', marcoId: '', selloId: '' },
+      { id: 2, nombre: 'Acceso a patio/loggia', uso: 'acceso_vivienda', ancho: '0.80', alto: '2.00', hojaId: '', marcoId: '', selloId: '' },
+    ])
+    setPuertasNextId(3)
+    setEscaleras({ incluido: false, matId: 'ha', tieneCaja: null, matCajaId: 'ha' })
+    setNotas({})
+    setDetallesIlustrados([])
+    setProyectoActual(null)
+    setHasUnsaved(false)
+    setShowWelcome(false)
+  }
 
   // Auto-save debounced (1.5s after last change)
   // Snapshot extendido: incluye puertas, puertasNextId y escaleras para
@@ -9644,6 +9681,92 @@ function AppInner() {
         onCargar={onCargar}
         proyectos={proyectos}
       />
+
+      {/* ── Modal de bienvenida ────────────────────────────────────────────
+          Aparece al cargar la app si hay un borrador autoguardado con
+          contenido. 3 opciones: continuar borrador / abrir guardado / nuevo. */}
+      {showWelcome && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowWelcome(false) }}
+          style={{
+            position:'fixed', inset:0, background:'rgba(15,23,42,0.7)', zIndex:10000,
+            display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
+          }}
+        >
+          <div style={{
+            background:'#fff', borderRadius:12, padding:'28px 24px', maxWidth:520, width:'100%',
+            boxShadow:'0 20px 50px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize:14, color:'#0369a1', fontWeight:700, marginBottom:4 }}>
+              👋 Bienvenido a NormaCheck
+            </div>
+            <div style={{ fontSize:18, fontWeight:800, color:'#1e293b', marginBottom:8 }}>
+              ¿Cómo querés empezar?
+            </div>
+            <div style={{ fontSize:12, color:'#64748b', marginBottom:18, lineHeight:1.5 }}>
+              Detectamos un <b>borrador autoguardado</b>{proy.nombre ? <> del proyecto <b style={{ color:'#1e293b' }}>"{proy.nombre}"</b></> : ''}.
+              Podés continuar donde quedaste, abrir otro proyecto guardado, o empezar uno nuevo limpio.
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <button
+                onClick={() => setShowWelcome(false)}
+                style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
+                  background:'#1e40af', color:'#fff', border:'none', borderRadius:8,
+                  cursor:'pointer', fontSize:13, fontWeight:700, textAlign:'left',
+                }}
+              >
+                <span style={{ fontSize:18 }}>↩</span>
+                <div style={{ flex:1 }}>
+                  <div>Continuar borrador autoguardado</div>
+                  <div style={{ fontSize:10, opacity:0.85, fontWeight:400, marginTop:2 }}>
+                    Retomá exactamente donde dejaste el proyecto.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { setShowWelcome(false); setShowProjects(true) }}
+                style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
+                  background:'#fff', color:'#0369a1', border:'1.5px solid #bae6fd', borderRadius:8,
+                  cursor:'pointer', fontSize:13, fontWeight:700, textAlign:'left',
+                }}
+              >
+                <span style={{ fontSize:18 }}>📁</span>
+                <div style={{ flex:1 }}>
+                  <div>Abrir proyecto guardado</div>
+                  <div style={{ fontSize:10, color:'#64748b', fontWeight:400, marginTop:2 }}>
+                    Listá todos tus proyectos en la nube y abrí el que necesites.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={nuevoProyecto}
+                style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
+                  background:'#fff', color:'#9a3412', border:'1.5px solid #fed7aa', borderRadius:8,
+                  cursor:'pointer', fontSize:13, fontWeight:700, textAlign:'left',
+                }}
+              >
+                <span style={{ fontSize:18 }}>＋</span>
+                <div style={{ flex:1 }}>
+                  <div>Crear proyecto nuevo (limpio)</div>
+                  <div style={{ fontSize:10, color:'#64748b', fontWeight:400, marginTop:2 }}>
+                    Empezás desde cero. Se descarta el borrador actual.
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div style={{ marginTop:14, fontSize:10, color:'#94a3b8', textAlign:'center' }}>
+              Tip: el botón <b>📁 Proyectos</b> arriba siempre está disponible para gestionar tus proyectos.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
