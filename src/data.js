@@ -786,7 +786,15 @@ export const SUBGRUPOS_PUERTA=[
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 export const rfN=s=>parseInt(s?.replace("F","")||0);
-export const satP=T=>610.8*Math.exp(17.27*T/(T+237.3));
+// Presión de saturación del vapor de agua [Pa] según ISO 13788 / NCh853.
+// La norma exige cambiar de coeficientes sobre AGUA a sobre HIELO bajo 0°C.
+// Importante para zonas frías chilenas (F, G, H, I con Te de −1 a −6°C):
+// sobre hielo la psat es ~5-6% menor a −6°C → detección de condensación más
+// conservadora (correcta) en la cara fría. Para T≥0 el resultado es idéntico
+// al de antes (no hay regresión en el caso común).
+export const satP=T=> T>=0
+  ? 610.8*Math.exp(17.27 *T/(T+237.3))   // sobre agua (Magnus) — ISO 13788
+  : 610.8*Math.exp(21.875*T/(T+265.5));  // sobre hielo        — ISO 13788 (T<0)
 export const dewPoint=(T,HR)=>{const a=17.27,b=237.3,al=(a*T/(b+T))+Math.log(HR/100);return b*al/(a-al);};
 export const ist={border:"1.5px solid #cbd5e1",borderRadius:6,padding:"5px 8px",fontSize:12,background:"#fff"};
 export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";

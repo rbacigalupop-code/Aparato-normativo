@@ -4635,7 +4635,10 @@ ${cambios.length && solucion ? `
         const cumpleTodo   = cumpleU && (esTabique || !res.condInter)
 
         // ── fRsi — factor de temperatura superficial interior (NCh853:2021 §6) ──
-        const RSi_val = elemTipo === 'techumbre' ? 0.10 : elemTipo === 'piso' ? 0.17 : 0.13
+        // RSi desde RSI_MAP (única fuente de verdad) en vez de constantes inline
+        // duplicadas — evita que se desincronicen si cambia el mapa.
+        const _rsiKey = elemTipo === 'techumbre' ? 'techo' : elemTipo === 'piso' ? 'piso' : 'muro'
+        const RSi_val = RSI_MAP[_rsiKey] || 0.13
         const Rtot_val = parseFloat(res.Rtot) || 0
         const fRsi      = Rtot_val > 0 ? 1 - RSi_val / Rtot_val : 1
         const Tsi_int   = Rtot_val > 0 ? ti - (RSi_val / Rtot_val) * (ti - te) : ti

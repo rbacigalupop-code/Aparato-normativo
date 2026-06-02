@@ -101,12 +101,18 @@ export function climaMensual(comunaKey, zonaDS15 = null) {
 }
 
 /**
- * Presión de vapor de saturación (Magnus-Tetens) en Pa.
+ * Presión de vapor de saturación (Magnus-Tetens) en Pa, según ISO 13788.
+ * La norma usa coeficientes distintos sobre agua (T≥0) y sobre hielo (T<0).
+ * Crítico en el balance higrotérmico mensual de zonas frías (medias mensuales
+ * exteriores bajo 0°C): sobre hielo la psat es menor → balance de condensación
+ * correcto. Para T≥0 el resultado es idéntico al anterior.
  * @param {number} T_celsius
  */
 export function pvSat(T) {
   if (T == null || isNaN(T)) return 0
-  return 610.5 * Math.exp((17.269 * T) / (T + 237.3))
+  return T >= 0
+    ? 610.5 * Math.exp((17.269 * T) / (T + 237.3))   // sobre agua  — ISO 13788
+    : 610.5 * Math.exp((21.875 * T) / (T + 265.5))   // sobre hielo — ISO 13788 (T<0)
 }
 
 /**
