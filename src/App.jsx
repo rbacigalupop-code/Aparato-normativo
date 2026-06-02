@@ -2735,7 +2735,7 @@ const MAT_ESCAL = [
   { id:'mamp',   label:'Mampostería de ladrillo/bloque',    rfBase:'F60',  nota:'RF intrínseca ≥ F60 según espesor (e ≥ 110 mm). Ver LOFC Ed.17 Tabla A2.' },
 ]
 
-function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matIdProp, setMatId: setMatIdProp }) {
+function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matIdProp, setMatId: setMatIdProp, escaleras: escalerasProp, setEscaleras: setEscalerasProp }) {
   // Si recibe matId/setMatId por props (lifted), los usa; si no, state local (retrocompat)
   const [matIdLocal, setMatIdLocal] = useState('ha')
   const matId = matIdProp ?? matIdLocal
@@ -2744,7 +2744,17 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
   const pisos = parseInt(proy.pisos) || 0
 
   const mat = MAT_ESCAL.find(m => m.id === matId)
-  const necesitaCaja = requiereCajaEscalera(uso, pisos)
+  // Cálculo de si la caja se exige por OGUC (uso + pisos)
+  const necesitaCajaOGUC = requiereCajaEscalera(uso, pisos)
+  // Override del usuario: tieneCaja === null → usa OGUC; true/false → override
+  const tieneCajaOverride = escalerasProp?.tieneCaja
+  const necesitaCaja = tieneCajaOverride === null || tieneCajaOverride === undefined
+    ? necesitaCajaOGUC
+    : !!tieneCajaOverride
+  const matCajaId = escalerasProp?.matCajaId || 'ha'
+  const matCaja = MAT_ESCAL.find(m => m.id === matCajaId) || MAT_ESCAL[0]
+  const setMatCajaId = (v) => setEscalerasProp?.(prev => ({ ...prev, matCajaId: typeof v === 'function' ? v(prev?.matCajaId) : v }))
+  const setTieneCaja = (v) => setEscalerasProp?.(prev => ({ ...prev, tieneCaja: v }))
   const rfBase = mat?.rfBase || null
   const rfBaseN = rfBase ? rfN(rfBase) : 0
 
@@ -2827,7 +2837,7 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
         borderRadius:6, color: necesitaCaja ? '#713f12' : '#166534' }}>
         {necesitaCaja ? (
           <>
-            ⚠ <b>Caja de escalera cerrada obligatoria</b> — {pisos} piso(s) · uso {uso} · OGUC Art. 4.5.7.
+            ⚠ <b>Caja de escalera cerrada {necesitaCajaOGUC ? 'obligatoria' : 'incluida'}</b> — {pisos} piso(s) · uso {uso} · OGUC Art. 4.5.7.
             La caja debe ser un recinto cerrado, con paredes de RF ≥ {rfReqCaja || '—'} y puertas cortafuego
             según OGUC Art. 4.5.4 (PUERTA_RF: {proy.zona ? (RF_DEF[uso]?.muros_sep || '—') : '—'}).
           </>
@@ -2839,10 +2849,53 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
         )}
       </div>
 
+      {/* Toggle opt-in: usuario indica si su proyecto incluye caja aunque OGUC no la exija */}
+      {!necesitaCajaOGUC && setEscalerasProp && (
+        <div style={{ marginBottom:12, fontSize:11, padding:'8px 12px',
+          background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:6,
+          display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+          <input type="checkbox" id="opt-caja" checked={!!tieneCajaOverride}
+            onChange={e => setTieneCaja(e.target.checked ? true : null)} />
+          <label htmlFor="opt-caja" style={{ cursor:'pointer', color:'#374151', flex:1, minWidth:200 }}>
+            <b>Mi proyecto incluye caja de escalera cerrada</b> (recinto de protección con RF exigida) — opcional para 1 piso.
+          </label>
+        </div>
+      )}
+
+      {/* Selector de material de la CAJA — visible cuando necesitaCaja */}
+      {necesitaCaja && setEscalerasProp && (
+        <div style={{ marginBottom:12, padding:'10px 12px', background:'#fff7ed',
+          border:'1px solid #fed7aa', borderRadius:7 }}>
+          <label style={{ fontSize:11, fontWeight:700, color:'#9a3412', display:'block', marginBottom:5 }}>
+            Material de la CAJA de escalera (muros perimetrales)
+          </label>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:6 }}>
+            {MAT_ESCAL.map(m => (
+              <button key={'caja-'+m.id}
+                onClick={() => setMatCajaId(m.id)}
+                style={{ padding:'5px 11px', borderRadius:6, border:`1.5px solid ${matCajaId===m.id?'#9a3412':'#fed7aa'}`,
+                  background: matCajaId===m.id ? '#fef3c7' : '#fff',
+                  color: matCajaId===m.id ? '#9a3412' : '#374151',
+                  fontWeight: matCajaId===m.id ? 700 : 400, fontSize:11, cursor:'pointer' }}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {matCaja && rfReqCaja && (
+            <div style={{ fontSize:11, color:'#9a3412' }}>
+              <b>RF caja: {matCaja.rfBase || '—'}</b> · requerido ≥ {rfReqCaja} → {' '}
+              {matCaja.rfBase && rfStringToNumber(matCaja.rfBase) >= rfStringToNumber(rfReqCaja)
+                ? <span style={badgeOk}>✓ CUMPLE</span>
+                : <span style={badgeNo}>✗ NO CUMPLE</span>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Selector de material */}
       <div style={{ marginBottom:12 }}>
         <label style={{ fontSize:11, fontWeight:700, color:'#374151', display:'block', marginBottom:5 }}>
-          Material / sistema constructivo de la escalera
+          Material / sistema constructivo de la escalera (peldaños + estructura)
         </label>
         <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
           {MAT_ESCAL.map(m => (
@@ -2988,20 +3041,35 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   }
   const usaTablaOGUC = !!letraOGUC
 
-  // RF desde soluciones constructivas aplicadas
+  // RF desde soluciones constructivas aplicadas + material seleccionado en
+  // CalcRFEscalera (para que la tabla muestre el RF del material elegido).
+  const _matEscObj  = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha'))
+  const _matCajaObj = MAT_ESCAL.find(m => m.id === (escaleras?.matCajaId || 'ha'))
+  const _cajaEnUso  = (escaleras?.tieneCaja === null || escaleras?.tieneCaja === undefined)
+    ? requiereCajaEscalera(uso, proy.pisos)
+    : !!escaleras?.tieneCaja
   const rfFromSol = {
     estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
     cubierta:   termica.techo?.solucion?.rf || '',
     muros_sep:  termica.tabique?.solucion?.rf || termica.muro?.solucion?.rf || '',
-    cajas_esc:  '',
-    escaleras:  '',
+    cajas_esc:  _cajaEnUso ? (_matCajaObj?.rfBase || '') : '',
+    escaleras:  _matEscObj?.rfBase || '',
   }
+  // Pseudo-"soluciones" para escaleras y caja: muestran el material elegido
+  // como una solución constructiva con su RF intrínseca. Inventamos un cod
+  // para que renderice como las soluciones LOSCAT.
+  const _solEscalera = _matEscObj && _matEscObj.rfBase
+    ? { cod: 'MAT.ESC.' + (_matEscObj.id || '').toUpperCase(), rf: _matEscObj.rfBase, _matEsc: true, _label: _matEscObj.label }
+    : null
+  const _solCaja = (_cajaEnUso && _matCajaObj && _matCajaObj.rfBase)
+    ? { cod: 'MAT.CAJA.' + (_matCajaObj.id || '').toUpperCase(), rf: _matCajaObj.rfBase, _matEsc: true, _label: _matCajaObj.label }
+    : null
   const solForElem = {
     estructura: [termica.muro?.solucion, termica.techo?.solucion, termica.piso?.solucion].filter(Boolean)[0],
     cubierta:   termica.techo?.solucion,
     muros_sep:  termica.tabique?.solucion || termica.muro?.solucion,
-    cajas_esc:  null,
-    escaleras:  null,
+    escaleras:  _solEscalera,
+    cajas_esc:  _solCaja,
   }
 
   const elems = [
@@ -3014,13 +3082,15 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
     // Cajas de escalera y Escaleras: sólo aparecen en la tabla cuando corresponde
     // (edificación ≥ 2 pisos, o 1 piso con habilitación manual del usuario).
     ...(mostrarEscaleras ? [
-      // Si la caja de escalera no es exigida para este uso+pisos, marcamos
-      // noAplica=true para que el render muestre "— no aplica" en vez del
-      // valor teórico OGUC (que confunde — sugiere un requisito que no aplica).
+      // Caja de escalera: si OGUC no la exige Y el usuario no la activó manualmente,
+      // se marca noAplica=true para que el render muestre "— no aplica" en vez del
+      // valor teórico OGUC (que confundía: sugería un requisito que no aplica).
+      // Si el usuario marca el checkbox "Mi proyecto incluye caja…" → noAplica=false
+      // y se evalúa cumplimiento contra el material elegido.
       { id:'cajas_esc',  label:'Cajas de escalera / ascensores / ductos',
         rfReq: rfReqFromOGUC('cajas_esc'),
-        noAplica: !requiereCajaEscalera(uso, proy.pisos),
-        obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (4) cajas de escalera` : requiereCajaEscalera(uso, proy.pisos) ? 'OGUC Art. 4.5.7 — caja de escalera exigida según uso y pisos.' : 'OGUC Art. 4.5.7 — caja de escalera no exigida para este uso/pisos.' },
+        noAplica: !_cajaEnUso,
+        obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (4) cajas de escalera` : _cajaEnUso ? 'OGUC Art. 4.5.7 — caja de escalera exigida según uso y pisos.' : 'OGUC Art. 4.5.7 — caja de escalera no exigida para este uso/pisos.' },
       { id:'escaleras',  label:'Escaleras / Vías de escape',
         rfReq: rfReqFromOGUC('escaleras') || rfDef.escaleras,
         obs: usaTablaOGUC ? `OGUC Tít. 4 Cap. 3 Tabla 1 — Letra ${letraOGUC} · Col. (9) escaleras` : 'OGUC Art. 4.5.7. Verificar ensayo NCh850 específico.' },
@@ -3037,12 +3107,14 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
         pasos={[
           'El <b>uso del edificio</b> determina la <b>Categoría de riesgo de incendio</b> según <b>OGUC Tít. 4 Cap. 3</b> (R1–R4). Esta categoría se muestra en el banner superior.',
           'Las columnas <b>RF mínima</b> se calculan automáticamente según OGUC Art. 4.5.4 y la función RF_PISOS(uso, pisos).',
-          'La columna <b>Solución SC</b> muestra el RF de la solución LOSCAT aplicada si corresponde al elemento.',
+          'La columna <b>Solución SC</b> muestra el RF de la solución LOSCAT aplicada si corresponde al elemento. Para <b>escaleras y cajas de escalera</b>, muestra el material elegido más abajo en el calculador específico.',
           'Ingresa la <b>RF propuesta</b> manualmente si difiere de la solución o si el elemento no tiene solución aplicada.',
-          '<b>Escaleras:</b> No existen soluciones SC predefinidas — la RF debe respaldarse con ensayo NCh850 específico.',
+          '<b>Escaleras de evacuación (Art. 4.5.7):</b> obligatorias para edificios ≥ 2 pisos. Para 1 piso, podés activarlas opcionalmente con el botón <b>"+ Incluir escaleras"</b> si tu proyecto las tiene (acceso a entretecho, rampas escalonadas, etc.).',
+          '<b>Caja de escalera (recinto cerrado de protección):</b> se exige según uso y nº de pisos (OGUC Art. 4.5.7). Si no la exige OGUC pero tu proyecto la incluye, marcá el checkbox <b>"Mi proyecto incluye caja de escalera cerrada"</b> y eligí el material — el sistema valida RF de la caja además de la escalera.',
+          'Cada material elegido en el calculador de escalera (HA, mampostería, CLT, etc.) se refleja como una <b>"solución constructiva"</b> en la tabla principal con su RF intrínseca y estado CUMPLE/NO CUMPLE.',
           'La RF intrínseca del sistema estructural se muestra a continuación de la tabla como referencia.',
         ]}
-        normativa="OGUC Tít. 4 Cap. 3 (Categoría de riesgo) · Art. 4.5.4 y 4.5.7 · LOFC Ed.17 2025 · NCh850"
+        normativa="OGUC Tít. 4 Cap. 3 (Categoría de riesgo) · Art. 4.5.4 y 4.5.7 · LOFC Ed.17 2025 · NCh430 · NCh850"
       />
       <div style={S.card}>
         <p style={S.h2}>Resistencia al fuego — {uso || 'sin uso definido'}</p>
@@ -3199,11 +3271,21 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                     {sol ? (
                       <div>
                         <div style={{ display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
-                          <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }} title="Código LOSCAT — térmico">{sol.cod}</span>
-                          <span style={{ fontSize:11, fontWeight:700 }}>{rfSol || '—'}</span>
+                          {/* Materiales de escalera/caja: render simplificado con label completo */}
+                          {sol._matEsc ? (
+                            <>
+                              <span style={{ fontSize:10, background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'1px 6px', color:'#9a3412', fontWeight:700 }} title="Material elegido en el calculador de escalera">{sol._label}</span>
+                              <span style={{ fontSize:11, fontWeight:700 }}>{rfSol || '—'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }} title="Código LOSCAT — térmico">{sol.cod}</span>
+                              <span style={{ fontSize:11, fontWeight:700 }}>{rfSol || '—'}</span>
+                            </>
+                          )}
                         </div>
-                        {/* Homologación LOFC para fuego */}
-                        {(() => {
+                        {/* Homologación LOFC para fuego — skip para materiales de escalera */}
+                        {!sol._matEsc && (() => {
                           try {
                             const homol = homologarSolucion(sol, { rfRequerido: rfReq })
                             if (homol?.fuego?.codigo_base) {
@@ -3338,6 +3420,8 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
           rfReqCaja={rfReqFromOGUC('cajas_esc') || null}
           matId={escaleras?.matId || 'ha'}
           setMatId={(v) => setEscaleras(prev => ({ ...prev, matId: typeof v === 'function' ? v(prev?.matId) : v }))}
+          escaleras={escaleras}
+          setEscaleras={setEscaleras}
         />
       )}
 
@@ -8982,7 +9066,9 @@ function AppInner() {
   // mostrar la sección de escaleras de evacuación (OGUC Art. 4.5.7)
   const [escaleras, setEscaleras] = useState({
     incluido: false,        // se autocompleta a true si pisos ≥ 2 (vía TabFuego)
-    matId: 'ha',            // material por defecto: hormigón armado
+    matId: 'ha',            // material de la escalera (peldaños + estructura)
+    tieneCaja: null,        // null = auto (según OGUC), true/false = override usuario
+    matCajaId: 'ha',        // material del recinto/caja de escalera
   })
 
   // Inyectar CSS responsive móvil
