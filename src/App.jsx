@@ -3135,8 +3135,8 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
           'Las columnas <b>RF mínima</b> se calculan automáticamente según OGUC Art. 4.5.4 y la función RF_PISOS(uso, pisos).',
           'La columna <b>Solución SC</b> muestra el RF de la solución LOSCAT aplicada si corresponde al elemento. Para <b>escaleras y cajas de escalera</b>, muestra el material elegido más abajo en el calculador específico.',
           'Ingresa la <b>RF propuesta</b> manualmente si difiere de la solución o si el elemento no tiene solución aplicada.',
-          '<b>Escaleras de evacuación (Art. 4.5.7):</b> obligatorias para edificios ≥ 2 pisos. Para 1 piso, podés activarlas opcionalmente con el botón <b>"+ Incluir escaleras"</b> si tu proyecto las tiene (acceso a entretecho, rampas escalonadas, etc.).',
-          '<b>Caja de escalera (recinto cerrado de protección):</b> se exige según uso y nº de pisos (OGUC Art. 4.5.7). Si no la exige OGUC pero tu proyecto la incluye, marcá el checkbox <b>"Mi proyecto incluye caja de escalera cerrada"</b> y eligí el material — el sistema valida RF de la caja además de la escalera.',
+          '<b>Escaleras de evacuación (Art. 4.5.7):</b> obligatorias para edificios ≥ 2 pisos. Para 1 piso, puedes activarlas opcionalmente con el botón <b>"+ Incluir escaleras"</b> si tu proyecto las tiene (acceso a entretecho, rampas escalonadas, etc.).',
+          '<b>Caja de escalera (recinto cerrado de protección):</b> se exige según uso y nº de pisos (OGUC Art. 4.5.7). Si no la exige OGUC pero tu proyecto la incluye, marca el checkbox <b>"Mi proyecto incluye caja de escalera cerrada"</b> y elige el material — el sistema valida RF de la caja además de la escalera.',
           'Cada material elegido en el calculador de escalera (HA, mampostería, CLT, etc.) se refleja como una <b>"solución constructiva"</b> en la tabla principal con su RF intrínseca y estado CUMPLE/NO CUMPLE.',
           'La RF intrínseca del sistema estructural se muestra a continuación de la tabla como referencia.',
         ]}
@@ -5704,7 +5704,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
           'Usa la <b>Calculadora U puerta</b> para obtener U combinado de UNA configuración (hoja + marco + sello) según ISO 10077-1.',
           'En el <b>Registro del proyecto</b>, cada fila representa una puerta real de la edificación (acceso principal, acceso a patio/loggia, dormitorio, baño, cuarto técnico, etc.).',
           'Por defecto el proyecto arranca con <b>dos puertas</b> típicas de vivienda: acceso principal + acceso a patio/loggia.',
-          'Para cada puerta indicá: <b>nombre, uso, dimensiones (ancho/alto), hoja, marco y sello</b>. El uso determina los mínimos RF (LOFC) y R\'w (NCh352).',
+          'Para cada puerta indica: <b>nombre, uso, dimensiones (ancho/alto), hoja, marco y sello</b>. El uso determina los mínimos RF (LOFC) y R\'w (NCh352).',
           'Las 4 columnas de cumplimiento (U / RF / R\'w / Dim.) se calculan en vivo. Verde = cumple · Rojo = no cumple.',
           'El <b>resumen normativo</b> al final agrega todas las puertas para la verificación global.',
         ]}
@@ -9705,7 +9705,7 @@ function AppInner() {
             </div>
             <div style={{ fontSize:12, color:'#64748b', marginBottom:18, lineHeight:1.5 }}>
               Detectamos un <b>borrador autoguardado</b>{proy.nombre ? <> del proyecto <b style={{ color:'#1e293b' }}>"{proy.nombre}"</b></> : ''}.
-              Podés continuar donde quedaste, abrir otro proyecto guardado, o empezar uno nuevo limpio.
+              Puedes continuar donde quedaste, abrir otro proyecto guardado, o empezar uno nuevo limpio.
             </div>
 
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -9721,7 +9721,7 @@ function AppInner() {
                 <div style={{ flex:1 }}>
                   <div>Continuar borrador autoguardado</div>
                   <div style={{ fontSize:10, opacity:0.85, fontWeight:400, marginTop:2 }}>
-                    Retomá exactamente donde dejaste el proyecto.
+                    Retoma exactamente donde dejaste el proyecto.
                   </div>
                 </div>
               </button>
@@ -9738,7 +9738,7 @@ function AppInner() {
                 <div style={{ flex:1 }}>
                   <div>Abrir proyecto guardado</div>
                   <div style={{ fontSize:10, color:'#64748b', fontWeight:400, marginTop:2 }}>
-                    Listá todos tus proyectos en la nube y abrí el que necesites.
+                    Lista todos tus proyectos en la nube y abre el que necesites.
                   </div>
                 </div>
               </button>
@@ -9755,7 +9755,7 @@ function AppInner() {
                 <div style={{ flex:1 }}>
                   <div>Crear proyecto nuevo (limpio)</div>
                   <div style={{ fontSize:10, color:'#64748b', fontWeight:400, marginTop:2 }}>
-                    Empezás desde cero. Se descarta el borrador actual.
+                    Empiezas desde cero. Se descarta el borrador actual.
                   </div>
                 </div>
               </button>

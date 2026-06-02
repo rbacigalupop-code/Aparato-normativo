@@ -124,13 +124,13 @@ export default function PuertasDetalladas({ proy }) {
       <AyudaEnergetico
         icon="🚪"
         titulo="Puertas del proyecto (4 ejes normativos)"
-        intro="Registro de las puertas del proyecto. Cada puerta se evalúa simultáneamente en 4 ejes: U (DS N°15), RF (LOFC), R'w (NCh352) y dimensiones (OGUC Tít. IV). Por defecto el proyecto arranca con dos puertas típicas de vivienda (acceso principal + acceso a patio/loggia). Podés agregar, duplicar o eliminar según las puertas reales del proyecto."
+        intro="Registro de las puertas del proyecto. Cada puerta se evalúa simultáneamente en 4 ejes: U (DS N°15), RF (LOFC), R'w (NCh352) y dimensiones (OGUC Tít. IV). Por defecto el proyecto inicia con dos puertas típicas de vivienda (acceso principal + acceso a patio/loggia). Puedes agregar, duplicar o eliminar según las puertas reales del proyecto."
         pasos={[
-          'Revisá las dos puertas <b>iniciales</b> (acceso principal + acceso a patio). Editá nombre, uso, dimensiones y componentes según corresponda.',
-          'Usá <b>[+ Agregar puerta]</b> para sumar más puertas (cocina, despensa, baños, cuartos técnicos…).',
+          'Revisa las dos puertas <b>iniciales</b> (acceso principal + acceso a patio). Edita nombre, uso, dimensiones y componentes según corresponda.',
+          'Usa <b>[+ Agregar puerta]</b> para sumar más puertas (cocina, despensa, baños, cuartos técnicos…).',
           'Cada puerta muestra <b>4 chips</b> de cumplimiento (✓/✗ por eje). Click en la card para expandir y editar.',
           'El <b>hero arriba</b> resume cuántas puertas cumplen los 4 ejes y muestra el U promedio ponderado por área.',
-          '<b>Duplicar</b> es útil para puertas similares (varios dormitorios, varios baños) — solo cambiás el nombre.',
+          '<b>Duplicar</b> es útil para puertas similares (varios dormitorios, varios baños) — solo cambias el nombre.',
         ]}
         origenDatos={[
           { campo: 'Zona DS N°15 — sugerencia inicial y validación U', origen: 'energetico:configuracion' },
@@ -199,7 +199,7 @@ function HeroResumen({ resumen, zonaEf }) {
           ? `✅ Todas las puertas cumplen DS N°15, LOFC, NCh352 y OGUC.`
           : resumen.cumpleN > 0
             ? `⚠ ${resumen.total - resumen.cumpleN} puerta(s) con algún eje en rojo. Expandí cada card para ver detalles.`
-            : `❌ Ninguna puerta cumple los 4 ejes simultáneamente. Revisá componentes y dimensiones.`}
+            : `❌ Ninguna puerta cumple los 4 ejes simultáneamente. Revisa componentes y dimensiones.`}
         {' · '}Área total: <b style={{ fontVariantNumeric: 'tabular-nums' }}>{resumen.areaTotal} m²</b>
       </p>
     </div>
