@@ -9276,29 +9276,35 @@ function AppInner() {
     document.head.appendChild(st)
   }, [])
 
-  // Restore autosave on mount
+  // Restore autosave on mount — incluir puertas + escaleras para que no se
+  // pierdan al recargar la app (reportado por usuario 2026-05-27).
   useEffect(() => {
     const saved = proyectos.cargarAutoguardado()
     if (saved) {
-      if (saved.proy)            setProy(saved.proy)
-      if (saved.termica)         setTermica(saved.termica)
-      if (saved.calcUInit)       setCalcUInit(saved.calcUInit)
+      if (saved.proy)              setProy(saved.proy)
+      if (saved.termica)           setTermica(saved.termica)
+      if (saved.calcUInit)         setCalcUInit(saved.calcUInit)
       if (saved.fachadas)          setFachadas(saved.fachadas)
       if (saved.fachadasNextId)    setFachadasNextId(saved.fachadasNextId)
+      if (saved.puertas)           setPuertas(saved.puertas)
+      if (saved.puertasNextId)     setPuertasNextId(saved.puertasNextId)
+      if (saved.escaleras)         setEscaleras(saved.escaleras)
       if (saved.notas)             setNotas(saved.notas)
       if (saved.detallesIlustrados) setDetallesIlustrados(saved.detallesIlustrados)
     }
   }, [])
 
   // Auto-save debounced (1.5s after last change)
+  // Snapshot extendido: incluye puertas, puertasNextId y escaleras para
+  // persistir el módulo de Puertas y el state de Escaleras de evacuación.
   useEffect(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, notas, detallesIlustrados })
+      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados })
       setHasUnsaved(true)
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [proy, termica, calcUInit, fachadas, fachadasNextId, notas, detallesIlustrados])
+  }, [proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados])
 
   // Callback que llama TabResultados antes de generar el informe
   async function onExportar() {
@@ -9335,17 +9341,23 @@ function AppInner() {
     return true
   }
 
+  // Snapshot completo del proyecto — usado por ProjectManager para guardar
+  // proyectos y cargarlos en otra sesión. Incluye puertas + escaleras desde
+  // 2026-05-27 (antes esos módulos perdían sus datos al recargar).
   function getData() {
-    return { proy, termica, calcUInit, fachadas, fachadasNextId, notas, detallesIlustrados }
+    return { proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados }
   }
 
   function onCargar(data) {
-    if (data.proy)             setProy(data.proy)
-    if (data.termica)          setTermica(data.termica)
-    if (data.calcUInit)        setCalcUInit(data.calcUInit)
-    if (data.fachadas)         setFachadas(data.fachadas)
-    if (data.fachadasNextId)   setFachadasNextId(data.fachadasNextId)
-    if (data.notas)            setNotas(data.notas)
+    if (data.proy)               setProy(data.proy)
+    if (data.termica)            setTermica(data.termica)
+    if (data.calcUInit)          setCalcUInit(data.calcUInit)
+    if (data.fachadas)           setFachadas(data.fachadas)
+    if (data.fachadasNextId)     setFachadasNextId(data.fachadasNextId)
+    if (data.puertas)            setPuertas(data.puertas)
+    if (data.puertasNextId)      setPuertasNextId(data.puertasNextId)
+    if (data.escaleras)          setEscaleras(data.escaleras)
+    if (data.notas)              setNotas(data.notas)
     if (data.detallesIlustrados) setDetallesIlustrados(data.detallesIlustrados)
     setHasUnsaved(false)
   }
