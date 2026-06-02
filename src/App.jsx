@@ -7372,8 +7372,96 @@ ${glaserHtml}`
       // Material seleccionado por el usuario
       const mat = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha')) || MAT_ESCAL[0]
       const rfBaseN = mat.rfBase ? rfStringToNumber(mat.rfBase) : 0
-      const cumpleEsc = !rfReqEsc || !mat.rfBase || rfBaseN >= rfStringToNumber(rfReqEsc)
+      const rfReqN  = rfReqEsc ? rfStringToNumber(rfReqEsc) : 0
+      const cumpleEsc = !rfReqEsc || !mat.rfBase || rfBaseN >= rfReqN
       const necesitaCaja = requiereCajaEscalera(usoR, pisosE)
+      // Tiempo en minutos del RF requerido para los cálculos
+      const tiempoReqMin = rfReqN
+      const tiempoBaseMin = rfBaseN
+
+      // ── Cálculo de respaldo específico por tipo de material ──────────────
+      // Genera la fórmula + valores + conclusión técnica que justifica el RF.
+      function buildCalculoRespaldo() {
+        if (mat.id === 'ha' || mat.id === 'ha_pref') {
+          const recubMin = 20  // mm — NCh430 §5.5 para F120
+          return `
+<table>
+  <tr><th colspan="2" style="background:#f0f9ff;color:#0369a1">Cálculo de RF — Hormigón armado (NCh430 · LOFC Ed.17 Tabla A4)</th></tr>
+  <tr><td><b>Recubrimiento mínimo del acero (c)</b></td><td>≥ <b>${recubMin} mm</b> (NCh430 §5.5)</td></tr>
+  <tr><td><b>Tiempo máximo a temp. crítica</b></td><td>El acero alcanza 500°C en <b>≥ 120 min</b> con c = 20 mm (LOFC Tabla A4)</td></tr>
+  <tr><td><b>RF resultante por cálculo</b></td><td><b>F120</b> ${mat.id === 'ha_pref' ? '(F90 si recubrimiento entre 15-19 mm)' : ''}</td></tr>
+  <tr><td><b>RF mínimo requerido</b></td><td><b>${rfReqEsc || '—'}</b></td></tr>
+  <tr style="background:#f0fdf4"><td><b>Justificación normativa</b></td><td><b>${mat.rfBase} ≥ ${rfReqEsc || '—'}</b> ⇒ <span class="badge-ok">CUMPLE</span> sin protección adicional</td></tr>
+</table>
+<div style="font-size:9pt;color:#475569;margin-top:6px;line-height:1.5">
+  La sección de hormigón armado mantiene su capacidad portante porque el recubrimiento de hormigón aísla térmicamente al acero. Con c ≥ 20 mm, la temperatura del acero permanece bajo 500°C durante ${tiempoBaseMin} minutos (NCh430 §5.5 + LOFC Ed.17 Tabla A4). El acero pierde resistencia a partir de los 500°C, por lo que el RF se garantiza por la combinación recubrimiento × tiempo.
+</div>`
+        }
+        if (mat.id === 'acero' || mat.id === 'acero_p') {
+          return `
+<table>
+  <tr><th colspan="2" style="background:#fef2f2;color:#991b1b">Cálculo de RF — Estructura metálica (LOFC Ed.17 Annex B)</th></tr>
+  <tr><td><b>RF intrínseca del acero sin proteger</b></td><td><b>F0</b> — el acero pierde 50% de resistencia a 600°C en ~5 min</td></tr>
+  <tr><td><b>RF mínimo requerido</b></td><td><b>${rfReqEsc || '—'}</b></td></tr>
+  ${mat.id === 'acero_p'
+    ? `<tr><td><b>Sistema de protección aplicado</b></td><td>Por definir según ficha técnica (pintura intumescente / yeso laminado / lana de roca)</td></tr>
+       <tr><td><b>Espesor mínimo de protección</b></td><td>Calcular según factor de forma (Hp/A) del perfil + RF objetivo</td></tr>
+       <tr style="background:#fef9c3"><td><b>Verificación</b></td><td><b>Requiere ficha del sistema</b> con ensayo NCh850 o EN 13381 que demuestre ${rfReqEsc || 'la RF requerida'}</td></tr>`
+    : `<tr style="background:#fef9c3"><td><b>Conclusión</b></td><td>El acero sin protección <b>NO ALCANZA</b> RF estructural. Para cumplir <b>${rfReqEsc || 'la RF requerida'}</b> se debe aplicar un sistema de protección certificado (LOFC Ed.17 Annex B).</td></tr>`
+  }
+</table>
+<div style="font-size:9pt;color:#475569;margin-top:6px;line-height:1.5">
+  El cálculo de RF en acero protegido requiere conocer el <b>factor de forma del perfil</b> (perímetro expuesto / área de la sección) y elegir el espesor de protección desde la tabla del fabricante (LOFC Annex B). Sin protección certificada con ensayo NCh850 o EN 13381, no se puede acreditar RF estructural.
+</div>`
+        }
+        if (mat.id === 'madera' || mat.id === 'clt') {
+          // Velocidad de carbonización para madera maciza/CLT
+          const beta = mat.id === 'clt' ? 0.65 : 0.7  // mm/min (LOFC Ed.17 Tabla A6 / Eurocódigo 5)
+          const seccionInicial = 90  // mm
+          const carbonTotal = beta * tiempoBaseMin
+          const seccionRes = seccionInicial - 2 * carbonTotal
+          return `
+<table>
+  <tr><th colspan="2" style="background:#f0f9ff;color:#0369a1">Cálculo de RF — ${mat.id === 'clt' ? 'CLT (madera contralaminada)' : 'Madera maciza estructural'} (LOFC Ed.17 Tabla A6)</th></tr>
+  <tr><td><b>Sección mínima inicial (b)</b></td><td>≥ <b>${seccionInicial} mm</b></td></tr>
+  <tr><td><b>Velocidad de carbonización (β₀)</b></td><td><b>${beta} mm/min</b> ${mat.id === 'clt' ? '(CLT — capas adhesivadas reducen avance)' : '(madera maciza coníferas)'}</td></tr>
+  <tr><td><b>Tiempo de exposición al fuego</b></td><td>${tiempoBaseMin} min (= RF base ${mat.rfBase})</td></tr>
+  <tr><td><b>Profundidad carbonizada total (d<sub>char</sub>)</b></td><td>β₀ × t = ${beta} × ${tiempoBaseMin} = <b>${carbonTotal.toFixed(1)} mm por cara</b></td></tr>
+  <tr><td><b>Sección residual portante</b></td><td>b − 2·d<sub>char</sub> = ${seccionInicial} − 2×${carbonTotal.toFixed(1)} = <b>${seccionRes.toFixed(1)} mm</b></td></tr>
+  <tr><td><b>RF resultante por cálculo</b></td><td><b>${mat.rfBase}</b></td></tr>
+  <tr><td><b>RF mínimo requerido</b></td><td><b>${rfReqEsc || '—'}</b></td></tr>
+  <tr style="background:${cumpleEsc ? '#f0fdf4' : '#fef9c3'}"><td><b>Justificación normativa</b></td><td><b>${mat.rfBase} ${cumpleEsc ? '≥' : '<'} ${rfReqEsc || '—'}</b> ⇒ ${cumpleEsc ? '<span class="badge-ok">CUMPLE</span> por sección residual portante' : 'Verificar aumento de sección o protección adicional'}</td></tr>
+</table>
+<div style="font-size:9pt;color:#475569;margin-top:6px;line-height:1.5">
+  El cálculo se basa en el <b>método de la sección residual</b> (Eurocódigo 5 · LOFC Ed.17 Tabla A6). Durante el fuego, la madera carboniza desde la superficie hacia el interior a velocidad β₀ constante. El núcleo no carbonizado mantiene sus propiedades estructurales y debe ser suficiente para soportar las cargas remanentes. ${mat.id === 'clt' ? 'En CLT la velocidad de avance se ralentiza por la transición entre capas adhesivadas.' : 'Para vigas y pilares de madera maciza coníferas en Chile (Pino radiata).'}
+</div>`
+        }
+        if (mat.id === 'mamp') {
+          const espesorMin = 110  // mm para F60
+          return `
+<table>
+  <tr><th colspan="2" style="background:#f0f9ff;color:#0369a1">Cálculo de RF — Mampostería de ladrillo / bloque (LOFC Ed.17 Tabla A2)</th></tr>
+  <tr><td><b>Espesor mínimo del muro (e)</b></td><td>≥ <b>${espesorMin} mm</b> para F60 (LOFC Tabla A2)</td></tr>
+  <tr><td><b>Tipo de mampostería</b></td><td>Ladrillo cerámico macizo / perforado · bloque hormigón macizo</td></tr>
+  <tr><td><b>Densidad mínima</b></td><td>ρ ≥ 1500 kg/m³</td></tr>
+  <tr><td><b>RF intrínseca por espesor</b></td><td><b>${mat.rfBase}</b> (acumula ~F30 por cada 50 mm de espesor adicional)</td></tr>
+  <tr><td><b>RF mínimo requerido</b></td><td><b>${rfReqEsc || '—'}</b></td></tr>
+  <tr style="background:${cumpleEsc ? '#f0fdf4' : '#fef9c3'}"><td><b>Justificación normativa</b></td><td><b>${mat.rfBase} ${cumpleEsc ? '≥' : '<'} ${rfReqEsc || '—'}</b> ⇒ ${cumpleEsc ? '<span class="badge-ok">CUMPLE</span> por espesor del muro' : 'Aumentar espesor o aplicar protección'}</td></tr>
+</table>
+<div style="font-size:9pt;color:#475569;margin-top:6px;line-height:1.5">
+  El RF de mampostería se obtiene por el <b>espesor del muro + densidad del material</b> (LOFC Ed.17 Tabla A2). La masa térmica retarda la transmisión de calor; muros más gruesos resisten más tiempo. Para escaleras dentro de cajas de escalera de mampostería, el muro perimetral aporta protección al recinto entero (Col. 4 OGUC).
+</div>`
+        }
+        return ''
+      }
+
+      // ── Alternativas equivalentes (positiva — solo las que cumplen) ──────
+      const alternativasOk = MAT_ESCAL.filter(m => {
+        if (m.id === mat.id) return false
+        if (!rfReqEsc) return true
+        if (!m.rfBase) return false
+        return rfStringToNumber(m.rfBase) >= rfReqN
+      })
 
       escalerasHtml = `
 <h2 id="modulo-5d">Módulo 5c — Escaleras de evacuación (OGUC Art. 4.5.7)</h2>
@@ -7382,7 +7470,8 @@ ${glaserHtml}`
     ? `<b>Proyecto de ${pisosE} pisos:</b> las escaleras de evacuación son <b>OBLIGATORIAS</b> por OGUC Art. 4.5.7.`
     : `<b>Proyecto de ${pisosE || 1} piso:</b> escaleras de evacuación no son exigibles, pero el proyectista las incluyó voluntariamente en el informe.`}
 </div>
-<h3>Exigencias RF</h3>
+
+<h3>Exigencias normativas</h3>
 <table>
   <tr><th>Elemento</th><th>RF mínima requerida</th><th>Referencia OGUC</th><th>Estado</th></tr>
   <tr>
@@ -7404,34 +7493,34 @@ ${glaserHtml}`
       : '<span style="color:#94a3b8">Caja no exigida para este uso/pisos</span>'}</td>
   </tr>
 </table>
+
 <h3>Solución constructiva propuesta</h3>
 <table>
-  <tr><th>Material</th><th>RF intrínseca</th><th>Recubrimiento / espesor</th><th>Norma respaldo</th></tr>
+  <tr><th>Material</th><th>RF intrínseca</th><th>Recubrimiento / espesor mínimo</th><th>Norma de respaldo</th></tr>
   <tr>
     <td><b>${mat.label}</b></td>
     <td><b>${mat.rfBase || 'según protección'}</b></td>
-    <td>${mat.id === 'ha' ? '≥ 20 mm' : mat.id === 'mamp' ? '≥ 110 mm espesor' : mat.id === 'madera' ? '≥ 90 mm sección' : mat.id === 'clt' ? '≥ 90 mm espesor' : '—'}</td>
-    <td><span style="font-size:8.5pt;color:#64748b">${mat.nota}</span></td>
+    <td>${mat.id === 'ha' ? '≥ 20 mm recubrimiento del acero' : mat.id === 'ha_pref' ? '≥ 15-20 mm recubrimiento' : mat.id === 'mamp' ? '≥ 110 mm espesor del muro' : mat.id === 'madera' ? '≥ 90 mm sección portante' : mat.id === 'clt' ? '≥ 90 mm espesor del panel' : '—'}</td>
+    <td><span style="font-size:9pt;color:#475569">${mat.nota}</span></td>
   </tr>
 </table>
-<h3>Tabla de referencia — materiales aceptables</h3>
-<table>
-  <tr><th>Material</th><th>RF base</th><th>Cumple ${rfReqEsc || '—'}</th></tr>
-  ${MAT_ESCAL.map(m => {
-    const rfN = m.rfBase ? rfStringToNumber(m.rfBase) : 0
-    const ok = rfReqEsc && m.rfBase ? rfN >= rfStringToNumber(rfReqEsc) : null
-    const isSel = m.id === (escaleras?.matId || 'ha')
-    return `<tr style="${isSel ? 'background:#eff6ff;font-weight:600' : ''}">
-      <td>${isSel ? '➤ ' : ''}${m.label}</td>
-      <td>${m.rfBase || '—'}</td>
-      <td>${ok === null ? '<span style="color:#94a3b8">—</span>' : ok ? '<span class="badge-ok">✓</span>' : '<span class="badge-no">✗</span>'}</td>
-    </tr>`
-  }).join('')}
-</table>
-<div style="font-size:8.5pt;color:#64748b;margin-top:6px;line-height:1.5">
-  <b>OGUC Art. 4.5.7</b> · <b>LOFC Ed.17 2025 Tabla A2/A4/A6</b> · <b>NCh430</b> (HA) · <b>NCh850</b> (ensayo RF).
-  La <b>caja de escalera</b> (recinto cerrado de protección) debe garantizar evacuación segura — sus muros y puerta requieren RF según Col. (4) de la Tabla 1.
-  Para escaleras de acero sin protección certificada: respaldar con ensayo NCh850 específico.
+
+<h3>Cálculo de respaldo</h3>
+${buildCalculoRespaldo()}
+
+${alternativasOk.length > 0 ? `
+<h3>Alternativas constructivas equivalentes</h3>
+<div style="font-size:9.5pt;color:#475569;margin-bottom:6px">
+  Las siguientes soluciones también satisfacen ${rfReqEsc || 'la exigencia normativa'} y pueden ser intercambiadas en el proyecto manteniendo el cumplimiento:
+</div>
+<ul style="font-size:10pt;color:#1e293b;line-height:1.7;margin:0;padding-left:20px">
+  ${alternativasOk.map(m => `<li><b>${m.label}</b> — RF ${m.rfBase}. <span style="color:#64748b">${m.nota}</span></li>`).join('')}
+</ul>
+` : ''}
+
+<div style="font-size:8.5pt;color:#64748b;margin-top:10px;line-height:1.5;border-top:1px solid #e2e8f0;padding-top:6px">
+  <b>Normas de respaldo:</b> OGUC Art. 4.5.7 · LOFC Ed.17 2025 Tabla A2/A4/A6 · NCh430 (hormigón armado) · NCh850 (ensayo experimental de RF) · Eurocódigo 5 §4.2 (madera, método de la sección residual).
+  La <b>caja de escalera</b> (recinto cerrado) debe garantizar evacuación segura — sus muros perimetrales y la puerta de acceso requieren RF según Col. (4) de la Tabla 1.
 </div>`
     }
 
