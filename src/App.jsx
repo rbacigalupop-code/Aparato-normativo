@@ -6640,6 +6640,17 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const uTecho = getCalcUForElem('techo') ?? termica.techo?.u
     const uPiso  = getCalcUForElem('piso')  ?? termica.piso?.u
     const uPuerta = termica.puerta?.u
+    // RF dinámicos desde OGUC Tabla 1 (letra a/b/c/d según superficie + pisos).
+    // Si no hay datos OGUC, fallback al estático RF_DEF. CRÍTICO: los checks
+    // del resumen DEBEN usar el mismo criterio que la pestaña Fuego, sino
+    // aparecen contradicciones (ej. tabla muestra CUMPLE pero resumen NO CUMPLE).
+    // Reporte de Martin Contreras 2026-05-27: escaleras F30 vs F15 (OGUC letra
+    // D) cumplía en la tabla pero el resumen seguía exigiendo F60 (RF_DEF).
+    const _destinoOGUC = proy.destinoOGUC || (USO_TO_OGUC[uso]?.length === 1 ? USO_TO_OGUC[uso][0] : '')
+    const _ogucRfEsc  = getRFOGUC_loaded?.(uso, _destinoOGUC, proy.superficie, proy.pisos, 'escaleras')?.rf
+    const _ogucRfCub  = getRFOGUC_loaded?.(uso, _destinoOGUC, proy.superficie, proy.pisos, 'cubierta')?.rf
+    const _rfReqEsc   = _ogucRfEsc || RF_DEF[uso]?.escaleras || 'F0'
+    const _rfReqCub   = _ogucRfCub || RF_DEF[uso]?.cubierta  || 'F0'
     return [
       { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${zona.muro} W/m²K`,  ok: !uMuro  || parseFloat(uMuro)  <= zona.muro },
       { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${zona.techo} W/m²K`, ok: !uTecho || parseFloat(uTecho) <= zona.techo },
@@ -6648,8 +6659,8 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr) },
       { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
       { label:'RF Caja escalera',  val: termica.rf_cajas_esc?.rf,   max: getRFOGUC_loaded(uso, proy.destinoOGUC||(USO_TO_OGUC[uso]?.length===1?USO_TO_OGUC[uso][0]:''), proy.superficie, proy.pisos, 'cajas_esc') ? `≥ ${getRFOGUC_loaded(uso, proy.destinoOGUC||(USO_TO_OGUC[uso]?.length===1?USO_TO_OGUC[uso][0]:''), proy.superficie, proy.pisos, 'cajas_esc')?.rf}` : '—', ok: !termica.rf_cajas_esc?.rf || true, norma:'OGUC Art. 4.5.7 Col.(4)' },
-      { label:'RF Escaleras',      val: termica.rf_escaleras?.rf,   max:`≥ ${RF_DEF[uso]?.escaleras}`,ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(RF_DEF[uso]?.escaleras||'F0'), norma:'OGUC Art. 4.5.7 Col.(9)' },
-      { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${RF_DEF[uso]?.cubierta}`, ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(RF_DEF[uso]?.cubierta||'F0') },
+      { label:'RF Escaleras',      val: termica.rf_escaleras?.rf,   max:`≥ ${_rfReqEsc}`,             ok: !termica.rf_escaleras?.rf   || rfN(termica.rf_escaleras.rf)  >= rfN(_rfReqEsc), norma:'OGUC Art. 4.5.7 Col.(9)' },
+      { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${_rfReqCub}`,             ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(_rfReqCub), norma:'OGUC Art. 4.5.7 Col.(7)' },
       { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
       { label:'Rw fachada',        val: termica.ac_fachada?.rw      ? termica.ac_fachada.rw+'  dB':null,      max:`≥ ${AC_DEF[uso]?.fachada} dB`,        ok: !termica.ac_fachada?.rw       || parseFloat(termica.ac_fachada.rw)       >= (AC_DEF[uso]?.fachada||0) },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
