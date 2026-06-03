@@ -74,14 +74,32 @@ debería anularse / usar Rse; hoy solo modela "no ventilada").
   `Planilla-analisis-higrotermico_Excel365_v2025-11.zip`. El módulo
   Higrotérmico (WUFI) podría absorber esto.
 
-- **(3) Criterio de moho 75 % HR superficial** además del punto de rocío (100 %).
-  La norma (NCh1973) marca riesgo de moho a φsicr=75 %, no solo condensación.
-  Feature mediano: agregar chequeo de condensación superficial a 75 % + display.
+### ✅ (3) Criterio de moho 75 % HR superficial — HECHO (commit 7f5c0c7)
 
-- **(2) Método mensual completo (NCh1973:2014):** balance de 12 meses con
-  acumulación/evaporación de condensado [kg/m²], en vez del Glaser de punto
-  único. La planilla oficial MINVU (Excel descargable) sirve de oráculo.
-  Feature grande; el módulo Higrotérmico (WUFI) podría absorberlo.
+`fRsiMinMoho` + `tempDeSatP` en data.js; `calcGlaser` devuelve fRsi/TsiInt/
+fRsiMin75/riesgoMoho. **Mostrado como INFORMATIVO (no gate):** con HR interior
+alta (73-78%) el umbral 75% se dispara en casi todo en zonas frías (el aire
+interior ya está cerca del 75%) — físicamente real pero no accionable como
+pass/fail. El criterio DOM sigue siendo condensación (rocío) + U; el moho se
+gestiona con ventilación (NCh3309). 3 tests.
+
+### ✅ (2) Método mensual (NCh1973:2014 / ISO 13788) — YA EXISTÍA + tests
+
+**Hallazgo:** el método mensual completo NO faltaba — ya está implementado en
+`src/lib/engines/glaser_mensual.js` (`analizarGlaserAnual`) y expuesto en el
+módulo **Higrotérmico (WUFI)** (Energético → Detalles). Hace: Glaser de 12
+meses, acumulación/secado, criterio ISO 13788 (peak ≤200 g/m², balance final
+≤0) y veredicto (sin_riesgo / autoseca / peak_alto / acumula). Usa el `pvSat`
+que ya corregimos (agua/hielo).
+
+Agregados 9 tests de regresión (`glaser_mensual.test.js`).
+
+⚠️ **Hallazgo nuevo (pendiente):** el motor **sobreestima la TASA absoluta** de
+condensación (modelo simplificado `δ·exceso/Sd` en vez del flujo neto ISO
+13788). Los valores en g/m² no son confiables (un muro vapor-abierto da ~1000
+g/m²). El **veredicto cualitativo** (cuántos meses condensan, se acumula vs se
+seca) SÍ es usable. El módulo ya lo advierte en su UI. Mejorar la tasa a flujo
+neto (g_c = δ·(Δpv_entra − Δpv_sale)/Sd) es trabajo futuro.
 
 - **(4) RSE_MAP.piso = 0.13:** verificar contra la tabla de piso de NCh853 §7.
   Los manuales aportados no traen la tabla de resistencias superficiales por
