@@ -4113,7 +4113,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     const capasOrig = (origCapas || []).map((c,i) => `   ${i+1}. ${c.esCamara ? 'Cámara de aire' : `${c.mat} — λ=${c.lam} W/mK, e=${c.esp}mm, μ=${c.mu||1}`}`).join('\n')
     const capasMod  = capas.map((c,i) => `   ${i+1}. ${c.esCamara ? 'Cámara de aire' : `${c.mat} — λ=${c.lam} W/mK, e=${c.esp}mm, μ=${c.mu||1}`}`).join('\n')
     const motivoCambio = res.condInter
-      ? `El análisis higrotérmico (Método de Glaser, NCh853:2021) de la configuración original detectó riesgo de condensación intersticial en la(s) interfaz(ces): ${res.ifaces.filter(f=>f.riesgo).map(f=>`N°${f.i} (T=${f.T}°C, Pvreal=${f.pvReal}Pa > Pvsat=${f.pvSat}Pa)`).join('; ')}. La modificación elimina dicho riesgo.`
+      ? `El análisis higrotérmico (Método de Glaser, NCh1973:2014) de la configuración original detectó riesgo de condensación intersticial en la(s) interfaz(ces): ${res.ifaces.filter(f=>f.riesgo).map(f=>`N°${f.i} (T=${f.T}°C, Pvreal=${f.pvReal}Pa > Pvsat=${f.pvSat}Pa)`).join('; ')}. La modificación elimina dicho riesgo.`
       : `La modificación mejora las condiciones higrotérmicas del elemento sin reducir su desempeño térmico.`
 
     return `SOLICITUD DE HOMOLOGACIÓN — SOLUCIÓN CONSTRUCTIVA ${solucion.cod}
@@ -4150,7 +4150,7 @@ ${cambios.length ? cambios.map(c=>`   · ${c}`).join('\n') : '   · Sin cambios 
       U máximo DS N°15 (${zona_nombre}): ${umax ? `≤ ${umax} W/m²K` : 'no aplica'}
       Estado: ${cumpleU ? '✓ CUMPLE' : '✗ NO CUMPLE — requiere ajuste adicional'}
 
-   b) Condensación intersticial (Método Glaser, NCh853:2021):
+   b) Condensación intersticial (Método Glaser, NCh1973:2014):
       Temperatura de rocío: ${res.Tdew}°C
       Estado: ${res.condInter ? '✗ RIESGO — revisar configuración' : '✓ SIN RIESGO en interfaces internas'}
 ${res.ifaces.map(f=>`      Int. ${f.i}: T=${f.T}°C | Pvsat=${f.pvSat}Pa | Pvreal=${f.pvReal}Pa | Margen=${f.margen>=0?'+':''}${f.margen}Pa → ${f.riesgo?'RIESGO':'OK'}`).join('\n')}
@@ -4158,7 +4158,7 @@ ${res.ifaces.map(f=>`      Int. ${f.i}: T=${f.T}°C | Pvsat=${f.pvSat}Pa | Pvrea
 7. CONCLUSIÓN
    La solución modificada ${cumpleU && !res.condInter ? 'cumple íntegramente' : 'no cumple aún'} con las
    exigencias del DS N°15 del MINVU para ${zona_nombre} y no presenta riesgo de
-   condensación intersticial según el Método de Glaser (NCh853:2021).
+   condensación intersticial según el Método de Glaser (NCh1973:2014).
    ${cumpleU && !res.condInter ? 'Se solicita su aceptación como homologación de la solución ' + solucion.cod + ' del LOSCAT Ed.13 2025.' : 'Se requieren ajustes adicionales antes de solicitar homologación.'}
 
    La responsabilidad técnica de la presente homologación recae en el profesional
@@ -4327,10 +4327,10 @@ ${origCapas && cambios.length ? `
 <table><tr><th>#</th><th>Material</th><th>λ W/mK</th><th>e mm</th><th>μ</th></tr>
 ${filasCapa(capas)}</table>`}
 
-<h2>3. Gráfico de Temperatura y Condensación (Método Glaser — NCh853:2021)</h2>
+<h2>3. Gráfico de Temperatura y Condensación (Método Glaser — NCh1973:2014)</h2>
 <div class="fig">
 ${svgStr}
-<div class="fig-cap">Figura 1: Perfil de temperatura (azul) y punto de rocío (naranja) a través del elemento. Ti=${ti}°C · Te=${te}°C · HR=${hr}% · Zona ${proy.zona || '—'}. Elaborado según NCh853:2021 / EN ISO 13788.</div>
+<div class="fig-cap">Figura 1: Perfil de temperatura (azul) y punto de rocío (naranja) a través del elemento. Ti=${ti}°C · Te=${te}°C · HR=${hr}% · Zona ${proy.zona || '—'}. Elaborado según NCh1973:2014 / EN ISO 13788.</div>
 </div>
 
 <h2>4. Verificación Normativa</h2>
@@ -4343,9 +4343,9 @@ ${svgStr}
     <td><span class="${cumpleU?'badge-ok':'badge-no'}">${cumpleU?'CUMPLE':'NO CUMPLE'}</span></td>
   </tr>
   <tr>
-    <td>Condensación intersticial (Glaser, NCh853)</td>
+    <td>Condensación intersticial (Glaser, NCh1973:2014)</td>
     <td>T rocío: <b>${res.Tdew}°C</b></td>
-    <td>Sin condensación en interfaces (NCh853:2021)</td>
+    <td>Sin condensación en interfaces (NCh1973:2014)</td>
     <td><span class="${!res.condInter?'badge-ok':'badge-no'}">${res.condInter?'RIESGO':'SIN RIESGO'}</span></td>
   </tr>
 </table>
@@ -4359,7 +4359,7 @@ ${svgStr}
 
 ${res.condInter
   ? `<div class="no-box">⚠ Se detecta riesgo de condensación intersticial — la solución requiere corrección antes de su aprobación DOM.</div>`
-  : `<div class="ok-box">✓ Sin condensación intersticial en interfaces internas. La solución cumple las exigencias higrotérmicas de la NCh853:2021.</div>`
+  : `<div class="ok-box">✓ Sin condensación intersticial en interfaces internas. La solución cumple las exigencias higrotérmicas de la NCh1973:2014.</div>`
 }
 
 ${cambios.length && solucion ? `
@@ -4409,7 +4409,7 @@ ${cambios.length && solucion ? `
             </div>
           )}
           <div style={S.card}>
-            <p style={S.h2}>Calculadora U + Condensación (NCh853 / Glaser)</p>
+            <p style={S.h2}>Calculadora U + Condensación (NCh853 U · NCh1973 condensación / Glaser)</p>
             {/* ── Hint cuando no hay solución ni capas ───────────────────────── */}
             {!solucion && capas.length === 0 && (
               <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'8px 14px', marginBottom:10, fontSize:12, color:'#1e40af' }}>
@@ -5168,11 +5168,11 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
           'Al aplicar una solución desde la pestaña <b>Soluciones</b>, sus capas se cargan automáticamente en el panel correspondiente.',
           'Para <b>cambiar una solución</b>: usa el botón 🔄 <b>Cambiar solución</b> en el panel y luego ve a la pestaña Soluciones.',
           'Puedes <b>agregar, editar, mover o eliminar capas</b> manualmente en cada panel y presionar <b>Calcular U</b>.',
-          'El sistema calcula U (ISO 6946 método combinado si hay estructura integrada) y verifica condensación intersticial (Método Glaser, NCh853:2021).',
+          'El sistema calcula U (ISO 6946 método combinado si hay estructura integrada) y verifica condensación intersticial (Método Glaser, NCh1973:2014).',
           'Si hay incumplimientos aparecen <b>correcciones sugeridas</b> y el texto de homologación cuando corresponda.',
           'Usa <b>▼/▲</b> para colapsar paneles ya completos.',
         ]}
-        normativa="NCh853:2021 · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1"
+        normativa="NCh853:2021 (transmitancia) · NCh1973:2014 (condensación) · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1"
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {paneles.map(p => (
@@ -7019,11 +7019,11 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       const esTabiqueRpt = el.key === 'tabique'
       let glaserHtml = ''
       if (esTabiqueRpt) {
-        glaserHtml = `<div class="ok-box" style="color:#0369a1;background:#f0f9ff;border-color:#bae6fd">ℹ Tabique interior — verificación higrotérmica (Método de Glaser, NCh853:2021) no aplica. La norma exige esta verificación solo para elementos de la envolvente en contacto con el exterior.</div>`
+        glaserHtml = `<div class="ok-box" style="color:#0369a1;background:#f0f9ff;border-color:#bae6fd">ℹ Tabique interior — verificación higrotérmica (Método de Glaser, NCh1973:2014) no aplica. La norma exige esta verificación solo para elementos de la envolvente en contacto con el exterior.</div>`
       } else if (res) {
         const svgStr = glaserSvgStr(res, capas || [])
         glaserHtml = `
-<h3>${el.label} — Verificación higrotérmica (Método de Glaser, NCh853:2021)</h3>
+<h3>${el.label} — Verificación higrotérmica (Método de Glaser, NCh1973:2014)</h3>
 ${svgStr ? `<div class="fig">${svgStr}
   <div class="fig-cap">Figura: Perfil de temperatura (azul continuo) y punto de rocío (naranja discontinuo) — <b>${el.label}</b>.<br>
   Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Zona ${proy.zona}. Puntos rojos indican condensación.</div>
@@ -7044,7 +7044,7 @@ ${svgStr ? `<div class="fig">${svgStr}
 </table>
 ${res.condInter
   ? `<div class="no-box">⚠ Riesgo de condensación intersticial en ${el.label} — requiere corrección antes de presentar al DOM.</div>`
-  : `<div class="ok-box">✓ Sin condensación intersticial. El ${el.label} cumple las exigencias higrotérmicas de la NCh853:2021.</div>`}
+  : `<div class="ok-box">✓ Sin condensación intersticial. El ${el.label} cumple las exigencias higrotérmicas de la NCh1973:2014.</div>`}
 `
       }
 
@@ -8145,7 +8145,8 @@ ${mods.termica ? `<h2 id="modulo-2">Módulo 2 — Verificación Térmica (DS N°
   <table>
     <tr><th style="min-width:140px">Marco normativo</th><th>Descripción</th></tr>
     <tr><td><b>DS N°15 MINVU</b></td><td>Reglamento de instalaciones térmicas — establece U máx. por elemento y zona</td></tr>
-    <tr><td><b>NCh853:2021</b></td><td>Acondicionamiento térmico — cálculo de transmitancia y verificación higrotérmica</td></tr>
+    <tr><td><b>NCh853:2021</b></td><td>Acondicionamiento térmico — cálculo de transmitancia térmica (U)</td></tr>
+    <tr><td><b>NCh1973:2014</b></td><td>Verificación de riesgo de condensación superficial e intersticial (método de la planilla MINVU)</td></tr>
     <tr><td><b>ISO 6946:2017</b></td><td>Resistencias térmicas en componentes de edificación — método de cálculo</td></tr>
     <tr><td><b>EN ISO 13788</b></td><td>Método de Glaser — verificación de condensación intersticial</td></tr>
     <tr><td><b>Zona térmica aplicada</b></td><td>${proy.zona || '—'} — ${ZONAS[proy.zona]?.n || '—'} · Ti = ${zonaData?.Ti ?? '—'}°C · Te = ${zonaData?.Te ?? '—'}°C · HR interior = ${zonaData?.HR ?? '—'}%</td></tr>
@@ -8155,7 +8156,7 @@ ${mods.termica ? `<h2 id="modulo-2">Módulo 2 — Verificación Térmica (DS N°
   </table>
 </div>
 <div style="font-size:9.5pt;color:#64748b;margin-bottom:8px">
-  Método de cálculo: Resistencias en serie ISO 6946 · Condensación intersticial: Método de Glaser (NCh853:2021 / EN ISO 13788) ·
+  Método de cálculo: Resistencias en serie ISO 6946 · Condensación intersticial: Método de Glaser (NCh1973:2014 / EN ISO 13788) ·
   Ti = ${zonaData?.Ti ?? '—'}°C · Te = ${zonaData?.Te ?? '—'}°C · HR = ${zonaData?.HR ?? '—'}%
 </div>
 ${seccionesTermicas || '<div class="aviso">Sin soluciones constructivas aplicadas. Aplica soluciones desde la pestaña Soluciones.</div>'}` : ''}
@@ -8434,7 +8435,7 @@ ${cards}`)
     <li><b>OGUC Art. 4.1.6</b> — Aislación acústica entre unidades habitacionales.</li>
   </ul>
   <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1">
-    <b>Notas técnicas:</b> Los valores de <b>RF</b> declarados requieren respaldo mediante ensayo conforme a <b>NCh850</b> o clasificación según <b>LOFC Ed.17 2025</b>. Los valores <b>Rw</b> estimados requieren validación mediante ensayo <b>NCh352:2013</b>. El cumplimiento higrotérmico se verifica según el método de Glaser establecido en <b>NCh853:2021</b> (anexo informativo, equivalente a EN ISO 13788).
+    <b>Notas técnicas:</b> Los valores de <b>RF</b> declarados requieren respaldo mediante ensayo conforme a <b>NCh850</b> o clasificación según <b>LOFC Ed.17 2025</b>. Los valores <b>Rw</b> estimados requieren validación mediante ensayo <b>NCh352:2013</b>. El cumplimiento higrotérmico se verifica según el método de Glaser establecido en <b>NCh1973:2014</b> (equivalente a EN ISO 13788). Para acreditación formal ante la DOM se recomienda la planilla oficial MINVU de análisis higrotérmico.
   </div>
 </div>
 
@@ -9078,11 +9079,11 @@ function AppInner() {
         'Cada panel corresponde a un elemento: <b>Muro, Techo, Piso y Tabique</b>.',
         'Al aplicar una solución desde <b>Soluciones</b>, sus capas se cargan automáticamente.',
         'Puedes <b>agregar, editar, mover o eliminar capas</b> y presionar <b>Calcular U</b>.',
-        'El sistema calcula U (ISO 6946) y verifica condensación intersticial (Glaser, NCh853:2021).',
+        'El sistema calcula U (ISO 6946) y verifica condensación intersticial (Glaser, NCh1973:2014).',
         'Si hay incumplimientos, aparecen <b>correcciones sugeridas</b> y texto de homologación.',
         'Usa <b>▼/▲</b> para colapsar paneles ya completados.',
       ],
-      normativa: 'NCh853:2021 · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1',
+      normativa: 'NCh853:2021 (transmitancia) · NCh1973:2014 (condensación) · ISO 6946:2017 · Método de Glaser (EN ISO 13788) · DS N°15 Tabla 1',
     },
     6: {
       titulo: 'Ventanas y análisis VPCT',
