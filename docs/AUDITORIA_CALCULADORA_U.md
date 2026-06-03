@@ -74,22 +74,41 @@ debería anularse / usar Rse; hoy solo modela "no ventilada").
   `Planilla-analisis-higrotermico_Excel365_v2025-11.zip`. El módulo
   Higrotérmico (WUFI) podría absorber esto.
 
-- **Criterio de moho 75 % HR superficial** además del punto de rocío (100 %).
-  La norma marca riesgo de moho a φsicr=75 %, no solo condensación.
+- **(3) Criterio de moho 75 % HR superficial** además del punto de rocío (100 %).
+  La norma (NCh1973) marca riesgo de moho a φsicr=75 %, no solo condensación.
+  Feature mediano: agregar chequeo de condensación superficial a 75 % + display.
 
-- **RSE_MAP.piso = 0.13:** verificar contra la tabla de piso de NCh853
-  (los ejemplos vistos eran muros). Valor inusual.
+- **(2) Método mensual completo (NCh1973:2014):** balance de 12 meses con
+  acumulación/evaporación de condensado [kg/m²], en vez del Glaser de punto
+  único. La planilla oficial MINVU (Excel descargable) sirve de oráculo.
+  Feature grande; el módulo Higrotérmico (WUFI) podría absorberlo.
 
-- **Refactor `obtenerRFOGUC`** (fire.js): firma con argumentos desordenados,
-  ya bypasseada en TabResultados pero bug latente en otros call sites.
+- **(4) RSE_MAP.piso = 0.13:** verificar contra la tabla de piso de NCh853 §7.
+  Los manuales aportados no traen la tabla de resistencias superficiales por
+  dirección de flujo (el ejemplo de condensación era un muro: Rsi 0.13/Rse 0.04).
+  El valor 0.13 es una convención para "piso ventilado/sobramiento" (ver comentario
+  en data.js + UI). El estándar ISO 6946 para piso sobre aire exterior sería
+  Rse=0.04. **NO se cambió** — podría ser convención chilena intencional;
+  requiere confirmar la fuente antes de tocar (riesgo de cumplimiento).
 
-- **Nomenclatura R_upper/R_lower** en `calcR_ISO6946_helper`: están invertidos
-  respecto al convenio ISO 6946 (isothermal=lower, adiabatic=upper). NO afecta
-  el U final (es el promedio, conmutativo), solo las etiquetas mostradas en el
-  `aviso_puente` de acero. Cosmético.
+- **(6) Nomenclatura R_upper/R_lower** en `calcR_ISO6946_helper`: están invertidos
+  respecto al convenio ISO 6946 (isothermal=lower limit, adiabatic=upper limit).
+  **NO afecta el U final** (es el promedio, conmutativo), solo las etiquetas
+  mostradas en el `aviso_puente` de acero. Cosmético; NO se cambió para no
+  arriesgar la lógica del perfil de temperatura (que usa el valor isotérmico).
 
-- **Validar contra la planilla Excel oficial:** correr ~10 casos en la planilla
-  MINVU y comparar U/condensación con el motor, agregándolos como tests.
+- **(7) Validar contra la planilla Excel oficial:** correr ~10 casos en la
+  planilla MINVU y comparar U/condensación con el motor, agregándolos como
+  tests. La suite ya tiene 29 tests (calcU + fire) como base.
+
+---
+
+## ✅ (5) Refactor `obtenerRFOGUC` — HECHO (commit 249e044)
+
+La firma tenía el primer parámetro mal nombrado (`uso`→`destino`) y el wrapper
+`getRFOGUC_loaded` pasaba los args descolocados sin `elemento` → siempre null →
+contradicciones CUMPLE/NO CUMPLE (caso Martin Contreras). Corregido en fire.js
++ App.jsx, con test de regresión en `src/__tests__/fire.test.js`.
 
 ---
 
