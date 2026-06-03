@@ -4858,8 +4858,23 @@ ${cambios.length && solucion ? `
                 {!cumpleFRsi && <div style={{ marginTop:4, fontSize:11, color:'#991b1b' }}>
                   La temperatura superficial interior ({Tsi_int.toFixed(1)}°C) está bajo el punto de rocío ({res.Tdew}°C). Riesgo de condensación o moho en la cara interior. Mejora el aislamiento (aumenta Rtot) o reduce la HR interior.
                 </div>}
+                {/* ── Criterio de moho 75% (NCh1973) — INFORMATIVO, no gate ──── */}
+                {res.fRsiMin75 != null && (
+                  <div style={{ marginTop:6, paddingTop:6, borderTop:'1px dashed #cbd5e1', fontSize:11, color:'#374151' }}>
+                    <span style={{ fontWeight:700, color:'#6d28d9' }}>🦠 Criterio de moho (NCh1973 · 75% HR sup.):</span>{' '}
+                    fRsi mín (moho) = <b>{res.fRsiMin75}</b> · T sup. mín = <b>{res.TsiMin75}°C</b> →{' '}
+                    {res.riesgoMoho
+                      ? <span style={{ color:'#b45309', fontWeight:600 }}>riesgo de moho indicativo</span>
+                      : <span style={{ color:'#166534', fontWeight:600 }}>sin riesgo de moho</span>}
+                    <div style={{ marginTop:2, fontSize:10, color:'#94a3b8', fontStyle:'italic' }}>
+                      Indicativo, no normativo para U. Con HR interior alta ({hr}%) el umbral 75% es muy
+                      exigente (el aire interior ya está cerca del 75%). El criterio de cumplimiento DOM
+                      es la condensación (rocío) y el U; el moho se gestiona con ventilación (NCh3309).
+                    </div>
+                  </div>
+                )}
                 <div style={{ marginTop:4, fontSize:10, color:'#64748b' }}>
-                  NCh853:2021 §6 · fRsi = 1 − RSi/Rtot · Tsi = Ti − (RSi/Rtot)·(Ti−Te) · RSi = {RSi_val} m²K/W · Rtot = {res.Rtot} m²K/W
+                  NCh1973:2014 §6 · fRsi = 1 − RSi/Rtot · Tsi = Ti − (RSi/Rtot)·(Ti−Te) · RSi = {RSi_val} m²K/W · Rtot = {res.Rtot} m²K/W
                 </div>
               </div>
             )}

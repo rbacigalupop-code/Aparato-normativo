@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { satP, dewPoint, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara } from '../data.js'
+import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara } from '../data.js'
 
 // Tolerancia para comparaciones de punto flotante
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
@@ -46,6 +46,25 @@ describe('dewPoint — temperatura de rocío', () => {
   })
   it('saturación (100% HR) → rocío = temperatura del aire', () => {
     expect(cerca(dewPoint(20, 100), 20.0, 0.1)).toBe(true)
+  })
+})
+
+describe('tempDeSatP — inversa de satP', () => {
+  it('es la inversa de satP (T≥0)', () => {
+    expect(cerca(tempDeSatP(satP(15)), 15, 0.05)).toBe(true)
+    expect(cerca(tempDeSatP(satP(5)), 5, 0.05)).toBe(true)
+    expect(cerca(tempDeSatP(satP(20)), 20, 0.05)).toBe(true)
+  })
+})
+
+describe('fRsiMinMoho — factor mínimo criterio de moho (NCh1973 75%)', () => {
+  it('condiciones suaves (20/10/60%) → fRsi,min ≈ 0.64', () => {
+    expect(cerca(fRsiMinMoho(20, 10, 60, 0.75), 0.644, 0.01)).toBe(true)
+  })
+  it('HR interior alta dispara un fRsi,min muy alto (cerca de 1)', () => {
+    // A 73% interior (condición oficial MINVU) el margen con 75% es mínimo →
+    // se requiere una superficie casi tan caliente como el aire interior.
+    expect(fRsiMinMoho(20, 1, 73, 0.75)).toBeGreaterThan(0.9)
   })
 })
 

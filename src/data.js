@@ -817,6 +817,34 @@ export const satP=T=> T>=0
   ? 610.8*Math.exp(17.27 *T/(T+237.3))   // sobre agua (Magnus) — ISO 13788
   : 610.8*Math.exp(21.875*T/(T+265.5));  // sobre hielo        — ISO 13788 (T<0)
 export const dewPoint=(T,HR)=>{const a=17.27,b=237.3,al=(a*T/(b+T))+Math.log(HR/100);return b*al/(a-al);};
+
+// Inversa de satP: dada una presión de saturación [Pa], devuelve la temperatura
+// [°C] a la que el agua tiene esa psat. Usado para el criterio de moho (NCh1973
+// / ISO 13788): la temperatura superficial mínima a la que el aire interior
+// alcanza HR=75% es aquella donde psat(T) = Pv_interior / 0.75.
+// Usa la rama sobre agua (el criterio de moho aplica a temperaturas de
+// superficie interior, típicamente > 0°C).
+export const tempDeSatP=P=>{
+  if(!P||P<=0) return -273;
+  const ln=Math.log(P/610.8);
+  return 237.3*ln/(17.27-ln);
+};
+
+// Factor de temperatura superficial fRsi mínimo requerido para evitar MOHO
+// (NCh1973:2014 / ISO 13788). φsicr = humedad relativa superficial crítica
+// (0.75 = 75% según planilla oficial MINVU; ISO 13788 usa 0.80).
+//   Pv_int       = satP(ti)·HRi/100
+//   Psat_min     = Pv_int / φsicr   (psat mínima en la superficie interior)
+//   Tsi_min      = tempDeSatP(Psat_min)
+//   fRsi,min     = (Tsi_min − Te) / (Ti − Te)
+// El elemento cumple si fRsi_real (= 1 − RSi/Rtot) ≥ fRsi,min.
+export function fRsiMinMoho(ti, te, hri, phiCrit=0.75){
+  if((ti-te)<=0) return 0;
+  const PvInt   = satP(ti)*hri/100;
+  const PsatMin = PvInt/phiCrit;
+  const TsiMin  = tempDeSatP(PsatMin);
+  return (TsiMin-te)/(ti-te);
+}
 export const ist={border:"1.5px solid #cbd5e1",borderRadius:6,padding:"5px 8px",fontSize:12,background:"#fff"};
 export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";
 
@@ -889,6 +917,19 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   else if(condSup)caso="superficial_piso";
   const U=parseFloat((1/Rtot).toFixed(4));
 
+  // ── Condensación superficial interior + criterio de MOHO (NCh1973:2014) ──────
+  // fRsi real = 1 − RSi/Rtot · Tsi = temperatura de la superficie interior.
+  // Dos criterios:
+  //   · Condensación: Tsi < Tdew (rocío 100%)  → agua líquida
+  //   · Moho:         Tsi < Tsi,min(75%)        → riesgo de hongos/moho
+  // El de moho es MÁS estricto (φsicr=75% según planilla MINVU).
+  const fRsi      = Rtot>0 ? 1 - rsi/Rtot : 1;
+  const TsiInt    = Rtot>0 ? ti - (rsi/Rtot)*(ti-te) : ti;
+  const fRsiMin75 = fRsiMinMoho(ti, te, hr, 0.75);
+  const TsiMin75  = te + fRsiMin75*(ti-te);
+  const condSupInt = TsiInt < Tdew;                 // condensación superficial interior
+  const riesgoMoho = TsiInt < TsiMin75 && !condSupInt; // moho (75%) sin llegar a condensar
+
   // ── Alerta puente térmico metálico ────────────────────────────────────────────
   const aceroLayer=cv.find(c=>c.estructura_integrada?.tipo==='acero');
   let aviso_puente=null;
@@ -905,6 +946,10 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
     temps,pv,ifaces,condInter,condSup,caso,
     Tdew:Tdew.toFixed(2),U:U.toFixed(4),Rtot,Rs,
     Pvsi:Pvsi.toFixed(0),Pvse:Pvse.toFixed(0),
+    // Condensación superficial interior + moho (NCh1973:2014)
+    fRsi:fRsi.toFixed(3), TsiInt:TsiInt.toFixed(2),
+    fRsiMin75:fRsiMin75.toFixed(3), TsiMin75:TsiMin75.toFixed(2),
+    condSupInt, riesgoMoho,
     // Datos ISO 6946 (null si no hay estructura integrada)
     iso6946: isoR.hasEB ? {
       R_upper:isoR.R_upper.toFixed(4),R_lower:isoR.R_lower.toFixed(4),
