@@ -396,6 +396,27 @@ export const RSE_MAP={muro:0.04,techo:0.04,piso:0.13};
 export const RSE=0.04; // valor por defecto (muro/techo)
 export const RCAMARA=0.18;
 
+// ─── Resistencia térmica de cámara de aire NO ventilada (ISO 6946:2017) ──────
+// La norma tabula R según el ESPESOR de la cámara (superficies de alta
+// emisividad, flujo horizontal). Antes el código usaba RCAMARA=0.18 fijo, que
+// sobrevalora cámaras finas (<25mm). Tabla ISO 6946 (interpolación lineal):
+//   0mm→0.00 · 5mm→0.11 · 7mm→0.13 · 10mm→0.15 · 15mm→0.17 · ≥25mm→0.18
+//
+// RETROCOMPATIBLE: si la capa no trae espesor (proyectos guardados antiguos,
+// cámaras del catálogo SC sin espesor), devuelve el valor legado 0.18.
+const _CAMARA_R_TABLA = [[0,0.0],[5,0.11],[7,0.13],[10,0.15],[15,0.17],[25,0.18]];
+export function resistenciaCamara(esp_m){
+  const e = parseFloat(esp_m);
+  if(!e || isNaN(e) || e<=0) return RCAMARA;     // sin espesor → 0.18 (legado)
+  const mm = e*1000;
+  if(mm >= 25) return 0.18;                        // ≥25mm satura en 0.18
+  for(let i=1;i<_CAMARA_R_TABLA.length;i++){
+    const [m0,r0]=_CAMARA_R_TABLA[i-1], [m1,r1]=_CAMARA_R_TABLA[i];
+    if(mm<=m1) return r0 + (r1-r0)*(mm-m0)/(m1-m0);
+  }
+  return 0.18;
+}
+
 // ─── Materiales de estructura integrada (ISO 6946 / NCh853 — Puentes térmicos) ──
 // λ_Pino Radiata ≈ 0.13 W/mK  (NCh433:1993 / EN ISO 10456 Tabla B.4)
 // λ_Acero gal.   ≈ 50.0 W/mK  (EN ISO 10456:2007 Tabla 3 — aceros al carbono)
@@ -478,7 +499,7 @@ export const calcU_SC=(cod,elem)=>{
   const rse=RSE_MAP[rsiKey]||0.04;
   let R=rsi+rse;
   for(const c of src){
-    if(c.camara){R+=RCAMARA;continue;}
+    if(c.camara){R+=resistenciaCamara((c.esp||0)/1000);continue;}  // SC en mm → m
     R+=(c.esp/1000)/c.lam;
   }
   return parseFloat((1/R).toFixed(4));
@@ -503,7 +524,7 @@ function calcR_ISO6946_helper(cv, elemTipo) {
 
   // R efectivo por capa (planos isotérmicos — mezcla paralela para capa mixta)
   function Reff(c) {
-    if (c.esCamara || c.camara) return RCAMARA;
+    if (c.esCamara || c.camara) return resistenciaCamara(c.esp);  // esp en metros
     if (c.estructura_integrada) {
       const eb = c.estructura_integrada;
       const fa = Math.min(Math.max(eb.ancho_mm / eb.distancia_mm, 0.01), 0.99);
@@ -536,7 +557,7 @@ function calcR_ISO6946_helper(cv, elemTipo) {
   let R_comun = rsi + rse;
   for (const c of cv) {
     if (c === mixed) continue;
-    if (c.esCamara || c.camara) { R_comun += RCAMARA; continue; }
+    if (c.esCamara || c.camara) { R_comun += resistenciaCamara(c.esp); continue; }
     R_comun += c.esp / c.lam;
   }
   const R_A     = R_comun + R_struct_lay;   // camino A: int → montante → ext
@@ -812,7 +833,7 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
 
   // R efectivo por capa (planos isotérmicos: mezcla paralela para capa mixta)
   function Reff(c){
-    if(c.esCamara||c.camara) return RCAMARA;
+    if(c.esCamara||c.camara) return resistenciaCamara(c.esp);  // esp en metros
     if(c.estructura_integrada){
       const eb=c.estructura_integrada;
       const fa=Math.min(Math.max(eb.ancho_mm/eb.distancia_mm,0.01),0.99);
@@ -1051,7 +1072,7 @@ function _calcGlaserSimple(cv,ti,te,hr,elemTipo="muro"){
   const rsi=RSI_MAP[rsiKey]||0.13;
   const rse=RSE_MAP[rsiKey]||0.04;
   function Rlay(c){
-    if(c.esCamara||c.camara)return RCAMARA;
+    if(c.esCamara||c.camara)return resistenciaCamara(c.esp);  // esp en metros
     if(!c.lam||c.lam<=0)return 0;
     return c.esp/c.lam;
   }

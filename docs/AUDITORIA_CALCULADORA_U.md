@@ -45,32 +45,26 @@ es un bug, es el comportamiento normativamente correcto.
 
 ---
 
-## ⏳ PENDIENTE — recordar en sesiones futuras
+## ✅ (B) Cámara de aire: resistencia variable según espesor — **HECHO**
 
-### 🅱️ (B) Cámara de aire: resistencia variable según espesor — **PENDIENTE**
+Implementado (commit posterior a 3207dfd):
+  · `resistenciaCamara(esp_m)` en data.js — interpolación lineal ISO 6946:
+    5mm→0.11 · 7mm→0.13 · 10mm→0.15 · 15mm→0.17 · ≥25mm→0.18.
+  · Usado en los 5 puntos de cálculo (calcGlaser, calcR_ISO6946_helper ×2,
+    _calcGlaserSimple, calcU_SC) + 4 display/desglose.
+  · UI: el espesor de cámara ahora es editable (input en mm) y muestra la
+    R resultante en vivo.
+  · Plumbing del espesor a través de calcularConCapas + efecto initData.
+  · **RETROCOMPATIBLE:** sin espesor → 0.18 (proyectos guardados y cámaras
+    del catálogo SC sin esp quedan idénticos). Cero regresión.
+  · 5 tests nuevos en calcU.test.js (19 total).
 
-**Estado actual:** `RCAMARA = 0.18` fijo (data.js:397), sin importar espesor
-ni grado de ventilación.
-
-**Lo que dice la norma:** la planilla oficial MINVU (NCh853/NCh1973) define
-la cámara de aire no ventilada como **"R variable según espesor"**. ISO 6946
-la tabula: 5mm→0.11, 7mm→0.13, 10mm→0.15, 15mm→0.16, ≥25mm→0.18 (superficie
-alta emisividad, flujo horizontal). Cámaras ventiladas deben reducirse/anularse.
-
-**Por qué no se hizo ahora:** el modelo actual de cámara no transporta su
-espesor (`calcularConCapas` la reduce a `{esCamara:true}` sin `esp`). Implementarlo
-requiere:
-  1. Plumbing del espesor de cámara a través de `calcularConCapas` y `buildCapas`.
-  2. Función de interpolación R(espesor) según tabla ISO 6946.
-  3. Opción de grado de ventilación (no ventilada / ligeramente / muy ventilada).
-  4. Migración de proyectos guardados (sus cámaras cambiarían de R).
-
-**Impacto:** sobrevalora R en cámaras finas (<25mm) → U optimista. Medio.
-
-**Archivos:** `data.js` (RCAMARA, calcGlaser, calcR_ISO6946_helper,
-_calcGlaserSimple, calcU_SC), `App.jsx` (calcularConCapas, UI de capas).
+PENDIENTE menor de B (futuro): grado de ventilación (la cámara muy ventilada
+debería anularse / usar Rse; hoy solo modela "no ventilada").
 
 ---
+
+## ⏳ PENDIENTE — recordar en sesiones futuras
 
 ### Otras mejoras de mayor alcance (futuras)
 

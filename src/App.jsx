@@ -14,7 +14,7 @@ import {
   RF_DEF, RF_EST, AC_DEF, AC_IMPACT_DEF, RIESGO_INC, RF_PISOS, RF_ELEM_REQ, OBS_EST, CATEG_FUEGO,
   USO_TO_OGUC,
   ACERO_PROT, PERFILES_ACERO,
-  ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA, filterMatsByElem,
+  ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA, resistenciaCamara, filterMatsByElem,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
   VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
@@ -761,7 +761,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
     const rsiKey = elem==='techumbre'?'techo':elem==='piso'?'piso':'muro'
     let R = (RSI_MAP[rsiKey]||0.13) + (RSE_MAP[rsiKey]||0.04)
     for (const c of [...base, ...ext]) {
-      if (c.esCamara) { R += RCAMARA; continue }
+      if (c.esCamara) { R += resistenciaCamara((parseFloat(c.esp)||0)/1000); continue }
       const lam = parseFloat(c.lam), esp = parseFloat(c.esp)
       if (!isNaN(lam) && lam > 0 && !isNaN(esp) && esp > 0) R += (esp/1000) / lam
     }
@@ -827,7 +827,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
       '',
       'CAPAS (interior → exterior):',
       ...allC.map(c => c.esCamara
-        ? '  [Cámara de aire]  R=0.18 m²K/W'
+        ? `  [Cámara de aire]  ${c.esp ? `e=${c.esp}mm  ` : ''}R=${resistenciaCamara((parseFloat(c.esp)||0)/1000).toFixed(2)} m²K/W`
         : `  ${c.name}  λ=${c.lam} W/mK  e=${c.esp}mm  R=${((parseFloat(c.esp)/1000)/parseFloat(c.lam)).toFixed(3)} m²K/W`),
       '',
       `OBSERVACIÓN: ${s.obs}`,
@@ -957,7 +957,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
                     </div>
                   :String(c.esp)}
               </td>
-              <td style={cs}>{c.esCamara?RCAMARA.toFixed(2):(c.lam&&c.esp)?((parseFloat(c.esp)/1000)/parseFloat(c.lam)).toFixed(3):'—'}</td>
+              <td style={cs}>{c.esCamara?resistenciaCamara((parseFloat(c.esp)||0)/1000).toFixed(2):(c.lam&&c.esp)?((parseFloat(c.esp)/1000)/parseFloat(c.lam)).toFixed(3):'—'}</td>
             </tr>
           ))}
           {extra.map(c=>(
@@ -3927,7 +3927,9 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
     // Auto-calcular inmediatamente con las capas de la solución
     const tiZ = zona?.Ti || 20, teZ = zona?.Te || 5, hrZ = zona?.HR || 70
-    const cv = capasValidas.map(c => c.esCamara ? { esCamara: true } : {
+    // Cámara: pasar su espesor (metros) para que resistenciaCamara use la R
+    // según ISO 6946. Sin espesor → 0.18 (retrocompat con proyectos guardados).
+    const cv = capasValidas.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
       mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
       ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
     }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
@@ -4015,7 +4017,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
   async function calcularConCapas(cs) {
     try {
-      const cv = cs.map(c => c.esCamara ? { esCamara: true } : {
+      const cv = cs.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
         mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
         ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
@@ -4514,7 +4516,15 @@ ${cambios.length && solucion ? `
                   {c.esCamara ? (
                     <tr style={{ background:'#eff6ff' }}>
                       <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>{idx+1}</td>
-                      <td style={S.td} colSpan={3}><i>Cámara de aire (R = {RCAMARA} m²K/W)</i></td>
+                      <td style={S.td}><i>Cámara de aire</i></td>
+                      {/* λ col: R según espesor (ISO 6946) */}
+                      <td style={{ ...S.td, fontSize:11, color:'#0369a1' }}>
+                        R={resistenciaCamara((parseFloat(c.esp)||0)/1000).toFixed(2)}
+                      </td>
+                      {/* Espesor editable (mm). Vacío → 0.18 legado */}
+                      <td style={S.td}>
+                        <input style={{ ...ist, width:70 }} value={c.esp} onChange={e=>updCapa(c.id,'esp',e.target.value)} placeholder="≥25" title="Espesor de cámara en mm (ISO 6946: 5→0.11, 10→0.15, ≥25→0.18)"/>
+                      </td>
                       <td style={S.td}>≈1</td>
                       <td style={S.td}>{btnMv('↑', ()=>moveUp(c.id), idx===0)}{btnMv('↓', ()=>moveDown(c.id), idx===capas.length-1)}</td>
                       <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
@@ -6988,17 +6998,18 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         const RSi = RSI_MAP[rsiKey] || 0.13, RSe = RSE_MAP[rsiKey] || 0.04
         let Racum = 0
         const rows = capas.map((c, i) => {
-          const rC = c.esCamara ? RCAMARA : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000) / parseFloat(c.lam) : 0)
+          const rCam = c.esCamara ? resistenciaCamara((parseFloat(c.esp)||0)/1000) : 0
+          const rC = c.esCamara ? rCam : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000) / parseFloat(c.lam) : 0)
           Racum += rC
           const matNorm = c.esCamara ? null : ALL_MATS.find(m => m.n?.toLowerCase() === (c.mat||'').toLowerCase())
-          const fuenteLam = c.esCamara ? '—' : (matNorm ? 'NCh853:2021 Anexo / LOSCAT Ed.13' : (c.lam ? 'Dato fabricante / LOSCAT' : '—'))
+          const fuenteLam = c.esCamara ? 'ISO 6946:2017 (R según espesor)' : (matNorm ? 'NCh853:2021 Anexo / LOSCAT Ed.13' : (c.lam ? 'Dato fabricante / LOSCAT' : '—'))
           return `<tr>
             <td>${i + 1}</td>
             <td>${c.esCamara ? '<i>Cámara de aire</i>' : (c.mat || '—')}</td>
             <td>${c.esCamara ? '—' : (c.lam ?? '—')}</td>
-            <td>${c.esCamara ? '—' : (c.esp ?? '—')}</td>
+            <td>${c.esCamara ? (c.esp ? c.esp : '—') : (c.esp ?? '—')}</td>
             <td>${c.esCamara ? '≈ 1' : (c.mu ?? '—')}</td>
-            <td>${c.esCamara ? '= ' + RCAMARA : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000 / parseFloat(c.lam)).toFixed(4) : '—')}</td>
+            <td>${c.esCamara ? '= ' + rCam.toFixed(2) : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000 / parseFloat(c.lam)).toFixed(4) : '—')}</td>
             <td style="font-size:8.5pt;color:#64748b">${fuenteLam}</td>
           </tr>`
         }).join('')

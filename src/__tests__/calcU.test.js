@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { satP, dewPoint, calcGlaser, calcU_ISO6946, calcU_SC } from '../data.js'
+import { satP, dewPoint, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara } from '../data.js'
 
 // Tolerancia para comparaciones de punto flotante
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
@@ -128,6 +128,37 @@ describe('calcU_ISO6946 — método combinado con puente térmico', () => {
     const r = calcU_ISO6946(cv, 'muro')
     expect(parseFloat(r.R_upper)).toBeCloseTo(parseFloat(r.R_lower), 4)
     expect(r.method).toBe('serie')
+  })
+})
+
+describe('resistenciaCamara — R de cámara según espesor (ISO 6946)', () => {
+  it('valores tabulados exactos', () => {
+    expect(cerca(resistenciaCamara(0.005), 0.11, 0.001)).toBe(true)   // 5mm
+    expect(cerca(resistenciaCamara(0.007), 0.13, 0.001)).toBe(true)   // 7mm
+    expect(cerca(resistenciaCamara(0.010), 0.15, 0.001)).toBe(true)   // 10mm
+    expect(cerca(resistenciaCamara(0.015), 0.17, 0.001)).toBe(true)   // 15mm
+  })
+  it('interpolación lineal (20mm entre 15 y 25)', () => {
+    // 0.17 + (0.18-0.17)*(20-15)/(25-15) = 0.175
+    expect(cerca(resistenciaCamara(0.020), 0.175, 0.001)).toBe(true)
+  })
+  it('≥25mm satura en 0.18', () => {
+    expect(resistenciaCamara(0.025)).toBe(0.18)
+    expect(resistenciaCamara(0.050)).toBe(0.18)
+    expect(resistenciaCamara(0.300)).toBe(0.18)
+  })
+  it('retrocompat: sin espesor → 0.18 (legado)', () => {
+    expect(resistenciaCamara(0)).toBe(0.18)
+    expect(resistenciaCamara(undefined)).toBe(0.18)
+    expect(resistenciaCamara(NaN)).toBe(0.18)
+  })
+  it('el espesor de cámara afecta el U calculado en calcGlaser', () => {
+    // Cámara 10mm (R=0.15) da U distinto a cámara sin espesor (0.18)
+    const base = [{ lam: 0.26, esp: 0.013, mu: 8 }, { lam: 0.23, esp: 0.006, mu: 50 }]
+    const con10mm = calcGlaser([base[0], { esCamara: true, esp: 0.010 }, base[1]], 20, 5, 70, 'muro')
+    const sinEsp  = calcGlaser([base[0], { esCamara: true }, base[1]], 20, 5, 70, 'muro')
+    expect(parseFloat(con10mm.U)).not.toBe(parseFloat(sinEsp.U))   // distintos
+    expect(parseFloat(con10mm.U)).toBeGreaterThan(parseFloat(sinEsp.U))  // menos R → más U
   })
 })
 
