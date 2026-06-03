@@ -9030,8 +9030,12 @@ function AppInner() {
       obtenerLetraOGUC(destino, m2, pisos, ogucDataReady.OGUC_TABLA1),
     getRFDeLetra_loaded: (letra, elemId) =>
       obtenerRFdeLetra(letra, elemId, ogucDataReady.OGUC_RF_LETRAS, ogucDataReady.OGUC_ELEM_COL),
+    // Firma externa (uso, destino, m2, pisos, elemId): `uso` se ignora (legado),
+    // se usa `destino`. FIX 2026-05-27: antes pasaba (uso, destino, m2, pisos)
+    // a obtenerRFOGUC(destino, superficie, pisos, elemento) — descolocado y sin
+    // elemId → siempre null. Ahora pasa los args correctos.
     getRFOGUC_loaded: (uso, destino, m2, pisos, elemId) =>
-      obtenerRFOGUC(uso, destino, m2, pisos, ogucDataReady.OGUC_TABLA1, ogucDataReady.OGUC_RF_LETRAS, ogucDataReady.OGUC_ELEM_COL),
+      obtenerRFOGUC(destino, m2, pisos, elemId, ogucDataReady.OGUC_TABLA1, ogucDataReady.OGUC_RF_LETRAS, ogucDataReady.OGUC_ELEM_COL),
   }), [ogucDataReady])
 
   // Contenido del panel de ayuda por pestaña (índice = tab)

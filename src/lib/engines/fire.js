@@ -107,8 +107,13 @@ export function obtenerRFdeLetra(letra, elemento, OGUC_RF_LETRAS = {}, OGUC_ELEM
 }
 
 // ─── Obtener RF de tabla OGUC para elemento ───────────────────────────────
-export function obtenerRFOGUC(uso, superficie, pisos, elemento, OGUC_TABLA1 = {}, OGUC_RF_LETRAS = {}, OGUC_ELEM_COL = {}) {
-  const letra = obtenerLetraOGUC(uso, superficie, pisos, OGUC_TABLA1)
+// Firma: (destino OGUC, superficie m², pisos, elemento, ...tablas OGUC).
+// IMPORTANTE: el primer argumento es el DESTINO OGUC (string de la Tabla 1),
+// NO el "uso" interno de la app. Antes el parámetro se llamaba `uso` lo que
+// confundía a los callers (el wrapper en App.jsx pasaba los args descolocados
+// y nunca pasaba `elemento` → siempre devolvía null). Ver auditoría 2026-05-27.
+export function obtenerRFOGUC(destino, superficie, pisos, elemento, OGUC_TABLA1 = {}, OGUC_RF_LETRAS = {}, OGUC_ELEM_COL = {}) {
+  const letra = obtenerLetraOGUC(destino, superficie, pisos, OGUC_TABLA1)
   if (!letra) return null
   return obtenerRFdeLetra(letra, elemento, OGUC_RF_LETRAS, OGUC_ELEM_COL)
 }
