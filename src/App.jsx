@@ -3864,6 +3864,19 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
   )
 })
 
+// ─── Cubierta ventilada (ISO 6946 §6.9.2) ────────────────────────────────────
+// Si la cubierta es ventilada y hay una cámara de aire, el cálculo higrotérmico
+// solo considera las capas BAJO la cámara (las superiores están a condiciones
+// exteriores y no contribuyen). La cara que da a la cámara venteada usa
+// Rse = Rsi del flujo (aire quieto, §6.9.4). Devuelve { cv truncado, rseVent }.
+function aplicarCubiertaVentilada(cvFull, cubiertaVent, elemTipo) {
+  const esTecho = elemTipo === 'techumbre' || elemTipo === 'techo'
+  if (!cubiertaVent || !esTecho) return { cv: cvFull, rseVent: undefined }
+  const idxCam = cvFull.findIndex(c => c.esCamara || c.camara)
+  if (idxCam <= 0) return { cv: cvFull, rseVent: undefined }  // sin cámara (o es la 1ª) → no truncar
+  return { cv: cvFull.slice(0, idxCam), rseVent: RSI_MAP['techo'] || 0.10 }
+}
+
 // ─── PANEL CÁLCULO U (componente por elemento) ────────────────────────────────
 function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColor, onLimpiarCalcU, onCalcUChange, perfil }) {
   // elemKey puede ser simple ('muro') o compuesto ('abc123::muro').
@@ -4017,17 +4030,23 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
   async function calcularConCapas(cs) {
     try {
-      const cv = cs.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
+      const cvFull = cs.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
         mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
         ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
+      if (!cvFull.length) return
+
+      // ── Cubierta ventilada (ISO 6946 §6.9.2): si está activa y hay cámara,
+      // truncar el stack en la cámara (las capas sobre ella no contribuyen) y
+      // usar Rse = Rsi del flujo (aire quieto, §6.9.4) en la cara a la cámara. ──
+      const { cv, rseVent } = aplicarCubiertaVentilada(cvFull, cubiertaVent, elemTipo)
       if (!cv.length) return
 
       // Incrementar token. Promesas async previas se descartarán solas.
       const myToken = ++opToken.current
 
       // calcGlaser es sync — siempre aplicar el resultado
-      const r = calcGlaser(cv, ti, te, hr, elemTipo)
+      const r = calcGlaser(cv, ti, te, hr, elemTipo, rseVent)
       setRes(r)
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
@@ -4071,6 +4090,14 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     }
   }
   function calcular() { calcularConCapas(capas) }
+
+  // Recalcular automáticamente al togglear "Cubierta ventilada" (omite el mount)
+  const cubVentMount = useRef(true)
+  useEffect(() => {
+    if (cubVentMount.current) { cubVentMount.current = false; return }
+    if (capas.length) calcularConCapas(capas)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cubiertaVent])
 
   function moveUp(id) {
     setCapas(cs => {
@@ -4467,7 +4494,7 @@ ${cambios.length && solucion ? `
                 </label>
                 {cubiertaVent && (
                   <div style={{ marginTop:6, fontSize:11, color:'#1e40af', background:'#dbeafe', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
-                    <b>ISO 6946 §6.9.2:</b> Para cubierta con cámara ventilada, introduce sólo las capas <b>bajo</b> la cámara. Las capas superiores (p.ej. teja, tablero exterior) no contribuyen. Usa RSe = 0.13 m²K/W para la cara que da a la cámara. El U resultante aplica al modelo energético.
+                    <b>ISO 6946 §6.9.2:</b> al activar, el cálculo considera <b>sólo las capas bajo la cámara</b> (las superiores —teja, tablero, OSB— están a condiciones exteriores y no contribuyen). La cara que da a la cámara venteada usa <b>RSe = 0.10 m²K/W</b> (aire quieto, §6.9.4). Recalcula automáticamente.
                   </div>
                 )}
               </div>

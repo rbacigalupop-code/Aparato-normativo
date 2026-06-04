@@ -532,10 +532,12 @@ export const calcU_SC=(cod,elem)=>{
 //   Siempre R_upper ≥ R_lower. R_T = (R_upper + R_lower)/2  →  U_T = 1/R_T.
 //   `R_isotermico` se expone explícito para el perfil de temperatura Glaser
 //   (que usa el modelo de planos isotérmicos), independiente del nombre upper/lower.
-function calcR_ISO6946_helper(cv, elemTipo) {
+function calcR_ISO6946_helper(cv, elemTipo, rseOverride) {
   const rsiKey = elemTipo === 'techumbre' ? 'techo' : elemTipo === 'piso' ? 'piso' : 'muro';
   const rsi = RSI_MAP[rsiKey] || 0.13;
-  const rse = RSE_MAP[rsiKey] || 0.04;
+  // rseOverride: para cubierta ventilada (ISO 6946 §6.9.4) la cara que da a la
+  // cámara venteada usa Rse = Rsi del mismo flujo (aire quieto), no 0.04.
+  const rse = (typeof rseOverride === 'number') ? rseOverride : (RSE_MAP[rsiKey] || 0.04);
 
   // R efectivo por capa (planos isotérmicos — mezcla paralela para capa mixta)
   function Reff(c) {
@@ -872,11 +874,14 @@ export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";
 //   · U final = 1/R_T con R_T = (R_upper + R_lower)/2 — valores reales para DOM
 //   · Perfil de temperatura usa R_isotermico (planos isotérmicos) — Glaser
 //   · Se añade `aviso_puente` y `iso6946` al resultado cuando hay puente térmico
-export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
+// rseOverride (opcional): para cubierta ventilada (ISO 6946 §6.9.2/6.9.4) — la
+// cara que da a la cámara venteada usa Rse = Rsi del flujo (aire quieto). El
+// caller debe truncar cv hasta la cámara (excluida) antes de llamar.
+export const calcGlaser=(cv,ti,te,hr,elemTipo="muro",rseOverride)=>{
   if(!cv||!cv.length||isNaN(ti)||isNaN(te)||isNaN(hr))return null;
   const rsiKey=elemTipo==="techumbre"?"techo":elemTipo==="piso"?"piso":"muro";
   const rsi=RSI_MAP[rsiKey]||0.13;
-  const rse=RSE_MAP[rsiKey]||0.04;
+  const rse=(typeof rseOverride==="number")?rseOverride:(RSE_MAP[rsiKey]||0.04);
 
   // R efectivo por capa (planos isotérmicos: mezcla paralela para capa mixta)
   function Reff(c){
@@ -891,7 +896,7 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   }
 
   // ── R_T con método ISO 6946 combinado (superior+inferior)/2 ──────────────────
-  const isoR=calcR_ISO6946_helper(cv,elemTipo);
+  const isoR=calcR_ISO6946_helper(cv,elemTipo,rseOverride);
   const Rtot=isoR.R_T;  // U certificable = 1/Rtot (NCh853/ISO 6946)
 
   // ── Perfil de temperaturas (usa el modelo de planos isotérmicos) ────────────
@@ -1457,10 +1462,15 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const cvConBV = insertarBVAntesAislante(cv, {..._BVap});
       const idxAisBV = cvConBV.findIndex(c => clasificarCapa(c) === 'aislante');
       const camaraVent = { esCamara: true, n: 'Cámara ventilada (≥30mm)', esp: 0.030, camaraVentilada: true };
-      const cvVisual = validarCierre(
-        [...cvConBV.slice(0, idxAisBV + 1), camaraVent, ...cvConBV.slice(idxAisBV + 1)],
-        elemTipo
-      );
+      // Si YA existe una cámara tras el aislante, no agregar otra (evita cámara
+      // doble): solo se inserta la BV. Reportado por usuario 2026-05-27.
+      const yaHayCamara = cvConBV.slice(idxAisBV + 1).some(c => c.esCamara || c.camara);
+      const cvVisual = yaHayCamara
+        ? validarCierre(cvConBV, elemTipo)
+        : validarCierre(
+            [...cvConBV.slice(0, idxAisBV + 1), camaraVent, ...cvConBV.slice(idxAisBV + 1)],
+            elemTipo
+          );
       // Stack para Glaser (truncado): solo capas hasta el aislante inclusive,
       // simulando que la cámara venteada deja las capas posteriores a condiciones
       // exteriores (ISO 6946 §6.9.2). No usamos validarCierre acá porque en una

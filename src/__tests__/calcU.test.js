@@ -105,6 +105,31 @@ describe('calcGlaser — transmitancia U (resistencias en serie)', () => {
   })
 })
 
+describe('Cubierta ventilada — truncar stack + Rse aire quieto (ISO 6946 §6.9.2)', () => {
+  // Caso reportado: cubierta cercha madera + lana 150 + cámara + OSB en zona F.
+  const stackCompleto = [
+    { lam: 0.26, esp: 0.013, mu: 8 },     // Yeso cartón
+    { lam: 0.035, esp: 0.150, mu: 1 },    // Lana mineral
+    { esCamara: true, esp: 0.030 },       // Cámara ventilada
+    { lam: 0.23, esp: 0.020, mu: 200 },   // OSB (sobre la cámara)
+  ]
+  const stackTruncado = stackCompleto.slice(0, 2)  // solo capas bajo la cámara
+
+  it('stack COMPLETO (sin truncar) condensa — el bug reportado', () => {
+    const r = calcGlaser(stackCompleto, 20, -1, 80, 'techumbre')
+    expect(r.condInter).toBe(true)
+  })
+  it('stack TRUNCADO con Rse aire quieto (0.10) NO condensa — CUMPLE', () => {
+    const r = calcGlaser(stackTruncado, 20, -1, 80, 'techumbre', 0.10)
+    expect(r.condInter).toBe(false)
+  })
+  it('rseOverride cambia el Rse usado (U distinto)', () => {
+    const sin = calcGlaser(stackTruncado, 20, -1, 80, 'techumbre')        // Rse=0.04
+    const con = calcGlaser(stackTruncado, 20, -1, 80, 'techumbre', 0.10)  // Rse=0.10
+    expect(parseFloat(con.U)).toBeLessThan(parseFloat(sin.U))  // más Rse → menos U
+  })
+})
+
 describe('calcGlaser — detección de condensación (Glaser)', () => {
   it('cubierta con PV-4 Zincalum exterior (μ=100000) → CONDENSA', () => {
     // Caso real validado en sesión: OSB | Lana | Yeso | PV-4 (int→ext).
