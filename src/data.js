@@ -1,3 +1,7 @@
+// Biblioteca oficial de materiales DITEC/MINVU (ISO 10456 / NCh853:2021),
+// importada del Excel oficial. Se anexa al catálogo sin alterar la lógica.
+import { MATERIALES_OFICIAL } from './data/materiales_oficial.js';
+
 // ─── DATOS BASE ───────────────────────────────────────────────────────────────
 export const ZONAS={A:{n:"Zona A",ej:"Arica, Antofagasta",techo:0.84,muro:2.10,piso:3.60,Ti:20,Te:10,HR:60,pda:false},B:{n:"Zona B",ej:"Copiapo, Vallenar",techo:0.47,muro:0.80,piso:0.87,Ti:20,Te:5,HR:65,pda:false},C:{n:"Zona C",ej:"Coquimbo, Valparaiso",techo:0.47,muro:0.80,piso:0.87,Ti:20,Te:4,HR:70,pda:false},D:{n:"Zona D",ej:"Santiago, Talca",techo:0.38,muro:0.80,piso:0.60,Ti:20,Te:2,HR:75,pda:true},E:{n:"Zona E",ej:"Concepcion, Tolten",techo:0.33,muro:0.60,piso:0.60,Ti:20,Te:1,HR:78,pda:true},F:{n:"Zona F",ej:"Chillan, Temuco",techo:0.28,muro:0.45,piso:0.50,Ti:20,Te:-1,HR:80,pda:true},G:{n:"Zona G",ej:"Valdivia, Puerto Montt",techo:0.28,muro:0.40,piso:0.39,Ti:20,Te:-2,HR:80,pda:false},H:{n:"Zona H",ej:"Lonquimay, Pucon",techo:0.25,muro:0.30,piso:0.32,Ti:20,Te:-4,HR:75,pda:false},I:{n:"Zona I",ej:"Coyhaique, Punta Arenas",techo:0.25,muro:0.35,piso:0.35,Ti:20,Te:-6,HR:75,pda:false}};
 
@@ -356,7 +360,7 @@ export const CUBIERTAS_TECHUMBRE=[
 // renderizado de UI; el dropdown sigue usando MATS + filterMatsByElem). Incluye
 // CUBIERTAS_TECHUMBRE para que `ALL_MATS.find(...)` encuentre PV-4 Zincalum,
 // tejas, paneles sándwich, etc. y autocomplete sus λ, μ y espesor sugerido.
-export const ALL_MATS = [...MATS.flatMap(g=>g.items), ...CUBIERTAS_TECHUMBRE];
+export const ALL_MATS = [...MATS.flatMap(g=>g.items), ...CUBIERTAS_TECHUMBRE, ...MATERIALES_OFICIAL.flatMap(g=>g.items)];
 
 // Alias semántico para el slot «Revestimiento Exterior» de muros.
 // Corresponde exactamente a CAPAS_CIERRE_EXT (definido más abajo). Se re-exporta
@@ -375,8 +379,10 @@ export function filterMatsByElem(elemTipo){
   const elem = (elemTipo==='techumbre') ? 'techo'
              : (elemTipo==='tabique')   ? 'muro'
              : elemTipo || null;
-  if(!elem) return MATS;
-  const base = MATS
+  // Lista = catálogo propio + biblioteca oficial anexada (misma estructura/criterio)
+  const fuente = [...MATS, ...MATERIALES_OFICIAL];
+  if(!elem) return fuente;
+  const base = fuente
     .map(g => ({ ...g, items: g.items.filter(m => !m.usos || m.usos.includes(elem)) }))
     .filter(g => g.items.length > 0);
   // Para techumbres, inyectar el catálogo cerrado de cubiertas como grupo extra

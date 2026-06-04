@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara } from '../data.js'
+import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem } from '../data.js'
 
 // Tolerancia para comparaciones de punto flotante
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
@@ -157,6 +157,25 @@ describe('calcU_ISO6946 — método combinado con puente térmico', () => {
     const r = calcU_ISO6946(cv, 'muro')
     expect(parseFloat(r.R_upper)).toBeCloseTo(parseFloat(r.R_lower), 4)
     expect(r.method).toBe('serie')
+  })
+})
+
+describe('Biblioteca oficial de materiales (ISO 10456 / NCh853) — integración', () => {
+  it('los materiales oficiales están en ALL_MATS (autofill funciona)', () => {
+    const m = ALL_MATS.find(x => x.n === 'Armado (2% de acero) (ρ=2400)')
+    expect(m).toBeTruthy()
+    expect(m.lam).toBe(2.5)
+    expect(m.mu).toBe(130)
+  })
+  it('respeta usos: recubrimientos de piso aparecen en piso, NO en muro', () => {
+    const gruposMuro = filterMatsByElem('muro').map(g => g.g)
+    const gruposPiso = filterMatsByElem('piso').map(g => g.g)
+    expect(gruposPiso).toContain('Oficial NCh853 — Recubrimientos de piso')
+    expect(gruposMuro).not.toContain('Oficial NCh853 — Recubrimientos de piso')
+  })
+  it('grupos oficiales universales aparecen en todos los elementos', () => {
+    const gruposMuro = filterMatsByElem('muro').map(g => g.g)
+    expect(gruposMuro).toContain('Oficial NCh853 — Hormigón')
   })
 })
 
