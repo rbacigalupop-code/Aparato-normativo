@@ -133,12 +133,12 @@ describe('calcU_ISO6946 — método combinado con puente térmico', () => {
     ]
     const r = calcU_ISO6946(cv, 'muro')
     expect(cerca(parseFloat(r.U), 0.401, 0.015)).toBe(true)
-    // R_T debe estar entre los límites superior e inferior (independiente del nombre)
+    // Convención ISO 6946: R_upper (límite superior) ≥ R_lower (límite inferior)
+    expect(parseFloat(r.R_upper)).toBeGreaterThanOrEqual(parseFloat(r.R_lower))
+    // R_T (promedio) debe estar entre ambos límites
     const rT = parseFloat(r.R_T)
-    const lo = Math.min(parseFloat(r.R_upper), parseFloat(r.R_lower))
-    const hi = Math.max(parseFloat(r.R_upper), parseFloat(r.R_lower))
-    expect(rT).toBeGreaterThanOrEqual(lo - 1e-6)
-    expect(rT).toBeLessThanOrEqual(hi + 1e-6)
+    expect(rT).toBeGreaterThanOrEqual(parseFloat(r.R_lower) - 1e-6)
+    expect(rT).toBeLessThanOrEqual(parseFloat(r.R_upper) + 1e-6)
     expect(r.method).toBe('iso6946')
   })
 

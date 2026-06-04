@@ -4918,8 +4918,8 @@ ${cambios.length && solucion ? `
                 </div>
                 {res.iso6946 && (
                   <div style={{ fontSize:10, color:'#94a3b8', borderTop:'1px solid #fecaca', paddingTop:6, marginTop:4, fontFamily:'monospace' }}>
-                    ISO 6946 · R_T,upper={res.iso6946.R_upper} m²K/W (planos isotérmicos)
-                    · R_T,lower={res.iso6946.R_lower} m²K/W (caminos paralelos)
+                    ISO 6946 · R'_T (sup.)={res.iso6946.R_upper} m²K/W (caminos paralelos)
+                    · R''_T (inf.)={res.iso6946.R_lower} m²K/W (planos isotérmicos)
                     · R_T={(parseFloat(res.iso6946.R_upper)/2+parseFloat(res.iso6946.R_lower)/2).toFixed(4)} m²K/W
                     · f_a={((res.aviso_puente.fa||0)*100).toFixed(1)}%
                   </div>
@@ -4932,7 +4932,7 @@ ${cambios.length && solucion ? `
               <div style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'8px 14px', marginTop:10, fontSize:11, color:'#92400e' }}>
                 <b>⚙ ISO 6946 Método Combinado</b> · Puente térmico de montantes de madera detectado.
                 <span style={{ color:'#64748b', marginLeft:8, fontFamily:'monospace', fontSize:10 }}>
-                  R_T,upper={res.iso6946.R_upper} · R_T,lower={res.iso6946.R_lower} · R_T={res.iso6946.R_T} m²K/W
+                  R'_T (sup.)={res.iso6946.R_upper} · R''_T (inf.)={res.iso6946.R_lower} · R_T={res.iso6946.R_T} m²K/W
                   · f_a={((res.iso6946.fa||0)*100).toFixed(1)}% estr. / f_b={((res.iso6946.fb||0)*100).toFixed(1)}% ais.
                 </span>
               </div>

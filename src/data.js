@@ -514,9 +514,12 @@ export const calcU_SC=(cod,elem)=>{
 // Cada capa puede llevar `estructura_integrada: { tipo, lam, ancho_mm, distancia_mm }`.
 //
 // Algoritmo (ISO 6946:2017 §6.4-6.6):
-//   R_T,upper → planos isotérmicos: capa mixta tratada en paralelo
-//   R_T,lower → caminos paralelos completos int → ext
-//   R_T = (R_T,upper + R_T,lower) / 2   →  U_T = 1 / R_T
+// Convención ISO 6946:2017 §6.7.2 (corregida 2026-05-27):
+//   R'_T  (LÍMITE SUPERIOR, R_upper) = caminos paralelos / adiabático  → MAYOR
+//   R''_T (LÍMITE INFERIOR, R_lower) = planos isotérmicos / combinado  → MENOR
+//   Siempre R_upper ≥ R_lower. R_T = (R_upper + R_lower)/2  →  U_T = 1/R_T.
+//   `R_isotermico` se expone explícito para el perfil de temperatura Glaser
+//   (que usa el modelo de planos isotérmicos), independiente del nombre upper/lower.
 function calcR_ISO6946_helper(cv, elemTipo) {
   const rsiKey = elemTipo === 'techumbre' ? 'techo' : elemTipo === 'piso' ? 'piso' : 'muro';
   const rsi = RSI_MAP[rsiKey] || 0.13;
@@ -538,15 +541,15 @@ function calcR_ISO6946_helper(cv, elemTipo) {
   // Buscar primera capa con estructura integrada
   const mixed = cv.find(c => !c.esCamara && !c.camara && c.estructura_integrada);
   if (!mixed) {
-    // Sin estructura → serie simple
+    // Sin estructura → serie simple (upper = lower = isotérmico)
     const R = rsi + rse + cv.reduce((s, c) => s + Reff(c), 0);
-    return { R_T: R, R_upper: R, R_lower: R, fa: 0, fb: 1, method: 'serie', hasEB: false };
+    return { R_T: R, R_upper: R, R_lower: R, R_isotermico: R, fa: 0, fb: 1, method: 'serie', hasEB: false };
   }
 
-  // ── R_T,upper — planos isotérmicos (Ec. 6.4) ─────────────────────────────────
-  const R_upper = rsi + rse + cv.reduce((s, c) => s + Reff(c), 0);
+  // ── R''_T — planos isotérmicos / combinado (Ec. 6.4) → LÍMITE INFERIOR ───────
+  const R_isoterm = rsi + rse + cv.reduce((s, c) => s + Reff(c), 0);
 
-  // ── R_T,lower — caminos paralelos int→ext (Ec. 6.5) ─────────────────────────
+  // ── R'_T — caminos paralelos int→ext (Ec. 6.5) → LÍMITE SUPERIOR ────────────
   const eb  = mixed.estructura_integrada;
   const fa  = Math.min(Math.max(eb.ancho_mm / eb.distancia_mm, 0.01), 0.99);
   const fb  = 1 - fa;
@@ -560,13 +563,17 @@ function calcR_ISO6946_helper(cv, elemTipo) {
     if (c.esCamara || c.camara) { R_comun += resistenciaCamara(c.esp); continue; }
     R_comun += c.esp / c.lam;
   }
-  const R_A     = R_comun + R_struct_lay;   // camino A: int → montante → ext
-  const R_B     = R_comun + R_ins_lay;      // camino B: int → aislante  → ext
-  const R_lower = 1 / (fa / R_A + fb / R_B);
+  const R_A       = R_comun + R_struct_lay;   // camino A: int → montante → ext
+  const R_B       = R_comun + R_ins_lay;      // camino B: int → aislante  → ext
+  const R_paralelo = 1 / (fa / R_A + fb / R_B);
+
+  // ── Asignación por convención ISO 6946: upper=mayor, lower=menor ────────────
+  const R_upper = Math.max(R_paralelo, R_isoterm);   // R'_T  (límite superior)
+  const R_lower = Math.min(R_paralelo, R_isoterm);   // R''_T (límite inferior)
 
   // ── R_T final — media aritmética (Ec. 6.6) ───────────────────────────────────
   const R_T = (R_upper + R_lower) / 2;
-  return { R_T, R_upper, R_lower, fa, fb, method: 'iso6946', hasEB: true };
+  return { R_T, R_upper, R_lower, R_isotermico: R_isoterm, fa, fb, method: 'iso6946', hasEB: true };
 }
 
 // Exportado para uso directo desde App.jsx (diagnóstico detallado de puente térmico)
@@ -851,7 +858,7 @@ export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";
 // ─── Glaser (NCh853:2021) + ISO 6946:2017 método combinado ───────────────────────
 // Para capas con `estructura_integrada` (montantes de madera/acero):
 //   · U final = 1/R_T con R_T = (R_upper + R_lower)/2 — valores reales para DOM
-//   · Perfil de temperatura usa R_upper (planos isotérmicos) — análisis Glaser conservador
+//   · Perfil de temperatura usa R_isotermico (planos isotérmicos) — Glaser
 //   · Se añade `aviso_puente` y `iso6946` al resultado cuando hay puente térmico
 export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   if(!cv||!cv.length||isNaN(ti)||isNaN(te)||isNaN(hr))return null;
@@ -875,8 +882,8 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro")=>{
   const isoR=calcR_ISO6946_helper(cv,elemTipo);
   const Rtot=isoR.R_T;  // U certificable = 1/Rtot (NCh853/ISO 6946)
 
-  // ── Perfil de temperaturas (usa R_upper — planos isotérmicos — más conservador) ─
-  const Rtot_temp=isoR.R_upper;
+  // ── Perfil de temperaturas (usa el modelo de planos isotérmicos) ────────────
+  const Rtot_temp=isoR.R_isotermico;
   const temps=[ti];
   let Ra=rsi;
   for(const c of cv){
