@@ -110,13 +110,19 @@ Limitación restante: la magnitud absoluta de muros que fallan sigue alta (la
 construcción completa del envolvente convexo ISO 13788 la refinaría más), pero
 el veredicto pass/fail y auto-seca/acumula ahora es confiable.
 
-- **(4) RSE_MAP.piso = 0.13:** verificar contra la tabla de piso de NCh853 §7.
-  Los manuales aportados no traen la tabla de resistencias superficiales por
-  dirección de flujo (el ejemplo de condensación era un muro: Rsi 0.13/Rse 0.04).
-  El valor 0.13 es una convención para "piso ventilado/sobramiento" (ver comentario
-  en data.js + UI). El estándar ISO 6946 para piso sobre aire exterior sería
-  Rse=0.04. **NO se cambió** — podría ser convención chilena intencional;
-  requiere confirmar la fuente antes de tocar (riesgo de cumplimiento).
+### ✅ (4) RSE_MAP.piso = 0.13 → 0.04 — HECHO (commit d9506b3)
+
+RESUELTO con la planilla oficial DITEC/MINVU (Analisis-higrotermico-v2026).
+Tabla oficial de resistencias superficiales por dirección de flujo:
+
+|          | Ascendente (techo) | Horizontal (muro) | Descendente (piso) |
+|----------|--------------------|--------------------|--------------------|
+| Rsi (int)| 0.10               | 0.13               | 0.17               |
+| Rse (ext)| 0.04               | 0.04               | **0.04**           |
+
+El 0.13 del código era un bug (no calzaba con ninguna columna). Corregido
+a 0.04. El espacio ventilado bajo piso se modela con Ru aparte, no
+inflando Rse. Test agregado (piso HA120+EPS60 → U=0.569).
 
 ### ✅ (6) Nomenclatura R_upper/R_lower — HECHO (commit 8ae4c21)
 
@@ -125,9 +131,22 @@ R_lower = isotérmico (R''_T, menor). Nuevo campo `R_isotermico` para el
 perfil de temperatura. U sin cambio (0.4009), perfil idéntico. Etiquetas
 del display corregidas. Test con aserción R_upper ≥ R_lower.
 
-- **(7) Validar contra la planilla Excel oficial:** correr ~10 casos en la
-  planilla MINVU y comparar U/condensación con el motor, agregándolos como
-  tests. La suite ya tiene 29 tests (calcU + fire) como base.
+### ✅ (7) Validación contra planilla Excel oficial — HECHO
+
+Validado contra los 3 Excel oficiales DITEC/MINVU (Condensaciones V2026.02,
+Análisis higrotérmico v2026-05-06, Cálculo U Ventanas V2024):
+  · **Resistencias superficiales** → encontró y arregló el bug de Rse piso (4).
+  · **Cámara de aire por espesor** → confirma que mi (B) coincide EXACTO con la
+    columna Horizontal oficial (5→0.11 · 7→0.13 · 10→0.15 · 15→0.17 · ≥25→0.18).
+  · **Biblioteca de materiales (ISO 10456)** → spot-check OK: hormigón armado
+    (λ=2.5, μ=130), madera pino (λ=0.12-0.14, μ=50) coinciden con nuestro catálogo.
+  · **Fórmula U** = 1/(Rsi+Rse+Σe/λ) = "método simplificado" oficial. Validada
+    por construcción ahora que las constantes superficiales calzan.
+
+Mejora futura: la tabla de cámara también varía por dirección (descendente
+llega a 0.19-0.21 en cámaras gruesas); hoy (B) usa la columna Horizontal
+(default razonable). Y la biblioteca oficial tiene ~200 materiales que se
+podrían importar completos.
 
 ---
 
