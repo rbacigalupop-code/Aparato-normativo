@@ -118,11 +118,12 @@ el veredicto pass/fail y auto-seca/acumula ahora es confiable.
   Rse=0.04. **NO se cambió** — podría ser convención chilena intencional;
   requiere confirmar la fuente antes de tocar (riesgo de cumplimiento).
 
-- **(6) Nomenclatura R_upper/R_lower** en `calcR_ISO6946_helper`: están invertidos
-  respecto al convenio ISO 6946 (isothermal=lower limit, adiabatic=upper limit).
-  **NO afecta el U final** (es el promedio, conmutativo), solo las etiquetas
-  mostradas en el `aviso_puente` de acero. Cosmético; NO se cambió para no
-  arriesgar la lógica del perfil de temperatura (que usa el valor isotérmico).
+### ✅ (6) Nomenclatura R_upper/R_lower — HECHO (commit 8ae4c21)
+
+Corregido al convenio ISO 6946: R_upper = paralelo (R'_T, mayor),
+R_lower = isotérmico (R''_T, menor). Nuevo campo `R_isotermico` para el
+perfil de temperatura. U sin cambio (0.4009), perfil idéntico. Etiquetas
+del display corregidas. Test con aserción R_upper ≥ R_lower.
 
 - **(7) Validar contra la planilla Excel oficial:** correr ~10 casos en la
   planilla MINVU y comparar U/condensación con el motor, agregándolos como
