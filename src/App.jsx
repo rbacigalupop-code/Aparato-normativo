@@ -3930,6 +3930,20 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     setCapas(capasValidas)
     setOrigCapas(capasValidas.map(c => ({...c})))
     setSolucion(initData.solucion || null)
+
+    // Auto-activar "Cubierta ventilada" si la solución de techo lo indica:
+    // descripción menciona ventilación, o ya trae una cámara de aire. Así, al
+    // agregar la cámara (si aún no está), el cálculo trunca de inmediato.
+    // El usuario puede desmarcarlo si su diseño no es ventilado.
+    let autoVent = false
+    if (elemId === 'techo') {
+      const txtSol = ((initData.solucion?.obs || '') + ' ' + (initData.solucion?.desc || '')).toLowerCase()
+      const mencionaVent = /ventilad|ventilaci[oó]n/.test(txtSol)
+      const tieneCamara = capasValidas.some(c => c.esCamara)
+      autoVent = mencionaVent || tieneCamara
+      setCubiertaVent(autoVent)
+    }
+
     // Si el propio componente disparó este cambio de initData (vía onCalcUChange),
     // saltar el recálculo para evitar el doble cálculo que congela la UI.
     if (skipInitEffect.current) { skipInitEffect.current = false; return }
@@ -3942,13 +3956,15 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     const tiZ = zona?.Ti || 20, teZ = zona?.Te || 5, hrZ = zona?.HR || 70
     // Cámara: pasar su espesor (metros) para que resistenciaCamara use la R
     // según ISO 6946. Sin espesor → 0.18 (retrocompat con proyectos guardados).
-    const cv = capasValidas.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
+    const cvFull = capasValidas.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
       mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
       ...(c.estructura_integrada ? { estructura_integrada: c.estructura_integrada } : {}),
     }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
+    // Aplicar truncación de cubierta ventilada con el valor auto-detectado
+    const { cv, rseVent } = aplicarCubiertaVentilada(cvFull, autoVent, elemTipo)
     if (cv.length) {
       // calcGlaser es sync — siempre aplicar el resultado, sin token-check.
-      const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo)
+      const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo, rseVent)
       setRes(r)
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
