@@ -84,6 +84,16 @@ describe('calcGlaser — transmitancia U (resistencias en serie)', () => {
     expect(cerca(parseFloat(r.U), 0.5780, 0.01)).toBe(true)
   })
 
+  it('piso usa Rse=0.04 (tabla oficial MINVU descendente) → U ≈ 0.569', () => {
+    // Piso HA 120mm + EPS 60mm. R = Rsi(0.17)+Rse(0.04)+0.048+1.5 = 1.758 → U=0.569.
+    // (Con el Rse=0.13 incorrecto anterior daba 0.541 — fix verificado vs planilla.)
+    const r = calcGlaser(
+      [{ lam: 2.5, esp: 0.12, mu: 130 }, { lam: 0.04, esp: 0.06, mu: 60 }],
+      20, 5, 70, 'piso'
+    )
+    expect(cerca(parseFloat(r.U), 0.5688, 0.005)).toBe(true)
+  })
+
   it('devuelve estructura completa de resultado', () => {
     const r = calcGlaser([{ lam: 0.04, esp: 0.10, mu: 60 }], 20, 10, 50, 'muro')
     expect(r).toHaveProperty('U')

@@ -390,9 +390,15 @@ export function filterMatsByElem(elemTipo){
 
 // ─── RESISTENCIAS SUPERFICIALES (NCh853 / ISO 6946) ──────────────────────────
 // BUG-03 FIX: RSE varía según elemento (no es 0.04 para todos)
+// Resistencias superficiales según tabla oficial MINVU (planilla higrotérmica
+// v2026 · NCh853:2021 / ISO 6946). Por dirección de flujo:
+//   Rsi: ascendente(techo) 0.10 · horizontal(muro) 0.13 · descendente(piso) 0.17
+//   Rse: 0.04 para TODAS las direcciones (incluido piso).
 export const RSI_MAP={muro:0.13,techo:0.10,piso:0.17};
-// RSE por tipo de elemento — piso ventilado usa 0.13, muro/techo 0.04
-export const RSE_MAP={muro:0.04,techo:0.04,piso:0.13};
+// FIX 2026-05-27: piso era 0.13 (incorrecto). La tabla oficial da Rse=0.04 para
+// descendente (piso). El espacio ventilado bajo el piso se modela con un Ru
+// aparte (ISO 13370/ISO 6946), no inflando Rse.
+export const RSE_MAP={muro:0.04,techo:0.04,piso:0.04};
 export const RSE=0.04; // valor por defecto (muro/techo)
 export const RCAMARA=0.18;
 

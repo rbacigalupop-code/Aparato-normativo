@@ -4434,7 +4434,7 @@ ${cambios.length && solucion ? `
                     </label>
                   ))}
                 </div>
-                {pisoTipo === 'ventilado' && <div style={{ fontSize:10, color:'#166534' }}>RSi = 0.17 m²K/W · RSe = 0.13 m²K/W (ISO 6946 Tabla 1 — piso expuesto al exterior/sobramiento)</div>}
+                {pisoTipo === 'ventilado' && <div style={{ fontSize:10, color:'#166534' }}>RSi = 0.17 m²K/W · RSe = 0.04 m²K/W (tabla oficial MINVU — descendente). El espacio ventilado se modela con Ru aparte.</div>}
                 {pisoTipo === 'terreno' && (
                   <div>
                     <div style={{ fontSize:10, color:'#166534', marginBottom:6 }}>ISO 13370 simplificado — ingresa geometría para calcular Uf equivalente sobre terreno.</div>
