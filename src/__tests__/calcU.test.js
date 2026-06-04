@@ -177,6 +177,17 @@ describe('Biblioteca oficial de materiales (ISO 10456 / NCh853) — integración
     const gruposMuro = filterMatsByElem('muro').map(g => g.g)
     expect(gruposMuro).toContain('Oficial NCh853 — Hormigón')
   })
+  it('metales (revestimiento/cubierta) en muro y techo, NO en piso', () => {
+    const gMuro = filterMatsByElem('muro').map(g => g.g)
+    const gTecho = filterMatsByElem('techumbre').map(g => g.g)
+    const gPiso = filterMatsByElem('piso').map(g => g.g)
+    expect(gMuro).toContain('Oficial NCh853 — metales')
+    expect(gTecho).toContain('Oficial NCh853 — metales')
+    expect(gPiso).not.toContain('Oficial NCh853 — metales')
+    // metales impermeables: μ=100000 (convertido de "inf")
+    const zinc = ALL_MATS.find(m => m.n === 'Zinc (ρ=7200)')
+    expect(zinc.mu).toBe(100000)
+  })
 })
 
 describe('resistenciaCamara — R de cámara según espesor (ISO 6946)', () => {
