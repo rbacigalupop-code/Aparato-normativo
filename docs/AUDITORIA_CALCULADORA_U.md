@@ -94,12 +94,21 @@ que ya corregimos (agua/hielo).
 
 Agregados 9 tests de regresión (`glaser_mensual.test.js`).
 
-⚠️ **Hallazgo nuevo (pendiente):** el motor **sobreestima la TASA absoluta** de
-condensación (modelo simplificado `δ·exceso/Sd` en vez del flujo neto ISO
-13788). Los valores en g/m² no son confiables (un muro vapor-abierto da ~1000
-g/m²). El **veredicto cualitativo** (cuántos meses condensan, se acumula vs se
-seca) SÍ es usable. El módulo ya lo advierte en su UI. Mejorar la tasa a flujo
-neto (g_c = δ·(Δpv_entra − Δpv_sale)/Sd) es trabajo futuro.
+✅ **Tasa mejorada a flujo neto + plano único (commit posterior):** antes usaba
+`δ·exceso/Sd` y condensaba en TODAS las interfaces supersaturadas (sumándolas) →
+sobreestimación. Ahora:
+  · **Flujo neto ISO 13788** en el plano de condensación:
+    `g_cond = g_in − g_out` con `g_in=δ·(pv_int−pv_sat)/Sd_in`,
+    `g_out=δ·(pv_sat−pv_ext)/Sd_out`.
+  · **Plano único** = la interfaz de mayor exceso (punto tangente), no todas.
+  · **Secado físico** `g_evap` hacia ambos lados en meses secos (no el 30%
+    heurístico anterior).
+  · **Discrimina bien:** muro con BV en cara caliente → 0 g/m² (sin riesgo);
+    muro con retardador en cara fría → falla. Test de discriminación agregado.
+
+Limitación restante: la magnitud absoluta de muros que fallan sigue alta (la
+construcción completa del envolvente convexo ISO 13788 la refinaría más), pero
+el veredicto pass/fail y auto-seca/acumula ahora es confiable.
 
 - **(4) RSE_MAP.piso = 0.13:** verificar contra la tabla de piso de NCh853 §7.
   Los manuales aportados no traen la tabla de resistencias superficiales por

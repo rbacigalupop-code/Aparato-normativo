@@ -92,4 +92,22 @@ describe('analizarGlaserAnual — 12 meses + balance', () => {
     expect(analizarGlaserAnual([], climaSintetico())).toBeNull()
     expect(analizarGlaserAnual(muroOk, [])).toBeNull()
   })
+
+  it('DISCRIMINA: BV en cara caliente pasa, vapor-retarder en cara fría falla', () => {
+    // Flujo neto + plano único: un muro bien diseñado (barrera de vapor en la
+    // cara caliente, exterior abierto) NO debe condensar; uno con retardador de
+    // vapor en la cara fría (fibrocemento μ50 exterior) SÍ atrapa vapor.
+    const climaFrio = climaSintetico(2, 18, 80)
+    const muroBueno = [
+      { lam: 0.26, esp: 0.013, mu: 8 },        // yeso
+      { lam: 0.23, esp: 0.0002, mu: 9999 },    // barrera vapor (cara caliente)
+      { lam: 0.035, esp: 0.100, mu: 1 },       // lana
+      { lam: 0.87, esp: 0.020, mu: 15 },       // estuco (exterior abierto)
+    ]
+    const bueno = analizarGlaserAnual(muroBueno, climaFrio, 'muro')
+    const malo  = analizarGlaserAnual(muroMalo, climaFrio, 'muro')
+    expect(bueno.mesesConCondensacion).toBe(0)
+    expect(bueno.veredicto).toBe('sin_riesgo')
+    expect(malo.mesesConCondensacion).toBeGreaterThan(0)
+  })
 })

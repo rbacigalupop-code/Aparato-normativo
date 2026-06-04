@@ -83,29 +83,59 @@ export function glaserMensualPaso(capas, T_ext, HR_ext, T_int = T_INT_DEFAULT, H
   // pv_sat depende de T en cada interfaz
   const pv_sat_iface  = T_iface.map(T => pvSat(T))
 
-  // Detectar condensación: pv_real > pv_sat
+  // Detectar condensación + tasas por FLUJO NETO (ISO 13788 §6.2).
+  //
+  // En un plano de condensación la presión de vapor se "clava" a pv_sat. La tasa
+  // de condensación NETA es el flujo que ENTRA desde el lado caliente menos el
+  // que SALE al lado frío:
+  //   g_in  = δ·(pv_int − pv_sat_plano) / Sd_in    (interior → plano)
+  //   g_out = δ·(pv_sat_plano − pv_ext) / Sd_out   (plano → exterior)
+  //   g_cond = g_in − g_out                         (acumulación neta)
+  // El modelo anterior usaba δ·exceso/Sd_in (solo g_in con Sd mal) → sobreestimaba
+  // la acumulación ~10x. Ver docs/AUDITORIA_CALCULADORA_U.md.
+  //
+  // En mes seco (sin condensación) un plano con agua almacenada se SECA hacia
+  // ambos lados:  g_evap = δ·(pv_sat_plano − pv_int)/Sd_in + δ·(pv_sat_plano − pv_ext)/Sd_out
+  // Identificar el ÚNICO plano de condensación: la interfaz con mayor exceso
+  // (pv_real − pv_sat). Físicamente ISO 13788 condensa en el punto tangente,
+  // no en todas las interfaces supersaturadas — sumarlas sobreestimaría.
+  let idxPlano = -1, maxExceso = 0
+  for (let i = 1; i < pv_real_iface.length - 1; i++) {
+    const ex = pv_real_iface[i] - pv_sat_iface[i]
+    if (ex > maxExceso) { maxExceso = ex; idxPlano = i }
+  }
+  const condensaMes = idxPlano >= 0
+
   const ifaces = []
-  let condensaMes = false
-  let tasaCondTotalMes = 0  // suma de tasas en kg/m²·s (debería ser solo positiva)
-  for (let i = 1; i < pv_real_iface.length - 1; i++) {  // ignorar superficies externas (i=0 y final)
+  let tasaCondTotalMes = 0  // kg/m²·s (neta, solo en el plano crítico)
+  for (let i = 1; i < pv_real_iface.length - 1; i++) {  // ignorar superficies externas
     const pr = pv_real_iface[i]
     const ps = pv_sat_iface[i]
-    const exceso = pr - ps
-    const riesgo = exceso > 0
-    if (riesgo) condensaMes = true
-    // Tasa de condensación simplificada (kg/m²·s):
-    // g = δ · (pv_real_input - pv_sat_iface) / Sd_input_to_iface
-    // Para simplificación, usamos exceso / Sd promedio.
-    const tasa = riesgo ? Math.max(0, DELTA_AIRE * exceso / Math.max(0.001, Sd[i])) : 0
-    tasaCondTotalMes += tasa
+    const esPlano = (i === idxPlano)
+
+    const Sd_in  = Math.max(0.001, Sd[i])               // interior → plano
+    const Sd_out = Math.max(0.001, Sd_total - Sd[i])    // plano → exterior
+
+    // Condensación NETA solo en el plano crítico (g_in − g_out)
+    const g_in   = DELTA_AIRE * (pv_int - ps) / Sd_in
+    const g_out  = DELTA_AIRE * (ps - pv_ext) / Sd_out
+    const g_cond = esPlano ? Math.max(0, g_in - g_out) : 0
+
+    // Secado potencial (agua sale del plano hacia ambos lados secos)
+    const g_evap = Math.max(0, DELTA_AIRE * (ps - pv_int) / Sd_in)
+                 + Math.max(0, DELTA_AIRE * (ps - pv_ext) / Sd_out)
+
+    tasaCondTotalMes += g_cond
     ifaces.push({
       i,
       T:        Math.round(T_iface[i] * 10) / 10,
       pv_real:  Math.round(pr),
       pv_sat:   Math.round(ps),
       margen:   Math.round(ps - pr),
-      riesgo,
-      tasa_kg_m2_s: tasa,
+      riesgo:   (pr - ps) > 0,    // supersaturada (para display)
+      esPlano,                     // plano de condensación efectivo del mes
+      tasa_kg_m2_s:  g_cond,      // condensación neta (0 salvo en el plano)
+      evap_kg_m2_s:  g_evap,      // secado potencial
     })
   }
 
@@ -145,22 +175,18 @@ export function analizarGlaserAnual(capas, clima, elemTipo = 'muro') {
     if (!paso) continue
     if (paso.condensa) mesesConCondensacion++
 
-    // Para cada interfaz interna, actualizar acumulación
+    // Para cada interfaz interna, actualizar acumulación con flujo neto.
     for (let i = 0; i < numIfaces; i++) {
       const iface = paso.ifaces[i]
       if (!iface) continue
       if (iface.riesgo) {
-        // Condensa este mes
-        const delta = iface.tasa_kg_m2_s * SEG_POR_MES
-        acumPorInterfaz[i] += delta
-      } else {
-        // Evaporación simplificada: si hay agua acumulada, se seca con factor
-        // proporcional al déficit (mes seco)
-        if (acumPorInterfaz[i] > 0) {
-          // Tasa de evaporación aprox: 30% del exceso por mes (modelo simplificado)
-          const evapRate = Math.min(acumPorInterfaz[i], acumPorInterfaz[i] * 0.30)
-          acumPorInterfaz[i] = Math.max(0, acumPorInterfaz[i] - evapRate)
-        }
+        // Condensa este mes: suma la tasa NETA (g_in − g_out) × segundos/mes
+        acumPorInterfaz[i] += iface.tasa_kg_m2_s * SEG_POR_MES
+      } else if (acumPorInterfaz[i] > 0) {
+        // Mes seco con agua almacenada: se evapora a la tasa FÍSICA de secado
+        // (g_evap × segundos/mes), sin pasar de 0.
+        const secado = iface.evap_kg_m2_s * SEG_POR_MES
+        acumPorInterfaz[i] = Math.max(0, acumPorInterfaz[i] - secado)
       }
       if (acumPorInterfaz[i] > peakPorInterfaz[i]) peakPorInterfaz[i] = acumPorInterfaz[i]
     }
