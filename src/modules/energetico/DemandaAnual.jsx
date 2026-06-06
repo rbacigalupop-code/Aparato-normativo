@@ -45,6 +45,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
   const [proteccion, setProteccion] = useState(1.0)
   const [masaTermica, setMasaTermica] = useState('media')
   const [ventNocturna, setVentNocturna] = useState(false)
+  const [gananciasInt, setGananciasInt] = useState(4.5)  // W/m² internas (según ocupación)
 
   // Auto-derivar del proyecto
   const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit), [calcUInit])
@@ -58,8 +59,9 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
     elementos, areaUtil, volumen, ach,
     areasVidrio: ventanas.areasVidrio,
     factorSolar, factorProteccion: proteccion,
+    gananciasInternasWm2: gananciasInt,
     comunaKey, zonaDS15: zonaEf,
-  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, comunaKey, zonaEf])
+  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, comunaKey, zonaEf])
 
   const verano = useMemo(() => analizarSobrecalentamiento({
     areasVidrio: ventanas.areasVidrio,
@@ -93,7 +95,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
           { campo: 'Superficie útil — desde Diagnóstico del proyecto', origen: 'normativo:diagnostico' },
           { campo: 'Zona DS N°15 y HDD18 — derivados de la comuna configurada', origen: 'energetico:configuracion' },
           { campo: 'Radiación solar vertical por orientación — calculado según zona', origen: 'auto' },
-          { campo: 'ACH, tipo vidrio, protección, masa térmica, ventilación nocturna — los defines tú', origen: 'usuario' },
+          { campo: 'ACH, tipo vidrio, protección, ganancias internas, masa térmica, ventilación nocturna — los defines tú', origen: 'usuario' },
         ]}
         normativa="ISO 13790:2008 (Energy performance of buildings) · CTE-HE simplificado · NCh853:2021"
       />
@@ -122,6 +124,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
         ach={ach} setAch={setAch}
         vidrioTipo={vidrioTipo} setVidrioTipo={setVidrioTipo}
         proteccion={proteccion} setProteccion={setProteccion}
+        gananciasInt={gananciasInt} setGananciasInt={setGananciasInt}
         zonaEf={zonaEf}
       />
 
@@ -187,7 +190,7 @@ function Hero({ balance }) {
 }
 
 // ─── SECCIÓN INVIERNO ────────────────────────────────────────────────────────
-function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, zonaEf }) {
+function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
   return (
     <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Zona ${zonaEf} · ${ZONA_DS15_LABELS[zonaEf] || ''}`}>
       {/* Inputs */}
@@ -225,6 +228,13 @@ function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, 
             <option value={0.50}>Doble protección verano (0.50)</option>
           </select>
         </Field>
+        <Field label="Ganancias internas (ocupación)">
+          <select value={gananciasInt} onChange={e => setGananciasInt(Number(e.target.value))} style={inputStyle}>
+            <option value={3.0}>Uso reducido / 2ª vivienda (3.0 W/m²)</option>
+            <option value={4.5}>Vivienda estándar (4.5 W/m²)</option>
+            <option value={6.0}>Uso intensivo / alta ocupación (6.0 W/m²)</option>
+          </select>
+        </Field>
       </div>
 
       {/* Resultados */}
@@ -257,7 +267,7 @@ function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, 
           value={`${(balance.ganancias.internas/1000).toFixed(1)}k kWh`}
           sub="ocupantes + equipos"
           color="var(--ok)"
-          badge={<BadgeOrigen origen="auto" small label="4.5 W/m²" />}
+          badge={<BadgeOrigen origen="usuario" small label={`${gananciasInt} W/m²`} />}
         />
       </div>
 
