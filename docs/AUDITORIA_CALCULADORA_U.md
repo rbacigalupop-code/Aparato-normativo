@@ -159,6 +159,61 @@ contradicciones CUMPLE/NO CUMPLE (caso Martin Contreras). Corregido en fire.js
 
 ---
 
+## ✅ (8) Blindaje de coherencia constructiva de las correcciones — HECHO
+
+Origen: caso real **1.2.G.C1.3** (entramado de madera, OSB intermedio, zona F).
+El sistema ofrecía una solución de **fuerza bruta** (fachada ventilada con 150 mm
+de PU) en vez de las soluciones eficientes. Objetivo: que **ninguna corrección
+propuesta sea refutable** por un constructor o un revisor de eficiencia energética.
+
+**Causa raíz encontrada:** el castigo por puente térmico de madera (target U
+×0.90) se aplicaba también a problemas de **solo condensación**, descartando las
+soluciones de mínima intervención (barrera de vapor, reordenar) porque no bajan U,
+y dejando solo las que agregan aislante masivo.
+
+Cambios (no alteran el cálculo U/Glaser ni las terminaciones de cierre):
+
+1. **Cierre exterior reforzado** (`debeProtegerseExterior`): `validarCierre` ya no
+   deja OSB/MDF/terciado ni yeso cartón (rev_int) como capa exterior expuesta.
+   Hormigón/ladrillo a la vista se mantienen (terminación válida).
+
+2. **`pasaCond`**: las estrategias de condensación (C5/C5b/C7/Cc) exigen el U
+   **legal**, no el penalizado, cuando U ya cumple. Reaparecen las soluciones
+   eficientes que el castigo suprimía.
+
+3. **Cc — estrategia combinada nueva**: barrera de vapor + reubicar el tablero de
+   alto μ (OSB/contrachapado) a la cara caliente. Mínima intervención (mismo
+   material y espesor). No aplica con estructura pesada (hormigón) ni en techumbre.
+
+4. **`riesgoTrampaVapor`** (criterio de capacidad de secado de Glaser): marca una
+   corrección si la capa de mayor sd queda en cara fría **y** el camino de secado
+   al exterior es igual o más cerrado que al interior (acumula). Captura también
+   la barrera de vapor mal puesta al exterior.
+
+5. **Árbitro mensual ISO 13788** (`opts.arbitroMensual`): la UI inyecta una función
+   que evalúa la composición con `analizarGlaserAnual` y el **clima real de la
+   comuna/zona**. Si el balance anual seca, exonera la advertencia geométrica; si
+   acumula, la confirma. Sin árbitro → criterio geométrico conservador.
+
+6. **Espesores comerciales** (`espesorComercial`): C1/C2/C3/C4 redondean el espesor
+   mínimo que cumple al siguiente espesor de mercado (50/80/100/120/150… mm).
+
+7. **Orden por pertinencia**: las correcciones limpias y de menor espesor primero;
+   las que tienen riesgo de trampa de vapor (p.ej. fachada ventilada
+   sobredimensionada), al final. No se descarta ninguna (todas cumplen norma):
+   se informa con advertencia explícita y se prioriza.
+
+8. **"Volver a la solución original"** (UI): botón en la calculadora U que descarta
+   la corrección aplicada y restaura la solución LOSCAT original, para probar otra
+   de las correcciones propuestas partiendo del mismo punto.
+
+Resultado en 1.2.G.C1.3: de **1 opción de fuerza bruta** a **4 opciones ordenadas**
+(C6/Cc/C3 eficientes de 125–158 mm primero; C2 fachada ventilada de 275 mm al final
+con su advertencia de trampa de vapor). 24 tests nuevos (cierre, coherencia,
+trampa de vapor, árbitro, espesores). Suite total: 72 tests.
+
+---
+
 ## Fuentes
 - Manuales-tecnicos-MINVU.pdf (biblioteca de materiales NCh853:2021 + ISO 10456)
 - Actualizacion-RT_DITEC.pdf (actualización Reglamentación Térmica)
