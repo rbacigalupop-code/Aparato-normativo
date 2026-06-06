@@ -406,6 +406,33 @@ describe('generarCorrecciones — coherencia constructiva (blindaje)', () => {
     if (c2acum) expect(c2acum._trampaVapor).toBe(true)
   })
 
+  it('reduce C8: techo SIN aislante genera solución automática (Ca)', async () => {
+    const techo = [
+      { n: 'Yeso carton',  lam: 0.26, esp: 0.010, mu: 8 },
+      { n: 'OSB/MDF',      lam: 0.23, esp: 0.015, mu: 200 },
+      { n: 'Fibrocemento', lam: 0.23, esp: 0.006, mu: 50 },
+    ]
+    const corrs = await generarCorrecciones(techo, 20, -1, 80, 'techumbre', 0.28)
+    expect(corrs.some(c => !c.esManual)).toBe(true)              // ya no es solo C8 manual
+    const ca = corrs.find(c => c.id.startsWith('ca_'))
+    expect(ca).toBeTruthy()
+    expect(ca.resultado.condInter).toBe(false)
+    expect(ca.capasCorregidas.some(c => c.esCamara)).toBe(true)  // cámara ventilada (OSB exterior alto μ)
+  })
+
+  it('reduce C8: piso SIN aislante genera Ca sin reordenar la cara pisable', async () => {
+    const piso = [
+      { n: 'Ceramica',        lam: 1.0,  esp: 0.010, mu: 40 },
+      { n: 'Radier hormigon', lam: 1.63, esp: 0.100, mu: 100 },
+    ]
+    const corrs = await generarCorrecciones(piso, 20, -1, 80, 'piso', 0.50)
+    const ca = corrs.find(c => c.id.startsWith('ca_'))
+    expect(ca).toBeTruthy()
+    expect((ca.capasCorregidas[0].n || '')).toMatch(/Cer[aá]mica/)   // pisable sigue primera
+    // el aislante queda hacia la cara fría (no es la primera capa)
+    expect(ca.capasCorregidas.findIndex(c => /XPS|EPS|Lana|PU|Fibra/.test(c.n || ''))).toBeGreaterThan(0)
+  })
+
   it('los espesores de aislante propuestos son comerciales', async () => {
     // Caso que fuerza C1/C2 (agregar aislante). El espesor del aislante nuevo
     // debe ser un valor de mercado (no 70/90/110/130 mm).

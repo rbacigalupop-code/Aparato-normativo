@@ -1645,6 +1645,71 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     }
   }
 
+  // ── Ca — Solución de aislación dimensionada (techumbre y piso) ──────────────
+  // C1/C2/C3 agregan/dimensionan aislante pero son EXCLUSIVAS de muro. Para
+  // techumbre y piso SIN aislante (o con aislante insuficiente que además
+  // condensa por una capa exterior de alto μ) no existía ninguna estrategia que
+  // los resolviera → el motor caía a sugerencias manuales (C8). Esta construye el
+  // complejo correcto desde la cara caliente: revestimiento interior + barrera de
+  // vapor (si condensa) + aislante dimensionado + capas exteriores. Y si la
+  // cubierta tiene una capa exterior de alto μ, activa cámara ventilada (ISO 6946
+  // §6.9.2) y dimensiona evaluando el stack truncado en el aislante.
+  await _YIELD();
+  const _esTechoPiso = elemTipo==='techumbre'||elemTipo==='techo'||elemTipo==='piso';
+  if((necesitaU||necesitaCond) && _esTechoPiso && (idxA<0||necesitaCond)){
+    const revInt = cv.filter(c=>clasificarCapa(c)==='rev_int');
+    const exteriores = cv.filter(c=>{const t=clasificarCapa(c);return t!=='rev_int'&&t!=='aislante'&&t!=='vapor'&&t!=='camara';});
+    const baseInt = revInt.length?revInt:[{...CAPAS_CIERRE_INT[0]}];
+    const esTecho = elemTipo==='techumbre'||elemTipo==='techo';
+    const extAltoMu = esTecho && exteriores.some(c=>(parseFloat(c.mu)||1)>=50);
+    const capasBV = necesitaCond ? [{..._BVap}] : [];
+    const camaraVent = {esCamara:true,n:'Cámara ventilada (≥30mm)',esp:0.030,camaraVentilada:true};
+    // existente primero (no cambiar material si no hace falta), luego alternativas
+    const existente = idxA>=0 ? [{n:cv[idxA].n||cv[idxA].mat,lam:parseFloat(cv[idxA].lam),mu:parseFloat(cv[idxA].mu)||1}] : [];
+    const candidatos = [...existente,...AISLS];
+    const construir = (cand,e)=>{
+      const ais={n:cand.n,lam:cand.lam,esp:e/1000,mu:cand.mu};
+      if(elemTipo==='piso'){
+        // Piso: el aislante va hacia la cara fría (bajo las capas existentes) y la
+        // barrera de vapor sobre el aislante (su cara caliente) si hay condensación.
+        // NO se reordenan las capas del piso (la cara interior es la pisable).
+        const v=validarCierre([...cv,...capasBV,ais],elemTipo);
+        return {visual:v,evalT:v};
+      }
+      if(extAltoMu){
+        const visual=validarCierre([...baseInt,...capasBV,ais,camaraVent,...exteriores],elemTipo);
+        return {visual,evalT:[...baseInt,...capasBV,ais]};   // truncado en el aislante (ISO 6946 §6.9.2)
+      }
+      const v=validarCierre([...baseInt,...capasBV,ais,...exteriores],elemTipo);
+      return {visual:v,evalT:v};
+    };
+    let elegido=null;
+    for(const cand of candidatos){
+      await _YIELD();
+      const espM=await _findMinEsp(40,300,e=>pasa(_calcGlaserSimple(construir(cand,e).evalT,ti,te,hr,elemTipo)));
+      if(espM!==null){ elegido={cand,esp:espesorComercial(espM)}; break; }
+    }
+    if(elegido){
+      const {visual,evalT}=construir(elegido.cand,elegido.esp);
+      const rN=_calcGlaserSimple(evalT,ti,te,hr,elemTipo);
+      const espMm=elegido.esp;
+      const dondeTxt = elemTipo==='piso'
+        ? 'en la cara inferior, bajo el radier/contrapiso'
+        : 'sobre el cielo interior'+(extAltoMu?', con cámara ventilada bajo la cubierta':'');
+      correcciones.push({
+        id:'ca_aislacion_'+elegido.cand.n.replace(/\s/g,'_'),
+        titulo:'Ca — Aislación '+espMm+'mm '+elegido.cand.n+(extAltoMu?' + cámara ventilada':'')+(idxA<0?'':' (redimensionada)'),
+        etiqueta:'+Aislación',sistema:'Aislación',color:'#166534',compatible_loscat:false,
+        descripcion:'Para cumplir '+motivoStr+', se incorpora '+espMm+'mm de '+elegido.cand.n+' (λ='+elegido.cand.lam+' W/mK) '+dondeTxt+(capasBV.length?', con barrera de vapor en la cara caliente para el control higrotérmico':'')+'.'+(extAltoMu?' La cámara ventilada deja las capas exteriores a condiciones exteriores (ISO 6946 §6.9.2), evitando la trampa de vapor de la capa de alto μ.':''),
+        cambio:'+ '+espMm+'mm '+elegido.cand.n+(capasBV.length?' + barrera de vapor':'')+(extAltoMu?' + cámara ventilada':''),
+        capasCorregidas:visual,resultado:rN,
+        impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+        advertencias:withPenaltyAviso([
+          extAltoMu?'⚠ Marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.2).':(elemTipo==='piso'?'Verificar la altura libre y el encuentro con puertas tras incorporar el aislante.':'Verificar la ventilación del entretecho y el encuentro con elementos contiguos.'),
+          ...(capasBV.length?['El sellado perimetral de la barrera de vapor es obligatorio (OGUC Art. 4.1.10).']:[])])});
+    }
+  }
+
   // ── C6 — Sustituir aislante por material de mejor λ ──────────────────────────
   await _YIELD();
   if(idxA>=0&&(necesitaCond||necesitaU)){
