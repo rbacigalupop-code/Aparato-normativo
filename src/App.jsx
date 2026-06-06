@@ -5870,21 +5870,21 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
         <p style={S.h2}>Calculadora U puerta (NCh3079 / ISO 10077-1)</p>
         <div style={{ ...S.row, marginBottom: 12 }}>
           <div style={S.col}>
-            <span style={S.label}>Hoja</span>
+            <span style={S.label} title="La parte sólida de la puerta (panel/tablero). Aporta su U y su resistencia al fuego (RF).">Hoja</span>
             <select style={{ ...S.sel, width: 280 }} value={hojaCalc} onChange={e => setHojaCalc(e.target.value)}>
               <option value="">Seleccionar hoja...</option>
               {PUERTA_HOJAS.map(h => <option key={h.id} value={h.id}>{h.nombre} (U={h.u}, {h.rf})</option>)}
             </select>
           </div>
           <div style={S.col}>
-            <span style={S.label}>Marco</span>
+            <span style={S.label} title="El perfil perimetral. Su ancho (definido en el catálogo) determina cuánta superficie de la puerta es marco vs hoja.">Marco</span>
             <select style={{ ...S.sel, width: 240 }} value={marcoCalc} onChange={e => setMarcoCalc(e.target.value)}>
               <option value="">Seleccionar marco...</option>
               {MARCOS_PUERTA.map(m => <option key={m.id} value={m.id}>{m.nombre} (U={m.u})</option>)}
             </select>
           </div>
           <div style={S.col}>
-            <span style={S.label}>Sello perimetral</span>
+            <span style={S.label} title="Burlete/sello entre hoja y marco. Aporta el puente térmico lineal (ψ) y suma aislación acústica.">Sello perimetral</span>
             <select style={{ ...S.sel, width: 240 }} value={selloCalc} onChange={e => setSelloCalc(e.target.value)}>
               <option value="">Seleccionar sello...</option>
               {PUERTA_SELLOS.map(s => <option key={s.id} value={s.id}>{s.nombre} (Ψ={s.psi}, +{s.bonus_rw_db}dB)</option>)}
@@ -5893,16 +5893,19 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
         </div>
         <div style={S.row}>
           <div style={S.col}>
-            <span style={S.label}>Ancho total (m)</span>
+            <span style={S.label} title="Ancho total del vano (hoja + marco), en metros. El sistema descuenta el marco automáticamente.">Ancho total (m)</span>
             <input style={{ ...S.input, width: 90 }} value={anchoCalc} onChange={e => setAnchoCalc(e.target.value)} placeholder="0.90" />
           </div>
           <div style={S.col}>
-            <span style={S.label}>Alto total (m)</span>
+            <span style={S.label} title="Alto total del vano (hoja + marco), en metros. El sistema descuenta el marco automáticamente.">Alto total (m)</span>
             <input style={{ ...S.input, width: 90 }} value={altoCalc} onChange={e => setAltoCalc(e.target.value)} placeholder="2.00" />
           </div>
           <div style={{ ...S.col, justifyContent: 'flex-end' }}>
             <button style={S.btn()} onClick={calcularU}>Calcular U puerta</button>
           </div>
+        </div>
+        <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+          Ingresa las <b>dimensiones reales</b> de la puerta (ancho × alto totales). A diferencia de la ventana, aquí <b>no</b> calculas áreas: el sistema descompone solo el área de hoja, de marco y el perímetro del sello según el ancho del marco elegido. El U resultante ya queda expresado por m².
         </div>
         {resCalc && (
           <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
@@ -5916,7 +5919,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
               {' · '}Ancho libre paso: {resCalc.anchoLibre_m} m
             </div>
             <div style={{ marginTop: 6, fontSize: 12, color: '#0369a1' }}>
-              → Copia estos valores al registro de puertas abajo, o ajustá según el uso real.
+              → Copia estos valores al registro de puertas abajo, o ajusta según el uso real.
             </div>
           </div>
         )}
@@ -5929,7 +5932,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
           <button style={S.btn('#1e40af')} onClick={addPuerta}>+ Agregar puerta</button>
         </div>
         <p style={{ fontSize: 12, color: '#64748b', marginTop: -2, marginBottom: 16 }}>
-          Cada fila es una puerta del proyecto. Editá nombre, uso, dimensiones y componentes.
+          Cada fila es una puerta del proyecto. Edita nombre, uso, dimensiones y componentes.
           El sistema valida los 4 ejes normativos en vivo.
         </p>
 
@@ -6543,7 +6546,7 @@ function UploadDetalleModal({ onClose, onUpload }) {
 
   function handleSubmit() {
     setError('')
-    if (!nombre.trim()) { setError('Ingresá un nombre para el detalle'); return }
+    if (!nombre.trim()) { setError('Ingresa un nombre para el detalle'); return }
     if (!imagenDataUrl) { setError('Subí una imagen'); return }
     const nuevo = {
       id: 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -6776,7 +6779,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
 
             {elementosConData.length === 0 && (
               <div style={{ padding:14, background:'#fef3c7', border:'1px solid #fde047', borderRadius:6, fontSize:11.5, color:'#92400e', lineHeight:1.55 }}>
-                ⚠ Ninguno de los marcadores tiene un elemento asignado, o los elementos no tienen solución LOSCAT. Editá los marcadores y/o asigná soluciones en la pestaña Soluciones.
+                ⚠ Ninguno de los marcadores tiene un elemento asignado, o los elementos no tienen solución LOSCAT. Edita los marcadores y/o asigna soluciones en la pestaña Soluciones.
               </div>
             )}
 
@@ -8668,7 +8671,7 @@ ${cards}`)
       const blobUrl = URL.createObjectURL(blob)
       const w = window.open(blobUrl, '_blank')
       if (!w) {
-        alert('El navegador bloqueó la nueva pestaña. Permití pop-ups para esta página y volvé a intentar.\n\nAlternativa: abrí Vista previa y usá Ctrl+P.')
+        alert('El navegador bloqueó la nueva pestaña. Permite pop-ups para esta página y vuelve a intentar.\n\nAlternativa: abre Vista previa y usa Ctrl+P.')
         URL.revokeObjectURL(blobUrl)
       } else {
         // Disparar print apenas el doc termine de cargar (no antes), con
@@ -8892,7 +8895,7 @@ ${cards}`)
 
               {/* Descripción breve del formato */}
               <span style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
-                {formatoExport === 'pdf'  && 'Abre vista previa y diálogo de imprimir — elegí "Guardar como PDF"'}
+                {formatoExport === 'pdf'  && 'Abre vista previa y diálogo de imprimir — elige "Guardar como PDF"'}
                 {formatoExport === 'html' && 'Archivo .html — se abre en cualquier navegador, fácil de compartir'}
                 {formatoExport === 'word' && 'Archivo .doc — compatible con Microsoft Word y LibreOffice Writer'}
               </span>
@@ -8936,7 +8939,7 @@ ${cards}`)
                   const blobUrl = URL.createObjectURL(blob)
                   const w = window.open(blobUrl, '_blank')
                   if (!w) {
-                    alert('El navegador bloqueó la nueva pestaña. Permití pop-ups y reintentá.')
+                    alert('El navegador bloqueó la nueva pestaña. Permite pop-ups y reintenta.')
                     URL.revokeObjectURL(blobUrl)
                   } else {
                     w.addEventListener('load', () => setTimeout(() => w.print(), 400))
@@ -9860,7 +9863,7 @@ function AppInner() {
               👋 Bienvenido a NormaCheck
             </div>
             <div style={{ fontSize:18, fontWeight:800, color:'#1e293b', marginBottom:8 }}>
-              ¿Cómo querés empezar?
+              ¿Cómo quieres empezar?
             </div>
             <div style={{ fontSize:12, color:'#64748b', marginBottom:18, lineHeight:1.5 }}>
               Detectamos un <b>borrador autoguardado</b>{proy.nombre ? <> del proyecto <b style={{ color:'#1e293b' }}>"{proy.nombre}"</b></> : ''}.
