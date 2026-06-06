@@ -6,6 +6,8 @@ import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validar
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { validarRwCumplimiento, obtenerRwRequerido, buscarSolucionesAcusticas } from './lib/engines/acoustic.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
+import { analizarGlaserAnual } from './lib/engines/glaser_mensual.js'
+import { climaMensual } from './data/clima_mensual.js'
 import { cargarDatosOGUC } from './lib/ogucData.js'
 import { AyudaPanel } from './components/Ayuda.jsx'
 import NotasPanel from './NotasPanel.jsx'
@@ -3909,6 +3911,22 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   // pero el contenido es idéntico (caso común con setCalcUInit del padre).
   const lastInitSig = useRef(null)
 
+  // Árbitro mensual (ISO 13788): confirma o exonera el riesgo geométrico de
+  // trampa de vapor de una corrección usando el clima real de la comuna/zona del
+  // proyecto. En ref para inyectarlo en generarCorrecciones dentro de efectos sin
+  // alterar sus dependencias. Devuelve 'seca' | 'acumula' | null.
+  const arbitroMensualRef = useRef(null)
+  arbitroMensualRef.current = (cvCorr, et) => {
+    try {
+      const clima = climaMensual(proy.comuna || null, proy.zona || null)
+      const a = analizarGlaserAnual(cvCorr, clima, et === 'techumbre' ? 'techo' : et)
+      if (!a) return null
+      if (a.veredicto === 'sin_riesgo' || a.veredicto === 'autoseca') return 'seca'
+      if (a.veredicto === 'acumula' || a.cumpleISO13788 === false) return 'acumula'
+      return null
+    } catch { return null }
+  }
+
   // ── Estado para opciones normativas avanzadas ──────────────────────────────
   // Piso: tipo de apoyo (ventilado / sobre terreno / sobre espacio no calef.)
   const [pisoTipo, setPisoTipo] = useState('ventilado') // 'ventilado'|'terreno'|'no_calef'
@@ -3980,7 +3998,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
           const targetParaSugerir = esOptimizOnly ? umax * 0.90 : umax
           ;(async () => {
             try {
-              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, targetParaSugerir)
+              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, targetParaSugerir, { arbitroMensual: arbitroMensualRef.current })
               // Solo aplicar si esta sigue siendo la operación activa
               if (myToken !== opToken.current) return
               setCorrec(cr)
@@ -4088,7 +4106,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
             const targetParaSugerir = esOptimizOnly
               ? umax * 0.90    // sugiere mejoras para llegar al 90% del límite
               : umax
-            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir)
+            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir, { arbitroMensual: arbitroMensualRef.current })
             // Descartar resultado si otra operación más reciente está en curso
             if (myToken !== opToken.current) return
             setCorrec(nuevasCorrec)
@@ -4274,7 +4292,7 @@ ${'='.repeat(60)}`
       const cvCorr = corr.capasCorregidas
       setCalcuando(true)
       try {
-        const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax)
+        const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax, { arbitroMensual: arbitroMensualRef.current })
         if (myToken !== opToken.current) return
         setCorrec(nuevasCorrec)
       } catch (e) {

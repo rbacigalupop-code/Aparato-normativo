@@ -1144,8 +1144,14 @@ export function riesgoTrampaVapor(cv){
   const sd=func.map(_sdCapa);
   let idxMax=0; for(let i=1;i<sd.length;i++) if(sd[i]>sd[idxMax]) idxMax=i;
   const mitad=(func.length-1)/2;
-  const haySegundaInterior=sd.slice(0,idxMax).some(v=>v>=1.0);  // ~OSB 9mm = 1.8m
-  return idxMax>mitad && sd[idxMax]>=1.5 && haySegundaInterior;
+  if(!(idxMax>mitad && sd[idxMax]>=1.5)) return false;   // sd máximo notable en cara fría
+  // Capacidad de secado (difusión de Glaser): resistencia al vapor del camino
+  // hacia el EXTERIOR (desde el plano de mayor sd) vs hacia el INTERIOR. Si salir
+  // al exterior es igual o más difícil que entrar, el vapor se acumula → trampa
+  // real. Si el exterior es más abierto, la pared seca → no es trampa.
+  const sdInterior=sd.slice(0,idxMax).reduce((a,b)=>a+b,0);
+  const sdExterior=sd.slice(idxMax).reduce((a,b)=>a+b,0);
+  return sdExterior>=sdInterior;
 }
 
 // Inserta una capa justo antes del primer revestimiento exterior (o al final si no hay)
@@ -1320,7 +1326,7 @@ async function _findMinEsp(minEsp, maxEsp, tryFn) {
 //     · estructura_integrada.tipo === 'madera' → castigo 15 % (×0.85)
 //   El umaxTarget mostrado en textos/etiquetas conserva el valor legal
 //   original; solo la búsqueda interna usa el penalizado.
-export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget=null){
+export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget=null,opts={}){
   if(!cv||!cv.length)return[];
 
   // ── Detectar puente térmico integrado ────────────────────────────────────────
@@ -1858,10 +1864,27 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     if(!corr.capasCorregidas){ corr._espesor=Infinity; continue; }  // manuales C8
     corr._espesor=espesorMaterial(corr.capasCorregidas);
     if(riesgoTrampaVapor(corr.capasCorregidas)){
-      corr._trampaVapor=true;
-      corr.advertencias=[
-        '⚠ Coherencia higrotérmica: la capa de mayor resistencia al vapor queda hacia la cara fría. Aunque el cálculo de punto único cumple, un análisis mensual o un revisor podría observar riesgo de humedad atrapada. Si hay una alternativa con barrera de vapor en la cara caliente, es preferible.',
-        ...(corr.advertencias||[])];
+      // Árbitro mensual (ISO 13788): si la UI inyectó opts.arbitroMensual (con el
+      // clima real de la comuna), confirma o EXONERA el riesgo geométrico con el
+      // balance anual de acumulación/secado. Sin árbitro → criterio conservador.
+      let veredictoMensual=null;
+      if(typeof opts.arbitroMensual==='function'){
+        try{ veredictoMensual=opts.arbitroMensual(corr.capasCorregidas,elemTipo); }catch{ veredictoMensual=null; }
+      }
+      if(veredictoMensual==='seca'){
+        corr._trampaVapor=false; corr._secaMensual=true;
+        corr.advertencias=[
+          'ℹ La capa de mayor resistencia al vapor queda hacia la cara fría, pero el análisis mensual (ISO 13788) con el clima de la comuna confirma que el balance anual seca (no acumula). Constructivamente aceptable.',
+          ...(corr.advertencias||[])];
+      }else{
+        corr._trampaVapor=true;
+        const citaMensual = veredictoMensual==='acumula'
+          ? ' El análisis mensual (ISO 13788) con el clima de la comuna confirma acumulación anual de humedad.'
+          : '';
+        corr.advertencias=[
+          '⚠ Coherencia higrotérmica: la capa de mayor resistencia al vapor queda hacia la cara fría y el secado al exterior es más cerrado que al interior, por lo que el vapor tiende a acumularse.'+citaMensual+' Si hay una alternativa con barrera de vapor en la cara caliente, es preferible.',
+          ...(corr.advertencias||[])];
+      }
     }
   }
   correcciones.sort((a,b)=>{

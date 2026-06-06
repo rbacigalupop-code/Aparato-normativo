@@ -393,6 +393,19 @@ describe('generarCorrecciones — coherencia constructiva (blindaje)', () => {
     expect(corrs.some(c => c.id === 'cc_bv_reubicar_tablero')).toBe(false)
   })
 
+  it('árbitro mensual: "seca" exonera la trampa, "acumula" la confirma', async () => {
+    // Mock determinista (no depende del clima real → test estable). Targets
+    // 0.47/0.48 para no colisionar con la caché de los tests previos.
+    const corrsSeca = await generarCorrecciones(casoOSB, 20, -1, 80, 'muro', 0.47, { arbitroMensual: () => 'seca' })
+    expect(corrsSeca.every(c => !c._trampaVapor)).toBe(true)
+    const c2seca = corrsSeca.find(c => c.id.startsWith('c2_ventilada'))
+    if (c2seca) expect(c2seca._secaMensual).toBe(true)
+
+    const corrsAcum = await generarCorrecciones(casoOSB, 20, -1, 80, 'muro', 0.48, { arbitroMensual: () => 'acumula' })
+    const c2acum = corrsAcum.find(c => c.id.startsWith('c2_ventilada'))
+    if (c2acum) expect(c2acum._trampaVapor).toBe(true)
+  })
+
   it('los espesores de aislante propuestos son comerciales', async () => {
     // Caso que fuerza C1/C2 (agregar aislante). El espesor del aislante nuevo
     // debe ser un valor de mercado (no 70/90/110/130 mm).
