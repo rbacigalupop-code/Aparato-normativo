@@ -4044,7 +4044,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     setCapas(c => [...c, { id: Date.now(), mat: 'Cámara de aire', lam: '', esp: '', mu: '', esCamara: true }])
   }
 
-  async function calcularConCapas(cs) {
+  async function calcularConCapas(cs, opts = {}) {
     try {
       const cvFull = cs.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
         mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu),
@@ -4067,7 +4067,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
       // Marcamos el flag para que useEffect([initData]) no vuelva a calcular.
-      if (onCalcUChange) { skipInitEffect.current = true; onCalcUChange(elemKey, { capas: cs, res: r }) }
+      if (onCalcUChange) { skipInitEffect.current = true; onCalcUChange(elemKey, { capas: cs, res: r, limpiarCorreccion: opts.limpiarCorreccion }) }
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
         // Trigger corrections en 3 casos:
@@ -4106,6 +4106,19 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     }
   }
   function calcular() { calcularConCapas(capas) }
+
+  // Volver a la solución original del LOSCAT: descarta correcciones aplicadas o
+  // ediciones manuales, restaura las capas guardadas en origCapas al cargar la
+  // solución, recalcula y limpia la corrección registrada en el padre. Permite
+  // probar varias correcciones partiendo siempre del mismo punto de origen.
+  function restaurarOriginal() {
+    if (!origCapas?.length) return
+    const restauradas = origCapas.map(c => ({ ...c, id: Date.now() + Math.random() }))
+    setCapas(restauradas)
+    setShowHomolog(false)
+    setModoOptimiz(false)
+    calcularConCapas(restauradas, { limpiarCorreccion: true })
+  }
 
   // Recalcular automáticamente al togglear "Cubierta ventilada" (omite el mount)
   const cubVentMount = useRef(true)
@@ -4673,6 +4686,12 @@ ${cambios.length && solucion ? `
           <button style={S.btn('#64748b')} onClick={addCapa}>+ Capa</button>
           <button style={S.btn('#0369a1')} onClick={addCamara}>+ Cámara</button>
           <button style={S.btn()} onClick={calcular}>Calcular U</button>
+          {origCapas?.length > 0 && detectarCambios().length > 0 && (
+            <button style={S.btn('#b45309')} onClick={restaurarOriginal}
+              title="Descartar las modificaciones y volver a la solución original del LOSCAT para probar otra corrección">
+              ↩ Volver a la solución original
+            </button>
+          )}
           {capas.length>0 && <span style={{ fontSize:11, color:'#94a3b8', alignSelf:'center' }}>↑↓ Mueve capas y recalcula para homologar</span>}
         </div>
       </div>
@@ -9594,22 +9613,21 @@ function AppInner() {
     setCalcUInit(prev => ({ ...prev, [elemKey]: null }))
   }
 
-  function onCalcUChange(elemKey, { capas, res, correccionAplicada }) {
+  function onCalcUChange(elemKey, { capas, res, correccionAplicada, limpiarCorreccion }) {
     // Actualizar calcUInit con las capas modificadas y el resultado calculado.
     // Así exportarInforme y los checks siempre usan el U más reciente del usuario.
-    setCalcUInit(prev => ({
-      ...prev,
-      [elemKey]: {
-        ...(prev[elemKey] || {}),
-        capas,
-        res,  // resultado calcGlaser: { U, Rtot, condInter, ifaces, Tdew, ... }
-        // Si viene una corrección, registrarla. Si no viene pero ya había una
-        // previa, preservarla (caso: usuario editó capas tras aplicar corrección).
-        ...(correccionAplicada
-          ? { correccionAplicada }
-          : (prev[elemKey]?.correccionAplicada ? { correccionAplicada: prev[elemKey].correccionAplicada } : {})),
-      }
-    }))
+    setCalcUInit(prev => {
+      const base = { ...(prev[elemKey] || {}), capas, res }
+      if (limpiarCorreccion) {
+        // "Volver a la solución original": descartar la corrección registrada
+        // para que el informe deje de listarla como aplicada.
+        delete base.correccionAplicada
+      } else if (correccionAplicada) {
+        base.correccionAplicada = correccionAplicada
+      } // else: preservar la previa (ya viene en base por el spread) — caso:
+        // el usuario editó capas tras aplicar una corrección.
+      return { ...prev, [elemKey]: base }
+    })
   }
 
   return (
