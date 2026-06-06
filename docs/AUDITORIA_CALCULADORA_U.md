@@ -207,10 +207,22 @@ Cambios (no alteran el cálculo U/Glaser ni las terminaciones de cierre):
    la corrección aplicada y restaura la solución LOSCAT original, para probar otra
    de las correcciones propuestas partiendo del mismo punto.
 
+9. **Ca — aislación dimensionada (techumbre/piso)**: cierra el hueco donde el motor
+   caía a sugerencias manuales (C8). Las estrategias que agregan aislante (C1/C2/C3)
+   eran exclusivas de muro; para techo/piso **sin aislante** o **con aislante
+   insuficiente que condensa** por una capa exterior de alto μ no había solución
+   automática. Ca construye el complejo correcto: techo = cielo + barrera de vapor
+   (si condensa) + aislante dimensionado + cámara ventilada (si la cubierta tiene
+   capa de alto μ, evaluando el truncado ISO 6946 §6.9.2) + exteriores; piso =
+   aislante en la cara inferior, sin reordenar la cara pisable. Prueba el material
+   existente primero (mínima intervención) y usa espesores comerciales.
+
 Resultado en 1.2.G.C1.3: de **1 opción de fuerza bruta** a **4 opciones ordenadas**
 (C6/Cc/C3 eficientes de 125–158 mm primero; C2 fachada ventilada de 275 mm al final
-con su advertencia de trampa de vapor). 24 tests nuevos (cierre, coherencia,
-trampa de vapor, árbitro, espesores). Suite total: 72 tests.
+con su advertencia de trampa de vapor). Y techo/piso sin aislante (o techo con
+aislante insuficiente) pasaron de "solo C8 manual" a solución automática coherente.
+26 tests nuevos (cierre, coherencia, trampa de vapor, árbitro, espesores, Ca).
+Suite total: 74 tests.
 
 ---
 
