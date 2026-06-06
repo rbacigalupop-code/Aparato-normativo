@@ -1014,7 +1014,7 @@ const _BVap ={n:"Barrera de vapor (polietileno)",     lam:0.23, esp:0.0002, mu:9
 
 // ── Clasificación constructiva de cada capa ───────────────────────────────────
 // Retorna: 'vapor'|'humedad'|'aislante'|'rev_ext'|'rev_int'|'camara'|'estructura'
-function clasificarCapa(c){
+export function clasificarCapa(c){
   if(c.esCamara||c.camara) return 'camara';
   const n=(c.n||c.mat||'').toLowerCase();
   const lam=parseFloat(c.lam)||1;
@@ -1051,8 +1051,33 @@ function clasificarCapa(c){
 // Devuelve true si la capa es técnicamente imposible de dejar expuesta
 function debeProtegerse(c){ const t=clasificarCapa(c); return t==='aislante'||t==='humedad'||t==='vapor'; }
 
+// Tableros / placas sensibles a la intemperie (agua, humedad, UV) que NUNCA
+// pueden quedar como capa exterior expuesta, aunque clasificarCapa los rotule
+// como 'estructura' (no matchean ninguna regla de revestimiento). NO incluye
+// hormigón ni ladrillo: esos sí admiten quedar "a la vista" al exterior y son
+// una terminación válida de por sí.
+function esSensibleIntemperie(c){
+  const n=(c.n||c.mat||'').toLowerCase();
+  return /\bosb\b|\bmdf\b|terciad|contrachapad|plywood|aglomerad|fen[oó]lic|tablex/.test(n);
+}
+
+// Criterio EXTERIOR (cara fría / intemperie), más estricto que el interior:
+// además de aislante/humedad/vapor, tampoco admite revestimientos interiores
+// (yeso cartón, enlucido, terciado ranurado) ni tableros sensibles a la
+// intemperie (OSB/MDF/terciado). Evita que una corrección automática
+// (C4/C5/C5b/C6/C7, que conservan el stack original) deje OSB o yeso cartón
+// como terminación exterior expuesta — bug constructivo reportado.
+// IMPORTANTE: NO cambia ningún criterio de cálculo (U/Glaser) ni qué material
+// de cierre se usa; sólo amplía CUÁNDO validarCierre detecta el cierre faltante.
+function debeProtegerseExterior(c){
+  if(debeProtegerse(c)) return true;               // aislante/humedad/vapor (criterio previo)
+  if(clasificarCapa(c)==='rev_int') return true;   // yeso cartón, enlucido, terciado ranurado
+  if(esSensibleIntemperie(c)) return true;         // OSB/MDF/terciado (rotulados 'estructura')
+  return false;
+}
+
 // Asegura que ningún extremo del complejo quede con capa sin protección
-function validarCierre(cv,tipoElem){
+export function validarCierre(cv,tipoElem){
   if(!cv||!cv.length) return cv;
   let r=[...cv];
   // Encontrar primera y última capas funcionales (no cámara)
@@ -1065,8 +1090,10 @@ function validarCierre(cv,tipoElem){
   // Recompute después de posible adición interior
   const funcR=r.filter(c=>!c.esCamara&&!c.camara);
   const ultima=funcR[funcR.length-1];
-  // Exterior: si la última capa no puede quedar expuesta → agregar rev_ext
-  if(debeProtegerse(ultima)){
+  // Exterior: criterio más estricto (intemperie). Además de aislante/humedad/
+  // vapor, tampoco admite rev_int (yeso cartón) ni tableros sensibles a la
+  // intemperie (OSB/MDF/terciado), que antes quedaban expuestos.
+  if(debeProtegerseExterior(ultima)){
     // Techumbre: usar un material de CUBIERTA real (Fibrocemento Gran Onda P7,
     // producto de techumbre chileno) en vez de un 'Fibrocemento' genérico que
     // se asocia a revestimiento de muro. μ=50 (bajo) → no recrea trampa de

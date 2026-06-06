@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem } from '../data.js'
+import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem, validarCierre, clasificarCapa } from '../data.js'
 
 // Tolerancia para comparaciones de punto flotante
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
@@ -255,5 +255,79 @@ describe('calcU_SC — U de soluciones constructivas del catálogo', () => {
 
   it('código inexistente → null', () => {
     expect(calcU_SC('NO.EXISTE', 'muro')).toBe(null)
+  })
+})
+
+describe('validarCierre — terminación exterior (cierre constructivo)', () => {
+  // Una capa representativa de cada tipo constructivo
+  const yesoCarton = { n: 'Yeso carton', lam: 0.26, esp: 0.013, mu: 8 }
+  const lana       = { n: 'Lana mineral 30kg', lam: 0.035, esp: 0.100, mu: 1 }
+  const osb        = { n: 'OSB 11.1mm', lam: 0.13, esp: 0.011, mu: 200 }
+  const osbBarra   = { n: 'OSB/MDF', lam: 0.13, esp: 0.015, mu: 200 }
+  const mdf        = { n: 'Tablero MDF', lam: 0.14, esp: 0.015, mu: 100 }
+  const estuco     = { n: 'Estuco cemento', lam: 0.87, esp: 0.020, mu: 15 }
+  const fibro      = { n: 'Fibrocemento', lam: 0.23, esp: 0.006, mu: 50 }
+  const hormigon   = { n: 'Hormigón armado', lam: 2.5, esp: 0.150, mu: 130 }
+
+  const tieneCierreExt = cv => cv.some(c => c._rol === 'cierre_ext')
+
+  // ── Clasificación: confirma el origen del bug ───────────────────────────
+  it('clasificarCapa: OSB → estructura (por eso quedaba expuesto)', () => {
+    expect(clasificarCapa(osb)).toBe('estructura')
+  })
+  it('clasificarCapa: yeso cartón → rev_int', () => {
+    expect(clasificarCapa(yesoCarton)).toBe('rev_int')
+  })
+  it('clasificarCapa: estuco → rev_ext (terminación válida)', () => {
+    expect(clasificarCapa(estuco)).toBe('rev_ext')
+  })
+
+  // ── Refuerzo: OSB/MDF/yeso al exterior → agrega terminación ─────────────
+  it('OSB como última capa (muro) → agrega cierre exterior al final', () => {
+    const r = validarCierre([yesoCarton, lana, osb], 'muro')
+    expect(tieneCierreExt(r)).toBe(true)
+    expect(r[r.length - 1]._rol).toBe('cierre_ext')   // va lo más al exterior
+  })
+  it('OSB/MDF (nombre con barra) como última capa → agrega cierre', () => {
+    const r = validarCierre([yesoCarton, lana, osbBarra], 'muro')
+    expect(tieneCierreExt(r)).toBe(true)
+  })
+  it('yeso cartón como última capa (muro) → agrega cierre exterior', () => {
+    const r = validarCierre([yesoCarton, lana, yesoCarton], 'muro')
+    expect(tieneCierreExt(r)).toBe(true)
+  })
+  it('MDF como última capa (muro) → agrega cierre exterior', () => {
+    const r = validarCierre([yesoCarton, lana, mdf], 'muro')
+    expect(tieneCierreExt(r)).toBe(true)
+  })
+  it('OSB como última capa (techumbre) → agrega CUBIERTA real, no estuco', () => {
+    const r = validarCierre([yesoCarton, lana, osb], 'techumbre')
+    expect(tieneCierreExt(r)).toBe(true)
+    expect(r[r.length - 1].n).toMatch(/Gran Onda/)   // producto de techumbre
+  })
+
+  // ── Regresión: terminaciones válidas NO se tocan ───────────────────────
+  it('estuco al exterior → NO agrega cierre (ya es rev_ext)', () => {
+    const r = validarCierre([yesoCarton, lana, estuco], 'muro')
+    expect(tieneCierreExt(r)).toBe(false)
+    expect(r).toHaveLength(3)
+  })
+  it('fibrocemento al exterior → NO agrega cierre', () => {
+    expect(tieneCierreExt(validarCierre([yesoCarton, lana, fibro], 'muro'))).toBe(false)
+  })
+  it('hormigón a la vista al exterior → NO agrega (válido a la vista)', () => {
+    expect(tieneCierreExt(validarCierre([yesoCarton, lana, hormigon], 'muro'))).toBe(false)
+  })
+
+  // ── Regresión: el criterio previo (aislante) sigue intacto ─────────────
+  it('aislante como última capa → sigue agregando cierre (criterio previo)', () => {
+    expect(tieneCierreExt(validarCierre([yesoCarton, lana], 'muro'))).toBe(true)
+  })
+
+  // ── La cara INTERIOR no se volvió más estricta ─────────────────────────
+  it('yeso cartón como primera capa (interior) → NO agrega cierre interior', () => {
+    const r = validarCierre([yesoCarton, lana, estuco], 'muro')
+    expect(r.some(c => c._rol === 'cierre_int')).toBe(false)
+    expect(r[0].n).toMatch(/Yeso/)   // sigue empezando en el yeso original
   })
 })
