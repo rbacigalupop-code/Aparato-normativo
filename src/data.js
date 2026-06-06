@@ -1106,6 +1106,48 @@ export function validarCierre(cv,tipoElem){
   return r;
 }
 
+// ─── Coherencia constructiva (no afecta el cálculo U/Glaser) ───────────────────
+// Reglas que un constructor o un revisor de eficiencia energética aplicaría.
+// Sirven para ordenar las correcciones por pertinencia y anexar advertencias
+// explícitas, de modo que ninguna solución propuesta sea indefendible.
+
+// Espesor total de material (excluye cámaras), en metros.
+function espesorMaterial(cv){
+  if(!cv) return Infinity;
+  return cv.filter(c=>!c.esCamara&&!c.camara).reduce((s,c)=>s+(parseFloat(c.esp)||0),0);
+}
+
+// sd = espesor de aire equivalente de una capa = μ · espesor[m] (resistencia a
+// la difusión de vapor, en metros). Las cámaras se tratan como sd≈0.
+function _sdCapa(c){
+  if(c.esCamara||c.camara) return 0;
+  return (parseFloat(c.mu)||1)*(parseFloat(c.esp)||0);
+}
+
+// Tablero estructural de resistencia al vapor media-alta (OSB, MDF,
+// contrachapado): NO aislante, NO barrera de vapor explícita (μ<5000), rotulado
+// 'estructura'. Cuando queda en zona fría intermedia actúa como trampa de vapor.
+function esTableroAltoMu(c){
+  const mu=parseFloat(c.mu)||1, lam=parseFloat(c.lam)||1;
+  return mu>=50 && mu<5000 && lam>0.05 && clasificarCapa(c)==='estructura';
+}
+
+// Riesgo de "trampa de vapor": la regla constructiva es que la resistencia al
+// vapor (sd) decrezca del interior cálido al exterior frío. Si la capa de mayor
+// sd queda en la mitad EXTERIOR del complejo y hay otra capa de sd notable hacia
+// el interior, el vapor que entra queda atrapado entre ambas → un revisor lo
+// observaría aunque el Glaser de punto único no marque condensación (caso típico:
+// aislante de μ medio puesto al exterior de un OSB).
+export function riesgoTrampaVapor(cv){
+  const func=(cv||[]).filter(c=>!c.esCamara&&!c.camara);
+  if(func.length<3) return false;
+  const sd=func.map(_sdCapa);
+  let idxMax=0; for(let i=1;i<sd.length;i++) if(sd[i]>sd[idxMax]) idxMax=i;
+  const mitad=(func.length-1)/2;
+  const haySegundaInterior=sd.slice(0,idxMax).some(v=>v>=1.0);  // ~OSB 9mm = 1.8m
+  return idxMax>mitad && sd[idxMax]>=1.5 && haySegundaInterior;
+}
+
 // Inserta una capa justo antes del primer revestimiento exterior (o al final si no hay)
 function insertarAntesRevExt(cv,capa){
   let idx=-1;
@@ -1304,6 +1346,16 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   // pasa() usa targetAjustado para la búsqueda interna (target estricto).
   function pasa(rN){return rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U)<=targetAjustado);}
 
+  // pasaCond() — umbral de U para las estrategias de SOLO condensación
+  // (C5/C5b/C7/Cc). Si el proyecto además necesita mejorar U (necesitaU), usa el
+  // target penalizado (estricto, igual que pasa). Pero si U ya cumple y el único
+  // problema es la condensación, basta con NO superar el U máximo LEGAL: así no
+  // se descartan las soluciones eficientes (barrera de vapor, reordenar) solo
+  // porque el castigo por puente térmico de madera baja artificialmente el
+  // target. Causa raíz del sobredimensionamiento detectado en 1.2.G.C1.3.
+  const uGateCond = necesitaU ? targetAjustado : umaxTarget;
+  function pasaCond(rN){return rN&&!rN.condInter&&(!uGateCond||parseFloat(rN.U||99)<=uGateCond);}
+
   // Helper: concatena el aviso de penalty al final de advertencias si aplica.
   const withPenaltyAviso = arr => avisoPenalty ? [...arr, avisoPenalty] : arr;
 
@@ -1442,7 +1494,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(necesitaCond&&!yaTieneBVInterior(cv)){
     const cvCerrado=validarCierre(insertarBVAntesAislante(cv,{..._BVap}),elemTipo);
     const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
-    if(rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado)){
+    if(pasaCond(rN)){
       correcciones.push({
         id:'c5_barrera_vapor',
         titulo:'C5 — Barrera de vapor en cara caliente (posicionada correctamente)',
@@ -1506,7 +1558,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       // que falsearía Pvsat en la interfaz con la cámara.
       const cvTruncado = [...cvConBV.slice(0, idxAisBV + 1)];
       const rN = _calcGlaserSimple(cvTruncado, ti, te, hr, elemTipo);
-      if (rN && !rN.condInter && (!targetAjustado || parseFloat(rN.U || 99) <= targetAjustado)) {
+      if (pasaCond(rN)) {
         correcciones.push({
           id: 'c5b_bv_camara_ventilada',
           titulo: 'C5b — Barrera de vapor + Cubierta ventilada (cámara tras aislante)',
@@ -1526,6 +1578,46 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
             'NCh853:2021 §6.9.2 / ASHRAE 160',
           ])
         });
+      }
+    }
+  }
+
+  // ── Cc — Barrera de vapor + tablero estructural de alto μ a cara caliente ───
+  // Para entramados ligeros con un tablero de resistencia al vapor media-alta
+  // (OSB/MDF/contrachapado) en posición fría intermedia, donde actúa como
+  // trampa de vapor. La solución constructiva correcta lo lleva a la cara
+  // caliente con la barrera de vapor por dentro y el aislante hacia el exterior:
+  // es la corrección de MÍNIMA INTERVENCIÓN (conserva materiales y espesor, solo
+  // agrega la lámina de BV). No aplica con estructura pesada (hormigón/ladrillo)
+  // ni en techumbre, donde el orden constructivo es rígido (cubierta arriba).
+  await _YIELD();
+  if(necesitaCond && (elemTipo==='muro'||elemTipo==='tabique') && !yaTieneBVInterior(cv)){
+    const tableros  = cv.filter(esTableroAltoMu);
+    const aislantes = cv.filter(c=>clasificarCapa(c)==='aislante');
+    const hayEstrPesada = cv.some(c=>clasificarCapa(c)==='estructura' && (parseFloat(c.lam)||1)>0.05 && !esTableroAltoMu(c));
+    if(tableros.length && aislantes.length && !hayEstrPesada){
+      const revInt = cv.filter(c=>clasificarCapa(c)==='rev_int');
+      const revExt = cv.filter(c=>clasificarCapa(c)==='rev_ext');
+      const baseInt = revInt.length ? revInt : [{...CAPAS_CIERRE_INT[0]}];
+      const cvCc = validarCierre([...baseInt,{..._BVap},...tableros,...aislantes,...revExt],elemTipo);
+      const rCc = _calcGlaserSimple(cvCc,ti,te,hr,elemTipo);
+      // Solo proponer si elimina la condensación y el orden quedó distinto al original.
+      const ordenOrig = cv.filter(c=>!c.esCamara).map(c=>c.n||c.mat).join('|');
+      const ordenNuevo = cvCc.filter(c=>!c.esCamara).map(c=>c.n||c.mat).join('|');
+      if(pasaCond(rCc) && ordenNuevo!==ordenOrig){
+        const ordenTxt = cvCc.filter(c=>!c.esCamara&&!c.camara).map(c=>c.n||c.mat).join(' → ')
+        correcciones.push({
+          id:'cc_bv_reubicar_tablero',
+          titulo:'Cc — Barrera de vapor + tablero estructural a cara caliente',
+          etiqueta:'BV + Reubicar',sistema:'BV + Reordenamiento',color:'#6d28d9',compatible_loscat:true,
+          descripcion:'Solución de mínima intervención para entramados con tablero de alta resistencia al vapor (OSB/MDF/contrachapado) en posición fría intermedia, donde actúa como trampa de vapor. Combina: 1) llevar el tablero a la cara caliente (interior); 2) barrera de vapor de polietileno (μ=9999) por dentro del tablero; 3) el aislante hacia el exterior. Conserva los mismos materiales y espesor del proyecto — solo cambia la secuencia y agrega la lámina de barrera de vapor. Posición correcta según NCh853:2021: máxima resistencia al vapor en la cara caliente.',
+          cambio:'Nueva secuencia int → ext: '+ordenTxt+' (+ barrera de vapor interior)',
+          capasCorregidas:cvCc,resultado:rCc,
+          impactoU:'U '+rCc.U+' W/m²K'+(umaxTarget&&parseFloat(rCc.U)<=umaxTarget?' ✓':''),
+          advertencias:withPenaltyAviso([
+            '⚠ Verificar factibilidad estructural: el tablero (OSB/contrachapado) suele cumplir rol de arriostramiento; esta propuesta asume que puede ubicarse en la cara interior del entramado.',
+            'La barrera de vapor debe sellarse en perímetro y penetraciones para garantizar continuidad (OGUC Art. 4.1.10).',
+            'Mínima intervención: conserva los materiales y el espesor del proyecto original.'])});
       }
     }
   }
@@ -1592,7 +1684,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       }
       const cvCerrado = validarCierre(cvReord, elemTipo);
       const rR = _calcGlaserSimple(cvCerrado, ti, te, hr, elemTipo);
-      if (rR && !rR.condInter && (!targetAjustado || parseFloat(rR.U) <= targetAjustado)) {
+      if (pasaCond(rR)) {
         const orden = cvCerrado.filter(c => !c.esCamara && !c.camara)
           .map(c => (c.n || c.mat || '')).join(' → ');
         correcciones.push({
@@ -1734,6 +1826,33 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       });
     }
   }
+
+  // ── Coherencia constructiva: marcar compromisos y ordenar por pertinencia ────
+  // Todas las propuestas ya cumplen el CÁLCULO (U/Glaser). Acá se evalúan contra
+  // reglas que un constructor o un revisor de eficiencia energética aplicaría,
+  // para que ninguna solución mostrada sea indefendible:
+  //   · Riesgo de trampa de vapor (sd máximo en cara fría) → advertencia + se
+  //     posterga en el orden frente a alternativas más limpias.
+  //   · Pertinencia = mínima intervención: a igualdad de coherencia, la solución
+  //     con menor espesor de material va primero (criterio de eficiencia).
+  // No se descarta ninguna (todas son normativamente válidas); solo se anexan
+  // advertencias y se reordena para que la más defendible aparezca arriba.
+  for(const corr of correcciones){
+    if(!corr.capasCorregidas){ corr._espesor=Infinity; continue; }  // manuales C8
+    corr._espesor=espesorMaterial(corr.capasCorregidas);
+    if(riesgoTrampaVapor(corr.capasCorregidas)){
+      corr._trampaVapor=true;
+      corr.advertencias=[
+        '⚠ Coherencia higrotérmica: la capa de mayor resistencia al vapor queda hacia la cara fría. Aunque el cálculo de punto único cumple, un análisis mensual o un revisor podría observar riesgo de humedad atrapada. Si hay una alternativa con barrera de vapor en la cara caliente, es preferible.',
+        ...(corr.advertencias||[])];
+    }
+  }
+  correcciones.sort((a,b)=>{
+    if(!!a.esManual!==!!b.esManual) return a.esManual?1:-1;          // manuales al final
+    const ta=a._trampaVapor?1:0, tb=b._trampaVapor?1:0;
+    if(ta!==tb) return ta-tb;                                         // sin trampa de vapor primero
+    return (a._espesor??Infinity)-(b._espesor??Infinity);            // menor espesor (más eficiente) primero
+  });
 
   // ── Escribir caché (LRU simple: descartar el más antiguo si lleno) ───────────
   if(_corrCache.size>=_MAX_CACHE)_corrCache.delete(_corrCache.keys().next().value);

@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem, validarCierre, clasificarCapa } from '../data.js'
+import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem, validarCierre, clasificarCapa, generarCorrecciones, riesgoTrampaVapor } from '../data.js'
 
 // Tolerancia para comparaciones de punto flotante
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
@@ -329,5 +329,67 @@ describe('validarCierre — terminación exterior (cierre constructivo)', () => 
     const r = validarCierre([yesoCarton, lana, estuco], 'muro')
     expect(r.some(c => c._rol === 'cierre_int')).toBe(false)
     expect(r[0].n).toMatch(/Yeso/)   // sigue empezando en el yeso original
+  })
+})
+
+describe('generarCorrecciones — coherencia constructiva (blindaje)', () => {
+  // Caso real 1.2.G.C1.3: entramado de madera con OSB intermedio (zona F).
+  // Las lanas llevan estructura_integrada (madera) → activa el castigo ×0.90.
+  const casoOSB = [
+    { n: 'Yeso carton',      lam: 0.26,  esp: 0.010, mu: 8 },
+    { n: 'Lana vidrio 10kg', lam: 0.046, esp: 0.060, mu: 1, estructura_integrada: { tipo: 'madera' } },
+    { n: 'OSB/MDF',          lam: 0.23,  esp: 0.009, mu: 200 },
+    { n: 'Lana vidrio 10kg', lam: 0.046, esp: 0.040, mu: 1, estructura_integrada: { tipo: 'madera' } },
+    { n: 'Fibrocemento',     lam: 0.23,  esp: 0.006, mu: 50 },
+  ]
+
+  it('riesgoTrampaVapor: muro limpio NO, PU exterior sobre OSB SÍ', () => {
+    expect(riesgoTrampaVapor([{ mu: 8, esp: 0.01 }, { mu: 1, esp: 0.1 }, { mu: 15, esp: 0.02 }])).toBe(false)
+    // PU (sd alto) al exterior de un OSB (sd notable) → trampa
+    expect(riesgoTrampaVapor([
+      { mu: 8, esp: 0.01 }, { mu: 1, esp: 0.06 }, { mu: 200, esp: 0.009 },
+      { mu: 1, esp: 0.04 }, { mu: 50, esp: 0.15 }, { mu: 50, esp: 0.006 },
+    ])).toBe(true)
+  })
+
+  it('genera la estrategia combinada Cc (antes suprimida por el castigo)', async () => {
+    const corrs = await generarCorrecciones(casoOSB, 20, -1, 80, 'muro', 0.45)
+    expect(corrs.length).toBeGreaterThan(1)
+    expect(corrs.some(c => c.id === 'cc_bv_reubicar_tablero')).toBe(true)
+  })
+
+  it('ordena: soluciones limpias ANTES que las con trampa de vapor', async () => {
+    const corrs = await generarCorrecciones(casoOSB, 20, -1, 80, 'muro', 0.45)
+    const conCapas = corrs.filter(c => c.capasCorregidas)
+    let vistaTrampa = false
+    for (const c of conCapas) {
+      if (c._trampaVapor) vistaTrampa = true
+      else expect(vistaTrampa).toBe(false)   // ninguna limpia después de una con trampa
+    }
+    // la fachada ventilada (fuerza bruta, PU sobre OSB) queda marcada
+    const c2 = corrs.find(c => c.id.startsWith('c2_ventilada'))
+    if (c2) expect(c2._trampaVapor).toBe(true)
+  })
+
+  it('NINGUNA corrección automática deja terminación exterior inválida', async () => {
+    const corrs = await generarCorrecciones(casoOSB, 20, -1, 80, 'muro', 0.45)
+    for (const c of corrs) {
+      if (!c.capasCorregidas) continue          // C8 manuales no aplican stack
+      const func = c.capasCorregidas.filter(x => !x.esCamara && !x.camara)
+      const ultima = func[func.length - 1]
+      expect(clasificarCapa(ultima)).not.toBe('rev_int')          // no yeso/enlucido expuesto
+      expect(/\bosb\b|\bmdf\b/.test((ultima.n || '').toLowerCase())).toBe(false)  // no tablero expuesto
+    }
+  })
+
+  it('muro de hormigón (estructura pesada): NO activa Cc', async () => {
+    const horm = [
+      { n: 'Yeso carton',      lam: 0.26, esp: 0.010, mu: 8 },
+      { n: 'Hormigón armado',  lam: 2.5,  esp: 0.150, mu: 130 },
+      { n: 'Lana vidrio 10kg', lam: 0.046, esp: 0.050, mu: 1 },
+      { n: 'Estuco cemento',   lam: 0.87, esp: 0.020, mu: 15 },
+    ]
+    const corrs = await generarCorrecciones(horm, 20, -1, 80, 'muro', 0.45)
+    expect(corrs.some(c => c.id === 'cc_bv_reubicar_tablero')).toBe(false)
   })
 })
