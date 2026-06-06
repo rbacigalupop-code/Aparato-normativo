@@ -5321,6 +5321,12 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
   const [af, setAf] = useState('')
   const [lg, setLg] = useState('')
   const [resUw, setResUw] = useState(null)
+  // Modo asistido: estimar Ag/Af/Lg desde las dimensiones reales de la ventana
+  const [winW, setWinW] = useState('')      // ancho (m)
+  const [winH, setWinH] = useState('')      // alto (m)
+  const [winN, setWinN] = useState('1')     // n° de paños/hojas lado a lado
+  const [winB, setWinB] = useState('0.06')  // ancho visible del marco/perfil (m)
+  const [estimMsg, setEstimMsg] = useState('')
 
   const vData = VIDRIOS.flatMap(g => g.items).find(v => v.n === vidrio)
   const mData = MARCOS.flatMap(g => g.items).find(m => m.n === marco)
@@ -5332,6 +5338,26 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
     const Aw = Ag + Af
     const Uw = (Ug * Ag + Uf * Af + psi * Lg) / Aw
     setResUw({ Uw: Uw.toFixed(3), Ag, Af, Lg, Ug, Uf, psi, Aw })
+  }
+
+  // Estima Ag/Af/Lg desde las dimensiones de la ventana (EN ISO 10077-1):
+  // n paños lado a lado, marco perimetral + montantes de ancho b.
+  //   vidrio:  alto Hg=H−2b · ancho total Wg=W−(n+1)b · Ag=Hg·Wg
+  //   marco:   Af = W·H − Ag      junta: Lg = 2·(Wg + n·Hg)  (perímetro de cada paño)
+  function estimarAreas() {
+    const W = parseFloat(winW), H = parseFloat(winH)
+    const n = Math.max(1, Math.round(parseFloat(winN) || 1))
+    const b = parseFloat(winB) || 0.06
+    if (!(W > 0) || !(H > 0)) { setEstimMsg('Ingresa un ancho y un alto válidos (en metros).'); return }
+    const Hg = H - 2 * b
+    const Wg = W - (n + 1) * b
+    if (Hg <= 0 || Wg <= 0) { setEstimMsg('El ancho de marco es demasiado grande para esas dimensiones o ese N° de paños.'); return }
+    const Ag = Hg * Wg
+    const Aw = W * H
+    const Af = Aw - Ag
+    const Lg = 2 * (Wg + n * Hg)
+    setAg(Ag.toFixed(2)); setAf(Af.toFixed(2)); setLg(Lg.toFixed(1))
+    setEstimMsg(`Estimado: ${W}×${H} m · ${n} paño(s) · marco ${(b * 100).toFixed(0)} cm → ventana ${Aw.toFixed(2)} m². Ajusta los valores si tu ventana difiere.`)
   }
 
   // ─── Analizador multi-fachada VPCT ──────────────────────────────────────────
@@ -5408,13 +5434,33 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
             </select>
           </div>
         </div>
+        {/* ── Modo asistido: estimar Ag/Af/Lg desde las medidas de la ventana ─── */}
+        <div style={{ background:'#f8fafc', border:'1px dashed #cbd5e1', borderRadius:8, padding:'10px 12px', marginBottom:12 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>
+            ¿No conoces Ag / Af / Lg? Ingresa las medidas de tu ventana y estímalas →
+          </div>
+          <div style={{ ...S.row, alignItems:'flex-end' }}>
+            <div style={S.col}><span style={S.label}>Ancho (m)</span><input style={{ ...S.input, width: 80 }} value={winW} onChange={e => setWinW(e.target.value)} placeholder="1.20" /></div>
+            <div style={S.col}><span style={S.label}>Alto (m)</span><input style={{ ...S.input, width: 80 }} value={winH} onChange={e => setWinH(e.target.value)} placeholder="1.00" /></div>
+            <div style={S.col}><span style={S.label} title="Paños/hojas de vidrio lado a lado: fija = 1, corredera = 2">N° paños</span><input style={{ ...S.input, width: 64 }} value={winN} onChange={e => setWinN(e.target.value)} placeholder="2" /></div>
+            <div style={S.col}><span style={S.label} title="Ancho visible del perfil del marco (típico 5–8 cm)">Ancho marco (m)</span><input style={{ ...S.input, width: 84 }} value={winB} onChange={e => setWinB(e.target.value)} placeholder="0.06" /></div>
+            <div style={{ ...S.col, justifyContent: 'flex-end' }}>
+              <button style={S.btn('#0369a1')} onClick={estimarAreas}>Estimar áreas →</button>
+            </div>
+          </div>
+          {estimMsg && <div style={{ fontSize: 11, color: '#0369a1', marginTop: 6 }}>{estimMsg}</div>}
+        </div>
+
         <div style={S.row}>
-          <div style={S.col}><span style={S.label}>Área vidrio Ag (m²)</span><input style={{ ...S.input, width: 90 }} value={ag} onChange={e => setAg(e.target.value)} placeholder="1.0" /></div>
-          <div style={S.col}><span style={S.label}>Área marco Af (m²)</span><input style={{ ...S.input, width: 90 }} value={af} onChange={e => setAf(e.target.value)} placeholder="0.2" /></div>
-          <div style={S.col}><span style={S.label}>Long. junta Lg (m)</span><input style={{ ...S.input, width: 90 }} value={lg} onChange={e => setLg(e.target.value)} placeholder="4.0" /></div>
+          <div style={S.col}><span style={S.label} title="Superficie transparente del vidrio (m²). Ag + Af = área total de la ventana.">Área vidrio Ag (m²)</span><input style={{ ...S.input, width: 90 }} value={ag} onChange={e => setAg(e.target.value)} placeholder="1.0" /></div>
+          <div style={S.col}><span style={S.label} title="Superficie opaca del marco y perfiles (m²). Ag + Af = área total de la ventana.">Área marco Af (m²)</span><input style={{ ...S.input, width: 90 }} value={af} onChange={e => setAf(e.target.value)} placeholder="0.2" /></div>
+          <div style={S.col}><span style={S.label} title="Perímetro del vidrio donde se encuentra con el marco (m). Suma los perímetros si hay varios paños.">Long. junta Lg (m)</span><input style={{ ...S.input, width: 90 }} value={lg} onChange={e => setLg(e.target.value)} placeholder="4.0" /></div>
           <div style={{ ...S.col, justifyContent: 'flex-end' }}>
             <button style={S.btn()} onClick={calcularUw}>Calcular U ventana</button>
           </div>
+        </div>
+        <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+          Son las medidas <b>reales</b> de tu ventana (no por m²): <b>Ag</b> = vidrio transparente · <b>Af</b> = marco/perfiles · <b>Ag + Af = ventana completa</b> · <b>Lg</b> = perímetro del vidrio. El Uw resultante ya queda expresado por m².
         </div>
         {resUw && (
           <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
