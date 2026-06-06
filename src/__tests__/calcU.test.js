@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem, validarCierre, clasificarCapa, generarCorrecciones, riesgoTrampaVapor } from '../data.js'
+import { satP, dewPoint, tempDeSatP, fRsiMinMoho, calcGlaser, calcU_ISO6946, calcU_SC, resistenciaCamara, ALL_MATS, filterMatsByElem, validarCierre, clasificarCapa, generarCorrecciones, riesgoTrampaVapor, espesorComercial } from '../data.js'
 
 // Tolerancia para comparaciones de punto flotante
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
@@ -391,5 +391,41 @@ describe('generarCorrecciones — coherencia constructiva (blindaje)', () => {
     ]
     const corrs = await generarCorrecciones(horm, 20, -1, 80, 'muro', 0.45)
     expect(corrs.some(c => c.id === 'cc_bv_reubicar_tablero')).toBe(false)
+  })
+
+  it('los espesores de aislante propuestos son comerciales', async () => {
+    // Caso que fuerza C1/C2 (agregar aislante). El espesor del aislante nuevo
+    // debe ser un valor de mercado (no 70/90/110/130 mm).
+    const corrs = await generarCorrecciones(casoOSB, 20, -1, 80, 'muro', 0.45)
+    const noComercial = [70, 90, 110, 130, 170, 190]
+    for (const c of corrs) {
+      if (!c.capasCorregidas) continue
+      for (const capa of c.capasCorregidas) {
+        if (capa.esCamara || capa.camara) continue
+        const espMm = Math.round((capa.esp || 0) * 1000)
+        expect(noComercial).not.toContain(espMm)
+      }
+    }
+  })
+})
+
+describe('espesorComercial — redondeo a espesor de mercado', () => {
+  it('redondea hacia arriba al siguiente comercial', () => {
+    expect(espesorComercial(55)).toBe(60)
+    expect(espesorComercial(70)).toBe(80)
+    expect(espesorComercial(90)).toBe(100)
+    expect(espesorComercial(110)).toBe(120)
+    expect(espesorComercial(130)).toBe(140)
+  })
+  it('valores ya comerciales no cambian', () => {
+    expect(espesorComercial(50)).toBe(50)
+    expect(espesorComercial(100)).toBe(100)
+    expect(espesorComercial(150)).toBe(150)
+  })
+  it('nunca queda por debajo del mínimo que cumple', () => {
+    for (let mm = 21; mm <= 250; mm++) expect(espesorComercial(mm)).toBeGreaterThanOrEqual(mm)
+  })
+  it('sobre el máximo de la tabla → múltiplo de 10', () => {
+    expect(espesorComercial(263)).toBe(270)
   })
 })

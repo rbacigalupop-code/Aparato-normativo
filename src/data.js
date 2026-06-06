@@ -1262,6 +1262,18 @@ const _YIELD = () => new Promise(resolve => setTimeout(resolve, 0));
 const PASO_GRUESO = 40;
 const MAX_ITER = 50;
 
+// ─── Espesores comerciales (mm) de planchas/paneles de aislante ───────────────
+// El motor busca el espesor MÍNIMO que cumple; este helper lo lleva al siguiente
+// espesor de mercado (hacia arriba, nunca por debajo del que cumple) para que la
+// propuesta sea construible con productos reales y no muestre valores raros
+// (p.ej. 70/90/110/130 mm). Sobre el máximo de la tabla cae a múltiplos de 10.
+export const _ESP_COMERCIAL = [20,30,40,50,60,80,100,120,140,150,160,180,200,240,250];
+export function espesorComercial(mm){
+  if(!(mm>0)) return mm;
+  for(const e of _ESP_COMERCIAL) if(e>=mm) return e;
+  return Math.ceil(mm/10)*10;
+}
+
 async function _findMinEsp(minEsp, maxEsp, tryFn) {
   let iter = 0;
   let espesorTest = minEsp;
@@ -1365,11 +1377,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     for(const alt of AISLS){
       await _YIELD();      // yield entre alternativas de aislante
       const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_ext');
-      const esp=await _findMinEsp(30,180,e=>{
+      let esp=await _findMinEsp(30,180,e=>{
         const cvN=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},{n:'Estuco cemento',lam:0.87,esp:0.015,mu:15}],elemTipo);
         return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
       });
       if(esp!==null){
+        esp=espesorComercial(esp);
         const ais={n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu};
         const cvNuevo=validarCierre([...cvBase,ais,{n:'Estuco cemento',lam:0.87,esp:0.015,mu:15}],elemTipo);
         const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
@@ -1398,11 +1411,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       await _YIELD();
       const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_ext'&&clasificarCapa(c)!=='humedad');
       const tyvek={..._BHum},camara={esCamara:true},fib={n:'Fibrocemento',lam:0.23,esp:0.006,mu:50};
-      const esp=await _findMinEsp(40,180,e=>{
+      let esp=await _findMinEsp(40,180,e=>{
         const cvN=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},tyvek,camara,fib],elemTipo);
         return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
       });
       if(esp!==null){
+        esp=espesorComercial(esp);
         const cvNuevo=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu},tyvek,camara,fib],elemTipo);
         const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
         correcciones.push({
@@ -1431,11 +1445,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       await _YIELD();
       const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_int'&&clasificarCapa(c)!=='vapor');
       const yc={...CAPAS_CIERRE_INT[0]},bv={..._BVap};
-      const esp=await _findMinEsp(30,100,e=>{
+      let esp=await _findMinEsp(30,100,e=>{
         const cvN=validarCierre([yc,bv,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},...cvBase],elemTipo);
         return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
       });
       if(esp!==null){
+        esp=espesorComercial(esp);
         const cvNuevo=validarCierre([yc,bv,{n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu},...cvBase],elemTipo);
         const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
         correcciones.push({
@@ -1457,12 +1472,14 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   // ── C4 — Aumentar espesor del aislante existente ──────────────────────────────
   await _YIELD();
   if(idxA>=0){
-    const extra=await _findMinEsp(10,500,e=>{
+    let extra=await _findMinEsp(10,500,e=>{
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+e/1000}:c);
       const rN=_calcGlaserSimple(validarCierre(cvN,elemTipo),ti,te,hr,elemTipo);
       return rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado);
     });
     if(extra!==null){
+      const _espOrigMm=Math.round(cv[idxA].esp*1000);
+      extra=espesorComercial(_espOrigMm+extra)-_espOrigMm;   // espesor final → comercial
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+extra/1000}:c);
       const cvCerrado=validarCierre(cvN,elemTipo);
       const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
