@@ -9072,7 +9072,7 @@ const PLANTILLAS_USO = [
 ]
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────────
-const TABS = ['Diagnóstico', 'Soluciones', 'Térmica', 'Fuego', 'Acústica', 'Cálculo U', 'Ventana', '🚪 Puerta', '📐 Detalles', 'Resultados', '⚙ Admin']
+const TABS = ['1 · Diagnóstico', '2 · Soluciones', '3 · Térmica', '4 · Fuego', '5 · Acústica', '6 · Cálculo U', '7 · Ventana', '8 · Puerta', '9 · Detalles', '10 · Resultados', '⚙ Admin']
 const ENERG_TABS = ['🏠 Inicio', '⚙ Configuración', '📊 Demanda', '🔬 Detalles', '🌱 Renovables', '📑 Informe']
 
 export default function App() {
@@ -9443,6 +9443,7 @@ function AppInner() {
   // detectado, para que el usuario elija (1) continuar el borrador, (2) abrir
   // proyecto guardado, o (3) crear nuevo. Si no hay autoguardado, se omite.
   const [showWelcome, setShowWelcome] = useState(false)
+  const [esDemo, setEsDemo] = useState(false)   // proyecto de ejemplo cargado
 
   // Restore autosave on mount — incluir puertas + escaleras para que no se
   // pierdan al recargar la app (reportado por usuario 2026-05-27).
@@ -9465,6 +9466,9 @@ function AppInner() {
         || Object.keys(saved.termica || {}).length
         || Object.keys(saved.calcUInit || {}).length)
       if (tieneContenido) setShowWelcome(true)
+    } else {
+      // Usuario sin borrador (primera vez): mostrar bienvenida para ofrecer el ejemplo
+      setShowWelcome(true)
     }
   }, [])
 
@@ -9491,7 +9495,44 @@ function AppInner() {
     setDetallesIlustrados([])
     setProyectoActual(null)
     setHasUnsaved(false)
+    setEsDemo(false)
     setShowWelcome(false)
+  }
+
+  // Carga un proyecto de ejemplo completo (vivienda tipo) para explorar la app.
+  // Datos realistas pero ficticios. termica/calcUInit quedan vacíos a propósito:
+  // así el usuario practica aplicando soluciones en Soluciones y Cálculo U.
+  function cargarDemo() {
+    setProy({
+      nombre: 'Casa Ejemplo — Vivienda unifamiliar', propietario: 'Juana Pérez (demo)', rutPropietario: '12.345.678-9',
+      direccion: 'Av. Alemania 1234, Temuco', rolAvaluo: '1234-56', arq: '',
+      comuna: 'Temuco', zona: 'F', uso: 'Vivienda', pisos: '2', superficie: '95',
+      destinoOGUC: '', estructura: '', estructuras: [],
+      profesional: 'Arq. María González (demo)', rutProfesional: '9.876.543-2', titulo: 'Arquitecta',
+      rol: '', email: 'demo@normacheck.cl', telefono: '+56 9 1234 5678', ocupantes: '4',
+      configEnergetica: { comunaKey: 'temuco', zonaDS15: 'F', tipoProyecto: 'casa' },
+    })
+    setTermica({})
+    setCalcUInit({})
+    setFachadas([
+      { id: 1, nombre: 'Frente (Norte)',    orient: 'N', areaFachada: '28', vanos: '6.5', uw: '2.4' },
+      { id: 2, nombre: 'Posterior (Sur)',   orient: 'S', areaFachada: '28', vanos: '4.0', uw: '2.4' },
+      { id: 3, nombre: 'Lateral (Oriente)', orient: 'E', areaFachada: '22', vanos: '3.0', uw: '2.4' },
+      { id: 4, nombre: 'Lateral (Poniente)',orient: 'O', areaFachada: '22', vanos: '2.5', uw: '2.4' },
+    ])
+    setFachadasNextId(5)
+    setPuertas([
+      { id: 1, nombre: 'Acceso principal',      uso: 'acceso_vivienda', ancho: '0.90', alto: '2.00', hojaId: '', marcoId: '', selloId: '' },
+      { id: 2, nombre: 'Acceso a patio/loggia', uso: 'acceso_vivienda', ancho: '0.80', alto: '2.00', hojaId: '', marcoId: '', selloId: '' },
+    ])
+    setPuertasNextId(3)
+    setEscaleras({ incluido: false, matId: 'ha', tieneCaja: null, matCajaId: 'ha' })
+    setNotas({})
+    setDetallesIlustrados([])
+    setProyectoActual(null)
+    setEsDemo(true)
+    setShowWelcome(false)
+    setTab(0)
   }
 
   // Auto-save debounced (1.5s after last change)
@@ -9847,6 +9888,15 @@ function AppInner() {
       {/* ── Modal de bienvenida ────────────────────────────────────────────
           Aparece al cargar la app si hay un borrador autoguardado con
           contenido. 3 opciones: continuar borrador / abrir guardado / nuevo. */}
+      {esDemo && (
+        <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:9000, background:'#0369a1', color:'#fff', padding:'8px 16px', display:'flex', alignItems:'center', gap:12, fontSize:13, boxShadow:'0 2px 8px rgba(0,0,0,0.25)', flexWrap:'wrap' }}>
+          <span style={{ fontWeight:700 }}>📘 Proyecto de ejemplo</span>
+          <span style={{ opacity:0.92, flex:1, minWidth:180 }}>Explóralo libremente: el Diagnóstico, las Ventanas y Puertas ya traen datos. Prueba Soluciones y Cálculo U. Ningún dato es real.</span>
+          <button onClick={() => { setEsDemo(false); setProy(p => ({ ...p, nombre: '' })) }} style={{ background:'#fff', color:'#0369a1', border:'none', borderRadius:6, padding:'5px 12px', fontWeight:700, cursor:'pointer', fontSize:12, whiteSpace:'nowrap' }}>Crear mi proyecto a partir de este</button>
+          <button onClick={() => setEsDemo(false)} style={{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.5)', borderRadius:6, padding:'5px 10px', cursor:'pointer', fontSize:12 }}>Cerrar</button>
+        </div>
+      )}
+
       {showWelcome && (
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setShowWelcome(false) }}
@@ -9866,11 +9916,13 @@ function AppInner() {
               ¿Cómo quieres empezar?
             </div>
             <div style={{ fontSize:12, color:'#64748b', marginBottom:18, lineHeight:1.5 }}>
-              Detectamos un <b>borrador autoguardado</b>{proy.nombre ? <> del proyecto <b style={{ color:'#1e293b' }}>"{proy.nombre}"</b></> : ''}.
-              Puedes continuar donde quedaste, abrir otro proyecto guardado, o empezar uno nuevo limpio.
+              {proy.nombre
+                ? <>Detectamos un <b>borrador autoguardado</b> del proyecto <b style={{ color:'#1e293b' }}>"{proy.nombre}"</b>. Puedes continuar donde quedaste, ver un ejemplo, abrir otro proyecto o empezar uno nuevo.</>
+                : <>¿Es tu primera vez? Te recomendamos <b>ver el proyecto de ejemplo</b> para conocer cómo funciona cada módulo. También puedes abrir un proyecto guardado o crear uno nuevo.</>}
             </div>
 
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {proy.nombre && (
               <button
                 onClick={() => setShowWelcome(false)}
                 style={{
@@ -9884,6 +9936,24 @@ function AppInner() {
                   <div>Continuar borrador autoguardado</div>
                   <div style={{ fontSize:10, opacity:0.85, fontWeight:400, marginTop:2 }}>
                     Retoma exactamente donde dejaste el proyecto.
+                  </div>
+                </div>
+              </button>
+              )}
+
+              <button
+                onClick={cargarDemo}
+                style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
+                  background:'#f0fdf4', color:'#166534', border:'1.5px solid #bbf7d0', borderRadius:8,
+                  cursor:'pointer', fontSize:13, fontWeight:700, textAlign:'left',
+                }}
+              >
+                <span style={{ fontSize:18 }}>📘</span>
+                <div style={{ flex:1 }}>
+                  <div>Ver proyecto de ejemplo</div>
+                  <div style={{ fontSize:10, color:'#64748b', fontWeight:400, marginTop:2 }}>
+                    Carga una vivienda tipo con datos para explorar cómo funciona cada módulo.
                   </div>
                 </div>
               </button>
