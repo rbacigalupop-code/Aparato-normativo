@@ -1,9 +1,15 @@
-# 🔴 BUG CRÍTICO PENDIENTE — Discrepancia calculadora vs informe
+# ✅ RESUELTO — Discrepancia calculadora vs informe
+
+> **Estado 2026-06-10: RESUELTO** en commit `d758488` (getCalcUData prioriza
+> `correccionAplicada` sobre el fallback "peor U"). Este documento se conserva
+> solo como registro histórico del diagnóstico. ÚNICO RESTO PENDIENTE: retirar
+> el banner amarillo defensivo de TabResultados cuando el usuario confirme con
+> casos reales que no quedan discrepancias (ver docs/PUNTO_DE_RETOMA.md).
 
 **Reportado:** 2026-05-27
 **Evidencia confirmada:** 2026-05-27 (mismo día — caso real comparado)
 **Severidad:** Alta
-**Estado:** Banner defensivo desplegado · Fix pendiente
+**Estado:** ✅ Resuelto (d758488) · Banner defensivo aún visible
 **Punto de retoma:** commit `e4c3310` en adelante
 
 ---

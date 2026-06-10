@@ -1,154 +1,68 @@
-# 🔄 PUNTO DE RETOMA — Sesión cerrada 2026-05-27
+# 🔄 PUNTO DE RETOMA — Sesión cerrada 2026-06-10
 
-> **Cómo usar este archivo:** Abre Claude Code en este directorio y pegale el mensaje del final ("Mensaje para retomar"). Con eso el modelo agarra contexto en una sola lectura.
+> **Cómo usar este archivo:** Abre Claude Code en este directorio y pégale el mensaje del final ("Mensaje para retomar"). Con eso el modelo agarra contexto en una sola lectura.
 
 ---
 
 ## ✅ Estado actual del proyecto
 
 - **Branch:** `main` (sincronizado con `origin/main`)
-- **Último commit:** `c99bad5` — Fix PDF en blanco + C7 reordenar capas no aplica a techumbre
-- **Deploy:** Vercel auto-deploy activo desde `main`
-- **Base de datos:** Supabase — funcional, todas las migraciones aplicadas hasta `013_user_plans.sql`. **Pendiente correr `014_sesiones_login.sql`** en SQL Editor.
+- **Último commit:** `bd697c4` — Aviso informativo de precio para usuarios en trial
+- **Deploy:** Vercel auto-deploy activo desde `main` (normacheck-eta.vercel.app)
+- **Tests:** 74 verdes (`npm test`) — calcU (motor U/Glaser/correcciones), fire, glaser_mensual
+- **Fase:** BETA con testers activos — **todos en plan trial** (expiran ~10 jul)
 
----
+## 💰 Modelo de negocio (armado y probado en producción)
 
-## 🆕 Lo que se hizo en esta sesión (orden cronológico)
+El informe PDF está gateado por plan (`onExportar` + `isPro(perfil)` de `lib/plan.js`):
 
-| Commit | Qué hace |
+| Plan | Comportamiento al exportar informe |
 |---|---|
-| `0cc3326` | Feat: calendario heatmap de actividad de usuarios (Admin → Stats) |
-| `e4c3310` | Hotfix: banner defensivo amarillo en TabResultados antes de exportar |
-| `defcd3b` | Docs: evidencia confirmada del bug informe (orden capas invertido) |
-| `d758488` | Fix crítico: `getCalcUData` prioriza `correccionAplicada` sobre fallback "peor U" |
-| `c99bad5` | Fix: PDF blanco (delay + opciones html2canvas) + C7 no aplica a techumbre |
+| `trial` | Aviso informativo 1×/pestaña (precio referencial + días restantes) → genera igual |
+| `pro` | Genera directo, sin avisos |
+| `free` | Bloqueo con precio referencial + mailto de upgrade |
 
-Documentos generados en `docs/`:
-- `INFORME_CODIGO.md` — auditoría técnica completa
-- `PARTICULARIDADES.md` — particularidades del producto + roadmap
-- `BUG_PENDIENTE_INFORMES.md` — diagnóstico del bug informe (con evidencia)
-- `PUNTO_DE_RETOMA.md` — este archivo
+- **Precios referenciales** (pendientes de sondeo con testers): Pro $24.990/mes+IVA · Pack 3 informes $39.990 · Oficina 5 usuarios $89.990/mes.
+- Al expirar los trials, el cobro se activa solo (pasan a Free). Activación Pro manual vía panel admin tras pago por transferencia. Pasarela de pagos = futuro.
+- El sistema de tokens (`tokens`/`consumirToken` en useAuth) se CONSERVÓ en el código para reconvertirlo en "packs de informes".
+- **Tag de respaldo:** `pre-plan-gating` (= `789a24d`, estado pre-gating, pusheado a GitHub).
 
-Tags de rollback creados hoy:
-- `pre-suite-tests` (no usado, fue antes de cambiar de plan)
-- `pre-fix-informe` — antes del fix crítico del informe
+## 🆕 Hecho en la sesión 2026-06 (resumen)
 
----
+1. **Blindaje de coherencia constructiva** del motor de correcciones (`generarCorrecciones` en data.js) — ver `docs/AUDITORIA_CALCULADORA_U.md` ítems (8) y (9): cierre exterior reforzado, `pasaCond`, estrategias nuevas **Cc** (BV + reubicar tablero) y **Ca** (aislación techo/piso, reduce casos manuales C8), `riesgoTrampaVapor` con criterio de secado + **árbitro mensual ISO 13788** (clima real por comuna), espesores comerciales, orden por pertinencia.
+2. **Botón "↩ Volver a la solución original"** en la calculadora U (restaura origCapas y limpia correccionAplicada).
+3. **Modo asistido ventana EN 10077** (ancho×alto×paños → estima Ag/Af/Lg) + tooltips puerta.
+4. **Onboarding:** proyecto de ejemplo (demo, botón en modal de bienvenida; modal ahora aparece también en primera visita) + pestañas numeradas 1–10.
+5. **Ganancias internas configurables** en Demanda Anual (3.0/4.5/6.0 W/m²).
+6. **Español latino neutro** en toda la UI (voseo eliminado — regla permanente del proyecto).
+7. Gating de informe por Plan Pro + avisos con precio referencial.
 
-## ⚠ PENDIENTES DE VALIDACIÓN DEL USUARIO
+## 📋 PENDIENTES (priorizados)
 
-Estas son las cosas que el usuario debe probar para confirmar que los fixes funcionan:
+### Del usuario (no requieren código)
+- Recoger dudas concretas de la colega tester (qué la confundió exactamente).
+- Sondeo de precio a testers (¿a cuánto caro? ¿a cuánto sospechosamente barato?).
+- Verificar si se corrió `sql/014_sesiones_login.sql` en Supabase.
 
-### 1. Fix PDF en blanco — PRIORITARIO
-- **Cómo probar:** Resultados → Vista previa → confirmar que se ve → Exportar como PDF
-- **Resultado esperado:** PDF llega con contenido (no en blanco)
-- **Si falla:** Revisar consola del browser durante la exportación, buscar errores de html2pdf/html2canvas
-- **Plan B si sigue fallando:** Cambiar a `jsPDF.html()` directo en vez de html2pdf wrapper
-
-### 2. Fix orden de capas en informe
-- **Cómo probar:** Proyecto con corrección aplicada en Cálculo U → Vista previa
-- **Resultado esperado:** Capas en mismo orden que la calculadora
-- **Caso de referencia:** Cubierta LOSCAT 1.1.G.M1.2 zona E con reordenamiento
-
-### 3. C7 ya no aplica a techumbre
-- **Cómo probar:** Cubierta con condensación → ver correcciones sugeridas
-- **Resultado esperado:** NO aparece "C7 Reordenar capas" entre las sugerencias
-- **Sí debe aparecer:** C5 (barrera vapor), C3 (trasdosado interior si no es solo techo), C4 (espesor)
-
-### 4. Calendario de actividad usuarios
-- **PASO PREVIO OBLIGATORIO:** correr `sql/014_sesiones_login.sql` en Supabase SQL Editor
-- **Cómo probar:** Cerrar sesión → loguear → ir a Admin → Stats → debe aparecer mi nombre con 1 login hoy
-- **Si falla:** Verificar que la migración se corrió, mirar consola del browser
-
----
-
-## 🔴 BUGS PENDIENTES (no resueltos hoy)
-
-### Bug constructivo en correcciones automáticas
-- **Problema:** El motor `generarCorrecciones` no asegura que el resultado tenga **terminación exterior** apropiada (revestimiento, cubierta, etc.)
-- **Ejemplo:** una corrección puede dejar yeso cartón o OSB como capa exterior expuesta
-- **Solución parcial aplicada:** C7 deshabilitado para techumbre (commit c99bad5)
-- **Solución completa pendiente:** Reforzar `validarCierre()` en data.js para que TODAS las correcciones validen cierre constructivo correcto. Ver `data.js` función `validarCierre` ~línea TBD.
-- **Archivos involucrados:** `src/data.js` (funciones `validarCierre`, `generarCorrecciones`)
-
-### Banner defensivo aún activo en TabResultados
-- **Ubicación:** `src/App.jsx` líneas ~7807-7825 (cerca de `Selector de formato`)
-- **Acción al validar fix:** Si el usuario confirma que ya no hay discrepancia capas calculadora vs informe, BORRAR el banner amarillo (ya no necesario).
-
----
-
-## 📋 ROADMAP PRÓXIMAS SESIONES (priorizado)
-
-### TIER 1 — Validación + cleanup (1 sesión corta)
-1. Usuario valida que PDF y orden de capas funcionan
-2. Si OK → quitar banner defensivo amarillo en TabResultados
-3. Correr `sql/014_sesiones_login.sql` si falta
-
-### TIER 2 — Fixes pendientes (1-2 sesiones)
-1. **Reforzar `validarCierre()`** para garantizar terminación exterior en TODAS las correcciones
-2. Aplicar GRANT explícitos a las tablas existentes en preparación al cambio Supabase 30/oct/2026
-3. Actualizar `sql/014_sesiones_login.sql` para incluir GRANTs explícitos (buena práctica)
-
-### TIER 3 — Mejoras visibles al usuario (1-3 sesiones cada una)
-1. Sistema de notificaciones (email a admin cuando expira trial, etc.)
-2. Pasarela de pagos (Webpay/Mercado Pago/Stripe) para automatizar Pro
-3. Onboarding tour para nuevos usuarios
-
-### TIER 4 — Calidad técnica (sprint completo)
-1. Suite de tests (prompt completo guardado, ver historial)
-2. Refactor de `data.js` monolítico (5000+ líneas)
-3. Code-splitting agresivo
-
-### TIER 5 — Diferenciadores (sprints largos)
-1. Edificios no residenciales (oficinas, comercial, educacional)
-2. Importador IFC (BIM)
-3. Modelo demanda horario (TMY) — acerca a CCTE_CL
-4. API pública para integraciones
-
----
-
-## 🔑 Decisiones técnicas importantes recientes
-
-### Sobre el "Tipo de proyecto"
-Implementado en `EnergeticoConfig.jsx` un selector "🏠 Vivienda unifamiliar / 🏢 Vivienda en altura" guardado en `proy.configEnergetica.tipoProyecto`. Hoy solo ajusta el ACH default (0.6 vs 0.8). Preparado para futuras expansiones.
-
-### Sobre el módulo Energético v1
-Decidimos **Opción C** (alcance acotado a viviendas). Banner visible "🏠 v1 · Foco en viviendas" en `EnergeticoHome`. Para no residencial = Sprint 7 futuro.
-
-### Sobre los tests automatizados
-Llegó un prompt de auditor externo con plan de 7 fases para suite de tests. **NO se ejecutó** — decidimos que no es prioritario hoy. Mi recomendación documentada: hacer versión "light" de tests (1-2 sesiones) en lugar del plan completo (8-12 sesiones), hasta que llegue feedback de usuarios reales.
-
-### Sobre Supabase data API changes
-Email recibido el 27/may/2026: a partir del **30/oct/2026** las tablas nuevas en proyectos existentes requieren GRANT explícito. No hay urgencia ahora. Plan: actualizar plantilla de migraciones para incluir `GRANT SELECT, INSERT, UPDATE, DELETE ON public.tabla TO authenticated;` desde la próxima migración.
-
----
+### Técnicos (próximas sesiones)
+1. **Factor de utilización ISO 13790 exacto** en `lib/engines/demanda.js` — hoy usa la aproximación `1−e^(−1/γ)`; la fórmula estándar es `η=(1−γ^a)/(1−γ^(a+1))` con `a=a0+τ/τ0` y τ de la masa térmica.
+2. **Integrar puentes térmicos a la demanda anual** — PuentesTermicos.jsx calcula Ψ·L pero no se suma a las pérdidas de DemandaAnual (subestima 10–30% en envolventes con muchos puentes).
+3. **Banner amarillo defensivo en TabResultados** (~línea 8800): el bug que lo motivó ya se corrigió (`d758488`); falta que el usuario confirme con casos reales que no hay discrepancias calculadora↔informe para borrarlo.
+4. Precargar un Cálculo U "resuelto" en el proyecto demo (quedó vacío a propósito).
+5. Método mensual: envolvente convexo ISO 13788 (magnitudes absolutas confiables).
+6. Importar los ~200 materiales restantes del Excel oficial (hay que recargar el .xlsm, no está en el repo).
 
 ## 📨 Mensaje para retomar en próxima sesión
-
-Copia este bloque exacto y pégalo en Claude Code cuando abras una sesión nueva:
 
 ```
 Retomo el proyecto NormaCheck. Estoy en C:\Users\UCSC\Documents\verificador-oguc
 
-Antes de hacer nada, leé estos archivos en orden:
-1. docs/PUNTO_DE_RETOMA.md (este archivo — estado actual)
-2. docs/BUG_PENDIENTE_INFORMES.md (bug crítico documentado)
-3. docs/PARTICULARIDADES.md (contexto del producto si necesitás)
+Lee docs/PUNTO_DE_RETOMA.md (estado al 2026-06-10, commit bd697c4).
+Recuerda: español latino neutro SIEMPRE (sin voseo).
 
-Último commit en main: c99bad5
-
-Estoy listo para:
-[ ] Validar fixes pendientes (PDF, orden capas, C7 techumbre)
-[ ] Si OK, quitar banner defensivo en TabResultados
-[ ] Reforzar validarCierre() en data.js
-[ ] Otro: ___
-
-Hagamos un commit por paso y avisame si encontrás algo raro
-antes de tocar código.
+Quiero: [feedback de testers / pendiente técnico N / otro: ___]
 ```
 
 ---
 
-**Fecha de cierre:** 2026-05-27
-**Próxima retoma:** cuando se reinicien los contadores
-**Estado de ánimo del producto:** funcional, con fixes recientes pendientes de validación de usuario. Banner defensivo protege contra los pocos casos edge restantes.
+**Notas históricas:** el bug crítico de informes (docs/BUG_PENDIENTE_INFORMES.md) está RESUELTO desde `d758488`; el doc se conserva como registro. Las migraciones SQL van hasta `013_user_plans.sql` aplicada (014 por verificar).
