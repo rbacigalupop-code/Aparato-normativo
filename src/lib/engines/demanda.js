@@ -25,6 +25,31 @@ const Cp_AIRE = 0.34  // Wh/m³·K — calor específico del aire (ρ·Cp / 3600
 // Ganancias internas estándar (W/m²) — convención CEV / CTE-HE
 const GANANCIAS_INTERNAS_W_M2 = 4.5
 
+// Capacidad térmica interna Cm por clase de masa (ISO 13790 Tabla 12),
+// en J/(K·m²) de superficie útil. Mapea las clases de la UI:
+//   baja  = 'light'  (steel-frame, drywall)
+//   media = 'medium' (mixta, ladrillo)
+//   alta  = 'heavy'  (hormigón, adobe, piedra)
+export const CM_POR_MASA = { baja: 110000, media: 165000, alta: 260000 }
+
+/**
+ * Factor de utilización de ganancias η — fórmula EXACTA ISO 13790 §12.2.1.1
+ * (método estacional: a0=0.8, τ0=30 h).
+ *   γ = ganancias/pérdidas · a = a0 + τ/τ0 · τ = Cm/(3600·H) [h]
+ *   η = (1−γ^a)/(1−γ^(a+1))   (γ≠1)   ·   η = a/(a+1)   (γ=1)
+ * Más masa térmica → mayor τ → mayor a → más ganancias aprovechadas.
+ * @param {number} gamma - razón ganancias/pérdidas (>0)
+ * @param {number} a     - parámetro numérico adimensional (>0)
+ * @returns {number} η en [0,1]
+ */
+export function etaUtilizacion13790(gamma, a) {
+  if (!(gamma > 0)) return 1            // sin ganancias: η irrelevante
+  if (!(a > 0)) a = 1
+  if (Math.abs(gamma - 1) < 1e-6) return a / (a + 1)
+  const eta = (1 - Math.pow(gamma, a)) / (1 - Math.pow(gamma, a + 1))
+  return Math.min(1, Math.max(0, eta))
+}
+
 // Factor solar (g) típico por tipo de vidrio
 export const FACTOR_SOLAR_VIDRIOS = {
   monolitico_4mm:     0.85,
@@ -138,6 +163,7 @@ export function balanceTermicoAnual({
   factorSolar = 0.70,
   factorProteccion = 1,
   gananciasInternasWm2 = GANANCIAS_INTERNAS_W_M2,
+  masaTermica = 'media',
   comunaKey = null,
   zonaDS15 = null,
 }) {
@@ -150,13 +176,22 @@ export function balanceTermicoAnual({
   const gSol = gananciasSolares(areasVidrio, factorSolar, zonaEf, factorProteccion)
   const gInt = gananciasInternas(areaUtil, gananciasInternasWm2)
 
-  // Factor de utilización de ganancias (ISO 13790 §11.2.1.1)
-  // Las ganancias no se aprovechan al 100% — depende del balance.
+  // Factor de utilización de ganancias — fórmula EXACTA ISO 13790 §12.2.1.1
+  // (antes: aproximación 1−e^(−1/γ), sin masa térmica).
   const perdidasTot = pEnv + pInf
   const gananciasTot = gSol.total + gInt
-  const ratio = gananciasTot / Math.max(1, perdidasTot)
-  // Aproximación: η_util = 1 - exp(-1/ratio) si ratio>0, else 1
-  const factorUtilizacion = ratio > 0 ? (1 - Math.exp(-1 / Math.max(0.01, ratio))) : 1
+  // H total [W/K] = Σ U·A (envolvente) + 0.34·n·V (infiltración)
+  const H_env = elementos.reduce((s, e) => {
+    const u = parseFloat(e.U) || 0, a = parseFloat(e.area) || 0
+    return (u > 0 && a > 0) ? s + u * a : s
+  }, 0)
+  const H = H_env + Cp_AIRE * ach * v
+  // Constante de tiempo τ [h] = Cm/(3600·H); Cm de la clase de masa térmica
+  const cmM2 = CM_POR_MASA[masaTermica] ?? CM_POR_MASA.media
+  const tau = H > 0 ? (cmM2 * areaUtil) / (3600 * H) : 0
+  const aNum = 0.8 + tau / 30                      // método estacional: a0=0.8, τ0=30 h
+  const gamma = gananciasTot / Math.max(1, perdidasTot)
+  const factorUtilizacion = etaUtilizacion13790(gamma, aNum)
   const gananciasUtiles = gananciasTot * factorUtilizacion
 
   const demandaNeta = Math.max(0, Math.round(perdidasTot - gananciasUtiles))
@@ -177,11 +212,17 @@ export function balanceTermicoAnual({
       utilizadas:     Math.round(gananciasUtiles),
       factorUtilizacion: Math.round(factorUtilizacion * 100) / 100,
     },
+    iso13790: {
+      gamma: Math.round(gamma * 100) / 100,
+      tauHoras: Math.round(tau * 10) / 10,
+      aNum: Math.round(aNum * 100) / 100,
+      H_WK: Math.round(H * 10) / 10,
+    },
     demandaNeta,
     kwhM2Anio,
     calificacion,
     hdd18,
-    parametros: { areaUtil, volumen: v, ach, factorSolar, factorProteccion },
+    parametros: { areaUtil, volumen: v, ach, factorSolar, factorProteccion, masaTermica },
   }
 }
 

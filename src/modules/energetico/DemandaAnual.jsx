@@ -60,8 +60,9 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
     areasVidrio: ventanas.areasVidrio,
     factorSolar, factorProteccion: proteccion,
     gananciasInternasWm2: gananciasInt,
+    masaTermica,
     comunaKey, zonaDS15: zonaEf,
-  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, comunaKey, zonaEf])
+  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, masaTermica, comunaKey, zonaEf])
 
   const verano = useMemo(() => analizarSobrecalentamiento({
     areasVidrio: ventanas.areasVidrio,
@@ -276,9 +277,10 @@ function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, 
         background: 'var(--bg-alt)', padding: '12px 16px', borderRadius: 8,
         fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6, marginBottom: 14,
       }}>
-        <b>📊 Factor de utilización ISO 13790:</b> {(balance.ganancias.factorUtilizacion * 100).toFixed(0)}%
+        <b>📊 Factor de utilización ISO 13790 (fórmula exacta §12.2.1.1):</b> {(balance.ganancias.factorUtilizacion * 100).toFixed(0)}%
         <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-          {' · '} las ganancias no se aprovechan al 100% porque el balance ya está equilibrado en
+          {' · '} γ={balance.iso13790?.gamma} · τ={balance.iso13790?.tauHoras} h (masa térmica de la sección Verano) ·
+          las ganancias no se aprovechan al 100% porque el balance ya está equilibrado en
           momentos del año. Sólo {balance.ganancias.utilizadas.toLocaleString('es-CL')} kWh
           contribuyen efectivamente a reducir la demanda de calefacción.
         </span>
