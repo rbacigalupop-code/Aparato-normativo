@@ -9547,39 +9547,25 @@ function AppInner() {
     return () => clearTimeout(autoSaveTimer.current)
   }, [proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados])
 
-  // Callback que llama TabResultados antes de generar el informe
+  // Callback que llama TabResultados antes de generar el informe.
+  // El informe PDF es un beneficio del Plan Pro, no un consumible por token.
+  // La vista previa nunca llega aquí — TabResultados llama onExportar
+  // solo en modo 'export' (línea 7039), nunca en modo 'preview'.
   async function onExportar() {
-    // Sistema de tokens: cada informe consume 1 token
-    const tokensActuales = tokens?.disponibles ?? 0
+    if (isPro(perfil)) return true   // Pro: genera sin fricción
 
-    if (tokensActuales <= 0) {
-      alert(
-        '🎫 SIN TOKENS DISPONIBLES\n\n' +
-        'No tienes tokens para generar informes.\n\n' +
-        'Cada informe consume 1 token.\n' +
-        'Contacta al administrador para obtener más tokens.'
-      )
-      return false
-    }
-
-    // Confirmar consumo
-    const confirma = window.confirm(
-      `🎫 Generar informe consumirá 1 token.\n\n` +
-      `Tokens disponibles: ${tokensActuales}\n` +
-      `Después de generar: ${tokensActuales - 1}\n\n` +
-      `¿Continuar con la generación del informe?`
+    // Free: mostrar bloqueo con opción de upgrade
+    const upgradeUrl = 'mailto:contacto@normacheck.cl?subject=Activar Plan Pro'
+    const ir = window.confirm(
+      'Generar el informe PDF completo requiere el Plan Pro.\n\n' +
+      '✓ Informes ilimitados listos para expediente DOM\n' +
+      '✓ Análisis económico con payback y VAN\n' +
+      '✓ Módulo energético CEV completo\n' +
+      '✓ Escantillones automáticos de uniones\n\n' +
+      '¿Ir a la página de planes?'
     )
-
-    if (!confirma) return false
-
-    // Consumir token
-    const result = await consumirToken()
-    if (!result.ok) {
-      alert(`Error al consumir token: ${result.error || 'Error desconocido'}`)
-      return false
-    }
-
-    return true
+    if (ir) window.open(upgradeUrl, '_blank')
+    return false
   }
 
   // Snapshot completo del proyecto — usado por ProjectManager para guardar
