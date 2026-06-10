@@ -53,7 +53,7 @@ import {
 import Renovables      from './modules/energetico/Renovables.jsx'
 import InformeEjecutivo from './modules/energetico/InformeEjecutivo.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
-import { isPro } from './lib/plan.js'
+import { isPro, estaEnTrial, diasRestantesTrial } from './lib/plan.js'
 import { analizarCorreccion } from './lib/engines/economic.js'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
@@ -9552,7 +9552,25 @@ function AppInner() {
   // La vista previa nunca llega aquí — TabResultados llama onExportar
   // solo en modo 'export' (línea 7039), nunca en modo 'preview'.
   async function onExportar() {
-    if (isPro(perfil)) return true   // Pro: genera sin fricción
+    if (isPro(perfil)) {
+      // Trial (beta): aviso INFORMATIVO una vez por sesión — no bloquea, el
+      // informe se genera igual. Mantiene visible el precio referencial para
+      // el sondeo de valor. Los Pro de pago no ven este aviso.
+      if (estaEnTrial(perfil) && !sessionStorage.getItem('nc_aviso_trial_informe')) {
+        sessionStorage.setItem('nc_aviso_trial_informe', '1')
+        const dias = diasRestantesTrial(perfil)
+        alert(
+          'ℹ MODO PRUEBA ACTIVO' + (dias != null ? ` — ${dias} días restantes` : '') + '\n\n' +
+          'Estás generando informes con el Plan Pro liberado durante la beta.\n' +
+          'Al finalizar, este beneficio será parte del Plan Pro:\n' +
+          '$24.990/mes + IVA (precio de lanzamiento referencial).\n\n' +
+          'Tu opinión sobre el precio nos ayuda a definirlo:\n' +
+          'contacto@normacheck.cl\n\n' +
+          'El informe se generará ahora sin costo.'
+        )
+      }
+      return true   // Pro/trial: genera sin fricción
+    }
 
     // Free: mostrar bloqueo con opción de upgrade. Durante la beta el precio es
     // referencial (sondeo de valor); el cobro real se activa al cerrar la beta.
