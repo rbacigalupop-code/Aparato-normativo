@@ -9554,7 +9554,8 @@ function AppInner() {
   async function onExportar() {
     if (isPro(perfil)) return true   // Pro: genera sin fricción
 
-    // Free: mostrar bloqueo con opción de upgrade
+    // Free: mostrar bloqueo con opción de upgrade. Durante la beta el precio es
+    // referencial (sondeo de valor); el cobro real se activa al cerrar la beta.
     const upgradeUrl = 'mailto:contacto@normacheck.cl?subject=Activar Plan Pro'
     const ir = window.confirm(
       'Generar el informe PDF completo requiere el Plan Pro.\n\n' +
@@ -9562,7 +9563,9 @@ function AppInner() {
       '✓ Análisis económico con payback y VAN\n' +
       '✓ Módulo energético CEV completo\n' +
       '✓ Escantillones automáticos de uniones\n\n' +
-      '¿Ir a la página de planes?'
+      'Plan Pro: $24.990/mes + IVA (precio de lanzamiento referencial).\n' +
+      'Estamos en beta: tu opinión sobre el precio nos ayuda a definirlo.\n\n' +
+      '¿Escribirnos para activar el Plan Pro?'
     )
     if (ir) window.open(upgradeUrl, '_blank')
     return false
