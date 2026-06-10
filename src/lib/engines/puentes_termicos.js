@@ -78,6 +78,26 @@ export function porcentajeImpactoPT(perdidaPT_kwh, perdidaEnvolvente_kwh) {
 }
 
 /**
+ * Suma total de Ψ·L del inventario [W/K].
+ * Útil para inyectar en el balance térmico (ISO 13790: H_D = ΣU·A + ΣΨ·L).
+ *
+ * @param {Array<{ptId, longitud, calidad}>} inventario
+ * @returns {number} W/K
+ */
+export function calcularSumaPsiL(inventario) {
+  if (!Array.isArray(inventario)) return 0
+  let total = 0
+  for (const item of inventario) {
+    if (!item.ptId || !item.longitud) continue
+    const pt = obtenerPT(item.ptId)
+    if (!pt) continue
+    const psi = pt.psi[item.calidad || 'tipico'] ?? pt.psi.tipico
+    total += psi * (item.longitud || 0)
+  }
+  return Math.round(total * 100) / 100
+}
+
+/**
  * Categoriza la severidad del impacto de PT.
  * Estudios muestran que en construcción chilena típica los PT suelen aportar
  * 15-30% adicional. > 30% indica fallas constructivas serias.

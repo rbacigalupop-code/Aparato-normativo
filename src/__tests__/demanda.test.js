@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { etaUtilizacion13790, balanceTermicoAnual, CM_POR_MASA } from '../lib/engines/demanda.js'
+import { etaUtilizacion13790, balanceTermicoAnual, CM_POR_MASA, perdidasPuentesTermicos } from '../lib/engines/demanda.js'
 
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
 
@@ -90,5 +90,62 @@ describe('balanceTermicoAnual — integración con masa térmica', () => {
     // ΣU·A = 0.4·90 + 0.28·60 + 0.5·60 = 36+16.8+30 = 82.8 W/K
     // infiltración = 0.34·0.8·250 = 68 W/K → H = 150.8
     expect(cerca(b.iso13790.H_WK, 150.8, 0.5)).toBe(true)
+  })
+
+  it('retrocompat: sin psiLTotal → pérdidas PT = 0, no rompe', () => {
+    const b = balanceTermicoAnual(base)
+    expect(b.perdidas.puentesTermicos).toBe(0)
+    expect(b.iso13790.psiLTotal).toBe(0)
+  })
+})
+
+describe('integración de puentes térmicos (Ψ·L) en balance', () => {
+  const base = {
+    elementos: [
+      { U: 0.4, area: 90 },
+      { U: 0.28, area: 60 },
+      { U: 0.5, area: 60 },
+    ],
+    areaUtil: 100,
+    ach: 0.8,
+    areasVidrio: { N: 6, E: 3, S: 4, O: 3 },
+    factorSolar: 0.7,
+    zonaDS15: 'F',
+  }
+
+  it('perdidasPuentesTermicos: Ψ·L × HDD18 × 24 / 1000', () => {
+    // psiL=10 W/K, HDD18=2000 → 10·2000·24/1000 = 480 kWh
+    expect(perdidasPuentesTermicos(10, 2000)).toBe(480)
+    expect(perdidasPuentesTermicos(0, 2000)).toBe(0)
+    expect(perdidasPuentesTermicos(10, 0)).toBe(0)
+  })
+
+  it('psiLTotal se suma a pérdidas y a H', () => {
+    const sin = balanceTermicoAnual(base)
+    const con = balanceTermicoAnual({ ...base, psiLTotal: 15 })
+    expect(con.perdidas.puentesTermicos).toBeGreaterThan(0)
+    expect(con.perdidas.total).toBeGreaterThan(sin.perdidas.total)
+    // H debe incluir ΣΨ·L
+    expect(con.iso13790.H_WK).toBeGreaterThan(sin.iso13790.H_WK)
+    expect(cerca(con.iso13790.H_WK - sin.iso13790.H_WK, 15, 0.5)).toBe(true)
+  })
+
+  it('más PT → más demanda neta', () => {
+    const sin  = balanceTermicoAnual(base)
+    const poco = balanceTermicoAnual({ ...base, psiLTotal: 5 })
+    const mucho = balanceTermicoAnual({ ...base, psiLTotal: 25 })
+    expect(poco.demandaNeta).toBeGreaterThanOrEqual(sin.demandaNeta)
+    expect(mucho.demandaNeta).toBeGreaterThan(poco.demandaNeta)
+  })
+
+  it('τ baja con más PT (H sube → τ=Cm/(3600·H) baja)', () => {
+    const sin = balanceTermicoAnual(base)
+    const con = balanceTermicoAnual({ ...base, psiLTotal: 20 })
+    expect(con.iso13790.tauHoras).toBeLessThan(sin.iso13790.tauHoras)
+  })
+
+  it('psiLTotal se reporta en iso13790', () => {
+    const b = balanceTermicoAnual({ ...base, psiLTotal: 12.5 })
+    expect(b.iso13790.psiLTotal).toBe(12.5)
   })
 })

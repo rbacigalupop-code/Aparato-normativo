@@ -44,13 +44,14 @@ const CATEGORIA_COLORS = {
   voladizos:   '#dc2626',
 }
 
-export default function PuentesTermicos({ proy, calcUInit }) {
+export default function PuentesTermicos({ proy, calcUInit, inventarioPT, setInventarioPT }) {
   const cfg = proy?.configEnergetica || {}
   const zonaEf = cfg.zonaDS15 || proy?.zona
   const hdd18 = obtenerHDD18(cfg.comunaKey, zonaEf)
 
-  // Inventario: array de { ptId, longitud, calidad }
-  const [inventario, setInventario] = useState([])
+  // Inventario: array de { ptId, longitud, calidad } — estado levantado a App.jsx
+  const inventario = inventarioPT || []
+  const setInventario = setInventarioPT || (() => {})
   const [tipologia, setTipologia] = useState('')
   const [verEjemplo, setVerEjemplo] = useState(false)
 

@@ -84,6 +84,17 @@ export function perdidasEnvolvente(elementos, hdd18) {
 }
 
 /**
+ * Pérdidas por puentes térmicos lineales: ΣΨ·L × HDD18 × 24 / 1000
+ * @param {number} psiLTotal - suma de Ψ·L en W/K (de calcularSumaPsiL)
+ * @param {number} hdd18
+ * @returns {number} kWh/año
+ */
+export function perdidasPuentesTermicos(psiLTotal, hdd18) {
+  if (!psiLTotal || !hdd18) return 0
+  return Math.round(psiLTotal * hdd18 * 24 / 1000)
+}
+
+/**
  * Pérdidas por infiltración: n × V × Cp × HDD18 × 24 / 1000
  *
  * @param {number} volumen_m3 - volumen interior calefaccionado
@@ -164,6 +175,7 @@ export function balanceTermicoAnual({
   factorProteccion = 1,
   gananciasInternasWm2 = GANANCIAS_INTERNAS_W_M2,
   masaTermica = 'media',
+  psiLTotal = 0,
   comunaKey = null,
   zonaDS15 = null,
 }) {
@@ -172,20 +184,19 @@ export function balanceTermicoAnual({
   const zonaEf = zonaDS15 || obtenerZonaDS15Comuna(comunaKey) || 'D'
 
   const pEnv = perdidasEnvolvente(elementos, hdd18)
+  const pPT  = perdidasPuentesTermicos(psiLTotal, hdd18)
   const pInf = perdidasInfiltracion(v, ach, hdd18)
   const gSol = gananciasSolares(areasVidrio, factorSolar, zonaEf, factorProteccion)
   const gInt = gananciasInternas(areaUtil, gananciasInternasWm2)
 
-  // Factor de utilización de ganancias — fórmula EXACTA ISO 13790 §12.2.1.1
-  // (antes: aproximación 1−e^(−1/γ), sin masa térmica).
-  const perdidasTot = pEnv + pInf
+  // ISO 13790: H_tr = ΣU·A + ΣΨ·L ; H_ve = Cp·n·V
+  const perdidasTot = pEnv + pPT + pInf
   const gananciasTot = gSol.total + gInt
-  // H total [W/K] = Σ U·A (envolvente) + 0.34·n·V (infiltración)
   const H_env = elementos.reduce((s, e) => {
     const u = parseFloat(e.U) || 0, a = parseFloat(e.area) || 0
     return (u > 0 && a > 0) ? s + u * a : s
   }, 0)
-  const H = H_env + Cp_AIRE * ach * v
+  const H = H_env + (psiLTotal || 0) + Cp_AIRE * ach * v
   // Constante de tiempo τ [h] = Cm/(3600·H); Cm de la clase de masa térmica
   const cmM2 = CM_POR_MASA[masaTermica] ?? CM_POR_MASA.media
   const tau = H > 0 ? (cmM2 * areaUtil) / (3600 * H) : 0
@@ -200,9 +211,10 @@ export function balanceTermicoAnual({
 
   return {
     perdidas: {
-      envolvente:  pEnv,
-      infiltracion: pInf,
-      total:       perdidasTot,
+      envolvente:      pEnv,
+      puentesTermicos: pPT,
+      infiltracion:    pInf,
+      total:           perdidasTot,
     },
     ganancias: {
       solares:        gSol.total,
@@ -217,6 +229,7 @@ export function balanceTermicoAnual({
       tauHoras: Math.round(tau * 10) / 10,
       aNum: Math.round(aNum * 100) / 100,
       H_WK: Math.round(H * 10) / 10,
+      psiLTotal: Math.round((psiLTotal || 0) * 100) / 100,
     },
     demandaNeta,
     kwhM2Anio,

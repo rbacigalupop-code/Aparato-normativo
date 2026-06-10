@@ -20,7 +20,7 @@ const SUB_TABS = [
   { id: 'hg',  label: '💧 Higrotérmico (WUFI)',  color: '#0e7490' },
 ]
 
-export default function Detalles({ proy, calcUInit, perfil }) {
+export default function Detalles({ proy, calcUInit, perfil, inventarioPT, setInventarioPT }) {
   const [activeSub, setActiveSub] = useState('pt')
 
   return (
@@ -51,7 +51,7 @@ export default function Detalles({ proy, calcUInit, perfil }) {
 
         {/* Contenido del sub-tab */}
         <div>
-          {activeSub === 'pt' && <PuentesTermicos     proy={proy} calcUInit={calcUInit} />}
+          {activeSub === 'pt' && <PuentesTermicos     proy={proy} calcUInit={calcUInit} inventarioPT={inventarioPT} setInventarioPT={setInventarioPT} />}
           {activeSub === 'vd' && <VentanasDetalladas  proy={proy} />}
           {activeSub === 'pd' && <PuertasDetalladas   proy={proy} />}
           {activeSub === 'hg' && <Higrotermico        proy={proy} calcUInit={calcUInit} />}

@@ -25,11 +25,12 @@ import {
   ventanasFromFachadas,
   FACTOR_SOLAR_VIDRIOS,
 } from '../../lib/engines/demanda.js'
+import { calcularSumaPsiL } from '../../lib/engines/puentes_termicos.js'
 import { BENCHMARKS_DEMANDA } from '../../data/clima_anual.js'
 import { ZONA_DS15_LABELS } from '../../data/comunas_chile.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
-export default function DemandaAnual({ proy, calcUInit, fachadas }) {
+export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }) {
   const cfg = proy?.configEnergetica || {}
   const zonaEf = cfg.zonaDS15 || proy?.zona || 'D'
   const comunaKey = cfg.comunaKey || null
@@ -51,6 +52,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
   const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit), [calcUInit])
   const ventanas  = useMemo(() => ventanasFromFachadas(fachadas), [fachadas])
   const factorSolar = FACTOR_SOLAR_VIDRIOS[vidrioTipo] ?? 0.70
+  const psiLTotal = useMemo(() => calcularSumaPsiL(inventarioPT), [inventarioPT])
 
   const volumen = areaUtil * alturaCielo
 
@@ -60,9 +62,9 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
     areasVidrio: ventanas.areasVidrio,
     factorSolar, factorProteccion: proteccion,
     gananciasInternasWm2: gananciasInt,
-    masaTermica,
+    masaTermica, psiLTotal,
     comunaKey, zonaDS15: zonaEf,
-  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, masaTermica, comunaKey, zonaEf])
+  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, masaTermica, psiLTotal, comunaKey, zonaEf])
 
   const verano = useMemo(() => analizarSobrecalentamiento({
     areasVidrio: ventanas.areasVidrio,
@@ -119,6 +121,8 @@ export default function DemandaAnual({ proy, calcUInit, fachadas }) {
         balance={balance}
         elementos={elementos}
         ventanas={ventanas}
+        psiLTotal={psiLTotal}
+        inventarioPT={inventarioPT}
         // inputs
         areaUtil={areaUtil} setAreaUtil={setAreaUtil}
         alturaCielo={alturaCielo} setAlturaCielo={setAlturaCielo}
@@ -182,8 +186,9 @@ function Hero({ balance }) {
           {balance.kwhM2Anio.toLocaleString('es-CL')} kWh/m²·año
         </h2>
         <p style={{ fontSize: 13, margin: '6px 0 0', opacity: 0.92 }}>
-          {cal?.nombre || 'Sin clasificar'} · Pérdidas {(balance.perdidas.total/1000).toFixed(1)}k kWh ·
-          Ganancias útiles {(balance.ganancias.utilizadas/1000).toFixed(1)}k kWh · Neta {(balance.demandaNeta/1000).toFixed(1)}k kWh
+          {cal?.nombre || 'Sin clasificar'} · Pérdidas {(balance.perdidas.total/1000).toFixed(1)}k kWh
+          {balance.perdidas.puentesTermicos > 0 ? ` (inc. ${(balance.perdidas.puentesTermicos/1000).toFixed(1)}k PT)` : ''}
+          {' · '}Ganancias útiles {(balance.ganancias.utilizadas/1000).toFixed(1)}k kWh · Neta {(balance.demandaNeta/1000).toFixed(1)}k kWh
         </p>
       </div>
     </div>
@@ -191,7 +196,8 @@ function Hero({ balance }) {
 }
 
 // ─── SECCIÓN INVIERNO ────────────────────────────────────────────────────────
-function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
+function SeccionInvierno({ balance, elementos, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
+  const tienePT = psiLTotal > 0
   return (
     <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Zona ${zonaEf} · ${ZONA_DS15_LABELS[zonaEf] || ''}`}>
       {/* Inputs */}
@@ -248,6 +254,19 @@ function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, 
           badge={elementos.length > 0 ? <BadgeOrigen origen="normativo:calculo-u" small /> : null}
         />
         <BigKPI
+          label="Pérdidas puentes térmicos"
+          value={tienePT
+            ? `${(balance.perdidas.puentesTermicos/1000).toFixed(1)}k kWh`
+            : '— sin datos'}
+          sub={tienePT
+            ? `ΣΨ·L = ${psiLTotal} W/K · ${inventarioPT?.length || 0} PT`
+            : 'Completar pestaña PT'}
+          color={tienePT ? 'var(--bad)' : 'var(--ink-3)'}
+          badge={tienePT
+            ? <BadgeOrigen origen="energetico:puentes-termicos" small />
+            : <BadgeOrigen origen="auto" small label="No integrado" />}
+        />
+        <BigKPI
           label="Pérdidas infiltración"
           value={`${(balance.perdidas.infiltracion/1000).toFixed(1)}k kWh`}
           sub={`${ach} ACH`}
@@ -279,8 +298,9 @@ function SeccionInvierno({ balance, elementos, ventanas, areaUtil, setAreaUtil, 
       }}>
         <b>📊 Factor de utilización ISO 13790 (fórmula exacta §12.2.1.1):</b> {(balance.ganancias.factorUtilizacion * 100).toFixed(0)}%
         <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-          {' · '} γ={balance.iso13790?.gamma} · τ={balance.iso13790?.tauHoras} h (masa térmica de la sección Verano) ·
-          las ganancias no se aprovechan al 100% porque el balance ya está equilibrado en
+          {' · '} γ={balance.iso13790?.gamma} · τ={balance.iso13790?.tauHoras} h · H={balance.iso13790?.H_WK} W/K
+          {balance.iso13790?.psiLTotal > 0 ? ` (inc. ΣΨ·L = ${balance.iso13790.psiLTotal} W/K)` : ''}
+          {' · '}las ganancias no se aprovechan al 100% porque el balance ya está equilibrado en
           momentos del año. Sólo {balance.ganancias.utilizadas.toLocaleString('es-CL')} kWh
           contribuyen efectivamente a reducir la demanda de calefacción.
         </span>

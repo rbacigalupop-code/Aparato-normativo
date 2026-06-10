@@ -9304,6 +9304,8 @@ function AppInner() {
     matCajaId: 'ha',        // material del recinto/caja de escalera
   })
 
+  const [inventarioPT, setInventarioPT] = useState([])
+
   // Inyectar CSS responsive móvil
   useEffect(() => {
     if (document.getElementById('nc-mobile-css')) return
@@ -9824,6 +9826,7 @@ function AppInner() {
                   proy={proy}
                   calcUInit={calcUInit}
                   fachadas={fachadas}
+                  inventarioPT={inventarioPT}
                 />
               </PaywallGate>
             )}
@@ -9832,6 +9835,8 @@ function AppInner() {
                 proy={proy}
                 calcUInit={calcUInit}
                 perfil={perfil}
+                inventarioPT={inventarioPT}
+                setInventarioPT={setInventarioPT}
               />
             )}
             {energTab === 4 && (
