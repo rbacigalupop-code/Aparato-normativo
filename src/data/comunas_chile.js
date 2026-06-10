@@ -601,6 +601,21 @@ export function listarComunasOrdenadas() {
 }
 
 /**
+ * Dado un nombre de comuna (ej. "Temuco", "San Pedro de Atacama"),
+ * devuelve el key del catálogo COMUNAS_CHILE (ej. "temuco", "san_pedro_de_atacama").
+ * Retorna null si no se encuentra.
+ */
+export function buscarComunaKey(nombre) {
+  if (!nombre) return null
+  const norm = nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_').trim()
+  if (COMUNAS_CHILE[norm]) return norm
+  for (const [key] of Object.entries(COMUNAS_CHILE)) {
+    if (key === norm) return key
+  }
+  return null
+}
+
+/**
  * Obtiene la zona DS N°15 oficial de una comuna.
  * @param {string} comunaKey
  * @returns {string|null} 'A'..'H' o null si no se encuentra

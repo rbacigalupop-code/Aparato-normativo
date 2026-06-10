@@ -233,9 +233,45 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
               background: 'var(--warn-bg)', border: '1px solid var(--warn)',
               padding: '6px 10px', borderRadius: 6, lineHeight: 1.5,
             }}>
-              ⚠ La zona del proyecto Normativo es <b>{proy.zona}</b>, pero la comuna seleccionada
-              corresponde a zona <b>{zonaEfectiva}</b>. El módulo Energético usa la zona derivada
-              de la comuna (más precisa). Revisa la pestaña Diagnóstico si quieres sincronizarlas.
+              ⚠ La zona del proyecto Normativo es <b>{proy.zona}</b>, pero aquí se usa zona <b>{zonaEfectiva}</b>.{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  const cKey = proy.comuna
+                    ? proy.comuna.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_')
+                    : ''
+                  const z = obtenerZonaDS15Comuna(cKey)
+                  if (cKey) {
+                    const distribId = obtenerDistribuidoraComuna(cKey)
+                    const distrib = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
+                    patchCfg({
+                      comunaKey: cKey,
+                      zonaDS15: z || proy.zona,
+                      distribuidora: distribId || cfg.distribuidora,
+                      tarifaElec: distrib?.tarifa_clp_kwh ?? cfg.tarifaElec,
+                    })
+                  } else {
+                    patchCfg({ zonaDS15: proy.zona })
+                  }
+                }}
+                style={{
+                  background: 'var(--warn)', color: '#fff', border: 'none',
+                  borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 700,
+                  cursor: 'pointer', marginLeft: 4,
+                }}
+              >
+                Sincronizar con Normativo
+              </button>
+            </div>
+          )}
+          {!comunaKey && proy?.comuna && (
+            <div style={{
+              marginTop: 8, fontSize: 10, color: 'var(--accent)',
+              background: 'var(--accent-bg)', border: '1px solid var(--accent)',
+              padding: '6px 10px', borderRadius: 6, lineHeight: 1.5,
+            }}>
+              💡 En Diagnóstico tienes comuna <b>{proy.comuna}</b> (Zona {proy.zona}).
+              Al seleccionar una comuna aquí se configurará el módulo energético de forma independiente.
             </div>
           )}
         </Card>

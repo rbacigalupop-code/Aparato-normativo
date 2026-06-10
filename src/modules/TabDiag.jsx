@@ -11,6 +11,8 @@ import {
   CARGA_OCUP_DENSIDAD, OGUC_TABLA2_EDUC, getLetraOGUC_T2_Educ,
 } from '../data.js'
 import { getOverrides, resolveZona } from '../utils/zonaStorage.js'
+import { buscarComunaKey, obtenerZonaDS15Comuna, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
+import { DISTRIBUIDORAS_ELEC, TARIFA_ELEC_DEFAULT, zonaOGUCaMacrozona } from '../data/combustibles.js'
 
 // ─── Lookup: todas las comunas (base + overrides) ─────────────────────────────
 // Combina las comunas de data.js con las del override (admin).
@@ -855,7 +857,24 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             <ComunaSearch
               value={proy.comuna}
               overrides={overrides}
-              onChange={(comuna, zona) => setProy(p => ({ ...p, comuna, zona: zona ?? p.zona }))}
+              onChange={(comuna, zona) => setProy(p => {
+                const updated = { ...p, comuna, zona: zona ?? p.zona }
+                const cKey = buscarComunaKey(comuna)
+                if (cKey) {
+                  const z = obtenerZonaDS15Comuna(cKey)
+                  const distribId = obtenerDistribuidoraComuna(cKey)
+                  const distrib = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
+                  updated.configEnergetica = {
+                    ...p.configEnergetica,
+                    comunaKey: cKey,
+                    zonaDS15: z || null,
+                    macrozona: z ? zonaOGUCaMacrozona(z) : (p.configEnergetica?.macrozona || 'centro'),
+                    distribuidora: distribId || p.configEnergetica?.distribuidora,
+                    tarifaElec: distrib?.tarifa_clp_kwh ?? p.configEnergetica?.tarifaElec ?? TARIFA_ELEC_DEFAULT,
+                  }
+                }
+                return updated
+              })}
             />
             <span style={S.norm}>Asigna zona térmica automáticamente — NCh1079:2019</span>
           </div>
