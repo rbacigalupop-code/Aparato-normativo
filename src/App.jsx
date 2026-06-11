@@ -9275,6 +9275,20 @@ function AppInner() {
   const autoSaveTimer = useRef(null)
   const [showAyuda, setShowAyuda] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
+  const [showFeedbackBanner, setShowFeedbackBanner] = useState(false)
+
+  // Aviso "puedes enviarnos mensajes" — se muestra una vez por usuario
+  useEffect(() => {
+    if (!user?.id) return
+    try {
+      if (!localStorage.getItem(`nc_feedback_banner_v1_${user.id}`)) setShowFeedbackBanner(true)
+    } catch { /* localStorage no disponible */ }
+  }, [user?.id])
+
+  function dismissFeedbackBanner() {
+    setShowFeedbackBanner(false)
+    try { if (user?.id) localStorage.setItem(`nc_feedback_banner_v1_${user.id}`, '1') } catch { /* noop */ }
+  }
 
   // OGUC normative data (loaded from Supabase with fallback to local)
   // Start with local data to avoid undefined errors during loading
@@ -9914,6 +9928,27 @@ function AppInner() {
       {exportError && (
         <div style={{ background: '#fef2f2', borderBottom: '2px solid #fca5a5', padding: '10px 20px', color: '#991b1b', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
           ⚠️ {exportError}
+        </div>
+      )}
+      {showFeedbackBanner && (
+        <div style={{ background:'#eff6ff', borderBottom:'2px solid #bfdbfe', padding:'10px 20px', display:'flex', alignItems:'center', gap:12, fontSize:13, flexWrap:'wrap' }}>
+          <span style={{ fontSize:18, flexShrink:0 }}>📬</span>
+          <span style={{ flex:1, minWidth:200, color:'#1e3a8a' }}>
+            <b>¿Tienes dudas, encontraste un error o quieres sugerir algo?</b> Ahora puedes escribirnos directo desde la app — leemos todos los mensajes. También lo encuentras en el menú de tu usuario.
+          </span>
+          <button
+            onClick={() => { dismissFeedbackBanner(); setShowFeedback(true) }}
+            style={{ background:'#2563eb', color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', fontWeight:700, fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
+          >
+            Enviar un mensaje
+          </button>
+          <button
+            onClick={dismissFeedbackBanner}
+            title="No volver a mostrar"
+            style={{ background:'transparent', border:'none', color:'#64748b', fontSize:18, cursor:'pointer', padding:'0 4px', flexShrink:0, lineHeight:1 }}
+          >
+            ✕
+          </button>
         </div>
       )}
       <div style={{ ...S.tabs, alignItems: 'center' }} className="nc-tabs">
