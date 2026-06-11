@@ -1217,6 +1217,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   const [filtroSistema,  setFiltroSistema]  = useState('')
   const [selComp,       setSelComp]       = useState([])
   const [showComp,      setShowComp]      = useState(false)
+  const [showAsistente, setShowAsistente] = useState(true)
   // targetSistema: null = global, id = estructura específica (local a esta pestaña)
   const [targetSistema, setTargetSistema] = useState(null)
   // catalogRef: para hacer scroll al catálogo cuando el usuario elige un slot
@@ -1611,6 +1612,136 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
           ))}
         </div>
       </div>
+
+      {/* ── Asistente de selección — preventivo (B) + brecha cuantificada (C) ── */}
+      {(() => {
+        // Base estable: independiente de búsqueda/filtroRF/soloOk para dar el
+        // panorama real del catálogo en la zona/uso/sistema actual.
+        const sisActivo = filtroSistema || (targetSistema ? (proy.estructuras?.find(e => e.id === targetSistema)?.tipo || '') : '')
+        const base = SC.filter(s => s.elem === elem)
+          .filter(s => !sisActivo || !s.sistemas || s.sistemas.includes(sisActivo))
+          .map(s => ({ ...s, ev: evaluar(s) }))
+        const aplicables = base.filter(s => s.ev.aplica)
+        // Sin nada que asistir (p.ej. elemento sin soluciones en el catálogo)
+        if (aplicables.length === 0) return null
+
+        const cumplen = aplicables.filter(s => s.ev.total === 3).sort((a, b) => (a.u || 99) - (b.u || 99))
+        const hayCumplen = cumplen.length > 0
+
+        // Brecha cuantificada para las más cercanas (cuando nada cumple los 3)
+        const cercanas = aplicables
+          .map(s => {
+            const gapU = (!s.ev.tOk && uMax) ? +(s.u - uMax).toFixed(3) : 0
+            const gapF = (!s.ev.fOk && rfReq) ? (rfN(rfReq) - rfN(s.rf || 'F0')) : 0
+            const gapA = (!s.ev.aOk && acReq) ? (acReq - (s.ac_rw || 0)) : 0
+            const fallos = (s.ev.tOk ? 0 : 1) + (s.ev.fOk ? 0 : 1) + (s.ev.aOk ? 0 : 1)
+            return { ...s, gapU, gapF, gapA, fallos }
+          })
+          .sort((a, b) => a.fallos - b.fallos || a.gapU - b.gapU || (a.u || 99) - (b.u || 99))
+          .slice(0, 3)
+
+        const aplicarBtns = (x) => (
+          <div style={{ display:'flex', gap:6, flexShrink:0, alignItems:'center' }}>
+            <button onClick={() => onAplicar(x, targetSistema)}
+              style={{ background:'#166534', color:'#fff', border:'none', borderRadius:5, padding:'4px 11px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+              Aplicar →
+            </button>
+            {targetSistema && (proy.estructuras?.length > 1) && (
+              <button onClick={() => onAplicarTodos(x)} title="Aplicar a TODOS los sistemas"
+                style={{ background:'#0369a1', color:'#fff', border:'none', borderRadius:5, padding:'4px 9px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                Todos →
+              </button>
+            )}
+          </div>
+        )
+
+        return (
+          <div style={{ ...S.card, border:`1.5px solid ${hayCumplen ? '#86efac' : '#fca5a5'}`, background: hayCumplen ? '#f0fdf4' : '#fef2f2' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, cursor:'pointer' }}
+              onClick={() => setShowAsistente(v => !v)}>
+              <p style={{ ...S.h2, marginBottom:0, color: hayCumplen ? '#166534' : '#991b1b' }}>
+                🧭 Asistente de selección — {ELEM_LABELS[elem]} · Zona {zona} / {uso}
+              </p>
+              <span style={{ fontSize:11, color:'#64748b' }}>{showAsistente ? '▲ ocultar' : '▼ mostrar'}</span>
+            </div>
+
+            {showAsistente && (
+              <div style={{ marginTop:10 }}>
+                <div style={{ fontSize:12, color:'#475569', marginBottom:10 }}>
+                  <b>{cumplen.length}</b> de {aplicables.length} soluciones aplicables a tu zona/uso cumplen los 3 criterios
+                  {sisActivo && <> · sistema <b>{sisActivo.replace('Metalframe (acero liviano)','Metalframe')}</b></>}
+                  {' · '}exigencias: {uMax ? `U≤${uMax}` : 'U s/l'}{rfReq ? ` · RF≥${rfReq}` : ''}{acReq ? ` · Rw≥${acReq}dB` : ''}
+                </div>
+
+                {hayCumplen ? (
+                  <>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#166534', marginBottom:6 }}>
+                      ✓ Recomendadas (mejor desempeño térmico primero)
+                    </div>
+                    {cumplen.slice(0, 3).map(x => (
+                      <div key={x.cod} style={{ background:'#fff', border:'1px solid #86efac', borderRadius:6, padding:'8px 11px', marginBottom:6, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+                        <div style={{ minWidth:180, flex:1 }}>
+                          <div style={{ fontWeight:700, fontSize:12, color:'#1e40af' }}>{x.cod} — {x.desc}</div>
+                          <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{x.capas}</div>
+                        </div>
+                        <div style={{ display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
+                          <span style={{ fontSize:10, background:'#dcfce7', color:'#166534', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>U={x.u}</span>
+                          {x.rf && <span style={{ fontSize:10, background:'#fee2e2', color:'#991b1b', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>RF={x.rf}</span>}
+                          {x.ac_rw && <span style={{ fontSize:10, background:'#dbeafe', color:'#1e40af', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>Rw={x.ac_rw}dB</span>}
+                          {aplicarBtns(x)}
+                        </div>
+                      </div>
+                    ))}
+                    {cumplen.length > 3 && (
+                      <div style={{ fontSize:11, color:'#166534', marginTop:2 }}>
+                        + {cumplen.length - 3} solución{cumplen.length - 3 > 1 ? 'es' : ''} más cumplen — revisa el catálogo abajo (orden por cumplimiento).
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#991b1b', marginBottom:6 }}>
+                      ⚠ Ninguna solución del catálogo cumple los 3 criterios en esta combinación. Las más cercanas, con la brecha exacta:
+                    </div>
+                    {cercanas.map(x => (
+                      <div key={x.cod} style={{ background:'#fff', border:'1px solid #fca5a5', borderRadius:6, padding:'8px 11px', marginBottom:6 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+                          <div style={{ minWidth:180, flex:1 }}>
+                            <div style={{ fontWeight:700, fontSize:12, color:'#1e40af' }}>{x.cod} — {x.desc}</div>
+                            <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{x.capas}</div>
+                          </div>
+                          {aplicarBtns(x)}
+                        </div>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:6 }}>
+                          {x.gapU > 0 && (
+                            <span style={{ fontSize:10, background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 7px', fontWeight:600 }}>
+                              🌡 U={x.u} — excede el límite en +{x.gapU} W/m²K
+                            </span>
+                          )}
+                          {x.gapF > 0 && (
+                            <span style={{ fontSize:10, background:'#fee2e2', color:'#991b1b', borderRadius:4, padding:'2px 7px', fontWeight:600 }}>
+                              🔥 RF {x.rf || '—'} — faltan {x.gapF} min (requiere {rfReq})
+                            </span>
+                          )}
+                          {x.gapA > 0 && (
+                            <span style={{ fontSize:10, background:'#dbeafe', color:'#1e40af', borderRadius:4, padding:'2px 7px', fontWeight:600 }}>
+                              🔊 Rw {x.ac_rw || 0}dB — faltan {x.gapA} dB (requiere {acReq})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ fontSize:10, color:'#991b1b', marginTop:4 }}>
+                      💡 Para cerrar la brecha térmica considera agregar aislación exterior (SATE/EIFS) o un sistema con mejor λ.
+                      Expande una solución para usar el simulador de capas y recalcular U en tiempo real.
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── Recomendaciones para uso+elemento ───────────────────────────────── */}
       {recos.length > 0 && (
