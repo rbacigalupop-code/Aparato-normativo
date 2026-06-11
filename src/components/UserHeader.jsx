@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth'
  * UserHeader
  * Muestra el rol, nombre de usuario y botón de logout en el header
  */
-export default function UserHeader() {
+export default function UserHeader({ onFeedback }) {
   const { perfil, isAdmin, signOut, tokens } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
 
@@ -129,6 +129,27 @@ export default function UserHeader() {
               )}
             </div>
             <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 8, paddingTop: 8 }}>
+              {onFeedback && (
+                <button
+                  onClick={() => { setShowMenu(false); onFeedback() }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: 0,
+                    textAlign: 'left',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#2563eb',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = '#eff6ff'}
+                  onMouseLeave={(e) => e.target.style.background = 'none'}
+                >
+                  📬 Enviar feedback
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 style={{

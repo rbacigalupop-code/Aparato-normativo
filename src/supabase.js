@@ -1350,6 +1350,91 @@ export async function obtenerResumenActividad(orgId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Buzon de Feedback ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function enviarFeedback({ userId, orgId, nombreUsuario, tipo, asunto, mensaje }) {
+  if (!userId || !asunto || !mensaje) return { ok: false, error: 'Faltan campos obligatorios' }
+  try {
+    const { error } = await supabase.from('feedback').insert([{
+      user_id: userId,
+      organizacion_id: orgId || null,
+      nombre_usuario: nombreUsuario || null,
+      tipo: tipo || 'general',
+      asunto,
+      mensaje,
+    }])
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+}
+
+export async function listarFeedbackAdmin(orgId) {
+  if (!orgId) return []
+  try {
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('organizacion_id', orgId)
+      .order('created_at', { ascending: false })
+    if (error) { console.warn('listarFeedbackAdmin error:', error); return [] }
+    return data || []
+  } catch (err) {
+    console.warn('listarFeedbackAdmin error:', err)
+    return []
+  }
+}
+
+export async function listarFeedbackUsuario(userId) {
+  if (!userId) return []
+  try {
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return data || []
+  } catch (err) {
+    return []
+  }
+}
+
+export async function responderFeedback(feedbackId, respuesta, nuevoEstado = 'respondido') {
+  if (!feedbackId) return { ok: false, error: 'Sin ID' }
+  try {
+    const { error } = await supabase
+      .from('feedback')
+      .update({
+        respuesta_admin: respuesta || null,
+        estado: nuevoEstado,
+        respondido_at: respuesta ? new Date().toISOString() : null,
+      })
+      .eq('id', feedbackId)
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+}
+
+export async function cambiarEstadoFeedback(feedbackId, estado) {
+  if (!feedbackId) return { ok: false, error: 'Sin ID' }
+  try {
+    const { error } = await supabase
+      .from('feedback')
+      .update({ estado })
+      .eq('id', feedbackId)
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function formatTiempoTranscurrido(fechaISO) {
   if (!fechaISO) return '—'

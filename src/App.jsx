@@ -31,6 +31,8 @@ import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
 import AdminStats from './modules/AdminStats.jsx'
 import AdminTokens from './modules/AdminTokens.jsx'
+import AdminFeedback from './modules/AdminFeedback.jsx'
+import FeedbackForm from './modules/FeedbackForm.jsx'
 import UserHeader from './components/UserHeader.jsx'
 import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
 import ModeSwitcher from './components/ModeSwitcher.jsx'
@@ -9104,12 +9106,14 @@ function AdminPanel({ onOverridesChanged }) {
         <button style={stBtnStyle(subTab === 'tokens')}  onClick={() => setSubTab('tokens')}>🔑 Tokens</button>
         <button style={stBtnStyle(subTab === 'zonas')}   onClick={() => setSubTab('zonas')}>🗺 Zonas</button>
         <button style={stBtnStyle(subTab === 'usuarios')} onClick={() => setSubTab('usuarios')}>👥 Usuarios</button>
+        <button style={stBtnStyle(subTab === 'feedback')} onClick={() => setSubTab('feedback')}>📬 Buzon</button>
       </div>
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 16 }}>
         {subTab === 'stats'    && <AdminStats />}
         {subTab === 'tokens'   && <AdminTokens />}
         {subTab === 'zonas'    && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
         {subTab === 'usuarios' && <UserManager />}
+        {subTab === 'feedback' && <AdminFeedback />}
       </div>
     </div>
   )
@@ -9139,6 +9143,7 @@ function AppInner() {
   const [hasUnsaved, setHasUnsaved] = useState(false)
   const autoSaveTimer = useRef(null)
   const [showAyuda, setShowAyuda] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
 
   // OGUC normative data (loaded from Supabase with fallback to local)
   // Start with local data to avoid undefined errors during loading
@@ -9772,7 +9777,7 @@ function AppInner() {
         </button>
         <ThemePicker theme={theme} onChange={setTheme} />
         <div style={{ marginLeft: 4 }}>
-          <UserHeader />
+          <UserHeader onFeedback={() => setShowFeedback(true)} />
         </div>
       </div>
       {exportError && (
@@ -9896,6 +9901,8 @@ function AppInner() {
         onCargar={onCargar}
         proyectos={proyectos}
       />
+
+      {showFeedback && <FeedbackForm onClose={() => setShowFeedback(false)} />}
 
       {/* ── Modal de bienvenida ────────────────────────────────────────────
           Aparece al cargar la app si hay un borrador autoguardado con
