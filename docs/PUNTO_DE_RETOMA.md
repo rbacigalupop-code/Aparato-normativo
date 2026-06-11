@@ -7,10 +7,15 @@
 ## Estado actual del proyecto
 
 - **Branch:** `main` (sincronizado con `origin/main`)
-- **Último commit:** `9d87b54` — Agregar 12 soluciones constructivas (HCA, radier, Monoplac)
+- **Último commit:** `b3f0484` — Asistente de seleccion de soluciones constructivas
 - **Deploy:** Vercel auto-deploy activo desde `main` (normacheck-eta.vercel.app)
 - **Tests:** 90 verdes (`npm test`) — calcU, fire, glaser_mensual, demanda (incluye PT)
 - **Fase:** BETA con testers activos — **todos en plan trial** (expiran ~10 jul)
+
+> ⚠ **ACCION PENDIENTE DEL USUARIO:** correr `sql/015_feedback.sql` en el SQL Editor de
+> Supabase. El buzon de feedback ya esta en el codigo y desplegado, pero la tabla `feedback`
+> NO existe aun en la base (verificado por REST: 404 PGRST205). Hasta correrla, enviar/listar
+> feedback fallara.
 
 ## Modelo de negocio (armado y probado en produccion)
 
@@ -50,33 +55,34 @@ El informe PDF esta gateado por plan (`onExportar` + `isPro(perfil)` de `lib/pla
    - Nuevo sistema estructural "Hormigon celular autoclavado" en ESTRUCTURAS, RF_EST (F120), OBS_EST
    - REC_USO actualizado para Educacion y Salud con HCA y radier
    - **Catalogo total: 139 soluciones constructivas**
+5. **Buzon de feedback** (commit `c3ce656`) — tabla Supabase `feedback` + RLS (`sql/015_feedback.sql`, **falta correr**), 5 funciones CRUD en supabase.js, `FeedbackForm.jsx` (modal usuario: form + historial con respuestas), `AdminFeedback.jsx` (panel admin con filtros por estado y respuesta inline). Boton "Enviar feedback" en dropdown de UserHeader + tab "Buzon" en AdminPanel.
+6. **Asistente de seleccion SC** (commit `b3f0484`) — panel proactivo en el catalogo (`TabSoluciones` en App.jsx). (B) Preventivo: top soluciones que cumplen los 3 criterios para zona/uso/sistema, ordenadas por mejor U, con aplicar directo. (C) Brecha cuantificada: si nada cumple, muestra las mas cercanas con el gap exacto por criterio (ΔU W/m²K, min de RF, dB). Base de calculo estable, colapsable.
+7. **Verificada migracion `014_sesiones_login.sql`** — corrida y operativa en Supabase (tabla + 3 RPCs confirmados por REST).
 
 ## Pendientes (priorizados)
 
 ### Del usuario (no requieren codigo)
+- **Correr `sql/015_feedback.sql` en Supabase** (buzon de feedback — tabla aun no existe).
 - Recoger dudas concretas de la colega tester (que la confundio exactamente).
 - Sondeo de precio a testers (Van Westendorp).
-- Verificar si se corrio `sql/014_sesiones_login.sql` en Supabase.
 - Registrar dominio normacheck.cl y crear correo contacto@normacheck.cl.
 
 ### Proximas sesiones (codigo)
-1. **Buzon de feedback** — form -> Supabase table -> panel admin. Concepto acordado, no implementado.
-2. **Asistente de seleccion SC** — filtro preventivo (marcar cuales cumplen al elegir) + gap analysis cuantificado (cuanto falta y que alternativas cumplen). Reemplaza sugerencia tipo "aplicar automaticamente" por seleccion informada.
-3. **Catalogo SC Prioridad 2** — SATE Weber/Dryvit, EPS grafitado (lambda ~0.032), mas variantes SIP.
-4. **Catalogo SC Prioridad 3** — fibra celulosa insuflada, vidrios control solar (factor g), puertas acusticas.
-5. Banner amarillo defensivo en TabResultados — verificar con casos reales antes de borrar.
-6. Precargar Calculo U resuelto en proyecto demo (quedo vacio a proposito).
-7. Metodo mensual: envolvente convexo ISO 13788 (magnitudes absolutas confiables).
-8. Importar ~200 materiales restantes del Excel oficial (archivo no esta en el repo).
-9. UpgradePrompt / gating free users — postponed hasta que trials se acerquen a expiracion (~10 julio).
-10. Modulo no-residencial (educacion/salud) — en roadmap, arquitectura abierta.
+1. **Catalogo SC Prioridad 2** — SATE Weber/Dryvit, EPS grafitado (lambda ~0.032), mas variantes SIP.
+2. **Catalogo SC Prioridad 3** — fibra celulosa insuflada, vidrios control solar (factor g), puertas acusticas.
+3. Banner amarillo defensivo en TabResultados — verificar con casos reales antes de borrar.
+4. Precargar Calculo U resuelto en proyecto demo (quedo vacio a proposito).
+5. Metodo mensual: envolvente convexo ISO 13788 (magnitudes absolutas confiables).
+6. Importar ~200 materiales restantes del Excel oficial (archivo no esta en el repo).
+7. UpgradePrompt / gating free users — postponed hasta que trials se acerquen a expiracion (~10 julio).
+8. Modulo no-residencial (educacion/salud) — en roadmap, arquitectura abierta.
 
 ## Mensaje para retomar en proxima sesion
 
 ```
 Retomo el proyecto NormaCheck. Estoy en C:\Users\UCSC\Documents\verificador-oguc
 
-Lee docs/PUNTO_DE_RETOMA.md (estado al 2026-06-11, commit 9d87b54).
+Lee docs/PUNTO_DE_RETOMA.md (estado al 2026-06-11, commit b3f0484).
 Recuerda: espanol latino neutro SIEMPRE (sin voseo).
 
 Quiero: [feedback de testers / pendiente tecnico N / otro: ___]
@@ -84,4 +90,4 @@ Quiero: [feedback de testers / pendiente tecnico N / otro: ___]
 
 ---
 
-**Notas historicas:** el bug critico de informes (docs/BUG_PENDIENTE_INFORMES.md) esta RESUELTO desde `d758488`; el doc se conserva como registro. Las migraciones SQL van hasta `013_user_plans.sql` aplicada (014 por verificar).
+**Notas historicas:** el bug critico de informes (docs/BUG_PENDIENTE_INFORMES.md) esta RESUELTO desde `d758488`; el doc se conserva como registro. Migraciones SQL: `014_sesiones_login.sql` verificada y aplicada; **`015_feedback.sql` pendiente de correr** en Supabase.
