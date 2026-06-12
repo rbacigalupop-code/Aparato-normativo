@@ -20,6 +20,7 @@
 
 import { LOFC, LOFC_MACIZOS } from '../../data/lofc.js'
 import { LOSCAA } from '../../data/loscaa.js'
+import { LOSCAT_INDEX, vigenciaLOSCAT } from '../../data/loscat.js'
 
 // ─── Conversión RF string ↔ minutos ──────────────────────────────────────────
 function rfToMinutos(rf) {
@@ -568,24 +569,34 @@ export function homologarSolucion(loscat, requerimientos = {}) {
   const estructura = identificarEstructuraBase(loscat)
 
   // 1. Térmico: SOLO se declara LOSCAT cuando la solución cita un código
-  //    LOSCAT real en desc/obs. Sin cita, el U es del catálogo NormaCheck
-  //    (calculado ISO 6946 / valor referencial) y se rotula como tal —
+  //    LOSCAT real en desc/obs Y ese código existe en el índice oficial
+  //    Ed.14 (src/data/loscat.js). Sin ambas condiciones, el U es del
+  //    catálogo NormaCheck (calculado/referencial) y se rotula como tal —
   //    nunca presentar un valor calculado como ítem oficial.
   const citaLOSCAT = /LOSCAT\s*[0-9]|\(LOSCAT/i.test(`${loscat.desc || ''} ${loscat.obs || ''}`)
-  const termico = citaLOSCAT ? {
+  const enEd14 = !!LOSCAT_INDEX[loscat.cod]
+  const vig = enEd14 ? vigenciaLOSCAT(loscat.cod) : null
+  const vigTxt = vig === 'vencida' ? ' · ⛔ VIGENCIA VENCIDA'
+    : vig === 'por_vencer' ? ` · ⚠ vence ${LOSCAT_INDEX[loscat.cod].vigencia}`
+    : ''
+  const termico = (citaLOSCAT && enEd14) ? {
     codigo: `LOSCAT ${loscat.cod}`,
     codigo_base: loscat.cod,
     u: parseFloat(loscat.u) || null,
     descripcion: loscat.desc,
     oficial: true,
-    fuente: 'LOSCAT Ed.13 2025',
+    vigencia: LOSCAT_INDEX[loscat.cod].vigencia || null,
+    fuente: `LOSCAT Ed.14 2026 — verificado en índice oficial${vigTxt}`,
   } : {
     codigo: `${loscat.cod} — catálogo NormaCheck`,
     codigo_base: loscat.cod,
     u: parseFloat(loscat.u) || null,
     descripcion: loscat.desc,
     oficial: false,
-    fuente: 'U calculado/referencial — no es ítem LOSCAT. Verificar con EE o ensayo.',
+    vigencia: null,
+    fuente: citaLOSCAT
+      ? 'Cita LOSCAT no encontrada en Ed.14 — verificar (posible retiro del listado).'
+      : 'U calculado/referencial — no es ítem LOSCAT. Verificar con EE o ensayo.',
   }
 
   // 2. Fuego: homologar a LOFC

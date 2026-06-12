@@ -25,14 +25,25 @@
 
 import { SC } from '../src/data.js'
 import { homologarLOFC, homologarLOSCAA } from '../src/lib/engines/homologacion.js'
+import { LOSCAT_INDEX, LOSCAT_META, vigenciaLOSCAT } from '../src/data/loscat.js'
 
 const rfMin = (rf) => { const m = String(rf || '').match(/F[-\s]?(\d+)/i); return m ? parseInt(m[1]) : 0 }
 
-// ── Clasificación térmica por trazabilidad declarada ─────────────────────────
+// ── Clasificación térmica: cruce REAL contra índice oficial Ed.14 ────────────
+//   OFICIAL_VERIFICADA: cita LOSCAT y el código existe en Ed.14
+//   CITA_ROTA:          cita LOSCAT pero el código NO está en Ed.14 (retirado o error)
+//   COD_OCUPADO:        no cita, pero el código EXISTE en Ed.14 → posible colisión
+//                       con una solución oficial distinta (revisar título)
+//   CALCULADO:          declara método de cálculo
+//   SIN_MARCA:          sin trazabilidad (prohibido crecer — ratchet)
 function clasificarTermico(s) {
   const texto = `${s.desc || ''} ${s.obs || ''}`
-  if (/LOSCAT\s+[0-9]|\(LOSCAT/i.test(texto)) return 'OFICIAL'
-  if (/ISO\s*6946|NCh\s*853|calculad|estimad|ley de masa|fabricante|referencial/i.test(texto)) return 'CALCULADO'
+  const cita = /LOSCAT\s+[0-9]|\(LOSCAT/i.test(texto)
+  const enEd14 = !!LOSCAT_INDEX[s.cod]
+  if (cita && enEd14) return 'OFICIAL_VERIFICADA'
+  if (cita && !enEd14) return 'CITA_ROTA'
+  if (!cita && enEd14) return 'COD_OCUPADO'
+  if (/ISO\s*6946|ISO\s*13370|NCh\s*853|EN\s*(ISO\s*)?10077|calculad|estimad|ley de masa|fabricante|referencial|ensayo/i.test(texto)) return 'CALCULADO'
   return 'SIN_MARCA'
 }
 
@@ -78,13 +89,40 @@ if (process.argv.includes('--json')) {
 
 console.log('═══════════════════════════════════════════════════════════════════')
 console.log(`AUDITORÍA DE CRUCE NORMATIVO — ${T.length} soluciones · ${new Date().toISOString().slice(0, 10)}`)
-console.log('LOSCAT Ed.13 (citas) × LOFC Ed.17 (275 ítems) × LOSCAA Ed.13 2024 (49)')
+console.log(`LOSCAT Ed.${LOSCAT_META.edicion} (${Object.keys(LOSCAT_INDEX).length} códigos oficiales) × LOFC Ed.17 (275 ítems) × LOSCAA Ed.13 2024 (49)`)
 console.log('═══════════════════════════════════════════════════════════════════\n')
 
-console.log('── TÉRMICO (U) ──────────────────────────────────────────────────')
-console.log(`  OFICIAL (cita LOSCAT):     ${count(T, r => r.termico === 'OFICIAL')}`)
-console.log(`  CALCULADO (método declarado): ${count(T, r => r.termico === 'CALCULADO')}`)
-console.log(`  SIN_MARCA (⛔ prohibido):  ${count(T, r => r.termico === 'SIN_MARCA')}`)
+console.log('── TÉRMICO (U) — cruce real índice Ed.14 ────────────────────────')
+console.log(`  OFICIAL_VERIFICADA (cita + en Ed.14):  ${count(T, r => r.termico === 'OFICIAL_VERIFICADA')}`)
+console.log(`  CITA_ROTA (cita, NO está en Ed.14):    ${count(T, r => r.termico === 'CITA_ROTA')}`)
+console.log(`  COD_OCUPADO (⚠ colisión con oficial):  ${count(T, r => r.termico === 'COD_OCUPADO')}`)
+console.log(`  CALCULADO (método declarado):          ${count(T, r => r.termico === 'CALCULADO')}`)
+console.log(`  SIN_MARCA (⛔ prohibido):              ${count(T, r => r.termico === 'SIN_MARCA')}`)
+
+const citaRota = T.filter(r => r.termico === 'CITA_ROTA')
+if (citaRota.length) {
+  console.log('\n⛔ CITAS ROTAS (citan LOSCAT pero el código no existe en Ed.14):')
+  citaRota.forEach(r => console.log(`   ${r.cod} [${r.elem}] ${r.desc.slice(0, 60)}`))
+}
+
+const codOcupado = T.filter(r => r.termico === 'COD_OCUPADO')
+if (codOcupado.length) {
+  console.log('\n⚠ COLISIONES DE CÓDIGO (nuestro cod existe en Ed.14 como OTRA solución oficial):')
+  codOcupado.forEach(r => {
+    const of = LOSCAT_INDEX[r.cod]
+    console.log(`   ${r.cod}`)
+    console.log(`     nuestra:  ${r.desc.slice(0, 70)}`)
+    console.log(`     oficial:  ${(of.titulo || '(sin título extraído)').slice(0, 70)}`)
+  })
+}
+
+const vigVencidas = T.filter(r => r.termico === 'OFICIAL_VERIFICADA' && vigenciaLOSCAT(r.cod) === 'vencida')
+const vigPorVencer = T.filter(r => r.termico === 'OFICIAL_VERIFICADA' && vigenciaLOSCAT(r.cod) === 'por_vencer')
+if (vigVencidas.length || vigPorVencer.length) {
+  console.log('\n📅 VIGENCIAS LOSCAT de soluciones verificadas:')
+  vigVencidas.forEach(r => console.log(`   ⛔ VENCIDA: ${r.cod} (vigencia ${LOSCAT_INDEX[r.cod].vigencia})`))
+  vigPorVencer.forEach(r => console.log(`   ⚠ vence ≤12 meses: ${r.cod} (vigencia ${LOSCAT_INDEX[r.cod].vigencia})`))
+}
 
 console.log('\n── FUEGO (RF) — cruce LOFC ──────────────────────────────────────')
 console.log(`  CRUZADO (LOFC respalda RF declarado): ${count(T, r => r.fuego.clase === 'CRUZADO')}`)

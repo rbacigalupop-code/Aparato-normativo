@@ -15,6 +15,7 @@
 import { describe, it, expect } from 'vitest'
 import { SC } from '../data.js'
 import { homologarSolucion } from '../lib/engines/homologacion.js'
+import { LOSCAT_INDEX, LOSCAT_META } from '../data/loscat.js'
 
 // Mantener en sincronía con scripts/auditar-cruce-normativo.mjs
 const citaLOSCAT = (s) => /LOSCAT\s*[0-9]|\(LOSCAT/i.test(`${s.desc || ''} ${s.obs || ''}`)
@@ -27,23 +28,35 @@ const tieneMarca = (s) => citaLOSCAT(s) ||
 // declara su origen en obs (cita oficial o método de cálculo).
 const BASELINE_SIN_MARCA = 86
 
-describe('Honestidad del motor de homologación', () => {
-  it('con cita LOSCAT → térmico oficial, fuente LOSCAT', () => {
-    const conCita = SC.find(citaLOSCAT)
-    expect(conCita).toBeTruthy()
-    const h = homologarSolucion(conCita)
+describe('Honestidad del motor de homologación (índice Ed.14)', () => {
+  it('el índice oficial Ed.14 está cargado y poblado', () => {
+    expect(LOSCAT_META.edicion).toBe(14)
+    expect(Object.keys(LOSCAT_INDEX).length).toBeGreaterThan(300)
+  })
+
+  it('con cita LOSCAT + código en Ed.14 → térmico oficial verificado', () => {
+    const verificada = SC.find(s => citaLOSCAT(s) && LOSCAT_INDEX[s.cod])
+    expect(verificada).toBeTruthy()
+    const h = homologarSolucion(verificada)
     expect(h.termico.oficial).toBe(true)
-    expect(h.termico.codigo).toBe(`LOSCAT ${conCita.cod}`)
-    expect(h.termico.fuente).toMatch(/LOSCAT/)
+    expect(h.termico.codigo).toBe(`LOSCAT ${verificada.cod}`)
+    expect(h.termico.fuente).toMatch(/Ed\.14.*verificado/i)
   })
 
   it('sin cita LOSCAT → térmico NO oficial y lo declara', () => {
-    const sinCita = SC.find(s => !citaLOSCAT(s))
+    const sinCita = SC.find(s => !citaLOSCAT(s) && !LOSCAT_INDEX[s.cod])
     expect(sinCita).toBeTruthy()
     const h = homologarSolucion(sinCita)
     expect(h.termico.oficial).toBe(false)
     expect(h.termico.codigo).not.toMatch(/^LOSCAT/)
     expect(h.termico.fuente).toMatch(/no es ítem LOSCAT/i)
+  })
+
+  it('cita a código inexistente en Ed.14 → NO oficial, con aviso de retiro', () => {
+    const fantasma = { cod: '9.9.X.Z99.9', elem: 'muro', desc: 'Falsa (LOSCAT Ed.13)', capas: 'X 10', u: 0.4, obs: 'LOSCAT 9.9.X.Z99.9' }
+    const h = homologarSolucion(fantasma)
+    expect(h.termico.oficial).toBe(false)
+    expect(h.termico.fuente).toMatch(/no encontrada en Ed\.14/i)
   })
 
   it('ninguna solución sin cita se presenta con código "LOSCAT ..."', () => {
