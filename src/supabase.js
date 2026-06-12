@@ -1350,7 +1350,14 @@ export async function enviarFeedback({ userId, orgId, nombreUsuario, tipo, asunt
       asunto: asuntoLimpio,
       mensaje: mensajeLimpio,
     }])
-    if (error) return { ok: false, error: error.message }
+    if (error) {
+      // Rate limit server-side (trigger 018): traducir a mensaje amistoso
+      if (/rate_limit_hora/i.test(error.message))
+        return { ok: false, error: 'Enviaste varios mensajes seguidos. Espera un momento e intenta de nuevo (máx. 5 por hora).' }
+      if (/rate_limit_dia/i.test(error.message))
+        return { ok: false, error: 'Alcanzaste el máximo de mensajes por hoy. Intenta nuevamente mañana.' }
+      return { ok: false, error: error.message }
+    }
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err.message }
