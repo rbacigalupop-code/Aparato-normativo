@@ -23,10 +23,10 @@ const tieneMarca = (s) => citaLOSCAT(s) ||
   /ISO\s*6946|ISO\s*13370|NCh\s*853|EN\s*(ISO\s*)?10077|LOFC|LOSCAA|calculad|estimad|ley de masa|fabricante|referencial|ensayo/i
     .test(`${s.desc || ''} ${s.obs || ''}`)
 
-// Baseline 2026-06-12: 86 soluciones sin marca de origen (de 123).
+// Baseline 2026-06-12: 85 soluciones sin marca de origen (de 123).
 // Este número SOLO puede bajar. Meta: 0. Si agregas una solución nueva,
 // declara su origen en obs (cita oficial o método de cálculo).
-const BASELINE_SIN_MARCA = 86
+const BASELINE_SIN_MARCA = 85
 
 describe('Honestidad del motor de homologación (índice Ed.14)', () => {
   it('el índice oficial Ed.14 está cargado y poblado', () => {
