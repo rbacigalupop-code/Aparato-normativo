@@ -36,3 +36,8 @@ jobs:
 
       - name: Build de verificación
         run: npx vite build
+
+      # Tras el build, escanea repo + bundle (dist/) por claves service_role.
+      # Falla el push si una clave secreta llegó al código o al bundle público.
+      - name: Guard anti-secretos (service_role / sb_secret_)
+        run: node scripts/check-secretos.mjs
