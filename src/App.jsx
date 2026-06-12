@@ -1112,7 +1112,7 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
   if (!homolog) return null
   const { termico, fuego, acustico, estructura_base } = homolog
 
-  const Card = ({ icon, titulo, codigo, valor, fuente, intrinseco, color, descripcion }) => (
+  const Card = ({ icon, titulo, codigo, valor, fuente, intrinseco, oficial, sinMatchTexto, color, descripcion }) => (
     <div style={{
       flex: 1, minWidth: 220,
       background: '#fff',
@@ -1123,12 +1123,17 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         <span style={{ fontSize: 16 }}>{icon}</span>
         <span style={{ fontWeight: 700, fontSize: 12, color }}>{titulo}</span>
-        {intrinseco === false && (
+        {oficial === false && (
+          <span style={{ marginLeft: 'auto', fontSize: 9, background: '#fef3c7', color: '#92400e', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}>
+            no oficial — verificar
+          </span>
+        )}
+        {oficial !== false && intrinseco === false && (
           <span style={{ marginLeft: 'auto', fontSize: 9, background: '#fef3c7', color: '#92400e', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}>
             requiere capas
           </span>
         )}
-        {intrinseco === true && (
+        {oficial !== false && intrinseco === true && (
           <span style={{ marginLeft: 'auto', fontSize: 9, background: '#dcfce7', color: '#166534', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}>
             intrínseco
           </span>
@@ -1143,10 +1148,12 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
               {descripcion.slice(0, 80)}{descripcion.length > 80 ? '…' : ''}
             </div>
           )}
-          {fuente && <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 4 }}>{fuente}</div>}
+          {fuente && <div style={{ fontSize: 9, color: oficial === false ? '#92400e' : '#94a3b8', marginTop: 4 }}>{fuente}</div>}
         </>
       ) : (
-        <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Sin homologación automática disponible</div>
+        <div style={{ fontSize: 10, color: '#92400e', fontStyle: 'italic', lineHeight: 1.4 }}>
+          {sinMatchTexto || 'Sin homologación automática disponible'}
+        </div>
       )}
     </div>
   )
@@ -1177,6 +1184,7 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
           valor={termico?.u ? `U = ${termico.u} W/m²K` : null}
           fuente={termico?.fuente}
           descripcion={termico?.descripcion}
+          oficial={termico?.oficial}
         />
         <Card
           icon="🔥"
@@ -1187,6 +1195,7 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
           fuente={fuego?.fuente}
           descripcion={fuego?.descripcion}
           intrinseco={fuego?.intrinseco}
+          sinMatchTexto="Sin cruce automático en LOFC Ed.17 — el RF declarado es referencial. Respáldalo con ensayo NCh935/1 o certificación del fabricante, o agrega capas certificadas (p. ej. placas yeso cartón RF)."
         />
         <Card
           icon="🔇"
@@ -1197,11 +1206,13 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
           fuente={acustico?.fuente}
           descripcion={acustico?.descripcion}
           intrinseco={acustico?.intrinseco}
+          sinMatchTexto="Sin cruce automático en LOSCAA 2024 — el Rw declarado es referencial. Respáldalo con ensayo (NCh2786 / ISO 10140) o mejora la solución con capas (p. ej. doble placa + lana mineral)."
         />
       </div>
       <div style={{ fontSize: 10, color: '#64748b', marginTop: 8, lineHeight: 1.4 }}>
-        💡 Los códigos LOFC y LOSCAA se homologan automáticamente al material base de la solución LOSCAT.
-        Para casos especiales, el profesional responsable debe validar la equivalencia.
+        💡 Los códigos LOFC y LOSCAA se homologan automáticamente al material base de la solución.
+        El sello "no oficial — verificar" indica un valor calculado o referencial que no proviene de un
+        listado oficial: el profesional responsable debe validarlo antes de usarlo en un expediente.
       </div>
     </div>
   )

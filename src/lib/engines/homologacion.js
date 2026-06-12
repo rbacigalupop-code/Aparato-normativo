@@ -567,13 +567,25 @@ export function homologarSolucion(loscat, requerimientos = {}) {
   const { rfRequerido, rwRequerido } = requerimientos
   const estructura = identificarEstructuraBase(loscat)
 
-  // 1. Térmico: el propio LOSCAT
-  const termico = {
+  // 1. Térmico: SOLO se declara LOSCAT cuando la solución cita un código
+  //    LOSCAT real en desc/obs. Sin cita, el U es del catálogo NormaCheck
+  //    (calculado ISO 6946 / valor referencial) y se rotula como tal —
+  //    nunca presentar un valor calculado como ítem oficial.
+  const citaLOSCAT = /LOSCAT\s*[0-9]|\(LOSCAT/i.test(`${loscat.desc || ''} ${loscat.obs || ''}`)
+  const termico = citaLOSCAT ? {
     codigo: `LOSCAT ${loscat.cod}`,
     codigo_base: loscat.cod,
     u: parseFloat(loscat.u) || null,
     descripcion: loscat.desc,
+    oficial: true,
     fuente: 'LOSCAT Ed.13 2025',
+  } : {
+    codigo: `${loscat.cod} — catálogo NormaCheck`,
+    codigo_base: loscat.cod,
+    u: parseFloat(loscat.u) || null,
+    descripcion: loscat.desc,
+    oficial: false,
+    fuente: 'U calculado/referencial — no es ítem LOSCAT. Verificar con EE o ensayo.',
   }
 
   // 2. Fuego: homologar a LOFC
