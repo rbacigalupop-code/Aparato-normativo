@@ -675,45 +675,17 @@ export async function obtenerTokensUsuario(userId) {
 export async function consumirToken(userId) {
   if (!userId) return { ok: false, error: 'Usuario no identificado' }
 
+  // Descuento atómico vía RPC SECURITY DEFINER (consumir_token_propio).
+  // El cliente ya NO tiene UPDATE directo sobre perfiles_usuario (RLS 016):
+  // así el usuario no puede auto-asignarse tokens ni cambiar su rol.
   try {
-    // 1. Verificar tokens disponibles
-    const { data: perfil, error: getError } = await supabase
-      .from('perfiles_usuario')
-      .select('id, tokens_disponibles, tokens_usados')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (getError || !perfil) {
-      return { ok: false, error: 'Perfil no encontrado' }
-    }
-
-    if (perfil.tokens_disponibles <= 0) {
-      return {
-        ok: false,
-        error: 'No tienes tokens disponibles. Contacta al administrador para obtener más.',
-        sinTokens: true,
-      }
-    }
-
-    // 2. Descontar 1 token y aumentar usados
-    const { error: updateError } = await supabase
-      .from('perfiles_usuario')
-      .update({
-        tokens_disponibles: perfil.tokens_disponibles - 1,
-        tokens_usados: perfil.tokens_usados + 1,
-      })
-      .eq('id', perfil.id)
-
-    if (updateError) {
-      console.warn('consumirToken update error:', updateError)
+    const { data, error } = await supabase.rpc('consumir_token_propio')
+    if (error) {
+      console.warn('consumirToken RPC error:', error)
       return { ok: false, error: 'Error al consumir token' }
     }
-
-    return {
-      ok: true,
-      tokensRestantes: perfil.tokens_disponibles - 1,
-      tokensUsados: perfil.tokens_usados + 1,
-    }
+    // El RPC devuelve { ok, tokensRestantes, tokensUsados } | { ok:false, sinTokens, error }
+    return data || { ok: false, error: 'Respuesta vacía del servidor' }
   } catch (err) {
     console.error('consumirToken error:', err)
     return { ok: false, error: 'Error procesando consumo' }
@@ -1354,16 +1326,29 @@ export async function obtenerResumenActividad(orgId) {
 // ─── Buzon de Feedback ──────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Tipos permitidos (espejo del CHECK en la tabla — 015_feedback.sql)
+const FEEDBACK_TIPOS = ['bug', 'sugerencia', 'pregunta', 'general']
+
 export async function enviarFeedback({ userId, orgId, nombreUsuario, tipo, asunto, mensaje }) {
-  if (!userId || !asunto || !mensaje) return { ok: false, error: 'Faltan campos obligatorios' }
+  if (!userId) return { ok: false, error: 'Usuario no identificado' }
+
+  // Validación dura (espejo de los CHECK de la base — 016_rls_seguridad.sql).
+  // La base es la autoridad final; esto da mensajes claros y evita viajes inútiles.
+  const asuntoLimpio  = String(asunto || '').trim()
+  const mensajeLimpio = String(mensaje || '').trim()
+  if (!asuntoLimpio || !mensajeLimpio) return { ok: false, error: 'Completa el asunto y el mensaje.' }
+  if (asuntoLimpio.length > 200)  return { ok: false, error: 'El asunto no puede superar 200 caracteres.' }
+  if (mensajeLimpio.length > 5000) return { ok: false, error: 'El mensaje no puede superar 5000 caracteres.' }
+  const tipoSeguro = FEEDBACK_TIPOS.includes(tipo) ? tipo : 'general'
+
   try {
     const { error } = await supabase.from('feedback').insert([{
       user_id: userId,
       organizacion_id: orgId || null,
-      nombre_usuario: nombreUsuario || null,
-      tipo: tipo || 'general',
-      asunto,
-      mensaje,
+      nombre_usuario: nombreUsuario ? String(nombreUsuario).slice(0, 120) : null,
+      tipo: tipoSeguro,
+      asunto: asuntoLimpio,
+      mensaje: mensajeLimpio,
     }])
     if (error) return { ok: false, error: error.message }
     return { ok: true }
