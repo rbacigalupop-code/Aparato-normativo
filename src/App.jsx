@@ -1256,15 +1256,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
     elem==='piso'      ? ZONAS[zona]?.piso   :
     elem==='puerta'    ? PUERTA_U[zona]      : null
 
-  // Resistencia al fuego — OGUC Art. 4.5.4 + RF_PISOS
+  // Resistencia al fuego — fuente única RF_ELEM_REQ (mismo criterio que
+  // Térmica/Resultados/Informe; ver src/__tests__/rf_consistencia.test.js)
   // Defensa contra uso vacío/nulo: usar 'Vivienda' como default
   const validUso = (uso && uso.trim()) ? uso : 'Vivienda'
-  const rfReq =
-    elem==='muro'      ? RF_PISOS(validUso, pisos)          :
-    elem==='tabique'   ? RF_DEF[validUso]?.muros_sep ?? null :
-    elem==='techumbre' ? RF_DEF[validUso]?.cubierta  ?? null :
-    elem==='piso'      ? RF_DEF[validUso]?.estructura ?? null :
-    elem==='puerta'    ? RF_DEF[validUso]?.muros_sep ?? null : null
+  const rfReq = RF_ELEM_REQ(elem, validUso, pisos, zona) || null
 
   // Acústica — NCh352 / OGUC Art. 4.1.6
   const acReq =
@@ -1293,11 +1289,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                    elem==='techumbre' ? ZONAS[zona]?.techo  :
                    elem==='piso'      ? ZONAS[zona]?.piso   :
                    elem==='puerta'    ? PUERTA_U[zona]      : null
-    const _rfReq = elem==='muro'      ? RF_PISOS(_validUso, pisos)          :
-                   elem==='tabique'   ? RF_DEF[_validUso]?.muros_sep ?? null :
-                   elem==='techumbre' ? RF_DEF[_validUso]?.cubierta  ?? null :
-                   elem==='piso'      ? RF_DEF[_validUso]?.estructura ?? null :
-                   elem==='puerta'    ? RF_DEF[_validUso]?.muros_sep ?? null : null
+    const _rfReq = RF_ELEM_REQ(elem, _validUso, pisos, zona) || null
     const _acReq = (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[_validUso]?.entre_unidades ?? null :
                    (elem==='techumbre'||elem==='piso')                 ? AC_DEF[_validUso]?.entre_pisos    ?? null :
                    elem==='ventana'                                    ? AC_DEF[_validUso]?.fachada        ?? null : null
@@ -2117,7 +2109,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
     { id:'piso',    label:'Piso',            umax: zona?.piso,  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos) },
     { id:'tabique', label:'Tabique',         umax: null,        rfReq: RF_ELEM_REQ('tabique',uso,proy.pisos) },
     { id:'ventana', label:'Ventana',         umax: null,        rfReq: '' },
-    { id:'puerta',  label:'Puerta exterior', umax: PUERTA_U[proy.zona]||null, rfReq: PUERTA_RF[proy.zona]||'' },
+    { id:'puerta',  label:'Puerta exterior', umax: PUERTA_U[proy.zona]||null, rfReq: RF_ELEM_REQ('puerta',uso,proy.pisos,proy.zona) },
   ]
 
   const vpctAlerta = zona?.pda
@@ -2974,7 +2966,7 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
           <>
             ⚠ <b>Caja de escalera cerrada {necesitaCajaOGUC ? 'obligatoria' : 'incluida'}</b> — {pisos} piso(s) · uso {uso} · OGUC Art. 4.5.7.
             La caja debe ser un recinto cerrado, con paredes de RF ≥ {rfReqCaja || '—'} y puertas cortafuego
-            según OGUC Art. 4.5.4 (PUERTA_RF: {proy.zona ? (RF_DEF[uso]?.muros_sep || '—') : '—'}).
+            según OGUC Art. 4.5.4.
           </>
         ) : (
           <>
@@ -7026,11 +7018,11 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   }, [previewHtml])
 
   const ELEMS_DEF = [
-    { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: zona?.muro,  rfReq: RF_DEF[uso]?.muros_sep, rwReq: AC_DEF[uso]?.entre_unidades },
-    { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: zona?.techo, rfReq: RF_DEF[uso]?.cubierta,  rwReq: AC_DEF[uso]?.entre_pisos },
-    { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: zona?.piso,  rfReq: RF_DEF[uso]?.estructura, rwReq: AC_DEF[uso]?.entre_pisos },
-    { key: 'tabique', label: 'Tabique',          tipo: 'muro',      umax: null,        rfReq: RF_DEF[uso]?.muros_sep, rwReq: AC_DEF[uso]?.entre_unidades },
-    { key: 'puerta',  label: 'Puerta exterior',  tipo: 'muro',      umax: PUERTA_U[proy.zona]||null, rfReq: PUERTA_RF[proy.zona]||'', rwReq: null },
+    { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: zona?.muro,  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
+    { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: zona?.techo, rfReq: RF_ELEM_REQ('techo',uso,proy.pisos),  rwReq: AC_DEF[uso]?.entre_pisos },
+    { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: zona?.piso,  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_pisos },
+    { key: 'tabique', label: 'Tabique',          tipo: 'muro',      umax: null,        rfReq: RF_ELEM_REQ('tabique',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
+    { key: 'puerta',  label: 'Puerta exterior',  tipo: 'muro',      umax: PUERTA_U[proy.zona]||null, rfReq: RF_ELEM_REQ('puerta',uso,proy.pisos,proy.zona), rwReq: null },
   ]
 
   const checks = useMemo(() => {
@@ -8478,7 +8470,7 @@ ${mods.sistemas ? (() => {
       const umax = umaxMap[k]
       const uV = parseFloat(d.u || 0)
       const okU = !umax || uV <= umax
-      const rfReqMap = { muro: RF_PISOS(uso, proy.pisos), techo: RF_DEF[uso]?.cubierta, piso: RF_PISOS(uso, proy.pisos), tabique: RF_DEF[uso]?.muros_sep }
+      const rfReqMap = { muro: RF_ELEM_REQ('muro',uso,proy.pisos), techo: RF_ELEM_REQ('techo',uso,proy.pisos), piso: RF_ELEM_REQ('piso',uso,proy.pisos), tabique: RF_ELEM_REQ('tabique',uso,proy.pisos) }
       const rfReqK = rfReqMap[k] || ''
       const okRF = !rfReqK || !d.rf || rfN(d.rf) >= rfN(rfReqK)
       const ok = okU && okRF

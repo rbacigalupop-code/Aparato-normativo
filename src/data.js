@@ -82,15 +82,25 @@ export const CATEG_FUEGO = {
   Industrial: { cat:'R4', grupo:'Industrial / Bodegaje',desc:'Categoría R4 — Riesgo Muy Alto',                  color:'#dc2626', bgColor:'#fef2f2', borderColor:'#fca5a5' },
 };
 export const RF_PISOS=(tipo,pisos)=>{const n=parseInt(pisos)||1;if(tipo==="Industrial")return n<=1?"F90":"F120";if(["Salud","Educacion"].includes(tipo))return n<=2?"F60":n<=4?"F90":"F120";if(tipo==="Vivienda")return n<=2?"F30":n<=5?"F60":"F90";return n<=2?"F60":"F90";};
-// RF requerida por elemento constructivo (OGUC Art. 4.5.4 / LOFC Ed.17)
-// id: 'muro' | 'techo' | 'piso' | 'tabique' | 'ventana' | 'puerta'
-export const RF_ELEM_REQ=(id,uso,pisos)=>{
+// RF requerida por elemento constructivo (OGUC Tít. 4 Cap. 3 — aproximación sin letra)
+// id: 'muro' | 'techo'/'techumbre' | 'piso' | 'tabique' | 'puerta' | 'ventana'
+// FUENTE ÚNICA para Soluciones, Térmica, Resultados e Informe. La pestaña Fuego
+// usa la Tabla 1 OGUC por letra cuando hay superficie+destino (más precisa) y
+// evalúa muros_sep (col 3) como fila propia — no confundir con el muro perimetral.
+//   muro:    perimetral portante → col (2) soporte de cargas ≈ RF_PISOS
+//   piso:    entrepiso soportante → col (8) ≈ RF_PISOS
+//   techo:   cubierta → col (7) = RF_DEF.cubierta
+//   tabique: separación entre unidades → col (3)/(5) = RF_DEF.muros_sep
+//   puerta:  puerta exterior → PUERTA_RF por zona (módulo puertas)
+export const RF_ELEM_REQ=(id,uso,pisos,zona)=>{
   const rfDef=RF_DEF[uso]||{};
   switch(id){
-    case 'muro':    return rfDef.muros_sep||'';
-    case 'techo':   return rfDef.cubierta||'';
-    case 'piso':    return RF_PISOS(uso,pisos)||'';
-    case 'tabique': return rfDef.muros_sep||'';
+    case 'muro':      return RF_PISOS(uso,pisos)||'';
+    case 'techo':
+    case 'techumbre': return rfDef.cubierta||'';
+    case 'piso':      return RF_PISOS(uso,pisos)||'';
+    case 'tabique':   return rfDef.muros_sep||'';
+    case 'puerta':    return (zona&&PUERTA_RF[zona])||'';
     default: return '';
   }
 };
