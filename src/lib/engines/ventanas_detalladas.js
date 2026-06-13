@@ -97,7 +97,7 @@ export function compararVentanas(configs) {
  * Devuelve si cumple el Umax de ventanas para la zona dada.
  */
 export const UMAX_VENTANA_DS15 = {
-  'A': 5.8, 'B': 4.6, 'C': 4.0, 'D': 3.6, 'E': 3.0, 'F': 2.4, 'G': 2.0, 'H': 1.8,
+  'A': 5.8, 'B': 4.6, 'C': 4.0, 'D': 3.6, 'E': 3.0, 'F': 2.4, 'G': 2.0, 'H': 1.8, 'I': 1.4,
 }
 
 export function cumpleDS15(U, zona) {
