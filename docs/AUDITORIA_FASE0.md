@@ -64,10 +64,13 @@ Chequeo de monotonicidad retirado de la sonda.
 
 ## MEDIA
 
-### M1 — `PUERTA_U` invertida (zonas frías menos exigentes) 🔶
-`src/data.js` · PUERTA_U
-- B–E exigen ≤1.7; F–I (más frías) exigen ≤2.0. Contraintuitivo.
-- **Resolver:** verificar contra DS N°15. Si es error, corregir; si es real, documentar el porqué.
+### M1 — Puertas: 3 tablas inconsistentes, todas erradas vs oficial ✅ CORREGIDO
+Verificado contra Tabla 1 oficial: puertas opacas = **1.70 W/m²K uniforme B-I**, A sin exigencia.
+Había TRES definiciones distintas:
+- `PUERTA_U` (data.js, Térmica/Resultados): F-I=2.0 → corregido a 1.7.
+- `UMAX_PUERTA_DS15` (data/puertas_detalladas.js, módulo Puertas): usaba el **umbral de ventanas**
+  (5.8→1.8) → puertas casi sin verificar (aceptaba U=3.0). Corregido a 1.70 B-I.
+- Ahora ambas convergen al oficial. Bloqueado por `src/__tests__/ds15_oficial.test.js`.
 
 ### M2 — Engine de acústica desconectado + fórmula incorrecta ⬜
 `src/lib/engines/acoustic.js` · App.jsx:7

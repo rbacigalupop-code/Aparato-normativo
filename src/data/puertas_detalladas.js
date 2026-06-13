@@ -250,10 +250,12 @@ export const RW_MINIMO_POR_USO = {
 // ═══ Umax DS N°15 PARA PUERTAS (mismo umbral que ventanas) ═══════════════════
 // DS N°15 no define un umbral exclusivo de puertas para todo tipo. Se aplica
 // el de "elementos vidriados" cuando la puerta tiene vidrio, y el de muros
-// cuando es opaca. Conservadoramente la app usa el umbral de ventanas que es
-// más exigente para validar puertas exteriores.
+// cuando es opaca. DS N°15 Tabla 1 "Complejo de puertas opacas": U-max 1.70
+// W/m²K uniforme para zonas B-I; zona A sin exigencia. Verificado contra el
+// Diario Oficial 27-05-2024 (CVE 2494861). (Antes usaba por error el umbral de
+// ventanas 5.8-1.8, mucho más laxo → puertas casi sin verificar.)
 export const UMAX_PUERTA_DS15 = {
-  'A': 5.8, 'B': 4.6, 'C': 4.0, 'D': 3.6, 'E': 3.0, 'F': 2.4, 'G': 2.0, 'H': 1.8,
+  'B': 1.7, 'C': 1.7, 'D': 1.7, 'E': 1.7, 'F': 1.7, 'G': 1.7, 'H': 1.7, 'I': 1.7,
 }
 
 // ═══ TIPOLOGÍAS DE PUERTA ════════════════════════════════════════════════════
