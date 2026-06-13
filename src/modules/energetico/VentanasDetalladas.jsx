@@ -7,9 +7,8 @@ import {
   MARCOS, VIDRIOS, INTERCALARIOS, SUGERENCIAS_POR_ZONA,
   obtenerMarco, obtenerVidrio, obtenerIntercalario,
 } from '../../data/ventanas_detalladas.js'
-import {
-  calcularVentanaCombinada, cumpleDS15, UMAX_VENTANA_DS15,
-} from '../../lib/engines/ventanas_detalladas.js'
+import { calcularVentanaCombinada } from '../../lib/engines/ventanas_detalladas.js'
+import { maxVidriadoVentana } from '../../data/ds15_ventanas.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 import { ZONA_DS15_LABELS } from '../../data/comunas_chile.js'
 
@@ -30,8 +29,14 @@ export default function VentanasDetalladas({ proy }) {
     ancho_m: ancho, alto_m: alto, marcoId, vidrioId, intercalarioId,
   }), [ancho, alto, marcoId, vidrioId, intercalarioId])
 
-  // Validación DS N°15
-  const validacion = r ? cumpleDS15(r.U, zonaEf) : null
+  // % máx de superficie vidriada por orientación a esta U (DS N°15 Tabla 3).
+  // El cumplimiento real depende del % de vano por fachada (pestaña Ventana),
+  // no del U de la ventana por sí solo — por eso esto es informativo.
+  const pctOrient = r ? [
+    { lbl: 'Norte', pct: maxVidriadoVentana(zonaEf, r.U, 'N') },
+    { lbl: 'O-P', pct: maxVidriadoVentana(zonaEf, r.U, 'OP') },
+    { lbl: 'Sur', pct: maxVidriadoVentana(zonaEf, r.U, 'S') },
+  ] : []
 
   // Comparativo: solución actual vs sugerencia óptima vs mejor posible
   const comparativos = useMemo(() => {
@@ -46,7 +51,7 @@ export default function VentanasDetalladas({ proy }) {
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
-      <Hero r={r} validacion={validacion} zonaEf={zonaEf} />
+      <Hero r={r} pctOrient={pctOrient} zonaEf={zonaEf} />
 
       <AyudaEnergetico
         icon="🪟"
@@ -107,7 +112,7 @@ export default function VentanasDetalladas({ proy }) {
       {/* ── Resultado y desglose ─────────────────────────────── */}
       <Card titulo="📊 Resultado del cálculo combinado">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 16 }}>
-          <BigKPI label="U combinado" value={`${r.U} W/m²K`} color={validacion?.cumple ? 'var(--ok)' : 'var(--bad)'} sub={validacion ? (validacion.cumple ? `✅ Cumple zona ${zonaEf}` : `❌ Excede Umax ${validacion.umax}`) : ''} />
+          <BigKPI label="U combinado" value={`${r.U} W/m²K`} sub="DS N°15: % vidriado según orientación (arriba)" />
           <BigKPI label="Factor solar (g)" value={r.g} sub="ganancia solar relativa" />
           <BigKPI label="Transmisión luminosa" value={r.tl} sub="cuánta luz pasa" />
           <BigKPI label="Área marco / vidrio" value={`${r.pctMarco}% / ${r.pctVidrio}%`} sub={`${r.A_marco} / ${r.A_vidrio} m²`} />
@@ -185,13 +190,9 @@ export default function VentanasDetalladas({ proy }) {
                 {c.resultado.componentes.vidrio.nombre} +<br/>
                 {c.resultado.componentes.intercalario.nombre}
               </div>
-              <div style={{
-                fontSize: 9, marginTop: 8, padding: '3px 8px', display: 'inline-block',
-                background: cumpleDS15(c.resultado.U, zonaEf)?.cumple ? 'var(--ok-bg)' : 'var(--bad-bg)',
-                color: cumpleDS15(c.resultado.U, zonaEf)?.cumple ? 'var(--ok)' : 'var(--bad)',
-                borderRadius: 99, fontWeight: 700,
-              }}>
-                {cumpleDS15(c.resultado.U, zonaEf)?.cumple ? '✓ Cumple' : '✗ No cumple'} DS N°15
+              <div style={{ fontSize: 9, marginTop: 8, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                % máx vidriado DS15 (N/O-P/S):<br/>
+                <b>{maxVidriadoVentana(zonaEf, c.resultado.U, 'N') ?? '—'}% · {maxVidriadoVentana(zonaEf, c.resultado.U, 'OP') ?? '—'}% · {maxVidriadoVentana(zonaEf, c.resultado.U, 'S') ?? '—'}%</b>
               </div>
             </div>
           ))}
@@ -207,12 +208,11 @@ export default function VentanasDetalladas({ proy }) {
 }
 
 // ─── Hero ────────────────────────────────────────────────────────────────────
-function Hero({ r, validacion, zonaEf }) {
+function Hero({ r, pctOrient, zonaEf }) {
   if (!r) return null
-  const cumple = validacion?.cumple
   return (
     <div style={{
-      background: `linear-gradient(135deg, ${cumple ? '#16a34a' : '#dc2626'}, #1e293b)`,
+      background: 'linear-gradient(135deg, #1e40af, #1e293b)',
       borderRadius: 'var(--radius-lg, 12px)',
       padding: '20px 28px', color: '#fff', marginBottom: 16,
     }}>
@@ -222,10 +222,10 @@ function Hero({ r, validacion, zonaEf }) {
       <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
         U = {r.U} W/m²K · g = {r.g}
       </h2>
-      <p style={{ fontSize: 12, margin: '6px 0 0', opacity: 0.92 }}>
-        {cumple
-          ? `✅ Cumple Umax DS N°15 zona ${zonaEf} (≤${validacion.umax}). Margen: ${validacion.margen} W/m²K`
-          : `❌ Excede Umax DS N°15 zona ${zonaEf} (≤${validacion?.umax}). Cambia marco o vidrio para mejorar.`}
+      <p style={{ fontSize: 12, margin: '8px 0 0', opacity: 0.92 }}>
+        DS N°15 Tabla 3 — a esta U, el % máx de superficie vidriada es:&nbsp;
+        <b>{pctOrient.map(o => `${o.lbl} ${o.pct ?? '—'}%`).join(' · ')}</b>.
+        El cumplimiento depende del % real de vano por fachada (ver pestaña Ventana).
       </p>
     </div>
   )
