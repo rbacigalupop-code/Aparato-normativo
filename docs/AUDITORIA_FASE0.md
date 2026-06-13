@@ -40,16 +40,18 @@ Chequeo de monotonicidad retirado de la sonda.
   norma → habría dado CUMPLE a pisos que fallan en zona B.
 - Corregido. Resto de ZONAS = idéntico al oficial.
 
-### A2 — Modelo de cumplimiento de VENTANAS no coincide con el DS N°15 🔶
-`src/lib/engines/ventanas_detalladas.js` · UMAX_VENTANA_DS15
-- Se agregó zona I (= 1.4) para no dejarla sin veredicto. **PERO** la verificación de la fuente
-  reveló algo de fondo: el DS N°15 **no fija un U-máx único por zona** para ventanas. Usa una
-  **Tabla 3 = % máximo de superficie vidriada según U de la ventana y orientación** (N/O-P/S):
-  a mayor U, menor % de ventana permitido. Una ventana U=5.8 puede ser válida si el % es bajo.
-- **Impacto:** el modelo actual (un U-máx fijo por zona) es una simplificación que no refleja la
-  norma. Puede rechazar ventanas válidas (U alto pero poca superficie) o aceptar inválidas.
-- **Resolver:** rediseñar la verificación de ventanas según Tabla 3 (U × %vidriado × orientación).
-  Es un cambio de modelo, no un número. Relacionado con A3.
+### A2 — Modelo de cumplimiento de VENTANAS ✅ RESUELTO
+El DS N°15 no usa U-máx único por zona: usa la **Tabla 3 = % máx de superficie vidriada según
+U de la ventana y orientación** (N/O-P/S/OGT, 12 brackets de U). La app tenía 2 modelos errados
+(`UMAX_VENTANA_DS15` U-máx fijo, y `VPCT` recortado a 3 niveles).
+- **Paso 1** (`9cdbca5`): `src/data/ds15_ventanas.js` con la Tabla 3 oficial completa (432 valores,
+  extraída por coordenadas + verificada contra imagen oficial) + `maxVidriadoVentana()`/`cumpleVentana()`
+  + test `ds15_ventanas.test.js`.
+- **Paso 2** (`7dee15d`): UI del Analizador VPCT por fachada, resumen, tabla de referencia (3→12
+  columnas + fila OGT) e informe PDF (2 bloques) — todo usa la Tabla 3. "Nivel 1/2/3" → bracket de U.
+  Quitado import muerto de VPCT.
+- **Paso 3** (`71cbfda`): VentanasDetalladas (Energético) reformulado a informativo (% máx por
+  orientación a esa U), sin el pass/fail erróneo por U sola.
 
 ### A3 — Campo `zonas` de las SC sobre-declara cumplimiento (66 soluciones) ⬜
 `src/data.js` · SC[*].zonas + obs
