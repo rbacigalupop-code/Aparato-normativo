@@ -8,19 +8,48 @@ Estado: ⬜ pendiente · 🔶 esperando confirmación de norma · ✅ resuelto.
 
 ---
 
+## Fuentes oficiales y Tabla 1 verificada (DS modificatorio OGUC 4.1.10)
+Diario Oficial 27-05-2024 (CVE 2494861), vigente 28-11-2025. Tabla 1 extraída por
+coordenadas desde la guía DITEC y cruzada con la app. **U-máx (W/m²K):**
+
+| Zona | Techo | Muro | Piso vent. |
+|---|---|---|---|
+| A | 0.84 | 2.10 | 3.60 |
+| B | 0.47 | 0.80 | **0.70** |
+| C | 0.47 | 0.80 | 0.87 |
+| D | 0.38 | 0.80 | 0.60 |
+| E | 0.33 | 0.60 | 0.60 |
+| F | 0.28 | 0.45 | 0.50 |
+| G | 0.28 | 0.40 | 0.39 |
+| H | 0.25 | 0.30 | 0.32 |
+| I | 0.25 | 0.35 | 0.35 |
+
+La norma **NO es monótona**: zona H (cordillera extrema, Putre/Lonquimay) es más exigente
+que I (austral marítima). Las demás 26 celdas de la app coinciden con el oficial.
+
 ## ALTA
 
-### A1 — Tabla `ZONAS` no monótona (zona I menos exigente que H) 🔶
-`src/data.js` · ZONAS
-- `muro`: H=0.30, **I=0.35** · `piso`: H=0.32, **I=0.35**. La zona más fría (I = Punta Arenas/Coyhaique) permite MÁS U que H.
-- **Impacto:** el semáforo térmico compara contra esta tabla (`U ≤ ZONAS[zona].muro`) → veredictos CUMPLE/NO CUMPLE potencialmente errados en zona I.
-- **Resolver:** confirmar muro/piso de H e I contra DS N°15 oficial. (Zona F muro 0.45 ya validada contra ficha PDA Chillán.)
+### A1 — Monotonicidad de ZONAS ✅ CERRADO (falso positivo)
+Mi sonda asumió "más al sur = más estricto" y marcó I (0.35) > H (0.30). **Verificado contra
+la Tabla 1 oficial: los valores de la app son correctos** — la norma es no-monótona por clima.
+Chequeo de monotonicidad retirado de la sonda.
 
-### A2 — `UMAX_VENTANA_DS15` sin zona I 🔶
-`src/lib/engines/ventanas_detalladas.js`
-- La tabla cubre A–H; falta I. `cumpleDS15(U,'I')` → `null` = **sin veredicto**. Función usada en App.jsx, VentanasDetalladas.jsx.
-- **Impacto:** ventanas en la zona más fría no se verifican (silencioso).
-- **Resolver:** confirmar U-máx ventana zona I (tendencia H=1.8) y agregarlo.
+### Z1 — Zona B, piso ventilado: 0.87 → 0.70 ✅ CORREGIDO
+`src/data.js` · ZONAS.B.piso
+- La app tenía **0.87**; el oficial es **0.70** (verificado Tabla 1). Era *menos* exigente que la
+  norma → habría dado CUMPLE a pisos que fallan en zona B.
+- Corregido. Resto de ZONAS = idéntico al oficial.
+
+### A2 — Modelo de cumplimiento de VENTANAS no coincide con el DS N°15 🔶
+`src/lib/engines/ventanas_detalladas.js` · UMAX_VENTANA_DS15
+- Se agregó zona I (= 1.4) para no dejarla sin veredicto. **PERO** la verificación de la fuente
+  reveló algo de fondo: el DS N°15 **no fija un U-máx único por zona** para ventanas. Usa una
+  **Tabla 3 = % máximo de superficie vidriada según U de la ventana y orientación** (N/O-P/S):
+  a mayor U, menor % de ventana permitido. Una ventana U=5.8 puede ser válida si el % es bajo.
+- **Impacto:** el modelo actual (un U-máx fijo por zona) es una simplificación que no refleja la
+  norma. Puede rechazar ventanas válidas (U alto pero poca superficie) o aceptar inválidas.
+- **Resolver:** rediseñar la verificación de ventanas según Tabla 3 (U × %vidriado × orientación).
+  Es un cambio de modelo, no un número. Relacionado con A3.
 
 ### A3 — Campo `zonas` de las SC sobre-declara cumplimiento (66 soluciones) ⬜
 `src/data.js` · SC[*].zonas + obs

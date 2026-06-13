@@ -12,16 +12,13 @@ import { homologarSolucion } from '../src/lib/engines/homologacion.js'
 const findings = []
 const F = (sev, area, msg) => findings.push({ sev, area, msg })
 
-// ── 1. Monotonicidad de exigencias por zona (A→I debe ser no-creciente) ──────
-const Z = Object.keys(ZONAS)  // A..I en orden
-for (const elem of ['techo', 'muro', 'piso']) {
-  for (let i = 1; i < Z.length; i++) {
-    const prev = ZONAS[Z[i - 1]][elem], cur = ZONAS[Z[i]][elem]
-    if (cur > prev) {
-      F('ALTA', 'ZONAS', `${elem}: zona ${Z[i]} (U≤${cur}) es MENOS exigente que ${Z[i - 1]} (U≤${prev}) — la zona más fría no debería permitir más U`)
-    }
-  }
-}
+// ── 1. (Retirado) Chequeo de monotonicidad A→I ──────────────────────────────
+// NO es un invariante válido: el DS N°15 NO es monótono. Verificado contra la
+// Tabla 1 oficial (Diario Oficial 27-05-2024), zona H (cordillera extrema:
+// Putre/Lonquimay) es MÁS exigente que I (austral marítima) en muro y piso.
+// La validación correcta es cruzar contra la tabla oficial (hecho a mano),
+// no asumir orden. Se conserva solo el chequeo climático de Te.
+const Z = Object.keys(ZONAS)
 // Te (temp exterior) debe bajar de A a I (coherencia climática)
 for (let i = 1; i < Z.length; i++) {
   if (ZONAS[Z[i]].Te > ZONAS[Z[i - 1]].Te)
