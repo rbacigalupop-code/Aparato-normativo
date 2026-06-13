@@ -18,7 +18,7 @@ import {
   ACERO_PROT, PERFILES_ACERO,
   ALL_MATS, RSI_MAP, RSE_MAP, RCAMARA, resistenciaCamara, filterMatsByElem,
   SC, BH, SC_CAPAS, VIDRIOS, MARCOS,
-  VPCT, PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
+  PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
   calcU_SC, buildCapas, colSem, ist,
   calcGlaser as calcGlaserCompleto, calcU_ISO6946 as calcU_ISO6946_completo,
@@ -26,6 +26,7 @@ import {
   STRUCT_MATS,
   getUIdx, MATS
 } from './data.js'
+import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
@@ -5440,13 +5441,17 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
 // ─── PESTAÑA VENTANA ───────────────────────────────────────────────────────────
 function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNextId, notas, setNotas }) {
   const zona = proy.zona || 'D'
-  const vpctZona = VPCT[zona]
+  const vpctZona = TABLA3_VENTANAS[zona]   // Tabla 3 oficial DS N°15 (12 brackets U × orientación)
   const permLimit = PERM_V[zona]
   const sobr = SOBR_R[zona]
 
-  // Nivel VPCT según Uw: 0=Niv1 (mejor vidrio, más % permitido) … 2=Niv3 (peor)
-  const getVpctNivel = uw => { const u = parseFloat(uw); if (isNaN(u)) return null; return u <= 2.0 ? 0 : u <= 3.5 ? 1 : 2 }
-  const NIVEL_LABELS = ['Nivel 1 (Uw≤2.0)', 'Nivel 2 (Uw≤3.5)', 'Nivel 3 (Uw>3.5)']
+  // Etiqueta del bracket de U aplicado (DS N°15 Tabla 3): primer ≤bracket que cubre el Uw.
+  const bracketLabel = uw => {
+    const u = parseFloat(uw)
+    if (isNaN(u) || u <= 0) return '—'
+    const b = UMBRALES_U_VENTANA.find(x => u <= x + 1e-9)
+    return b ? `U≤${b}` : 'U>5.8 (no permitido)'
+  }
   const ORIENTS = [{ key: 'N', label: 'Norte' }, { key: 'OP', label: 'Oriente / Poniente' }, { key: 'S', label: 'Sur' }]
   const ORIENT_COLORS = { N: '#1e40af', OP: '#166534', S: '#7c3aed' }
 
@@ -5506,25 +5511,25 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
 
   // Resultados por fachada
   const fachadasCalc = fachadas.map(f => {
-    const area = parseFloat(f.areaFachada), vanos = parseFloat(f.vanos), niv = getVpctNivel(f.uw)
-    if (!isNaN(area) && area > 0 && !isNaN(vanos) && vanos >= 0 && niv !== null && vpctZona) {
+    const area = parseFloat(f.areaFachada), vanos = parseFloat(f.vanos)
+    const limite = maxVidriadoVentana(zona, f.uw, f.orient)   // % oficial Tabla 3
+    if (!isNaN(area) && area > 0 && !isNaN(vanos) && vanos >= 0 && limite !== null && f.uw) {
       const pct = (vanos / area) * 100
-      const limite = vpctZona[f.orient]?.[niv] ?? null
-      return { ...f, pct: pct.toFixed(1), limite, cumple: limite !== null ? pct <= limite : null, niv }
+      return { ...f, pct: pct.toFixed(1), limite, cumple: pct <= limite }
     }
-    return { ...f, pct: null, limite: null, cumple: null, niv }
+    return { ...f, pct: null, limite: null, cumple: null }
   })
 
-  // Resumen por orientación (nivel más restrictivo = Uw más alto del grupo)
+  // Resumen por orientación (caso más restrictivo = Uw más alto del grupo → menor %)
   const orientSummary = ORIENTS.map(({ key, label }) => {
     const group = fachadasCalc.filter(f => f.orient === key && f.pct !== null)
     if (!group.length) return null
     const totalArea = group.reduce((s, f) => s + parseFloat(f.areaFachada), 0)
     const totalVanos = group.reduce((s, f) => s + parseFloat(f.vanos), 0)
     const pct = (totalVanos / totalArea) * 100
-    const nivMax = Math.max(...group.map(f => f.niv))
-    const limite = vpctZona?.[key]?.[nivMax] ?? null
-    return { key, label, totalArea: totalArea.toFixed(1), totalVanos: totalVanos.toFixed(1), pct: pct.toFixed(1), nivMax, limite, cumple: limite !== null ? pct <= limite : null }
+    const uwMax = Math.max(...group.map(f => parseFloat(f.uw) || 0))
+    const limite = maxVidriadoVentana(zona, uwMax, key)
+    return { key, label, totalArea: totalArea.toFixed(1), totalVanos: totalVanos.toFixed(1), pct: pct.toFixed(1), uwMax, limite, cumple: limite !== null ? pct <= limite : null }
   }).filter(Boolean)
 
   return (
@@ -5536,8 +5541,8 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
           'En el <b>Analizador VPCT</b>, cada fila representa una fachada del edificio (un plano vertical por orientación).',
           'Para edificios con volumen complejo puedes agregar <b>múltiples fachadas por orientación</b> con el botón "+".',
           'Ingresa: área total de la fachada (m²), área total de vanos/ventanas (m²), y Uw de las ventanas.',
-          'El nivel VPCT se determina según Uw: <b>Nivel 1</b> (Uw≤2.0), <b>Nivel 2</b> (Uw≤3.5), <b>Nivel 3</b> (Uw>3.5).',
-          'El % de vano = Av/At×100 se compara contra el límite VPCT de la zona y orientación.',
+          'El % máximo permitido depende del <b>U de la ventana</b> (12 brackets, de ≤0.6 a ≤5.8 W/m²K) y la orientación — DS N°15 Tabla 3. A mayor U, menor % permitido.',
+          'El % de vano = Av/At×100 se compara contra el % máx de la zona, orientación y bracket de U.',
           'El <b>resumen por orientación</b> agrega todas las fachadas del mismo eje para la verificación normativa final.',
         ]}
         normativa="DS N°15 MINVU Tabla 3 (VPCT) · EN 10077 (Uw) · NCh-EN 12207 (permeabilidad) · OGUC Art. 4.1.10"
@@ -5607,7 +5612,7 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
               Uw = ({resUw.Ug}×{resUw.Ag} + {resUw.Uf}×{resUw.Af} + {resUw.psi}×{resUw.Lg}) / {resUw.Aw.toFixed(2)} m²
             </div>
             <div style={{ marginTop: 6, fontSize: 12, color: '#0369a1' }}>
-              → <b>{NIVEL_LABELS[getVpctNivel(resUw.Uw)]}</b> — copia este Uw al ingresar las fachadas abajo
+              → bracket DS N°15 Tabla 3: <b>{bracketLabel(resUw.Uw)}</b> — copia este Uw al ingresar las fachadas abajo
             </div>
           </div>
         )}
@@ -5632,7 +5637,6 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
 
         {ORIENTS.map(({ key: oKey, label: oLabel }) => {
           const color = ORIENT_COLORS[oKey]
-          const vpctLims = vpctZona?.[oKey]
           const fachs = fachadas.filter(f => f.orient === oKey)
           return (
             <div key={oKey} style={{ marginBottom: 20, border: `2px solid ${color}30`, borderRadius: 10, overflow: 'hidden' }}>
@@ -5640,9 +5644,9 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
               <div style={{ background: color, padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
                   {oLabel}
-                  {vpctLims && <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.85, marginLeft: 10 }}>
-                    Límites: N1={vpctLims[0]}% / N2={vpctLims[1]}% / N3={vpctLims[2]}%
-                  </span>}
+                  <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.85, marginLeft: 10 }}>
+                    % máx según U de la ventana — ver tabla de referencia abajo
+                  </span>
                 </span>
                 <button
                   style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
@@ -5686,7 +5690,7 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
                           </div>
                           <div style={S.col}>
                             <span style={S.label}>Límite</span>
-                            <div style={{ fontSize: 13, paddingTop: 5, color: '#475569' }}>{fc.limite}% <span style={{ fontSize: 10, color: '#94a3b8' }}>({NIVEL_LABELS[fc.niv]})</span></div>
+                            <div style={{ fontSize: 13, paddingTop: 5, color: '#475569' }}>{fc.limite}% <span style={{ fontSize: 10, color: '#94a3b8' }}>({bracketLabel(f.uw)})</span></div>
                           </div>
                           <div style={{ ...S.col, paddingBottom: 3 }}>
                             <span style={S.label}>&nbsp;</span>
@@ -5719,8 +5723,8 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
                 <th style={S.th}>Área total fachada</th>
                 <th style={S.th}>Área total vanos</th>
                 <th style={S.th}>% vano total</th>
-                <th style={S.th}>Nivel (conserv.)</th>
-                <th style={S.th}>Límite VPCT</th>
+                <th style={S.th}>Bracket U (peor)</th>
+                <th style={S.th}>% máx Tabla 3</th>
                 <th style={S.th}>Estado</th>
               </tr>
             </thead>
@@ -5731,7 +5735,7 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
                   <td style={S.td}>{o.totalArea} m²</td>
                   <td style={S.td}>{o.totalVanos} m²</td>
                   <td style={{ ...S.td, fontWeight: 700, color: o.cumple ? '#166534' : '#991b1b' }}>{o.pct}%</td>
-                  <td style={S.td}><span style={{ fontSize: 11 }}>{NIVEL_LABELS[o.nivMax]}</span></td>
+                  <td style={S.td}><span style={{ fontSize: 11 }}>{bracketLabel(o.uwMax)}</span></td>
                   <td style={S.td}>{o.limite}%</td>
                   <td style={S.td}><span style={S.badge(o.cumple)}>{o.cumple ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
                 </tr>
@@ -5739,30 +5743,33 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
             </tbody>
           </table>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
-            * El nivel VPCT del resumen es el más restrictivo (mayor Uw) entre todas las fachadas de esa orientación.
+            * El % máx del resumen usa el caso más restrictivo (mayor Uw) entre todas las fachadas de esa orientación. DS N°15 Tabla 3.
           </div>
         </div>
       )}
 
-      {/* ── Tabla referencia VPCT ─────────────────────────────────────────────── */}
+      {/* ── Tabla referencia DS N°15 Tabla 3 ──────────────────────────────────── */}
       {vpctZona && (
         <div style={S.card}>
-          <p style={S.h3}>Tabla de referencia VPCT — Zona {zona}</p>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                <th style={S.th}>Orientación</th>
-                <th style={S.th}>Nivel 1 (Uw≤2.0 W/m²K)</th>
-                <th style={S.th}>Nivel 2 (Uw≤3.5 W/m²K)</th>
-                <th style={S.th}>{'Nivel 3 (Uw>3.5 W/m²K)'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td style={S.td}><b>Norte</b></td>{vpctZona.N.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
-              <tr><td style={S.td}><b>Oriente / Poniente</b></td>{vpctZona.OP.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
-              <tr><td style={S.td}><b>Sur</b></td>{vpctZona.S.map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
-            </tbody>
-          </table>
+          <p style={S.h3}>Tabla de referencia — % máx de vidriado vs U de la ventana (DS N°15 Tabla 3) · Zona {zona}</p>
+          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: -6, marginBottom: 8 }}>
+            Columnas = transmitancia U de la ventana (W/m²K). Cada celda es el % máx de superficie vidriada permitido. OGT = orientación global total.
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ ...S.table, minWidth: 760 }}>
+              <thead>
+                <tr>
+                  <th style={S.th}>Orient.</th>
+                  {UMBRALES_U_VENTANA.map(u => <th key={u} style={{ ...S.th, whiteSpace: 'nowrap' }}>{`≤${u}`}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {[['N', 'Norte'], ['OP', 'Oriente / Poniente'], ['S', 'Sur'], ['OGT', 'Global total']].map(([k, lbl]) => (
+                  <tr key={k}><td style={S.td}><b>{lbl}</b></td>{vpctZona[k].map((v, i) => <td key={i} style={S.td}>{v}%</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       <NotasPanel tabKey="ventana" notas={notas} setNotas={setNotas} />
@@ -7646,13 +7653,11 @@ ${glaserHtml}`
       })
     })
 
-    // VPCT fachadas
-    const vpctZona2 = zonaData ? VPCT[proy.zona] : null
-    if (vpctZona2 && (fachadas||[]).filter(f=>parseFloat(f.areaFachada)>0).length > 0) {
+    // VPCT fachadas — DS N°15 Tabla 3 (% máx vidriado vs U de ventana × orientación)
+    if (zonaData && (fachadas||[]).filter(f=>parseFloat(f.areaFachada)>0).length > 0) {
       let vpctCumpleTodo = true
       ;(fachadas||[]).filter(f=>parseFloat(f.areaFachada)>0).forEach(f => {
-        const niv = (() => { const u=parseFloat(f.uw); if(!f.uw||isNaN(u)) return null; return u<=2.0?0:u<=3.5?1:2 })()
-        const limite = niv!==null && vpctZona2[f.orient] ? vpctZona2[f.orient][niv] : null
+        const limite = maxVidriadoVentana(proy.zona, f.uw, f.orient)
         const pct = parseFloat(f.vanos||0) / parseFloat(f.areaFachada) * 100
         if (limite!==null && pct>limite) vpctCumpleTodo = false
       })
@@ -7684,18 +7689,16 @@ ${glaserHtml}`
     }).join('')
 
     // ── VPCT — análisis por fachada ───────────────────────────────────────────
-    const vpctZona = zonaData ? VPCT[proy.zona] : null
+    const vpctZona = zonaData ? TABLA3_VENTANAS[proy.zona] : null
     const ORIENT_NAME = { N: 'Norte', OP: 'Oriente / Poniente', S: 'Sur' }
-    const NIVEL_LABEL = ['Nivel 1 (Uw ≤ 2.0)', 'Nivel 2 (Uw ≤ 3.5)', 'Nivel 3 (Uw > 3.5)']
-    const getVpctNivExp = uw => { const u = parseFloat(uw); if (!uw || isNaN(u)) return null; return u <= 2.0 ? 0 : u <= 3.5 ? 1 : 2 }
+    const bracketLabelExp = uw => { const u = parseFloat(uw); if (!uw || isNaN(u) || u <= 0) return '—'; const b = UMBRALES_U_VENTANA.find(x => u <= x + 1e-9); return b ? `U≤${b}` : 'U>5.8' }
     const fachadasValidas = (fachadas || []).filter(f => parseFloat(f.areaFachada) > 0)
     let vpctHtml = ''
     if (vpctZona && fachadasValidas.length > 0) {
       const fachadasRows = fachadasValidas.map(f => {
         const area = parseFloat(f.areaFachada), vanos = parseFloat(f.vanos) || 0
         const pct = (vanos / area * 100).toFixed(1)
-        const niv = getVpctNivExp(f.uw)
-        const limite = niv !== null && vpctZona[f.orient] ? vpctZona[f.orient][niv] : null
+        const limite = maxVidriadoVentana(proy.zona, f.uw, f.orient)
         const cumple = limite !== null ? parseFloat(pct) <= limite : true
         return `<tr>
           <td>${f.nombre || '—'}</td>
@@ -7703,7 +7706,7 @@ ${glaserHtml}`
           <td>${area.toFixed(1)} m²</td>
           <td>${vanos.toFixed(1)} m²</td>
           <td><b>${pct}%</b></td>
-          <td>${f.uw ? f.uw + ' W/m²K' : '—'}<br><span style="font-size:8.5pt;color:#64748b">${niv !== null ? NIVEL_LABEL[niv] : '—'}</span></td>
+          <td>${f.uw ? f.uw + ' W/m²K' : '—'}<br><span style="font-size:8.5pt;color:#64748b">${bracketLabelExp(f.uw)}</span></td>
           <td>${limite !== null ? limite + '%' : '—'}</td>
           <td><span class="${cumple ? 'badge-ok' : 'badge-no'}">${cumple ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
         </tr>`
@@ -7714,8 +7717,8 @@ ${glaserHtml}`
         const totalArea = facs.reduce((s, f) => s + (parseFloat(f.areaFachada) || 0), 0)
         const totalVanos = facs.reduce((s, f) => s + (parseFloat(f.vanos) || 0), 0)
         const pct = totalArea > 0 ? (totalVanos / totalArea * 100).toFixed(1) : '—'
-        const nivMax = Math.max(...facs.map(f => getVpctNivExp(f.uw)).filter(n => n !== null), 0)
-        const limite = vpctZona[orient] ? vpctZona[orient][nivMax] : null
+        const uwMax = Math.max(...facs.map(f => parseFloat(f.uw) || 0), 0)
+        const limite = maxVidriadoVentana(proy.zona, uwMax, orient)
         const cumple = limite !== null && pct !== '—' ? parseFloat(pct) <= limite : true
         return `<tr style="font-weight:600;background:#f8fafc">
           <td><b>${ORIENT_NAME[orient] || orient}</b></td>
@@ -7738,7 +7741,7 @@ ${glaserHtml}`
   <tr><th>Orientación</th><th>Área total</th><th>Área vanos</th><th>% vano total</th><th>Límite VPCT</th><th>Estado</th></tr>
   ${summaryRows}
 </table>
-<div style="font-size:8.5pt;color:#64748b;margin-top:4px">VPCT = Porcentaje de Vano / Área de Fachada · DS N°15 MINVU Tabla 3 · Zona ${proy.zona} · Nivel VPCT según Uw: Nivel 1 (≤2.0 W/m²K) · Nivel 2 (≤3.5 W/m²K) · Nivel 3 ({'>'}3.5 W/m²K)</div>`
+<div style="font-size:8.5pt;color:#64748b;margin-top:4px">VPCT = Porcentaje de Vano / Área de Fachada · DS N°15 MINVU Tabla 3 · Zona ${proy.zona} · El % máx permitido depende del U de la ventana (12 brackets, ≤0.6 a ≤5.8 W/m²K) y la orientación: a mayor U, menor % de vidriado.</div>`
     } else if (vpctZona) {
       vpctHtml = `
 <h2 id="modulo-5b">Módulo 5 — Vanos y Ventilación (VPCT, DS N°15)</h2>
