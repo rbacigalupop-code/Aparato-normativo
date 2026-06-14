@@ -20,15 +20,20 @@ _Última actualización: 2026-06-13_
 El campo `zonas` curado a mano sobre-declaraba cumplimiento. Resuelto:
 - **A3a (lógica):** aplicabilidad por **uso** (`s.usos`), aptitud térmica por **cálculo** (`U ≤ U-máx zona`), no por `zonas`. En `src/App.jsx` (`evaluar`/`ev`, alternativas) y `src/lib/engines/thermal.js` (`buscarSolucionesTermicas`).
 - **A3b (obs):** de 22 obs con afirmación universal, 2 falsas corregidas (`1.2.M.D2.2` muro U=0.31 falla H; `3.2.V.A.T.1.03` ventana → Tabla 3). Resto verificado correcto.
-- Test guard: `src/__tests__/obs_sin_cumplimiento_falso.test.js`. 163 tests OK, build OK.
+- Test guard: `src/__tests__/obs_sin_cumplimiento_falso.test.js`.
+
+## M2 ✅ CERRADO (commit `cfbc0ee`, pusheado)
+Engine de acústica (`src/lib/engines/acoustic.js`):
+- Eliminado import muerto en `App.jsx` (la pestaña calcula Rw inline por ley de masa).
+- `estimarRwComposicion`: composición en **paralelo** (ISO 12354-3), factor −10 ponderado por área (era −20 sin normalizar).
+- `calcularMejoraAcustica`: capas en **serie**, modelo aditivo `Rw+ΣΔRw`, mejora ≥ 0 (antes daba negativa).
+- Test guard: `src/__tests__/acoustic_engine.test.js`. **172 tests OK, build OK, pusheado a origin/main.**
 
 ---
 
-## DÓNDE QUEDAMOS (próxima tarea: M2)
+## DÓNDE QUEDAMOS (siguientes tareas)
 
-1. **M2 — engine de acústica** (`src/lib/engines/acoustic.js`, App.jsx:7): imports muertos (`validarRwCumplimiento`, `obtenerRwRequerido`, `buscarSolucionesAcusticas` no se llaman; la pestaña calcula Rw inline). `estimarRwComposicion`/`calcularMejoraAcustica` usan fórmula de **paralelo** donde corresponde **serie** → "mejora" sale negativa. Resolver: borrar imports muertos, corregir/eliminar las 2 funciones, decidir si se conserva el engine. (Detalle en AUDITORIA_FASE0.md §M2.)
-
-2. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
+1. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
 
 3. **Integración PDA** (Planes Descontaminación Atmosférica): el usuario está descargando las 10 zonas a `Descargas\PDA\<zona>\`. Plan: extractor → `src/data/pda.js` (exigencias + fichas), mapeo comuna→PDA, categoría de hermeticidad.
 
@@ -44,14 +49,14 @@ El campo `zonas` curado a mano sobre-declaraba cumplimiento. Resuelto:
 
 | Archivo | Qué tiene |
 |---|---|
-| `src/App.jsx` | Monolito UI (~10.200 líneas). TabSoluciones (`evaluar`/`ev`), TabVentana, TabTermica, TabResultados, informe. **Tiene cambios A3a sin commit.** |
-| `src/data.js` | ZONAS (Tabla 1 verificada), SC (catálogo), RF_ELEM_REQ, `validarCierre()`, soluciones SATE/SIP. **Aquí va A3b (obs).** |
-| `src/lib/engines/thermal.js` | Cálculo U (ISO 6946), Glaser, `buscarSolucionesTermicas`. **Cambio A3a sin commit.** |
-| `src/lib/engines/acoustic.js` | Engine acústico — **objetivo de M2**. |
+| `src/App.jsx` | Monolito UI (~10.200 líneas). TabSoluciones (`evaluar`/`ev`), TabVentana, TabTermica, TabResultados, informe. |
+| `src/data.js` | ZONAS (Tabla 1 verificada), SC (catálogo), RF_ELEM_REQ, `validarCierre()`, soluciones SATE/SIP. |
+| `src/lib/engines/thermal.js` | Cálculo U (ISO 6946), Glaser, `buscarSolucionesTermicas`. |
+| `src/lib/engines/acoustic.js` | Engine acústico (M2 corregido; pestaña usa Rw inline por ley de masa). |
 | `src/data/ds15_ventanas.js` | Tabla 3 oficial ventanas (432 valores), `maxVidriadoVentana`, `cumpleVentana`. |
 | `src/data/puertas_detalladas.js` | `UMAX_PUERTA_DS15` = {B-I: 1.70}. |
-| `docs/AUDITORIA_FASE0.md` | Checklist de hallazgos (A1✅ Z1✅ A2✅ M1✅ · A3⬜ M2⬜ · bordes B1-B3). **Fuente de verdad del avance.** |
-| `src/__tests__/` | 9 archivos, 141 tests (ds15_oficial, ds15_ventanas, rf_consistencia, cruce_normativo, cierre_piso, calcU, fire, glaser, demanda). Correr `npx vitest run`. |
+| `docs/AUDITORIA_FASE0.md` | Checklist de hallazgos (A1✅ Z1✅ A2✅ A3✅ M1✅ M2✅ · bordes B1-B3 ⬜). **Fuente de verdad del avance.** |
+| `src/__tests__/` | 11 archivos, 172 tests (ds15_oficial, ds15_ventanas, rf_consistencia, cruce_normativo, cierre_piso, obs_sin_cumplimiento_falso, acoustic_engine, calcU, fire, glaser, demanda). Correr `npx vitest run`. |
 | `scripts/audit-coherencia.mjs` | Sonda repetible de coherencia (solo lectura). |
 
 ## Tabla 1 oficial verificada (U-máx W/m²K) — DS N°15, vigente 28-11-2025
