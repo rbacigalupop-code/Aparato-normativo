@@ -77,11 +77,14 @@ Había TRES definiciones distintas:
   (5.8→1.8) → puertas casi sin verificar (aceptaba U=3.0). Corregido a 1.70 B-I.
 - Ahora ambas convergen al oficial. Bloqueado por `src/__tests__/ds15_oficial.test.js`.
 
-### M2 — Engine de acústica desconectado + fórmula incorrecta ⬜
+### M2 — Engine de acústica desconectado + fórmula incorrecta ✅ RESUELTO
 `src/lib/engines/acoustic.js` · App.jsx:7
-- App.jsx importa `validarRwCumplimiento, obtenerRwRequerido, buscarSolucionesAcusticas` pero **no las llama**: la pestaña calcula Rw inline (`20·log10(masa)+14`). Imports muertos.
-- `estimarRwComposicion` y `calcularMejoraAcustica` usan fórmula de **paralelo** (`-20·log10(Σ10^(-Rwi/10))`) donde corresponde **serie** → "mejora" daría negativa (agregar aislación "empeora" el Rw). No se usan hoy, pero quedan como trampa.
-- **Resolver:** borrar imports muertos; eliminar o corregir las 2 funciones; decidir si el engine se conserva.
+- **Imports muertos:** App.jsx importaba `validarRwCumplimiento, obtenerRwRequerido, buscarSolucionesAcusticas` sin llamarlos (la pestaña calcula Rw inline por ley de masa `20·log10(masa)+14`). Import eliminado.
+- **Fórmulas corregidas** (usaban paralelo con factor -20 = presión, donde corresponde -10 = potencia):
+  - `estimarRwComposicion` → composición en **paralelo** real (elementos lado a lado, p. ej. muro+ventana): `R=-10·log10(Σ Si·τi/ΣSi)` (ISO 12354-3, ponderado por área). El camino débil domina.
+  - `calcularMejoraAcustica` → capas **en serie** (añadir aislación SUBE el Rw): modelo aditivo `Rw+ΣΔRw`, mejora ≥ 0 siempre. Antes daba mejora negativa.
+- Engine **conservado** (funciones puras reutilizables) y bloqueado por `src/__tests__/acoustic_engine.test.js`.
+- Pendiente menor (no M2): `buscarSolucionesAcusticas` aún filtra por `s.zonas`; la acústica no depende de zona climática (NCh352 por uso). Sin uso hoy.
 
 ---
 
