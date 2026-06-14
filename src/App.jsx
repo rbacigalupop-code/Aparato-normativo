@@ -5,6 +5,7 @@ import MigrationGate from './MigrationGate.jsx'
 import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
+import { resolverAplicacionSC } from './lib/aplicarSolucion.js'
 import { analizarGlaserAnual } from './lib/engines/glaser_mensual.js'
 import { climaMensual } from './data/clima_mensual.js'
 import { cargarDatosOGUC } from './lib/ogucData.js'
@@ -724,7 +725,7 @@ const FichaSCCompleta = React.memo(function FichaSCCompleta({ s, uMax, rfReq, ac
 })
 
 // Mejoras: #2 Enviar a CalcU · #4 Glaser · #5 Vista gráfica · #7 Exportar ficha · #9 Variantes
-const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU }) {
+const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq, acReq, proy, onEnviarCalcU, onModificar }) {
   const bhData = BH.find(b => b.cod === s.cod)
   const scRaw  = SC_CAPAS[s.cod]
 
@@ -798,6 +799,27 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
   const fOkMod = !rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq)
   const aOkMod = !acReq || !rwMod || rwMod >= acReq
   const dU     = parseFloat((s.u - uMod).toFixed(3))
+
+  // ── Reportar al padre la modificación del usuario (engrosar aislante, agregar
+  //    capas…) para que "Aplicar" use la U recalculada y las capas reales, no el
+  //    valor certificado original. Si no hay cambios, reporta null. ─────────────
+  const capasIniciales = useMemo(initCapas, [s.cod])
+  const modificado =
+    extra.length > 0 ||
+    capas.length !== capasIniciales.length ||
+    capas.some((c, i) => {
+      const o = capasIniciales[i]
+      return !o || String(c.esp) !== String(o.esp) || c.name !== o.name || String(c.lam) !== String(o.lam)
+    })
+  useEffect(() => {
+    if (!onModificar) return
+    if (!modificado) { onModificar(null); return }
+    const capasCalcU = [...capas, ...extra].map(c => ({
+      id: Date.now() + Math.random(),
+      mat: c.name || '', lam: String(c.lam || ''), esp: String(c.esp || ''), mu: String(c.mu || '1'), esCamara: !!c.esCamara,
+    }))
+    onModificar({ cod: s.cod, u: uMod, rw: rwMod, capas: capasCalcU })
+  }, [capas, extra, uMod, rwMod, modificado, s.cod, onModificar])
 
   // ── #4 Glaser (NCh853 / EN ISO 13788) ─────────────────────────────────────
   function runGlaser() {
@@ -1231,14 +1253,20 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   const [showAsistente, setShowAsistente] = useState(true)
   // targetSistema: null = global, id = estructura específica (local a esta pestaña)
   const [targetSistema, setTargetSistema] = useState(null)
+  // modSim: snapshot de la solución modificada en el simulador de capas (o null).
+  // Lo reporta <SimuladorCapas onModificar>; lo usa "Aplicar" para traspasar la
+  // U recalculada y las capas reales en vez del valor certificado original.
+  const [modSim, setModSim] = useState(null)
   // catalogRef: para hacer scroll al catálogo cuando el usuario elige un slot
   const catalogRef = React.useRef(null)
 
   // Aplica la misma solución a TODOS los sistemas (útil para techo/piso de obra única)
-  function onAplicarTodos(sc) {
+  function onAplicarTodos(sc, mod = null) {
     const e = sc.elem === 'techumbre' ? 'techo' : sc.elem
     const { ev: _ev, ...scClean } = sc
-    const solData = { u: String(sc.u), rf: sc.rf || '', rw: sc.ac_rw ? String(sc.ac_rw) : '', solucion: scClean }
+    const { isMod, u: uApplied } = resolverAplicacionSC(sc, mod)
+    const solucion = isMod ? { ...scClean, u: uApplied, modificada: true, uOriginal: sc.u } : scClean
+    const solData  = { u: String(uApplied), rf: sc.rf || '', rw: sc.ac_rw ? String(sc.ac_rw) : '', solucion }
     setProy(p => ({
       ...p,
       estructuras: (p.estructuras || []).map(est => ({
@@ -2004,18 +2032,20 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       uMax={uMax} rfReq={rfReq} acReq={acReq}
                       proy={proy}
                       onEnviarCalcU={onEnviarCalcU}
+                      onModificar={setModSim}
                     />
                   )}
                   <div style={{ marginTop:12, display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <button style={S.btn('#166534')} onClick={() => onAplicar(s, targetSistema)}>
+                    <button style={S.btn('#166534')} onClick={() => onAplicar(s, targetSistema, modSim?.cod === s.cod ? modSim : null)}>
                       {targetSistema ? `Aplicar a ${proy.estructuras?.find(e=>e.id===targetSistema)?.tipo?.split(' ')[0] || 'sistema'} →` : 'Aplicar al proyecto →'}
+                      {modSim?.cod === s.cod ? ` (U=${modSim.u} modificada)` : ''}
                     </button>
                     {/* Botón "Aplicar a todos" — cuando hay >1 sistema y se está asignando a uno */}
                     {targetSistema && (proy.estructuras?.length > 1) && (
                       <button
                         style={{ ...S.btn('#0369a1'), display:'flex', alignItems:'center', gap:6 }}
                         title={`Aplica esta solución de ${ELEM_LABELS[s.elem] || s.elem} a TODOS los sistemas del proyecto`}
-                        onClick={() => onAplicarTodos(s)}
+                        onClick={() => onAplicarTodos(s, modSim?.cod === s.cod ? modSim : null)}
                       >
                         Aplicar a TODOS los sistemas →
                       </button>
@@ -9760,9 +9790,13 @@ function AppInner() {
     setHasUnsaved(false)
   }
 
-  function onAplicar(sc, targetId = null) {
+  function onAplicar(sc, targetId = null, mod = null) {
     const elem = sc.elem === 'techumbre' ? 'techo' : sc.elem
     const { ev: _ev, ...scClean } = sc
+    // ── Modificación del simulador de capas (engrosar aislante, agregar capas…) ─
+    //   Si viene `mod` para esta misma solución, se aplica la U recalculada y las
+    //   capas modificadas en vez del valor certificado original (sc.u).
+    const { isMod, u: uApplied } = resolverAplicacionSC(sc, mod)
     // ── Inyección explícita de atributos Térmica + Fuego + Acústica ──────────
     //   u    : valor térmico U (W/m²K)   — siempre presente en SC
     //   rf   : resistencia al fuego (F15/F30/F60/...)   — usado por TabFuego y PDF
@@ -9772,12 +9806,15 @@ function AppInner() {
     const rfVal   = sc.rf ? String(sc.rf) : ''
     const rwVal   = sc.ac_rw ? String(sc.ac_rw) : ''
     const acRwNum = sc.ac_rw != null ? sc.ac_rw : null
+    const solucionSnap = isMod
+      ? { ...scClean, u: uApplied, modificada: true, uOriginal: sc.u }
+      : scClean
     const solData = {
-      u:       String(sc.u),
+      u:       String(uApplied),
       rf:      rfVal,
       rw:      rwVal,
       ac_rw:   acRwNum,
-      solucion: scClean,
+      solucion: solucionSnap,
     }
 
     // ── Helper compartido: construir capas para el panel Cálculo U ──────────────
@@ -9834,13 +9871,13 @@ function AppInner() {
       // Pre-cargar capas con clave compuesta "estId::elemKey" → un panel propio en Cálculo U
       // LIMPIEZA: al pasar a modo per-sistema, eliminar la entry global stale y la
       // del MISMO sistema/elem (sobrescribir limpio, sin merge de correccionAplicada vieja).
-      const calcUCapas = buildCalcUCapas()
+      const calcUCapas = isMod && mod.capas?.length ? mod.capas : buildCalcUCapas()
       setCalcUInit(prev => {
         const next = { ...prev }
         delete next[elem]                       // eliminar global stale
         delete next[`${targetId}::${elem}`]     // eliminar entry previa de este mismo target+elem
         next[`${targetId}::${elem}`] = calcUCapas?.length
-          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } }
+          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: uApplied, rf: rfVal, ac_rw: acRwNum } }
           : null
         return next
       })
@@ -9854,14 +9891,14 @@ function AppInner() {
     }))
     // LIMPIEZA: al pasar a modo global, eliminar todas las entries per-sistema stale
     // para este elemento ("*::elem") + sobrescribir la entry global limpia (no merge).
-    const calcUCapas = buildCalcUCapas()
+    const calcUCapas = isMod && mod.capas?.length ? mod.capas : buildCalcUCapas()
     setCalcUInit(prev => {
       const next = { ...prev }
       Object.keys(next).forEach(k => {
         if (k.endsWith('::' + elem)) delete next[k]
       })
       next[elem] = calcUCapas?.length
-        ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: sc.u, rf: rfVal, ac_rw: acRwNum } }
+        ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: uApplied, rf: rfVal, ac_rw: acRwNum } }
         : null
       return next
     })

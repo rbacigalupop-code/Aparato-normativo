@@ -83,6 +83,20 @@ U de la ventana y orientación** (N/O-P/S/OGT, 12 brackets de U). La app tenía 
   `comunas_chile.js`, que usa un esquema A-H que **no coincide** con el oficial A-I de
   `COMUNAS_ZONA` (ej. Antofagasta A vs B, Calama A vs E). Afecta solo al módulo energético/clima.
 
+### A5 — "Aplicar" descartaba la modificación del simulador de capas ✅ RESUELTO
+`src/App.jsx` (`SimuladorCapas`, `TabSoluciones`, `onAplicar`/`onAplicarTodos`) · `src/lib/aplicarSolucion.js`
+- Síntoma (reportado): solución que no cumple en zona H; al engrosar el aislante en el
+  simulador, `uMod` cumple, pero al apretar **Aplicar** se traspasaba la **U certificada
+  original** (que no cumple). Térmica seguía "no cumple" pese a la modificación.
+- **Raíz:** `SimuladorCapas` (estado local de capas/`uMod`) no estaba conectado a `onAplicar`;
+  el botón pasaba la fila original `s` con `s.u`.
+- **Resuelto:** `SimuladorCapas` reporta su snapshot modificado (`{cod,u,rw,capas}` o `null`)
+  vía `onModificar` → `TabSoluciones` lo guarda en `modSim`. Los botones Aplicar / Aplicar
+  a todos pasan `modSim` y `onAplicar`/`onAplicarTodos` aplican la **U recalculada + capas
+  modificadas** (marcadas `modificada:true`, conservando `uOriginal`). El label del botón
+  muestra "(U=… modificada)". Regla centralizada en `resolverAplicacionSC()` (puro).
+- Bloqueado por `src/__tests__/aplicar_solucion_modificada.test.js`.
+
 ---
 
 ## MEDIA
