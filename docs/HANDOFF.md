@@ -27,13 +27,21 @@ Engine de acústica (`src/lib/engines/acoustic.js`):
 - Eliminado import muerto en `App.jsx` (la pestaña calcula Rw inline por ley de masa).
 - `estimarRwComposicion`: composición en **paralelo** (ISO 12354-3), factor −10 ponderado por área (era −20 sin normalizar).
 - `calcularMejoraAcustica`: capas en **serie**, modelo aditivo `Rw+ΣΔRw`, mejora ≥ 0 (antes daba negativa).
-- Test guard: `src/__tests__/acoustic_engine.test.js`. **172 tests OK, build OK, pusheado a origin/main.**
+- Test guard: `src/__tests__/acoustic_engine.test.js`.
+
+## A4 ✅ CERRADO (commit `78fe49c`, pusheado)
+Comunas multi-zona (Putre A/H, etc.) ahora aplican la **zona de la fila elegida** (no siempre la primera) y no la marcan como "modificada manualmente". `resolveZonas()`/`getOverrideZona()` en `src/utils/zonaStorage.js`; `src/modules/TabDiag.jsx`. Test: `src/__tests__/comuna_multizona.test.js`. Pendiente relacionado: `comunas_chile.js` usa esquema A-H que no coincide con el oficial A-I (afecta solo módulo energético) — hay un chip de tarea para eso.
+
+## A5 ✅ CERRADO (commit `5309f27`, pusheado)
+El botón **"Aplicar"** ahora usa la **U recalculada del simulador de capas** (engrosar aislante) en vez del valor certificado original. `SimuladorCapas.onModificar` → `modSim` → `onAplicar`/`onAplicarTodos`; regla pura en `src/lib/aplicarSolucion.js`. Test: `src/__tests__/aplicar_solucion_modificada.test.js`. **189 tests OK, build OK.**
 
 ---
 
 ## DÓNDE QUEDAMOS (siguientes tareas)
 
-1. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
+1. **Unificar zonas DS15** (chip de tarea abierto): `comunas_chile.js` (A-H) vs `COMUNAS_ZONA` (A-I oficial) no coinciden; el módulo energético/clima usa la fuente equivocada.
+
+2. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
 
 3. **Integración PDA** (Planes Descontaminación Atmosférica): el usuario está descargando las 10 zonas a `Descargas\PDA\<zona>\`. Plan: extractor → `src/data/pda.js` (exigencias + fichas), mapeo comuna→PDA, categoría de hermeticidad.
 
@@ -53,10 +61,12 @@ Engine de acústica (`src/lib/engines/acoustic.js`):
 | `src/data.js` | ZONAS (Tabla 1 verificada), SC (catálogo), RF_ELEM_REQ, `validarCierre()`, soluciones SATE/SIP. |
 | `src/lib/engines/thermal.js` | Cálculo U (ISO 6946), Glaser, `buscarSolucionesTermicas`. |
 | `src/lib/engines/acoustic.js` | Engine acústico (M2 corregido; pestaña usa Rw inline por ley de masa). |
+| `src/lib/aplicarSolucion.js` | `resolverAplicacionSC()` — regla pura: U/capas a aplicar (modificada vs certificada). A5. |
+| `src/utils/zonaStorage.js` | `resolveZonas()`/`getOverrideZona()` — zonas oficiales por comuna (multi-zona). A4. |
 | `src/data/ds15_ventanas.js` | Tabla 3 oficial ventanas (432 valores), `maxVidriadoVentana`, `cumpleVentana`. |
 | `src/data/puertas_detalladas.js` | `UMAX_PUERTA_DS15` = {B-I: 1.70}. |
-| `docs/AUDITORIA_FASE0.md` | Checklist de hallazgos (A1✅ Z1✅ A2✅ A3✅ M1✅ M2✅ · bordes B1-B3 ⬜). **Fuente de verdad del avance.** |
-| `src/__tests__/` | 11 archivos, 172 tests (ds15_oficial, ds15_ventanas, rf_consistencia, cruce_normativo, cierre_piso, obs_sin_cumplimiento_falso, acoustic_engine, calcU, fire, glaser, demanda). Correr `npx vitest run`. |
+| `docs/AUDITORIA_FASE0.md` | Checklist de hallazgos (A1✅ Z1✅ A2✅ A3✅ A4✅ A5✅ M1✅ M2✅ · bordes B1-B3 ⬜). **Fuente de verdad del avance.** |
+| `src/__tests__/` | 13 archivos, 189 tests. Correr `npx vitest run`. |
 | `scripts/audit-coherencia.mjs` | Sonda repetible de coherencia (solo lectura). |
 
 ## Tabla 1 oficial verificada (U-máx W/m²K) — DS N°15, vigente 28-11-2025
