@@ -10,7 +10,7 @@ import {
   PERM_V, PUERTA_U, PUERTA_P, SOBR_R, INFILT,
   CARGA_OCUP_DENSIDAD, OGUC_TABLA2_EDUC, getLetraOGUC_T2_Educ,
 } from '../data.js'
-import { getOverrides, resolveZona } from '../utils/zonaStorage.js'
+import { getOverrides, resolveZonas, getOverrideZona } from '../utils/zonaStorage.js'
 import { buscarComunaKey, obtenerZonaDS15Comuna, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
 import { DISTRIBUIDORAS_ELEC, TARIFA_ELEC_DEFAULT, zonaOGUCaMacrozona } from '../data/combustibles.js'
 
@@ -28,10 +28,6 @@ function buildAllComunas(overrides) {
     .map(([c, zona]) => ({ comuna: c, zona }))
 
   return [...base, ...extra].sort((a, b) => a.comuna.localeCompare(b.comuna, 'es'))
-}
-
-function comunaAZona(nombre, overrides) {
-  return resolveZona(nombre, overrides, COMUNAS_ZONA)
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -100,8 +96,10 @@ function ComunaSearch({ value, onChange, overrides }) {
   function seleccionar(item) {
     setQuery(item.comuna)
     setOpen(false)
-    // Usar la zona del override si existe, si no la del item
-    const zonaFinal = resolveZona(item.comuna, overrides, COMUNAS_ZONA) || item.zona
+    // El override del admin manda; si no, la zona de la FILA elegida (clave para
+    // comunas multi-zona: Putre A/H, Lonquimay F/H, etc. — antes resolveZona
+    // colapsaba siempre a la primera zona e ignoraba la fila clicada).
+    const zonaFinal = getOverrideZona(item.comuna, overrides) || item.zona
     onChange(item.comuna, zonaFinal)
   }
 
@@ -128,7 +126,7 @@ function ComunaSearch({ value, onChange, overrides }) {
           minWidth: 240, maxHeight: 280, overflowY: 'auto', marginTop: 2,
         }}>
           {resultados.map(({ comuna, zona }) => (
-            <div key={comuna}
+            <div key={`${comuna}-${zona}`}
               style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}
               onMouseDown={() => seleccionar({ comuna, zona })}
               onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
@@ -549,9 +547,12 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
     return () => window.removeEventListener('oguc:zonas-updated', onUpdate)
   }, [])
 
-  // Guarda la zona que corresponde a la comuna seleccionada (para detectar divergencia)
-  const zonaComunal = proy.comuna ? comunaAZona(proy.comuna, overrides) : null
-  const zonaDiverge = proy.zona && zonaComunal && proy.zona !== zonaComunal
+  // Zonas oficiales de la comuna seleccionada (puede haber más de una: una misma
+  // comuna abarca distintas zonas según altitud/sector — Putre A/H, etc.).
+  const zonasComunal = proy.comuna ? resolveZonas(proy.comuna, overrides, COMUNAS_ZONA) : []
+  const multiZona = zonasComunal.length > 1
+  // Divergencia solo si la zona elegida NO es ninguna de las oficiales de la comuna.
+  const zonaDiverge = !!(proy.zona && zonasComunal.length && !zonasComunal.includes(proy.zona))
 
   // Ficha normativa: reactiva, no requiere botón
   const ficha = useMemo(() => {
@@ -893,10 +894,15 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             </select>
             {zonaDiverge && (
               <span style={{ fontSize: 10, color: '#d97706', fontWeight: 600 }}>
-                ⚠ La comuna "{proy.comuna}" corresponde a Zona {zonaComunal} (DS N°15). Zona modificada manualmente.
+                ⚠ La comuna "{proy.comuna}" corresponde a Zona{zonasComunal.length > 1 ? 's' : ''} {zonasComunal.join(' o ')} (DS N°15). Zona modificada manualmente.
               </span>
             )}
-            {!zonaDiverge && zonaComunal && proy.zona && (
+            {!zonaDiverge && multiZona && proy.zona && (
+              <span style={{ fontSize: 10, color: '#2563eb' }}>
+                ℹ "{proy.comuna}" abarca varias zonas térmicas ({zonasComunal.join(', ')}) según altitud/sector. Aplicada: Zona {proy.zona}. Verifica que corresponda a la ubicación del proyecto.
+              </span>
+            )}
+            {!zonaDiverge && !multiZona && zonasComunal.length === 1 && proy.zona && (
               <span style={{ fontSize: 10, color: '#16a34a' }}>✓ Zona asignada según DS N°15 / NCh1079:2019</span>
             )}
           </div>

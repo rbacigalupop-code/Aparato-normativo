@@ -65,6 +65,24 @@ U de la ventana y orientación** (N/O-P/S/OGT, 12 brackets de U). La app tenía 
   - Resto verificado correcto (muro 0.29≤0.30, techo 0.24≤0.25, puertas todas ≤1.70).
 - Bloqueado por `src/__tests__/obs_sin_cumplimiento_falso.test.js` (escanea todo `obs` universal vs U-máx más estricto).
 
+### A4 — Comunas multi-zona: se aplicaba solo una zona ✅ RESUELTO
+`src/utils/zonaStorage.js` · `src/modules/TabDiag.jsx`
+- Algunas comunas abarcan **2 zonas** térmicas según altitud/sector (Putre, General Lagos,
+  San Pedro de Atacama → A y H; Lonquimay, Curarrehue, Curacautín → F y H). El buscador
+  mostraba ambas filas, pero:
+  - `seleccionar()` usaba `resolveZona()` (primera coincidencia) e **ignoraba la fila
+    clicada** → siempre aplicaba la primera zona (A/F).
+  - El chequeo de divergencia colapsaba a una sola zona → al elegir la otra, la marcaba
+    falsamente como "Zona modificada manualmente".
+- **Resuelto:** `resolveZonas()` (plural) devuelve todas las zonas oficiales; `getOverrideZona()`
+  separa el override del admin. `seleccionar()` ahora aplica la zona de la fila elegida
+  (override > fila). Divergencia solo si la zona NO es ninguna de las oficiales. Aviso
+  informativo cuando la comuna es multi-zona. `key` del dropdown = `comuna-zona` (evita
+  colisión React). Bloqueado por `src/__tests__/comuna_multizona.test.js`.
+- **Pendiente relacionado (fuera de A4):** `configEnergetica.zonaDS15` se escribe desde
+  `comunas_chile.js`, que usa un esquema A-H que **no coincide** con el oficial A-I de
+  `COMUNAS_ZONA` (ej. Antofagasta A vs B, Calama A vs E). Afecta solo al módulo energético/clima.
+
 ---
 
 ## MEDIA

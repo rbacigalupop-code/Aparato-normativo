@@ -40,6 +40,35 @@ export function clearOverrides() {
   localStorage.removeItem(KEY_META)
 }
 
+// ── Override de zona para una comuna (solo overrides del admin) ────────────────
+export function getOverrideZona(comunaNombre, overrides = {}) {
+  if (!comunaNombre) return null
+  const norm = n => n?.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim()
+  const key = norm(comunaNombre)
+  for (const [k, v] of Object.entries(overrides)) {
+    if (norm(k) === key) return v
+  }
+  return null
+}
+
+// ── Resolver TODAS las zonas oficiales de una comuna ──────────────────────────
+// Algunas comunas abarcan más de una zona térmica según altitud/sector
+// (Putre, General Lagos, San Pedro de Atacama → A y H; Lonquimay, Curarrehue,
+// Curacautín → F y H). Devuelve un array con todas las zonas que aplican.
+// El override del admin (si existe) tiene prioridad y define una única zona.
+export function resolveZonas(comunaNombre, overrides = {}, comunasZonaBase = {}) {
+  if (!comunaNombre) return []
+  const ov = getOverrideZona(comunaNombre, overrides)
+  if (ov) return [ov]
+  const norm = n => n?.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim()
+  const key = norm(comunaNombre)
+  const zonas = []
+  for (const [zona, comunas] of Object.entries(comunasZonaBase)) {
+    if (comunas.some(c => norm(c) === key)) zonas.push(zona)
+  }
+  return zonas
+}
+
 // ── Resolver zona: override tiene prioridad ───────────────────────────────────
 export function resolveZona(comunaNombre, overrides, comunasZonaBase) {
   if (!comunaNombre) return null
