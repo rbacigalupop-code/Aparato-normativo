@@ -53,14 +53,17 @@ U de la ventana y orientación** (N/O-P/S/OGT, 12 brackets de U). La app tenía 
 - **Paso 3** (`71cbfda`): VentanasDetalladas (Energético) reformulado a informativo (% máx por
   orientación a esa U), sin el pass/fail erróneo por U sola.
 
-### A3 — Campo `zonas` de las SC sobre-declara cumplimiento (66 soluciones) ⬜
-`src/data.js` · SC[*].zonas + obs
-- 66 soluciones listan zonas donde su U **no** cumple el U-máx (ej. `1.2.M.D2.2` obs dice "U=0.31 · Cumple A-I" pero 0.31 > 0.30 de H; `2.2.M.MF1.1` listada en F con U=0.52 > 0.45).
-- **Raíz de diseño:** `zonas` se cura a mano y hace doble función, mientras el cumplimiento real se calcula aparte (`tOk = U ≤ U-máx`). Efectos:
-  - Sobre-listar (zona donde U falla) → semáforo T rojo (visible, menor).
-  - **Sub-listar** (omitir zona donde U sí cumpliría) → oculta opción válida en silencio (mayor).
-  - `obs` con frases "Cumple todas las zonas A-I" = afirmación falsa de cumplimiento.
-- **Resolver:** derivar la aplicabilidad térmica del cálculo (`U ≤ U-máx zona`) en vez de mantener `zonas` a mano; limpiar los `obs` que afirman cumplimiento.
+### A3 — Campo `zonas` de las SC sobre-declara cumplimiento ✅ RESUELTO
+`src/data.js` · SC[*].zonas + obs · `src/App.jsx` · `src/lib/engines/thermal.js`
+- **Raíz de diseño:** `zonas` se curaba a mano y hacía doble función, mientras el cumplimiento real se calcula aparte (`tOk = U ≤ U-máx`). Sobre-listar → semáforo T rojo visible; **sub-listar** → ocultaba opción válida en silencio; `obs` "Cumple todas las zonas A-I" = afirmación falsa.
+- **A3a (lógica):** la aplicabilidad ahora deriva del **uso** (`s.usos`), y la aptitud térmica del **cálculo** (`U ≤ U-máx de la zona`), no del campo `zonas`.
+  - `App.jsx` `evaluar()`/`ev()`: `aplica = (s.usos||[]).includes(uso)`. Display "Cumple térmico (U≤U-máx) en zonas: …" calculado iterando ZONAS. Alternativas (térmica + RF/Rw) filtran por `ev.aplica && ev.total===3`, no por `zonas`.
+  - `thermal.js` `buscarSolucionesTermicas`: quitado el filtro por `zonas`; la aptitud por zona la da el filtro de U-máx.
+- **A3b (obs):** de 22 `obs` con afirmación universal, solo 2 eran falsas → corregidas:
+  - `1.2.M.D2.2` (muro U=0.31): "Cumple A-I" → "Cumple A-G e I; no alcanza U-máx 0.30 de zona H".
+  - `3.2.V.A.T.1.03` (ventana U=0.80): "Cumple A-I" → bracket Uw≤0.8 de Tabla 3 (cumplimiento por % vidriado).
+  - Resto verificado correcto (muro 0.29≤0.30, techo 0.24≤0.25, puertas todas ≤1.70).
+- Bloqueado por `src/__tests__/obs_sin_cumplimiento_falso.test.js` (escanea todo `obs` universal vs U-máx más estricto).
 
 ---
 

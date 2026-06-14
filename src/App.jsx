@@ -1282,10 +1282,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
   // ── Evaluación individual ─────────────────────────────────────────────────
   function evaluar(s) {
-    // Blindaje: s.zonas debe ser string; s.usos debe ser array. Fallback defensivo.
-    // Defensa contra uso vacío/nulo
+    // A3: `aplica` = pertinencia por USO. La aptitud térmica por zona NO se gate
+    // con el campo `zonas` (curado a mano, podía ocultar soluciones válidas o
+    // marcar "aplica" sin cumplir); se deriva del cálculo `tOk = U ≤ U-máx`.
     const validUso = uso && uso.trim() ? uso : 'Vivienda'
-    const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(validUso)
+    const aplica = (s.usos || []).includes(validUso)
     const tOk = !uMax  || s.u <= uMax
     const fOk = !rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq)
     const aOk = !acReq || !s.ac_rw || s.ac_rw >= acReq
@@ -1307,7 +1308,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                    elem==='ventana'                                    ? AC_DEF[_validUso]?.fachada        ?? null : null
 
     function ev(s) {
-      const aplica = (s.zonas || '').includes(zona) && (s.usos || []).includes(_validUso)
+      // A3: aplicabilidad por uso; aptitud térmica por zona = tOk (no campo zonas)
+      const aplica = (s.usos || []).includes(_validUso)
       const tOk = !_uMax  || s.u <= _uMax
       const fOk = !_rfReq || !s.rf || rfN(s.rf) >= rfN(_rfReq)
       const aOk = !_acReq || !s.ac_rw || s.ac_rw >= _acReq
@@ -1798,18 +1800,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         Homologable
                       </span>
                     )}
-                    {!ev.aplica && (() => {
-                      const faltaZona = !(s.zonas || '').includes(zona)
-                      const faltaUso  = !(s.usos || []).includes(uso)
-                      const msg = faltaZona && faltaUso ? `No aplica zona ${zona} ni uso ${uso}`
-                               : faltaZona ? `No aplica zona ${zona} (aplica: ${(s.zonas || '').split('').join(', ')})`
-                               : `No aplica uso ${uso}`
-                      return (
-                        <span title={msg} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
-                          Fuera de zona/uso ⓘ
-                        </span>
-                      )
-                    })()}
+                    {!ev.aplica && (
+                      <span title={`Esta solución no está tipificada para el uso ${uso}`} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
+                        No aplica al uso {uso} ⓘ
+                      </span>
+                    )}
                   </div>
                   {/* Capas y código */}
                   <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4 }}>
@@ -1873,18 +1868,16 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                 <div style={{ padding:'10px 16px', background:'#f8fafc', borderTop:'1px solid #e2e8f0' }}>
                   <div style={{ fontSize:12, color:'#374151', marginBottom:8 }}>{s.obs}</div>
                   <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
-                    {/* Parche de sanitización robusto: `zonas` puede llegar como
-                        string ("ABCDEFGHI") o como array (['A','B',...]).
-                        `usos` análogo. En bundles minificados la diferencia
-                        rompe el render con `k.zonas.join is not a function`. */}
+                    {/* A3: las zonas se DERIVAN del cálculo (U ≤ U-máx por zona),
+                        no del campo `zonas` curado a mano (que podía mentir). */}
                     {(() => {
-                      const zonasStr = Array.isArray(s.zonas)
-                        ? s.zonas.join(', ')
-                        : String(s.zonas || '').split('').join(', ')
-                      const usosStr = Array.isArray(s.usos)
-                        ? s.usos.join(', ')
-                        : String(s.usos || '').split('').join(', ')
-                      return <>Zonas aplicables: {zonasStr || '—'} · Usos: {usosStr || '—'}</>
+                      const usosStr = Array.isArray(s.usos) ? s.usos.join(', ') : String(s.usos || '').split('').join(', ')
+                      const elemZ = s.elem === 'tabique' ? null : (s.elem === 'techumbre' ? 'techo' : s.elem)
+                      let cumpleZonas
+                      if (s.elem === 'puerta') cumpleZonas = Object.keys(ZONAS).filter(z => { const m = PUERTA_U[z]; return !m || s.u <= m }).join(', ') || 'ninguna'
+                      else if (elemZ) cumpleZonas = Object.keys(ZONAS).filter(z => s.u <= ZONAS[z][elemZ]).join(', ') || 'ninguna'
+                      else cumpleZonas = 'sin exigencia de U (tabique)'
+                      return <>Cumple térmico (U≤U-máx) en zonas: <b>{cumpleZonas}</b> · Usos: {usosStr || '—'}</>
                     })()}
                   </div>
 
@@ -1895,10 +1888,10 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   {/* ── Alternativas LOSCAT cuando incumple ──────────────────── */}
                   {!ev.aplica && (
                     <div style={{ background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:6, padding:'10px 14px', marginBottom:10 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>⚠ Fuera de zona/uso — Alternativas aplicables para {zona}/{uso}</div>
-                      {SC.filter(x => x.elem===elem && (x.zonas || '').includes(zona) && (x.usos || []).includes(uso))
+                      <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>⚠ No aplica al uso — Alternativas que cumplen los 3 criterios para {zona}/{uso}</div>
+                      {SC.filter(x => x.elem===elem && (x.usos || []).includes(uso))
                         .map(x => ({ ...x, ev: evaluar(x) }))
-                        .filter(x => x.ev.total===3)
+                        .filter(x => x.ev.aplica && x.ev.total===3)
                         .sort((a,b) => a.u - b.u)
                         .slice(0,4)
                         .map(x => (
@@ -1911,8 +1904,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   )}
 
                   {ev.aplica && ev.total < 3 && (() => {
-                    const alts = SC.filter(x => x.elem===elem && (x.zonas || '').includes(zona) && (x.usos || []).includes(uso) && x.cod!==s.cod)
-                      .map(x => ({ ...x, ev: evaluar(x) })).filter(x => x.ev.total===3)
+                    const alts = SC.filter(x => x.elem===elem && (x.usos || []).includes(uso) && x.cod!==s.cod)
+                      .map(x => ({ ...x, ev: evaluar(x) })).filter(x => x.ev.aplica && x.ev.total===3)
                     const porT = !ev.tOk ? alts.filter(x=>x.u<=uMax).sort((a,b)=>a.u-b.u).slice(0,3) : []
                     const porF = !ev.fOk && rfReq ? alts.filter(x=>x.rf&&rfN(x.rf)>=rfN(rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,3) : []
                     const porA = !ev.aOk && acReq ? alts.filter(x=>x.ac_rw&&x.ac_rw>=acReq).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,3) : []
@@ -3520,7 +3513,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
         return e.rfReq && rp && rfN(rp) < rfN(e.rfReq)
       }).map(e => {
         const elemSC = { estructura:'muro', muros_sep:'muro', cajas_esc:null, escaleras:null, cubierta:'techumbre' }[e.id]
-        const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.zonas || '').includes(proy.zona||'D') && (s.usos || []).includes(uso||'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,4) : []
+        const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.usos || []).includes(uso||'Vivienda') && s.rf && rfN(s.rf) >= rfN(e.rfReq)).sort((a,b)=>rfN(b.rf)-rfN(a.rf)).slice(0,4) : []
         return (
           <div key={e.id} style={{ ...S.card, borderColor:'#fca5a5', background:'#fff5f5' }}>
             <div style={{ fontSize:12, fontWeight:700, color:'#dc2626', marginBottom:6 }}>
@@ -3837,7 +3830,7 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
         return rw && e.req && rw < e.req
       }).map(e => {
         const elemSC = { entre_unidades:'muro', fachada:'muro', entre_pisos:'piso' }[e.id]
-        const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.zonas || '').includes(proy.zona||'D') && (s.usos || []).includes(uso||'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,4) : []
+        const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.usos || []).includes(uso||'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,4) : []
         return (
           <div key={e.id} style={{ ...S.card, borderColor:'#bfdbfe', background:'#f0f7ff' }}>
             <div style={{ fontSize:12, fontWeight:700, color:'#1e40af', marginBottom:6 }}>

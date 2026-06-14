@@ -176,13 +176,11 @@ export function buscarSolucionesTermicas(soluciones, uMax, acMax, filtros = {}) 
   if (!soluciones) return []
 
   return soluciones.filter(s => {
-    // Filtro por zona climática
-    if (filtros.zona && s.zonas && !s.zonas.includes(filtros.zona)) return false
-
-    // Filtro por uso
+    // A3: la aptitud por zona la da el filtro de U-máx (abajo), NO el campo
+    // `zonas` curado a mano. Solo se filtra por uso.
     if (filtros.uso && s.usos && !s.usos.includes(filtros.uso)) return false
 
-    // Filtro por U máxima
+    // Filtro por U máxima (= cumplimiento térmico real en la zona)
     if (uMax && s.u && parseFloat(s.u) > uMax) return false
 
     // Filtro por Rw mínimo (acústica)
