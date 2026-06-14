@@ -1147,12 +1147,16 @@ export function validarCierre(cv,tipoElem){
   // vapor, tampoco admite rev_int (yeso cartón) ni tableros sensibles a la
   // intemperie (OSB/MDF/terciado), que antes quedaban expuestos.
   if(debeProtegerseExterior(ultima)){
-    // Techumbre: usar un material de CUBIERTA real (Fibrocemento Gran Onda P7,
-    // producto de techumbre chileno) en vez de un 'Fibrocemento' genérico que
-    // se asocia a revestimiento de muro. μ=50 (bajo) → no recrea trampa de
-    // vapor. Muro/piso: CAPAS_CIERRE_EXT habitual (estuco/revestimiento).
+    // Techumbre: material de CUBIERTA real (Fibrocemento Gran Onda P7, producto
+    // de techumbre chileno), μ=50 bajo → no recrea trampa de vapor.
+    // Piso: la terminación es un PAVIMENTO (superficie pisable), NO fibrocemento.
+    // El fibrocemento/OSB es base estructural; sobre él va el pavimento. Se usa un
+    // pavimento cerámico (aporte térmico despreciable → no infla el U corregido).
+    // Muro/tabique: CAPAS_CIERRE_EXT habitual (estuco/revestimiento).
     const ext=tipoElem==='techumbre'
       ? {n:'Fibrocemento Gran Onda (P7)',lam:0.24,esp:0.005,mu:50,_rol:'cierre_ext'}
+      : tipoElem==='piso'
+      ? {n:'Pavimento (cerámico/porcelanato)',lam:1.30,esp:0.009,mu:200,_rol:'cierre_ext'}
       : {...CAPAS_CIERRE_EXT[0],_rol:'cierre_ext'};
     r=[...r,ext];
   }
