@@ -22,8 +22,12 @@
 //   · En comunas mono-zona se prefiere su clima propio (más granular).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { COMUNAS_ZONA } from '../data.js'
 import { obtenerZonaClimaComuna, buscarComunaKey } from './comunas_chile.js'
+import { zonasOficialesDeComuna } from './zonas_oficial.js'
+
+// Re-export: la resolución oficial comuna→zonas (con alias y multi-zona por cota)
+// vive en zonas_oficial.js, derivada de la tabla DITEC.
+export { zonasOficialesDeComuna }
 
 // Zona térmica oficial DS N°15 (A-I) → macrozona climática (A-H).
 // Se usa cuando la comuna es multi-zona oficial (el usuario eligió un sector) o
@@ -41,44 +45,6 @@ export const MAPA_OGUC_CLIMA = {
   G: 'G',
   H: 'G',
   I: 'H',
-}
-
-// Canoniza un nombre/clave de comuna para comparar sin importar acentos,
-// separadores (espacios/_) ni palabras de enlace (de/del/la/los…). Así
-// 'san_pedro_atacama' (clave) y 'San Pedro de Atacama' (nombre oficial) colapsan
-// al mismo token y se reconocen como la misma comuna.
-const STOPWORDS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y'])
-function canon(s) {
-  return String(s || '')
-    .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[_\s]+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(w => w && !STOPWORDS.has(w))
-    .join('')
-}
-
-// Índice canon(comuna) → [zonas oficiales]. Algunas comunas aparecen en 2 zonas
-// (multi-zona por altitud/sector). Se construye una vez desde COMUNAS_ZONA.
-const _idxOficial = (() => {
-  const idx = {}
-  for (const [zona, comunas] of Object.entries(COMUNAS_ZONA)) {
-    for (const c of comunas) {
-      const k = canon(c)
-      if (!k) continue
-      ;(idx[k] ||= []).push(zona)
-    }
-  }
-  return idx
-})()
-
-/**
- * Zonas térmicas oficiales DS N°15 de una comuna (acepta nombre o clave).
- * @returns {string[]} p.ej. ['A','H'] para Putre; [] si no se encuentra.
- */
-export function zonasOficialesDeComuna(comuna) {
-  return _idxOficial[canon(comuna)] || []
 }
 
 /**

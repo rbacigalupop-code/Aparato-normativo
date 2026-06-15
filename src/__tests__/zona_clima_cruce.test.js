@@ -93,28 +93,29 @@ describe('Comunas — zona_clima válida y catalogada', () => {
 
 describe('zonaClimaDeOGUC — multi-zona sigue la selección; mono-zona usa su clima', () => {
   // Comunas que el DS N°15 parte en 2 zonas (ver comuna_multizona.test.js).
-  it('Putre: el clima cambia según la zona oficial elegida', () => {
-    const climaA = zonaClimaDeOGUC('A', 'Putre')
-    const climaH = zonaClimaDeOGUC('H', 'Putre')
-    expect(climaA).toBe(MAPA_OGUC_CLIMA.A)   // 'A'
+  it('Calama (B/H por cota): el clima cambia según la zona oficial elegida', () => {
+    const climaB = zonaClimaDeOGUC('B', 'Calama')
+    const climaH = zonaClimaDeOGUC('H', 'Calama')
+    expect(climaB).toBe(MAPA_OGUC_CLIMA.B)   // 'B'
     expect(climaH).toBe(MAPA_OGUC_CLIMA.H)   // 'G'
-    expect(climaA).not.toBe(climaH)          // sigue la selección, no es fijo
+    expect(climaB).not.toBe(climaH)          // sigue la selección, no es fijo
   })
 
-  it('Lonquimay (F/H): idem, sigue la zona elegida', () => {
-    expect(zonaClimaDeOGUC('F', 'Lonquimay')).toBe(MAPA_OGUC_CLIMA.F)
-    expect(zonaClimaDeOGUC('H', 'Lonquimay')).toBe(MAPA_OGUC_CLIMA.H)
+  it('Arica (A/B/H por cota): idem, sigue la zona elegida', () => {
+    expect(zonaClimaDeOGUC('A', 'Arica')).toBe(MAPA_OGUC_CLIMA.A)
+    expect(zonaClimaDeOGUC('H', 'Arica')).toBe(MAPA_OGUC_CLIMA.H)
   })
 
-  it('mono-zona conserva su clima granular, ignora lo grueso de la oficial', () => {
-    // Calama es oficial A (norte) pero clima E (desierto de altura, frío).
-    expect(zonaClimaDeOGUC('A', 'Calama')).toBe('E')
-    expect(zonaClimaDeOGUC('A', 'Antofagasta')).toBe('B')
+  it('mono-zona conserva su clima granular, ignora lo grueso del mapeo', () => {
+    // Ollague y Putre son mono-zona oficial H, pero su clima propio (F/E, altiplano
+    // frío) es más granular que el mapeo MAPA_OGUC_CLIMA.H ('G').
+    expect(zonaClimaDeOGUC('H', 'Ollague')).toBe('F')
+    expect(zonaClimaDeOGUC('H', 'Putre')).toBe('E')
   })
 
   it('acepta nombre o clave (San Pedro de Atacama / san_pedro_atacama)', () => {
-    expect(zonasOficialesDeComuna('San Pedro de Atacama').sort()).toEqual(['A', 'H'])
-    expect(zonasOficialesDeComuna('san_pedro_atacama').sort()).toEqual(['A', 'H'])
+    expect(zonasOficialesDeComuna('San Pedro de Atacama').sort()).toEqual(['B', 'H'])
+    expect(zonasOficialesDeComuna('san_pedro_atacama').sort()).toEqual(['B', 'H'])
   })
 
   it('nunca devuelve vacío para una zona oficial válida', () => {
@@ -129,11 +130,11 @@ describe('Divergencias INTENCIONADAS oficial vs clima (norte) — congeladas', (
   // falla a propósito: la divergencia es de diseño (la oficial es gruesa en el
   // norte; el clima es más realista). Re-verificar antes de actualizar.
   const CASOS = {
-    antofagasta:       { oficial: ['A'],      clima: 'B' },
-    calama:            { oficial: ['A'],      clima: 'E' },
-    ollague:           { oficial: ['A'],      clima: 'F' },
-    san_pedro_atacama: { oficial: ['A', 'H'], clima: 'E' },
-    putre:             { oficial: ['A', 'H'], clima: 'E' },
+    antofagasta:       { oficial: ['A', 'B', 'H'], clima: 'B' },
+    calama:            { oficial: ['B', 'H'],      clima: 'E' },
+    ollague:           { oficial: ['H'],           clima: 'F' },
+    san_pedro_atacama: { oficial: ['B', 'H'],      clima: 'E' },
+    putre:             { oficial: ['H'],           clima: 'E' },
   }
   for (const [key, { oficial, clima }] of Object.entries(CASOS)) {
     it(`${key}: oficial ${oficial.join('+')} vs clima ${clima}`, () => {
