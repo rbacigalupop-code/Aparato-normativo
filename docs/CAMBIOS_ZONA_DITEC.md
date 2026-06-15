@@ -1,12 +1,12 @@
 # Cambios de zona térmica DS N°15 — dato a mano → tabla oficial DITEC
 
 Reconstrucción de COMUNAS_ZONA desde la tabla oficial DITEC (rama feat/zonas-ditec-cota).
-**111 comunas cambian de zona** y **59 comunas nuevas**.
-Multi-zona: se indica la banda de altitud (cota) de cada zona.
+**110 comunas cambian de zona** y **58 comunas nuevas** se agregan (faltaban en el dato a mano).
+Multi-zona: la zona depende de la cota; se indica la banda de altitud de cada una.
 
 ## XV · Arica y Parinacota
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Arica | A | **A+B+H** | A (< 1.100 msnm), B (1.100–3.000 msnm), H (≥ 3.000 msnm) |
 | Camarones | A | **A+B+H** | A (< 1.100 msnm), B (1.100–3.000 msnm), H (≥ 3.000 msnm) |
@@ -15,7 +15,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## I · Tarapacá
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Camiña | A | **B+H** | B (1.100–3.000 msnm), H (≥ 3.000 msnm) |
 | Colchane | A | **H** | H |
@@ -25,7 +25,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## II · Antofagasta
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Antofagasta | A | **A+B+H** | A [mer ≥ 70°], B (< 3.000 msnm) [mer < 70°], H (≥ 3.000 msnm) |
 | Calama | A | **B+H** | B (< 3.000 msnm), H (≥ 3.000 msnm) |
@@ -37,7 +37,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## III · Atacama
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Alto del Carmen | B | **B+H** | B (< 3.000 msnm), H (≥ 3.000 msnm) |
 | Caldera | B | **A** | A |
@@ -50,7 +50,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## IV · Coquimbo
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Andacollo | C | **B** | B |
 | Combarbalá | C | **B+H** | B (< 2.000 msnm), H (≥ 2.000 msnm) |
@@ -66,7 +66,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## V · Valparaíso
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Cabildo | C | **D+H** | D (< 2.000 msnm), H (≥ 2.000 msnm) |
 | Calera | C | **D** | D |
@@ -82,15 +82,14 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## RM · Metropolitana
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
-| La Florida | D+E | **D** | D |
 | Lo Barnechea | D | **D+H** | D (< 2.000 msnm), H (≥ 2.000 msnm) |
 | San Pedro | C | **D** | D |
 
 ## VI · O'Higgins
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Machalí | D | **D+H** | D (< 1.000 msnm), H (≥ 1.000 msnm) |
 | Malloa | D | **D+H** | D (< 1.000 msnm), H (≥ 1.000 msnm) |
@@ -100,7 +99,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## VII · Maule
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Colbún | E | **D+H** | D (< 1.000 msnm), H (≥ 1.000 msnm) |
 | Constitución | D | **E** | E |
@@ -119,7 +118,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## XVI · Ñuble
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Coelemu | F | **E** | E |
 | Coihueco | F | **F+H** | F (< 1.000 msnm), H (≥ 1.000 msnm) |
@@ -130,11 +129,11 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## VIII · Biobío
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Antuco | E | **F+H** | F (< 1.000 msnm), H (≥ 1.000 msnm) |
 | Cabrero | E | **F** | F |
-| Florida | D+E | **F** | D |
+| Florida | E | **F** | F |
 | Laja | E | **F** | F |
 | Los Ángeles | E | **F** | F |
 | Mulchén | E | **F** | F |
@@ -149,7 +148,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## IX · Araucanía
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Carahue | F | **E** | E |
 | Curacautín | F+H | **F** | F |
@@ -163,7 +162,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## XIV · Los Ríos
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Corral | F | **G** | G |
 | La Unión | F | **F+G** | G [mer > 73° 15'], F [mer ≤ 73° 15'] |
@@ -173,7 +172,7 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 
 ## X · Los Lagos
 
-| Comuna | Antes | Oficial | Bandas por cota |
+| Comuna | Antes | Oficial DITEC | Bandas por cota |
 |---|---|---|---|
 | Futaleufú | G | **I** | I |
 | Osorno | F | **G** | G |
@@ -247,4 +246,3 @@ Multi-zona: se indica la banda de altitud (cota) de cada zona.
 | Treguaco | XVI | E |
 | Alto Biobío | VIII | F+H |
 | Cholchol | IX | F |
-| Coihaique | XI | I |

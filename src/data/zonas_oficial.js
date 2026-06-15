@@ -33,8 +33,11 @@ const LOOKUP_ALIAS = {
   sanpedrorm: 'sanpedro',
 }
 
-const STOP = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y'])
-// minúsculas, sin acentos, sin apóstrofes, sin separadores ni palabras de enlace
+// Solo se eliminan los enlaces "de/del" (el catálogo a veces los omite, p.ej.
+// "san_pedro_atacama" ↔ "San Pedro de Atacama"). NO se quitan los artículos
+// la/el/los/las: distinguen comunas distintas (Florida VIII vs La Florida RM).
+const STOP = new Set(['de', 'del'])
+// minúsculas, sin acentos, sin apóstrofes, sin separadores ni enlaces
 function canon(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/['']/g, '')
@@ -94,7 +97,14 @@ export function resolverZonaPorCota(comuna, cotaMsnm = null) {
   }
   const minAltMin = Math.min(Infinity, ...reglas.filter(r => r.altMin != null).map(r => r.altMin))
   const zs = [...new Set(reglas.filter(r => reglaMatchCota(r, cotaMsnm, minAltMin)).map(r => r.zona))]
-  return zs.length === 1 ? zs[0] : null
+  if (zs.length === 1) return zs[0]
+  // Cota bajo la banda más baja listada (p.ej. Camiña no tiene tramo <1.100 m):
+  // aplica la zona de menor altitud. Si quedan varias (corte por meridiano) → null.
+  if (zs.length === 0 && minAltMin !== Infinity && cotaMsnm < minAltMin) {
+    const baja = reglas.filter(r => r.altMin != null).sort((a, b) => a.altMin - b.altMin)[0]
+    return baja ? baja.zona : null
+  }
+  return null
 }
 
 /** ¿La comuna se divide en >1 zona (por cota o meridiano)? */

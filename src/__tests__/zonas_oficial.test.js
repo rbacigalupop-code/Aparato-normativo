@@ -7,6 +7,7 @@ import {
   COMUNAS_ZONA, zonasOficialesDeComuna, resolverZonaPorCota,
   umbralesDeComuna, esMultiZona, reglasDeComuna,
 } from '../data/zonas_oficial.js'
+import { COMUNAS_ZT } from '../data/zonas_ditec.js'
 import { COMUNAS_CHILE } from '../data/comunas_chile.js'
 
 describe('resolverZonaPorCota — la altitud resuelve la zona', () => {
@@ -25,6 +26,13 @@ describe('resolverZonaPorCota — la altitud resuelve la zona', () => {
     expect(resolverZonaPorCota('Santiago', null)).toBe('D')
     expect(resolverZonaPorCota('Santiago', 9999)).toBe('D')
     expect(resolverZonaPorCota('Putre', null)).toBe('H')
+  })
+
+  it('cota bajo la banda más baja → aplica la banda inferior (Camiña sin <1.100)', () => {
+    // Camiña: B (1.100–3.000) / H (≥3.000); no hay tramo <1.100 m en la tabla.
+    expect(resolverZonaPorCota('Camiña', 500)).toBe('B')
+    expect(resolverZonaPorCota('Camiña', 2000)).toBe('B')
+    expect(resolverZonaPorCota('Camiña', 3500)).toBe('H')
   })
 
   it('multi-zona sin cota → null (la UI muestra opciones)', () => {
@@ -58,6 +66,23 @@ describe('umbralesDeComuna — bandas para la UI', () => {
     const u = umbralesDeComuna('Santiago')
     expect(u).toHaveLength(1)
     expect(u[0]).toMatchObject({ zona: 'D', alt: null })
+  })
+})
+
+describe('Sin colisiones de nombre (round-trip) — guard del bug Florida', () => {
+  it('cada comuna oficial resuelve a SUS propias zonas (ninguna pisa a otra)', () => {
+    const fallos = []
+    for (const v of Object.values(COMUNAS_ZT)) {
+      const propias = [...new Set(v.reglas.map(r => r.zona))].sort().join('')
+      const got = zonasOficialesDeComuna(v.nombre).join('')
+      if (propias !== got) fallos.push(`${v.nombre}: propias ${propias} vs resuelto ${got}`)
+    }
+    expect(fallos).toEqual([])
+  })
+
+  it('Florida (VIII) y La Florida (RM) no se confunden (el artículo distingue)', () => {
+    expect(zonasOficialesDeComuna('Florida')).toEqual(['F'])
+    expect(zonasOficialesDeComuna('La Florida')).toEqual(['D'])
   })
 })
 
