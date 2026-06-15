@@ -8,6 +8,7 @@ import { analizarBdC, estimarDemandaTermica } from '../../lib/engines/renovables
 import { TARIFA_ELEC_DEFAULT, COMBUSTIBLES_CALEFACCION } from '../../data/combustibles.js'
 import { PRECIOS_BDC } from '../../data/precios_renovables.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 const TIPOS_BDC = ['split_aire_aire', 'aerotermia_agua', 'geotermica', 'bdc_acs_dedicada']
@@ -17,7 +18,7 @@ export default function BombaCalor({ proy, calcUInit }) {
   const tarifaElec = cfg.tarifaElec ?? TARIFA_ELEC_DEFAULT
 
   // Estimación inicial de demanda y potencia
-  const hdd18 = obtenerHDD18(cfg.comunaKey, proy?.zona)
+  const hdd18 = obtenerHDD18(cfg.comunaKey, zonaClimaDeOGUC(proy?.zona, cfg.comunaKey || proy?.comuna))
   const demandaEstimada = estimarDemandaTermica(proy, calcUInit, hdd18)
 
   const [demandaKwh, setDemandaKwh] = useState(demandaEstimada)

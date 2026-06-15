@@ -28,14 +28,15 @@ import {
   clpKwhUtil,
 } from '../../data/combustibles.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import { ZONAS } from '../../data.js'
 import {
   listarComunasOrdenadas,
-  obtenerZonaDS15Comuna,
   obtenerDistribuidoraComuna,
   obtenerDistribuidoraAlt,
-  ZONA_DS15_LABELS,
+  ZONA_CLIMA_LABELS,
   REGIONES_LABELS,
 } from '../../data/comunas_chile.js'
+import { zonaClimaDeOGUC, zonasOficialesDeComuna } from '../../data/zona_clima.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 export default function EnergeticoConfig({ proy, onChangeProy }) {
@@ -48,26 +49,28 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
     })
   }
 
-  // ── Resolución de zona/macrozona ──────────────────────────────────────────
-  // Prioridad de fuente de verdad para el módulo Energético:
-  //   1. comunaKey en configEnergetica → deriva zona oficial DS N°15
-  //   2. cfg.zonaDS15 manual (override)
-  //   3. proy.zona del módulo Normativo (fallback)
+  // ── Resolución de zona oficial, clima y macrozona ─────────────────────────
+  // Dos taxonomías distintas (ver src/data/zona_clima.js):
+  //   · zonaOficial: zona térmica DS N°15 (A-I) de la comuna energética; si no
+  //     hay comuna, cae a proy.zona del módulo Normativo. Rige la MACROZONA de
+  //     precios de combustible.
+  //   · zonaClima: macrozona climática (A-H) derivada de la oficial; rige el
+  //     clima (HDD/CDD/radiación). En comunas multi-zona sigue la oficial elegida.
   const comunaKey = cfg.comunaKey || ''
-  const zonaDerivadaComuna = obtenerZonaDS15Comuna(comunaKey)
-  const zonaEfectiva = zonaDerivadaComuna || cfg.zonaDS15 || proy?.zona || null
-  const macrozona = zonaEfectiva ? zonaOGUCaMacrozona(zonaEfectiva) : 'centro'
+  const zonaOficial = zonasOficialesDeComuna(comunaKey)[0] || proy?.zona || null
+  const zonaClima = zonaOficial ? zonaClimaDeOGUC(zonaOficial, comunaKey) : (cfg.zonaClima || null)
+  const macrozona = zonaOficial ? zonaOGUCaMacrozona(zonaOficial) : 'centro'
 
-  // Cuando el usuario selecciona una comuna, sincronizamos zona, macrozona,
+  // Cuando el usuario selecciona una comuna, sincronizamos clima, macrozona,
   // distribuidora eléctrica y tarifa referencial automáticamente.
   function elegirComuna(nuevaKey) {
-    const z = obtenerZonaDS15Comuna(nuevaKey)
+    const zOficial  = zonasOficialesDeComuna(nuevaKey)[0] || proy?.zona || null
     const distribId = obtenerDistribuidoraComuna(nuevaKey)
     const distrib   = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
     patchCfg({
       comunaKey:    nuevaKey,
-      zonaDS15:     z || null,
-      macrozona:    z ? zonaOGUCaMacrozona(z) : 'centro',
+      zonaClima:    zonaClimaDeOGUC(zOficial, nuevaKey),
+      macrozona:    zOficial ? zonaOGUCaMacrozona(zOficial) : 'centro',
       distribuidora: distribId,
       tarifaElec:   distrib?.tarifa_clp_kwh ?? TARIFA_ELEC_DEFAULT,
     })
@@ -92,7 +95,7 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
     : (precioComb && combCalef) ? precioComb / (combCalef.pci_kwh_unidad * combCalef.rendTipico) : 0
 
   // HDD18 detectado (la función ya prioriza catálogo detallado → zona de comuna)
-  const hdd18 = obtenerHDD18(comunaKey, zonaEfectiva)
+  const hdd18 = obtenerHDD18(comunaKey, zonaClima)
 
   // Lista de comunas agrupadas por región para el selector
   const todasComunas = listarComunasOrdenadas()
@@ -213,7 +216,7 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
                 <optgroup key={regionCode} label={data.label}>
                   {data.items.map(c => (
                     <option key={c.key} value={c.key}>
-                      {c.nombre} (Zona {c.zona_ds15})
+                      {c.nombre} (clima {c.zona_clima})
                     </option>
                   ))}
                 </optgroup>
@@ -221,38 +224,39 @@ export default function EnergeticoConfig({ proy, onChangeProy }) {
             </select>
           </Field>
           <DataRow
-            label="Zona DS N°15 (auto)"
-            value={zonaEfectiva ? ZONA_DS15_LABELS[zonaEfectiva] || zonaEfectiva : '—'}
-            highlight={!!zonaDerivadaComuna}
+            label="Zona térmica DS N°15 (auto)"
+            value={zonaOficial ? `${zonaOficial} · ${ZONAS[zonaOficial]?.n || ''}` : '—'}
+            highlight={!!zonaOficial}
           />
-          <DataRow label="Macrozona" value={MACROZONAS[macrozona]?.label || macrozona} />
+          <DataRow
+            label="Macrozona climática (clima)"
+            value={zonaClima ? ZONA_CLIMA_LABELS[zonaClima] || zonaClima : '—'}
+          />
+          <DataRow label="Macrozona (precios)" value={MACROZONAS[macrozona]?.label || macrozona} />
           <DataRow label="Grados-día base 18°C" value={`${hdd18} °C·día`} highlight />
-          {zonaEfectiva && proy?.zona && zonaEfectiva !== proy.zona && (
+          {zonaOficial && proy?.zona && zonaOficial !== proy.zona && (
             <div style={{
               marginTop: 8, fontSize: 10, color: 'var(--warn)',
               background: 'var(--warn-bg)', border: '1px solid var(--warn)',
               padding: '6px 10px', borderRadius: 6, lineHeight: 1.5,
             }}>
-              ⚠ La zona del proyecto Normativo es <b>{proy.zona}</b>, pero aquí se usa zona <b>{zonaEfectiva}</b>.{' '}
+              ⚠ La zona térmica del proyecto Normativo es <b>{proy.zona}</b>, pero la comuna
+              elegida aquí está en zona <b>{zonaOficial}</b>. Verifica que correspondan.{' '}
               <button
                 type="button"
                 onClick={() => {
                   const cKey = proy.comuna
                     ? proy.comuna.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_')
                     : ''
-                  const z = obtenerZonaDS15Comuna(cKey)
-                  if (cKey) {
-                    const distribId = obtenerDistribuidoraComuna(cKey)
-                    const distrib = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
-                    patchCfg({
-                      comunaKey: cKey,
-                      zonaDS15: z || proy.zona,
-                      distribuidora: distribId || cfg.distribuidora,
-                      tarifaElec: distrib?.tarifa_clp_kwh ?? cfg.tarifaElec,
-                    })
-                  } else {
-                    patchCfg({ zonaDS15: proy.zona })
-                  }
+                  const distribId = obtenerDistribuidoraComuna(cKey)
+                  const distrib = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
+                  patchCfg({
+                    comunaKey: cKey || comunaKey,
+                    zonaClima: zonaClimaDeOGUC(proy.zona, cKey || proy.comuna),
+                    macrozona: zonaOGUCaMacrozona(proy.zona),
+                    distribuidora: distribId || cfg.distribuidora,
+                    tarifaElec: distrib?.tarifa_clp_kwh ?? cfg.tarifaElec,
+                  })
                 }}
                 style={{
                   background: 'var(--warn)', color: '#fff', border: 'none',

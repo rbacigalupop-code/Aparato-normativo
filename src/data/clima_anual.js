@@ -64,7 +64,9 @@ export const CDD26 = {
   'porvenir':       30,
 }
 
-// Fallback por zona DS N°15 si no hay dato detallado
+// Fallback por MACROZONA CLIMÁTICA (A-H) si no hay dato detallado.
+// NO es la zona oficial DS N°15 (A-I): indexar con la zona climática
+// (zonaClimaDeOGUC), no con proy.zona directo.
 export const CDD26_POR_ZONA = {
   'A': 620, 'B': 480, 'C': 250, 'D': 500, 'E': 450, 'F': 200, 'G': 90, 'H': 30,
 }
@@ -88,7 +90,8 @@ export const T_VERANO = {
 //   · Oeste recibe sol fuerte de tarde (crítico para sobrecalentamiento)
 //   · Sur recibe poco (sólo difusa)
 //
-// Valores aproximados por zona DS N°15 (fallback genérico):
+// Valores aproximados por MACROZONA CLIMÁTICA A-H (fallback genérico).
+// NO es la zona oficial DS N°15: usa zonaClimaDeOGUC() para indexar.
 export const RADIACION_VERTICAL_POR_ZONA = {
   'A': { N: 1450, E: 1100, S: 480,  O: 1150 },  // Norte litoral - muy soleado
   'B': { N: 1600, E: 1200, S: 520,  O: 1250 },  // Norte desértico
@@ -108,27 +111,33 @@ export const RADIACION_VERTICAL_POR_ZONA = {
 export const FRACCION_VERANO = { N: 0.30, E: 0.40, S: 0.55, O: 0.40 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-import { obtenerZonaDS15Comuna } from './comunas_chile.js'
+import { obtenerZonaClimaComuna } from './comunas_chile.js'
 
-export function obtenerCDD26(comunaKey, zonaDS15 = null) {
+// En estas funciones `zonaClima` es la MACROZONA CLIMÁTICA (A-H), normalmente
+// derivada de la zona oficial elegida vía zonaClimaDeOGUC(). Tiene prioridad
+// sobre el clima fijo de la comuna para que las comunas multi-zona sigan la
+// selección del usuario.
+export function obtenerCDD26(comunaKey, zonaClima = null) {
   const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
   if (CDD26[key] != null) return CDD26[key]
-  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaClima && CDD26_POR_ZONA[zonaClima] != null) return CDD26_POR_ZONA[zonaClima]
+  const zonaComuna = obtenerZonaClimaComuna(key)
   if (zonaComuna && CDD26_POR_ZONA[zonaComuna] != null) return CDD26_POR_ZONA[zonaComuna]
-  return CDD26_POR_ZONA[zonaDS15] ?? 400
+  return 400
 }
 
-export function obtenerTverano(comunaKey, zonaDS15 = null) {
+export function obtenerTverano(comunaKey, zonaClima = null) {
   const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
   if (T_VERANO[key] != null) return T_VERANO[key]
   const tablas = { A: 21, B: 22, C: 18, D: 21, E: 17, F: 14, G: 12, H: 10 }
-  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaClima && tablas[zonaClima] != null) return tablas[zonaClima]
+  const zonaComuna = obtenerZonaClimaComuna(key)
   if (zonaComuna && tablas[zonaComuna] != null) return tablas[zonaComuna]
-  return tablas[zonaDS15] ?? 18
+  return 18
 }
 
-export function obtenerRadiacionVertical(zonaDS15) {
-  return RADIACION_VERTICAL_POR_ZONA[zonaDS15] || RADIACION_VERTICAL_POR_ZONA.D
+export function obtenerRadiacionVertical(zonaClima) {
+  return RADIACION_VERTICAL_POR_ZONA[zonaClima] || RADIACION_VERTICAL_POR_ZONA.D
 }
 
 // Benchmarks chilenos de demanda energética anual (kWh/m²·año)

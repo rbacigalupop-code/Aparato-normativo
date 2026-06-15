@@ -9690,7 +9690,7 @@ function AppInner() {
       destinoOGUC: '', estructura: '', estructuras: [],
       profesional: 'Arq. María González (demo)', rutProfesional: '9.876.543-2', titulo: 'Arquitecta',
       rol: '', email: 'demo@normacheck.cl', telefono: '+56 9 1234 5678', ocupantes: '4',
-      configEnergetica: { comunaKey: 'temuco', zonaDS15: 'F', tipoProyecto: 'casa' },
+      configEnergetica: { comunaKey: 'temuco', zonaClima: 'F', tipoProyecto: 'casa' },
     })
     setTermica({})
     setCalcUInit({})

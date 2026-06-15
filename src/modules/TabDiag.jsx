@@ -11,7 +11,8 @@ import {
   CARGA_OCUP_DENSIDAD, OGUC_TABLA2_EDUC, getLetraOGUC_T2_Educ,
 } from '../data.js'
 import { getOverrides, resolveZonas, getOverrideZona } from '../utils/zonaStorage.js'
-import { buscarComunaKey, obtenerZonaDS15Comuna, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
+import { buscarComunaKey, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
+import { zonaClimaDeOGUC } from '../data/zona_clima.js'
 import { DISTRIBUIDORAS_ELEC, TARIFA_ELEC_DEFAULT, zonaOGUCaMacrozona } from '../data/combustibles.js'
 
 // ─── Lookup: todas las comunas (base + overrides) ─────────────────────────────
@@ -859,17 +860,20 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               value={proy.comuna}
               overrides={overrides}
               onChange={(comuna, zona) => setProy(p => {
-                const updated = { ...p, comuna, zona: zona ?? p.zona }
+                const zonaOficial = zona ?? p.zona
+                const updated = { ...p, comuna, zona: zonaOficial }
                 const cKey = buscarComunaKey(comuna)
                 if (cKey) {
-                  const z = obtenerZonaDS15Comuna(cKey)
                   const distribId = obtenerDistribuidoraComuna(cKey)
                   const distrib = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
                   updated.configEnergetica = {
                     ...p.configEnergetica,
                     comunaKey: cKey,
-                    zonaDS15: z || null,
-                    macrozona: z ? zonaOGUCaMacrozona(z) : (p.configEnergetica?.macrozona || 'centro'),
+                    // Macrozona climática derivada de la zona OFICIAL elegida (sigue
+                    // la selección en comunas multi-zona). Macrozona de precios desde
+                    // la misma zona oficial DS N°15, no desde la climática.
+                    zonaClima: zonaClimaDeOGUC(zonaOficial, comuna),
+                    macrozona: zonaOficial ? zonaOGUCaMacrozona(zonaOficial) : (p.configEnergetica?.macrozona || 'centro'),
                     distribuidora: distribId || p.configEnergetica?.distribuidora,
                     tarifaElec: distrib?.tarifa_clp_kwh ?? p.configEnergetica?.tarifaElec ?? TARIFA_ELEC_DEFAULT,
                   }
@@ -877,7 +881,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                 return updated
               })}
             />
-            <span style={S.norm}>Asigna zona térmica automáticamente — NCh1079:2019</span>
+            <span style={S.norm}>Asigna la zona térmica oficial automáticamente — DS N°15 (Tabla 1)</span>
           </div>
 
           {/* Zona térmica */}
@@ -886,7 +890,20 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               {campoVacio('zona') && <span style={{ color: '#dc2626' }}>* </span>}
               Zona térmica
             </label>
-            <select style={S.sel(campoVacio('zona'))} value={proy.zona} onChange={e => setPr('zona', e.target.value)}>
+            <select style={S.sel(campoVacio('zona'))} value={proy.zona} onChange={e => {
+              const zonaOficial = e.target.value
+              setProy(p => ({
+                ...p,
+                zona: zonaOficial,
+                // Re-derivar clima y macrozona desde la zona oficial elegida — así
+                // las comunas multi-zona (Putre, Lonquimay…) siguen la selección.
+                configEnergetica: {
+                  ...p.configEnergetica,
+                  zonaClima: zonaClimaDeOGUC(zonaOficial, p.comuna),
+                  macrozona: zonaOficial ? zonaOGUCaMacrozona(zonaOficial) : (p.configEnergetica?.macrozona || 'centro'),
+                },
+              }))
+            }}>
               <option value="">Seleccionar...</option>
               {Object.entries(ZONAS).map(([k, v]) => (
                 <option key={k} value={k}>{k} — {v.n} ({v.ej})</option>
@@ -903,7 +920,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               </span>
             )}
             {!zonaDiverge && !multiZona && zonasComunal.length === 1 && proy.zona && (
-              <span style={{ fontSize: 10, color: '#16a34a' }}>✓ Zona asignada según DS N°15 / NCh1079:2019</span>
+              <span style={{ fontSize: 10, color: '#16a34a' }}>✓ Zona asignada según DS N°15 (Tabla 1)</span>
             )}
           </div>
 

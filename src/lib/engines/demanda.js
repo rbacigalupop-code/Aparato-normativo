@@ -17,7 +17,7 @@
 
 import { obtenerHDD18 } from '../../data/grados_dia.js'
 import { obtenerCDD26, obtenerTverano, obtenerRadiacionVertical, FRACCION_VERANO, calificacionPorDemanda } from '../../data/clima_anual.js'
-import { obtenerZonaDS15Comuna } from '../../data/comunas_chile.js'
+import { obtenerZonaClimaComuna } from '../../data/comunas_chile.js'
 
 // Constantes físicas
 const Cp_AIRE = 0.34  // Wh/m³·K — calor específico del aire (ρ·Cp / 3600)
@@ -119,12 +119,12 @@ export function perdidasInfiltracion(volumen_m3, ach, hdd18) {
  *
  * @param {{N,E,S,O}} areasVidrio - m² de ventana por orientación
  * @param {number} factorSolar    - g del vidrio (0..1)
- * @param {string} zonaDS15
+ * @param {string} zonaClima
  * @param {number} factorProteccion - 0..1 (1 sin protección, 0.5 con aleros, etc.)
  * @returns {{total: number, porOrient: object}}
  */
-export function gananciasSolares(areasVidrio, factorSolar, zonaDS15, factorProteccion = 1) {
-  const rad = obtenerRadiacionVertical(zonaDS15)
+export function gananciasSolares(areasVidrio, factorSolar, zonaClima, factorProteccion = 1) {
+  const rad = obtenerRadiacionVertical(zonaClima)
   const orient = ['N', 'E', 'S', 'O']
   const porOrient = {}
   let total = 0
@@ -163,7 +163,7 @@ export function gananciasInternas(areaUtil_m2, wm2 = GANANCIAS_INTERNAS_W_M2) {
  *   factorSolar:     g del vidrio (default 0.70)
  *   factorProteccion: 0..1 (default 1)
  *   gananciasInternasWm2: default 4.5
- *   comunaKey, zonaDS15
+ *   comunaKey, zonaClima
  */
 export function balanceTermicoAnual({
   elementos = [],
@@ -177,11 +177,11 @@ export function balanceTermicoAnual({
   masaTermica = 'media',
   psiLTotal = 0,
   comunaKey = null,
-  zonaDS15 = null,
+  zonaClima = null,
 }) {
   const v = volumen || areaUtil * 2.5
-  const hdd18 = obtenerHDD18(comunaKey, zonaDS15)
-  const zonaEf = zonaDS15 || obtenerZonaDS15Comuna(comunaKey) || 'D'
+  const hdd18 = obtenerHDD18(comunaKey, zonaClima)
+  const zonaEf = zonaClima || obtenerZonaClimaComuna(comunaKey) || 'D'
 
   const pEnv = perdidasEnvolvente(elementos, hdd18)
   const pPT  = perdidasPuentesTermicos(psiLTotal, hdd18)
@@ -257,7 +257,7 @@ export function balanceTermicoAnual({
  *   areasMuroOrient: {N,E,S,O} — opcional, para WWR
  *   factorSolar:     g
  *   factorProteccion: 0..1
- *   zonaDS15
+ *   zonaClima
  *   comunaKey
  *   masaTermica:     'baja' | 'media' | 'alta' (default 'media')
  *   ventilacionNocturna: bool
@@ -267,15 +267,15 @@ export function analizarSobrecalentamiento({
   areasMuroOrient = null,
   factorSolar = 0.70,
   factorProteccion = 1,
-  zonaDS15 = 'D',
+  zonaClima = 'D',
   comunaKey = null,
   masaTermica = 'media',
   ventilacionNocturna = false,
   areaUtil = 100,
 }) {
-  const rad = obtenerRadiacionVertical(zonaDS15)
-  const cdd26 = obtenerCDD26(comunaKey, zonaDS15)
-  const tVer = obtenerTverano(comunaKey, zonaDS15)
+  const rad = obtenerRadiacionVertical(zonaClima)
+  const cdd26 = obtenerCDD26(comunaKey, zonaClima)
+  const tVer = obtenerTverano(comunaKey, zonaClima)
 
   // Ganancias solares solo verano (fracción del anual)
   const orient = ['N', 'E', 'S', 'O']

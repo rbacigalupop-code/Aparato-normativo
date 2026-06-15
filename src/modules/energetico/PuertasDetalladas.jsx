@@ -20,7 +20,7 @@ import {
   cumpleDS15Puerta, cumpleRFPuerta, cumpleRWPuerta, cumpleOGUC,
 } from '../../lib/engines/puertas_detalladas.js'
 import AyudaEnergetico from './AyudaEnergetico.jsx'
-import { ZONA_DS15_LABELS } from '../../data/comunas_chile.js'
+import { ZONAS } from '../../data.js'
 
 // ─── Defaults: arranque con 2 puertas típicas de vivienda ───────────────────
 function getDefaultPuertas(zonaEf) {
@@ -40,8 +40,9 @@ function getDefaultPuertas(zonaEf) {
 }
 
 export default function PuertasDetalladas({ proy }) {
-  const cfg = proy?.configEnergetica || {}
-  const zonaEf = cfg.zonaDS15 || proy?.zona || 'D'
+  // Puertas DS N°15 → usan la zona térmica OFICIAL del proyecto (A-I), no la
+  // macrozona climática.
+  const zonaEf = proy?.zona || 'D'
   const sugerencia = SUGERENCIAS_POR_ZONA[zonaEf] || SUGERENCIAS_POR_ZONA.D
 
   const [puertas, setPuertas] = useState(() => getDefaultPuertas(zonaEf))
@@ -189,7 +190,7 @@ function HeroResumen({ resumen, zonaEf }) {
       padding: '20px 28px', color: '#fff', marginBottom: 16,
     }}>
       <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.2, opacity: 0.85, marginBottom: 4 }}>
-        Puertas del proyecto · Zona {zonaEf} · {ZONA_DS15_LABELS[zonaEf]}
+        Puertas del proyecto · Zona {zonaEf} · {ZONAS[zonaEf]?.ej || ''}
       </div>
       <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-display)', fontVariantNumeric: 'tabular-nums' }}>
         {resumen.cumpleN} de {resumen.total} cumplen los 4 ejes · U̅ = {resumen.uPromedio} W/m²K

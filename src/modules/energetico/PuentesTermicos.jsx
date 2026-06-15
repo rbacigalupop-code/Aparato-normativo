@@ -27,6 +27,7 @@ import {
 } from '../../lib/engines/puentes_termicos.js'
 import { envolventeFromCalcUInit, perdidasEnvolvente } from '../../lib/engines/demanda.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 const CALIDAD_LABELS = {
@@ -46,7 +47,7 @@ const CATEGORIA_COLORS = {
 
 export default function PuentesTermicos({ proy, calcUInit, inventarioPT, setInventarioPT }) {
   const cfg = proy?.configEnergetica || {}
-  const zonaEf = cfg.zonaDS15 || proy?.zona
+  const zonaEf = zonaClimaDeOGUC(proy?.zona, cfg.comunaKey || proy?.comuna)
   const hdd18 = obtenerHDD18(cfg.comunaKey, zonaEf)
 
   // Inventario: array de { ptId, longitud, calidad } — estado levantado a App.jsx

@@ -21,9 +21,9 @@
 
 import { obtenerTinvierno } from './irradiacion_solar.js'
 import { obtenerTverano } from './clima_anual.js'
-import { obtenerZonaDS15Comuna } from './comunas_chile.js'
+import { obtenerZonaClimaComuna } from './comunas_chile.js'
 
-// HR exterior media por zona DS N°15 (%) — Chile
+// HR exterior media por MACROZONA CLIMÁTICA A-H (%) — Chile (no es zona DS N°15)
 // Norte litoral: alta por la camanchaca
 // Norte interior: muy baja (desierto)
 // Centro: moderada (60-70%)
@@ -55,11 +55,11 @@ export const MESES_LABELS = [
  *
  * @param {number} mes        - 1..12
  * @param {string} comunaKey
- * @param {string} zonaDS15
+ * @param {string} zonaClima
  */
-export function obtenerTextMes(mes, comunaKey, zonaDS15 = null) {
-  const tInv = obtenerTinvierno(comunaKey, zonaDS15)  // mes 7 aprox
-  const tVer = obtenerTverano(comunaKey, zonaDS15)    // mes 1 aprox
+export function obtenerTextMes(mes, comunaKey, zonaClima = null) {
+  const tInv = obtenerTinvierno(comunaKey, zonaClima)  // mes 7 aprox
+  const tVer = obtenerTverano(comunaKey, zonaClima)    // mes 1 aprox
   const tMedia = (tInv + tVer) / 2
   const ampl   = (tVer - tInv) / 2
   // mes 1 (Ene) = peak verano → cos(0) = +1
@@ -73,8 +73,8 @@ export function obtenerTextMes(mes, comunaKey, zonaDS15 = null) {
  * Aproximación simple: HR anual media (constante por mes). Mejora futura:
  * pequeña oscilación inversa a T.
  */
-export function obtenerHRMes(mes, comunaKey, zonaDS15 = null) {
-  const zona = zonaDS15 || obtenerZonaDS15Comuna(comunaKey) || 'D'
+export function obtenerHRMes(mes, comunaKey, zonaClima = null) {
+  const zona = zonaClima || obtenerZonaClimaComuna(comunaKey) || 'D'
   const hrAnual = HR_EXT_POR_ZONA[zona] ?? 70
   // Pequeña oscilación: HR mínima en verano (mes 1-2), máxima en invierno
   const desfase = 6  // mes peak HR = julio
@@ -85,14 +85,14 @@ export function obtenerHRMes(mes, comunaKey, zonaDS15 = null) {
 /**
  * Genera el array completo de clima mensual para una comuna.
  */
-export function climaMensual(comunaKey, zonaDS15 = null) {
+export function climaMensual(comunaKey, zonaClima = null) {
   const meses = []
   for (let m = 1; m <= 12; m++) {
     meses.push({
       mes:    m,
       label:  MESES_LABELS[m - 1],
-      t_ext:  Math.round(obtenerTextMes(m, comunaKey, zonaDS15) * 10) / 10,
-      hr_ext: Math.round(obtenerHRMes(m, comunaKey, zonaDS15)),
+      t_ext:  Math.round(obtenerTextMes(m, comunaKey, zonaClima) * 10) / 10,
+      hr_ext: Math.round(obtenerHRMes(m, comunaKey, zonaClima)),
       t_int:  T_INT_DEFAULT,
       hr_int: HR_INT_DEFAULT,
     })
