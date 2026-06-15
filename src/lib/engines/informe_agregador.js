@@ -10,6 +10,7 @@ import { balanceTermicoAnual, envolventeFromCalcUInit, ventanasFromFachadas, FAC
 import { analizarFV, analizarSolarTermico, analizarBdC, estimarDemandaTermica } from './renovables.js'
 import { calcularCEVEstimada, compararContraBenchmarks } from './cev.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import { BENCHMARKS_CHILE, FACTOR_CO2, PRIORIDADES_INVERSION } from '../../data/cev_chile.js'
 import { TARIFA_ELEC_DEFAULT, COMBUSTIBLES_CALEFACCION, clpKwhUtil, zonaOGUCaMacrozona } from '../../data/combustibles.js'
 
@@ -30,8 +31,8 @@ export function agregarInforme({
   superficieUtil = null,
 } = {}) {
   const cfg = proy.configEnergetica || {}
-  const zonaEf  = cfg.zonaDS15 || proy.zona || 'D'
   const comunaKey = cfg.comunaKey || ''
+  const zonaEf  = zonaClimaDeOGUC(proy.zona, comunaKey || proy.comuna)
   const tarifaElec = cfg.tarifaElec ?? TARIFA_ELEC_DEFAULT
   const hdd18 = obtenerHDD18(comunaKey, zonaEf)
   const areaUtil = superficieUtil || proy.superficie || 100
@@ -47,7 +48,7 @@ export function agregarInforme({
     areasVidrio: ventanas.areasVidrio,
     factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4,
     factorProteccion: 1.0,
-    comunaKey, zonaDS15: zonaEf,
+    comunaKey, zonaClima: zonaEf,
   })
 
   // ── 2. CEV ESTIMADA ──────────────────────────────────────────────────────
@@ -78,7 +79,8 @@ export function agregarInforme({
   })
 
   // ── 5. COSTOS Y EMISIONES ANUALES (situación actual) ─────────────────────
-  const macrozona = cfg.macrozona || zonaOGUCaMacrozona(zonaEf)
+  // Macrozona de precios desde la zona OFICIAL DS N°15 (no la climática zonaEf)
+  const macrozona = cfg.macrozona || zonaOGUCaMacrozona(proy.zona || 'D')
   const combId = cfg.combustibleCalef || 'lena_no_cert'
   const cu = clpKwhUtil(combId, macrozona, tarifaElec) || 80
   const costoCalefaccionAnual = Math.round(balance.demandaNeta * cu)

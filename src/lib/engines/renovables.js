@@ -37,6 +37,7 @@ import {
 import {
   COMBUSTIBLES_CALEFACCION, TARIFA_ELEC_DEFAULT, clpKwhUtil, zonaOGUCaMacrozona,
 } from '../../data/combustibles.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SOLAR FOTOVOLTAICO
@@ -129,7 +130,7 @@ export function analizarFV({
   fraccionCobertura = 1.0,
 }) {
   const comunaKey = proy.configEnergetica?.comunaKey || proy.comuna?.toLowerCase()?.replace(/\s/g, '_')
-  const zonaEfectiva = proy.configEnergetica?.zonaDS15 || proy.zona
+  const zonaEfectiva = zonaClimaDeOGUC(proy.zona, comunaKey || proy.comuna)
   const irrad = obtenerIrradiacion(comunaKey, zonaEfectiva)
 
   const kWp = kWpForzar != null
@@ -213,7 +214,7 @@ export function analizarSolarTermico({
   combustibleACS = null,   // si null, asume electricidad (peor caso)
   tarifaElec = TARIFA_ELEC_DEFAULT,
 }) {
-  const zonaEfectiva = proy.configEnergetica?.zonaDS15 || proy.zona
+  const zonaEfectiva = zonaClimaDeOGUC(proy.zona, proy.configEnergetica?.comunaKey || proy.comuna)
   const sistema = recomendarSistemaST(personas)
   const demanda = demandaACS(personas)
   const cobertura = COBERTURA_ACS[zonaEfectiva] || 0.65
@@ -222,7 +223,7 @@ export function analizarSolarTermico({
   const energiaApoyo = demanda - energiaSolar
 
   // Ahorro económico: lo que dejas de gastar en el combustible actual
-  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(zonaEfectiva)
+  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(proy.zona || 'D')
   const combId = combustibleACS || proy.configEnergetica?.combustibleCalef || 'elec_resistiva'
   const cu = clpKwhUtil(combId, macrozona, tarifaElec) || (tarifaElec / 0.95)
   const ahorroClp = Math.round(energiaSolar * cu)
@@ -298,7 +299,7 @@ export function analizarBdC({
   if (!bdc) return null
 
   const comunaKey = proy.configEnergetica?.comunaKey || proy.comuna?.toLowerCase()?.replace(/\s/g, '_')
-  const zonaEfectiva = proy.configEnergetica?.zonaDS15 || proy.zona
+  const zonaEfectiva = zonaClimaDeOGUC(proy.zona, comunaKey || proy.comuna)
   const tInv = obtenerTinvierno(comunaKey, zonaEfectiva)
 
   const cop = copEstacional(tipoBdC, tInv)
@@ -306,7 +307,7 @@ export function analizarBdC({
   const costoBdC = Math.round(consumoElecBdC * tarifaElec)
 
   // Sistema actual (referencia para comparar)
-  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(zonaEfectiva)
+  const macrozona = proy.configEnergetica?.macrozona || zonaOGUCaMacrozona(proy.zona || 'D')
   const combActualId = proy.configEnergetica?.combustibleCalef || 'lena_no_cert'
   const cuActual = clpKwhUtil(combActualId, macrozona, tarifaElec) || 80
   const costoActual = Math.round(demandaTermicaKwh * cuActual)
@@ -364,9 +365,9 @@ export function estimarDemandaTermica(proy, calcUInit = {}, hdd18 = 1500) {
     const u = parseFloat(data.res.U)
     qAnual += u * area * hdd18 * 24 / 1000  // kWh/año
   }
-  // Si no hay cálculos U → estimación gruesa por zona (prioriza zonaDS15 derivada)
+  // Si no hay cálculos U → estimación gruesa por macrozona climática (A-H)
   if (qAnual === 0) {
-    const zonaEf = proy?.configEnergetica?.zonaDS15 || proy?.zona
+    const zonaEf = zonaClimaDeOGUC(proy?.zona, proy?.configEnergetica?.comunaKey || proy?.comuna)
     qAnual = ({ A: 2500, B: 4000, C: 6000, D: 8000, E: 11000, F: 14000, G: 17000, H: 20000 })[zonaEf] || 8000
   }
   return Math.round(qAnual)

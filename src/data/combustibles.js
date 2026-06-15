@@ -8,12 +8,14 @@
 // ajustarlos en la pestaña Energético de cada proyecto.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Macrozonas para precios diferenciados (combustibles y leña varían mucho)
+// Macrozonas para precios diferenciados (combustibles y leña varían mucho).
+// Se indexan por la zona térmica OFICIAL DS N°15 (A-I) — pasar proy.zona, no la
+// macrozona climática. La zona I (austral: Coyhaique/Magallanes) va en austral.
 export const MACROZONAS = {
   norte:  { label: 'Norte (I–IV región)',          zonasOGUC: ['A', 'B'] },
   centro: { label: 'Centro (V–VII + RM)',          zonasOGUC: ['C', 'D'] },
   sur:    { label: 'Sur (VIII–XIV + XVI)',         zonasOGUC: ['E', 'F'] },
-  austral:{ label: 'Austral (X–XI–XII)',           zonasOGUC: ['G', 'H'] },
+  austral:{ label: 'Austral (X–XI–XII)',           zonasOGUC: ['G', 'H', 'I'] },
 }
 
 // ─── DISTRIBUIDORAS ELÉCTRICAS chilenas (8 principales) ─────────────────────

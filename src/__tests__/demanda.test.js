@@ -58,7 +58,7 @@ describe('balanceTermicoAnual — integración con masa térmica', () => {
     ach: 0.8,
     areasVidrio: { N: 6, E: 3, S: 4, O: 3 },
     factorSolar: 0.7,
-    zonaDS15: 'F',
+    zonaClima: 'F',
   }
 
   it('estructura completa con bloque iso13790 (γ, τ, a, H)', () => {
@@ -110,7 +110,7 @@ describe('integración de puentes térmicos (Ψ·L) en balance', () => {
     ach: 0.8,
     areasVidrio: { N: 6, E: 3, S: 4, O: 3 },
     factorSolar: 0.7,
-    zonaDS15: 'F',
+    zonaClima: 'F',
   }
 
   it('perdidasPuentesTermicos: Ψ·L × HDD18 × 24 / 1000', () => {

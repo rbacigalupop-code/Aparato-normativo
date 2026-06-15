@@ -11,7 +11,9 @@ import {
   CARGA_OCUP_DENSIDAD, OGUC_TABLA2_EDUC, getLetraOGUC_T2_Educ,
 } from '../data.js'
 import { getOverrides, resolveZonas, getOverrideZona } from '../utils/zonaStorage.js'
-import { buscarComunaKey, obtenerZonaDS15Comuna, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
+import { buscarComunaKey, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
+import { zonaClimaDeOGUC } from '../data/zona_clima.js'
+import { resolverZona, umbralesDeComuna } from '../data/zonas_oficial.js'
 import { DISTRIBUIDORAS_ELEC, TARIFA_ELEC_DEFAULT, zonaOGUCaMacrozona } from '../data/combustibles.js'
 
 // ─── Lookup: todas las comunas (base + overrides) ─────────────────────────────
@@ -554,6 +556,33 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
   // Divergencia solo si la zona elegida NO es ninguna de las oficiales de la comuna.
   const zonaDiverge = !!(proy.zona && zonasComunal.length && !zonasComunal.includes(proy.zona))
 
+  // Cota (msnm) y longitud del predio — OPCIONALES. Solo resuelven la zona en
+  // comunas multi-zona: la cota desambigua la duplicidad por ALTITUD y la
+  // longitud la duplicidad por MERIDIANO (8 comunas). Si el proyectista no los
+  // tiene, no se bloquea nada: se muestran las zonas y elige manualmente.
+  const umbrales = multiZona ? umbralesDeComuna(proy.comuna) : []
+  const tieneMeridiano = umbrales.some(u => u.meridiano)
+  const cota = proy.cota ?? ''
+  const lng = proy.lng ?? ''
+  const num = v => v !== '' && !isNaN(Number(v)) ? Number(v) : null
+  const cotaNum = num(cota), lngNum = num(lng)
+  const zonaPorCoords = (multiZona && (cotaNum != null || lngNum != null))
+    ? resolverZona(proy.comuna, { cota: cotaNum, lng: lngNum }) : null
+  // Ingresar/editar cota o longitud auto-aplica la zona resuelta (y re-deriva clima).
+  const aplicarCoords = (nuevaCota, nuevaLng) => setProy(p => {
+    const z = resolverZona(p.comuna, { cota: num(nuevaCota), lng: num(nuevaLng) })
+    const next = { ...p, cota: nuevaCota, lng: nuevaLng }
+    if (z && z !== p.zona) {
+      next.zona = z
+      next.configEnergetica = {
+        ...p.configEnergetica,
+        zonaClima: zonaClimaDeOGUC(z, p.comuna),
+        macrozona: zonaOGUCaMacrozona(z),
+      }
+    }
+    return next
+  })
+
   // Ficha normativa: reactiva, no requiere botón
   const ficha = useMemo(() => {
     const ests = proy.estructuras || []
@@ -859,17 +888,21 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               value={proy.comuna}
               overrides={overrides}
               onChange={(comuna, zona) => setProy(p => {
-                const updated = { ...p, comuna, zona: zona ?? p.zona }
+                const zonaOficial = zona ?? p.zona
+                // Cota/longitud son del predio anterior — se limpian al cambiar de comuna.
+                const updated = { ...p, comuna, zona: zonaOficial, cota: '', lng: '' }
                 const cKey = buscarComunaKey(comuna)
                 if (cKey) {
-                  const z = obtenerZonaDS15Comuna(cKey)
                   const distribId = obtenerDistribuidoraComuna(cKey)
                   const distrib = DISTRIBUIDORAS_ELEC.find(d => d.id === distribId)
                   updated.configEnergetica = {
                     ...p.configEnergetica,
                     comunaKey: cKey,
-                    zonaDS15: z || null,
-                    macrozona: z ? zonaOGUCaMacrozona(z) : (p.configEnergetica?.macrozona || 'centro'),
+                    // Macrozona climática derivada de la zona OFICIAL elegida (sigue
+                    // la selección en comunas multi-zona). Macrozona de precios desde
+                    // la misma zona oficial DS N°15, no desde la climática.
+                    zonaClima: zonaClimaDeOGUC(zonaOficial, comuna),
+                    macrozona: zonaOficial ? zonaOGUCaMacrozona(zonaOficial) : (p.configEnergetica?.macrozona || 'centro'),
                     distribuidora: distribId || p.configEnergetica?.distribuidora,
                     tarifaElec: distrib?.tarifa_clp_kwh ?? p.configEnergetica?.tarifaElec ?? TARIFA_ELEC_DEFAULT,
                   }
@@ -877,7 +910,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                 return updated
               })}
             />
-            <span style={S.norm}>Asigna zona térmica automáticamente — NCh1079:2019</span>
+            <span style={S.norm}>Asigna la zona térmica oficial automáticamente — DS N°15 (Tabla 1)</span>
           </div>
 
           {/* Zona térmica */}
@@ -886,7 +919,20 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               {campoVacio('zona') && <span style={{ color: '#dc2626' }}>* </span>}
               Zona térmica
             </label>
-            <select style={S.sel(campoVacio('zona'))} value={proy.zona} onChange={e => setPr('zona', e.target.value)}>
+            <select style={S.sel(campoVacio('zona'))} value={proy.zona} onChange={e => {
+              const zonaOficial = e.target.value
+              setProy(p => ({
+                ...p,
+                zona: zonaOficial,
+                // Re-derivar clima y macrozona desde la zona oficial elegida — así
+                // las comunas multi-zona (Putre, Lonquimay…) siguen la selección.
+                configEnergetica: {
+                  ...p.configEnergetica,
+                  zonaClima: zonaClimaDeOGUC(zonaOficial, p.comuna),
+                  macrozona: zonaOficial ? zonaOGUCaMacrozona(zonaOficial) : (p.configEnergetica?.macrozona || 'centro'),
+                },
+              }))
+            }}>
               <option value="">Seleccionar...</option>
               {Object.entries(ZONAS).map(([k, v]) => (
                 <option key={k} value={k}>{k} — {v.n} ({v.ej})</option>
@@ -897,13 +943,61 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                 ⚠ La comuna "{proy.comuna}" corresponde a Zona{zonasComunal.length > 1 ? 's' : ''} {zonasComunal.join(' o ')} (DS N°15). Zona modificada manualmente.
               </span>
             )}
-            {!zonaDiverge && multiZona && proy.zona && (
-              <span style={{ fontSize: 10, color: '#2563eb' }}>
-                ℹ "{proy.comuna}" abarca varias zonas térmicas ({zonasComunal.join(', ')}) según altitud/sector. Aplicada: Zona {proy.zona}. Verifica que corresponda a la ubicación del proyecto.
-              </span>
+            {!zonaDiverge && multiZona && (
+              <div style={{ fontSize: 10, color: '#2563eb', marginTop: 2 }}>
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>
+                  ℹ "{proy.comuna}" cambia de zona térmica según la {tieneMeridiano ? 'ubicación (cota y longitud)' : 'cota'} del predio:
+                </div>
+                <ul style={{ margin: '0 0 5px', paddingLeft: 16, listStyle: 'disc' }}>
+                  {umbrales.map((u, i) => (
+                    <li key={i} style={{
+                      color: u.zona === proy.zona ? '#16a34a' : '#475569',
+                      fontWeight: u.zona === proy.zona ? 700 : 400,
+                    }}>
+                      Zona {u.zona}{u.alt ? ` · ${u.alt}` : ''}{u.meridiano ? ` · meridiano ${u.meridiano}` : ''}
+                      {u.zona === proy.zona ? '  ← aplicada' : ''}
+                    </li>
+                  ))}
+                </ul>
+                <input
+                  type="number" inputMode="numeric" min="0" step="any" placeholder="Cota del predio (msnm) — opcional"
+                  value={cota}
+                  onChange={e => aplicarCoords(e.target.value, lng)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '5px 8px',
+                    border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 3,
+                  }}
+                />
+                {tieneMeridiano && (
+                  <input
+                    type="number" inputMode="decimal" step="any" placeholder="Longitud O del predio (ej. -70.4) — opcional"
+                    value={lng}
+                    onChange={e => aplicarCoords(cota, e.target.value)}
+                    style={{
+                      width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '5px 8px',
+                      border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 3,
+                    }}
+                  />
+                )}
+                {zonaPorCoords ? (
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                    ✓ {cotaNum != null ? `Cota ${cotaNum.toLocaleString('es-CL')} m` : ''}
+                    {cotaNum != null && lngNum != null ? ' · ' : ''}
+                    {lngNum != null ? `Long ${lngNum}°O` : ''} → Zona {zonaPorCoords} aplicada
+                  </span>
+                ) : (cotaNum != null || lngNum != null) ? (
+                  <span style={{ color: '#d97706' }}>
+                    ⚠ Los datos ingresados no bastan para decidir la zona{tieneMeridiano ? ' (esta comuna también se parte por longitud E/O)' : ''}. Completa cota/longitud o elige la zona manualmente.
+                  </span>
+                ) : (
+                  <span style={{ color: '#64748b' }}>
+                    Opcional: ingresa la cota{tieneMeridiano ? ' y la longitud' : ''} para fijar la zona automáticamente, o elígela manualmente arriba.
+                  </span>
+                )}
+              </div>
             )}
             {!zonaDiverge && !multiZona && zonasComunal.length === 1 && proy.zona && (
-              <span style={{ fontSize: 10, color: '#16a34a' }}>✓ Zona asignada según DS N°15 / NCh1079:2019</span>
+              <span style={{ fontSize: 10, color: '#16a34a' }}>✓ Zona asignada según DS N°15 (Tabla 1)</span>
             )}
           </div>
 

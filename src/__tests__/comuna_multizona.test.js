@@ -1,43 +1,59 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // comuna_multizona.test.js
 //
-// Algunas comunas abarcan más de una zona térmica DS N°15 según altitud/sector.
-// Bug: la app colapsaba la comuna a una sola zona (la primera) y, al elegir la
-// otra, la marcaba como "modificada manualmente". resolveZonas() debe devolver
-// TODAS las zonas oficiales de la comuna.
+// Muchas comunas abarcan más de una zona térmica DS N°15 porque la zona depende
+// de la COTA (altitud) del predio. Tras reconstruir COMUNAS_ZONA desde la tabla
+// oficial DITEC (src/data/zonas_oficial.js), son 59 comunas multi-zona (antes 6).
+//
+// El mecanismo A4 (resolveZonas conserva TODAS las filas de la comuna; el buscador
+// muestra una por zona; getOverrideZona del admin manda) se preserva: resolveZonas()
+// debe devolver todas las zonas oficiales de la comuna, no colapsar a una.
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, it, expect } from 'vitest'
 import { COMUNAS_ZONA } from '../data.js'
 import { resolveZonas, resolveZona, getOverrideZona } from '../utils/zonaStorage.js'
 
-// Comunas que en los datos aparecen en 2 zonas
+// Comunas multi-zona oficiales (por cota) — verificadas contra la tabla DITEC.
 const MULTI = {
-  Putre: ['A', 'H'],
-  'General Lagos': ['A', 'H'],
-  'San Pedro de Atacama': ['A', 'H'],
-  Lonquimay: ['F', 'H'],
-  Curarrehue: ['F', 'H'],
-  Curacautin: ['F', 'H'],
+  Arica: ['A', 'B', 'H'],
+  Camarones: ['A', 'B', 'H'],
+  Huara: ['A', 'B', 'H'],
+  Antofagasta: ['A', 'B', 'H'],
+  Calama: ['B', 'H'],
+  'San Pedro de Atacama': ['B', 'H'],
 }
 
-describe('resolveZonas — comunas multi-zona', () => {
+// Comunas mono-zona (incluye varias que el dato viejo creía multi-zona).
+const MONO = {
+  Putre: 'H',
+  Lonquimay: 'H',
+  Curacautin: 'F',
+  Temuco: 'F',
+  Santiago: 'D',
+  Valparaiso: 'C',
+}
+
+describe('resolveZonas — comunas multi-zona (por cota, DITEC)', () => {
   for (const [comuna, zonas] of Object.entries(MULTI)) {
     it(`${comuna} → ${zonas.join(', ')}`, () => {
       const r = resolveZonas(comuna, {}, COMUNAS_ZONA)
       expect(r.sort()).toEqual([...zonas].sort())
-      expect(r.length).toBe(2)
+      expect(r.length).toBe(zonas.length)
     })
   }
 
   it('case-insensitive y sin acentos', () => {
-    expect(resolveZonas('PUTRE', {}, COMUNAS_ZONA).sort()).toEqual(['A', 'H'])
-    expect(resolveZonas('curacautín', {}, COMUNAS_ZONA).sort()).toEqual(['F', 'H'])
+    expect(resolveZonas('ARICA', {}, COMUNAS_ZONA).sort()).toEqual(['A', 'B', 'H'])
+    expect(resolveZonas('san pedro de atacama', {}, COMUNAS_ZONA).sort()).toEqual(['B', 'H'])
   })
+})
 
-  it('comuna de zona única devuelve un solo elemento', () => {
-    expect(resolveZonas('Temuco', {}, COMUNAS_ZONA)).toEqual(['F'])
-    expect(resolveZonas('Santiago', {}, COMUNAS_ZONA)).toEqual(['D'])
-  })
+describe('resolveZonas — comunas mono-zona', () => {
+  for (const [comuna, zona] of Object.entries(MONO)) {
+    it(`${comuna} → ${zona}`, () => {
+      expect(resolveZonas(comuna, {}, COMUNAS_ZONA)).toEqual([zona])
+    })
+  }
 
   it('comuna inexistente → []', () => {
     expect(resolveZonas('Narnia', {}, COMUNAS_ZONA)).toEqual([])
@@ -46,18 +62,21 @@ describe('resolveZonas — comunas multi-zona', () => {
 
 describe('override del admin tiene prioridad', () => {
   it('un override define una única zona, ignora las base', () => {
-    const ov = { Putre: 'H' }
-    expect(getOverrideZona('Putre', ov)).toBe('H')
-    expect(resolveZonas('Putre', ov, COMUNAS_ZONA)).toEqual(['H'])
+    const ov = { Arica: 'B' }
+    expect(getOverrideZona('Arica', ov)).toBe('B')
+    expect(resolveZonas('Arica', ov, COMUNAS_ZONA)).toEqual(['B'])
   })
   it('sin override, getOverrideZona → null', () => {
-    expect(getOverrideZona('Putre', {})).toBeNull()
+    expect(getOverrideZona('Arica', {})).toBeNull()
   })
 })
 
 describe('resolveZona (singular) — compatibilidad', () => {
-  it('devuelve la primera zona cuando hay varias', () => {
-    expect(resolveZona('Putre', {}, COMUNAS_ZONA)).toBe('A')
-    expect(resolveZona('Lonquimay', {}, COMUNAS_ZONA)).toBe('F')
+  it('mono-zona devuelve su zona', () => {
+    expect(resolveZona('Santiago', {}, COMUNAS_ZONA)).toBe('D')
+    expect(resolveZona('Putre', {}, COMUNAS_ZONA)).toBe('H')
+  })
+  it('multi-zona devuelve una de sus zonas oficiales', () => {
+    expect(['A', 'B', 'H']).toContain(resolveZona('Arica', {}, COMUNAS_ZONA))
   })
 })

@@ -10,6 +10,7 @@
 
 import React, { useMemo } from 'react'
 import { climaMensual, MESES_LABELS, HR_INT_DEFAULT, T_INT_DEFAULT } from '../../data/clima_mensual.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import { analizarGlaserAnual } from '../../lib/engines/glaser_mensual.js'
 import { analizarMohoAnual, detectarSensibilidad, VEREDICTO_LABELS } from '../../lib/engines/moho_vtt.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
@@ -23,7 +24,7 @@ const VEREDICTO_BALANCE = {
 
 export default function Higrotermico({ proy, calcUInit }) {
   const cfg = proy?.configEnergetica || {}
-  const zonaEf = cfg.zonaDS15 || proy?.zona || 'D'
+  const zonaEf = zonaClimaDeOGUC(proy?.zona, cfg.comunaKey || proy?.comuna)
 
   // ── Encontrar el primer elemento del proyecto con capas (priorizar muro) ──
   const elemento = useMemo(() => {

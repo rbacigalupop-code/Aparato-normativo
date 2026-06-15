@@ -10,11 +10,12 @@ import {
 import { calcularVentanaCombinada } from '../../lib/engines/ventanas_detalladas.js'
 import { maxVidriadoVentana } from '../../data/ds15_ventanas.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
-import { ZONA_DS15_LABELS } from '../../data/comunas_chile.js'
+import { ZONAS } from '../../data.js'
 
 export default function VentanasDetalladas({ proy }) {
-  const cfg = proy?.configEnergetica || {}
-  const zonaEf = cfg.zonaDS15 || proy?.zona || 'D'
+  // Las sugerencias y % vidriado son DS N°15 Tabla 3 → usan la zona térmica
+  // OFICIAL del proyecto (A-I), nunca la macrozona climática.
+  const zonaEf = proy?.zona || 'D'
   const sugerencia = SUGERENCIAS_POR_ZONA[zonaEf] || SUGERENCIAS_POR_ZONA.D
 
   // Dimensiones + componentes
@@ -217,7 +218,7 @@ function Hero({ r, pctOrient, zonaEf }) {
       padding: '20px 28px', color: '#fff', marginBottom: 16,
     }}>
       <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.2, opacity: 0.85, marginBottom: 4 }}>
-        Cálculo combinado U_ventana · Zona {zonaEf} · {ZONA_DS15_LABELS[zonaEf]}
+        Cálculo combinado U_ventana · Zona {zonaEf} · {ZONAS[zonaEf]?.ej || ''}
       </div>
       <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
         U = {r.U} W/m²K · g = {r.g}

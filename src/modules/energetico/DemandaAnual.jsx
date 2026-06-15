@@ -8,7 +8,7 @@
 // Lee del proyecto:
 //   · calcUInit (U de cada elemento)
 //   · fachadas (áreas ventanas/muros por orientación)
-//   · configEnergetica.comunaKey/zonaDS15 (clima)
+//   · configEnergetica.comunaKey + zona oficial → clima (zonaClimaDeOGUC)
 //
 // Permite override de:
 //   · Áreas (si calcUInit no las trae)
@@ -27,13 +27,15 @@ import {
 } from '../../lib/engines/demanda.js'
 import { calcularSumaPsiL } from '../../lib/engines/puentes_termicos.js'
 import { BENCHMARKS_DEMANDA } from '../../data/clima_anual.js'
-import { ZONA_DS15_LABELS } from '../../data/comunas_chile.js'
+import { ZONA_CLIMA_LABELS } from '../../data/comunas_chile.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
 export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }) {
   const cfg = proy?.configEnergetica || {}
-  const zonaEf = cfg.zonaDS15 || proy?.zona || 'D'
   const comunaKey = cfg.comunaKey || null
+  // Macrozona climática derivada de la zona oficial elegida (sigue multi-zona)
+  const zonaEf = zonaClimaDeOGUC(proy?.zona, comunaKey || proy?.comuna)
 
   // Defaults según tipo de proyecto: deptos suelen tener menos infiltración
   const achDefault = cfg.tipoProyecto === 'depto' ? 0.6 : 0.8
@@ -63,14 +65,14 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
     factorSolar, factorProteccion: proteccion,
     gananciasInternasWm2: gananciasInt,
     masaTermica, psiLTotal,
-    comunaKey, zonaDS15: zonaEf,
+    comunaKey, zonaClima: zonaEf,
   }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, masaTermica, psiLTotal, comunaKey, zonaEf])
 
   const verano = useMemo(() => analizarSobrecalentamiento({
     areasVidrio: ventanas.areasVidrio,
     areasMuroOrient: ventanas.areasMuroOrient,
     factorSolar, factorProteccion: proteccion,
-    zonaDS15: zonaEf, comunaKey,
+    zonaClima: zonaEf, comunaKey,
     masaTermica, ventilacionNocturna: ventNocturna,
     areaUtil,
   }), [ventanas, factorSolar, proteccion, zonaEf, comunaKey, masaTermica, ventNocturna, areaUtil])
@@ -199,7 +201,7 @@ function Hero({ balance }) {
 function SeccionInvierno({ balance, elementos, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
   const tienePT = psiLTotal > 0
   return (
-    <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Zona ${zonaEf} · ${ZONA_DS15_LABELS[zonaEf] || ''}`}>
+    <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Clima ${zonaEf} · ${ZONA_CLIMA_LABELS[zonaEf] || ''}`}>
       {/* Inputs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 18 }}>
         <Field label="Superficie útil (m²)">

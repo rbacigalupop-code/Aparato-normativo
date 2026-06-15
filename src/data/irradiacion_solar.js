@@ -60,7 +60,7 @@ export const IRRADIACION_SOLAR = {
   'porvenir':       { anual: 2.6, verano: 5.0, invierno: 0.7, fc_fv: 0.093 },
 }
 
-// Fallback por zona DS N°15
+// Fallback por MACROZONA CLIMÁTICA (A-H) — no es la zona oficial DS N°15
 export const IRRADIACION_POR_ZONA = {
   'A': { anual: 6.5, fc_fv: 0.232 },
   'B': { anual: 6.8, fc_fv: 0.243 },
@@ -72,19 +72,21 @@ export const IRRADIACION_POR_ZONA = {
   'H': { anual: 2.7, fc_fv: 0.096 },
 }
 
-import { obtenerZonaDS15Comuna } from './comunas_chile.js'
+import { obtenerZonaClimaComuna } from './comunas_chile.js'
 
-export function obtenerIrradiacion(comunaKey, zonaDS15 = null) {
+// `zonaClima` = macrozona climática (A-H), normalmente derivada de la zona
+// oficial elegida vía zonaClimaDeOGUC(); tiene prioridad sobre el clima fijo
+// de la comuna (comunas multi-zona siguen la selección del usuario).
+export function obtenerIrradiacion(comunaKey, zonaClima = null) {
   const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
   const c = IRRADIACION_SOLAR[key]
   if (c) return c
-  // Zona DS15 derivada de la comuna en COMUNAS_CHILE
-  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaClima && IRRADIACION_POR_ZONA[zonaClima]) {
+    return { ...IRRADIACION_POR_ZONA[zonaClima], verano: null, invierno: null }
+  }
+  const zonaComuna = obtenerZonaClimaComuna(key)
   if (zonaComuna && IRRADIACION_POR_ZONA[zonaComuna]) {
     return { ...IRRADIACION_POR_ZONA[zonaComuna], verano: null, invierno: null }
-  }
-  if (zonaDS15 && IRRADIACION_POR_ZONA[zonaDS15]) {
-    return { ...IRRADIACION_POR_ZONA[zonaDS15], verano: null, invierno: null }
   }
   return { anual: 5.0, verano: 6.5, invierno: 3.5, fc_fv: 0.178 }  // Santiago default
 }
@@ -104,13 +106,14 @@ export const T_MEDIA_INVIERNO = {
   'punta_arenas':   1.5,  'puerto_natales': 1.0,  'porvenir':       1.0,
 }
 
-export function obtenerTinvierno(comunaKey, zonaDS15 = null) {
+export function obtenerTinvierno(comunaKey, zonaClima = null) {
   const key = comunaKey?.toLowerCase()?.replace(/\s/g, '_')
   const t = T_MEDIA_INVIERNO[key]
   if (t != null) return t
-  // Fallback aproximado por zona (primero deriva de comuna)
+  // Fallback aproximado por macrozona climática (A-H)
   const tablas = { 'A': 13, 'B': 11, 'C': 9, 'D': 7, 'E': 5.5, 'F': 5, 'G': 3, 'H': 1.5 }
-  const zonaComuna = obtenerZonaDS15Comuna(key)
+  if (zonaClima && tablas[zonaClima]) return tablas[zonaClima]
+  const zonaComuna = obtenerZonaClimaComuna(key)
   if (zonaComuna && tablas[zonaComuna]) return tablas[zonaComuna]
-  return tablas[zonaDS15] ?? 7
+  return 7
 }

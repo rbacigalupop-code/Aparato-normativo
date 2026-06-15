@@ -29,6 +29,7 @@ import {
 } from '../../data/combustibles.js'
 import { calcularCostoIntervencion } from '../../data/costos_intervencion.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 
 /**
  * Calcula el ahorro térmico anual por mejorar U.
@@ -151,23 +152,23 @@ export function analizarCorreccion({
   const u0       = parseFloat(uAntes)
   if (isNaN(uDespues) || isNaN(u0) || u0 <= uDespues) return null
 
-  // 1) HDD18: prioriza configEnergetica.comunaKey/zonaDS15 sobre proy.zona
+  // 1) HDD18: clima derivado de la zona oficial elegida (sigue comunas multi-zona)
   const comunaKey = configEnergetica?.comunaKey
     || proy?.configEnergetica?.comunaKey
     || proy?.comunaKey
     || proy?.comuna?.toLowerCase()?.replace(/\s/g, '_')
-  const zonaEfectiva = configEnergetica?.zonaDS15
-    || proy?.configEnergetica?.zonaDS15
-    || proy?.zona
-  const hdd18 = obtenerHDD18(comunaKey, zonaEfectiva)
+  const zonaOficial = proy?.zona
+  const zonaClima = zonaClimaDeOGUC(zonaOficial, comunaKey || proy?.comuna)
+  const hdd18 = obtenerHDD18(comunaKey, zonaClima)
 
   // 2) Ahorro kWh anual
   const ahorroKwh = ahorroTermicoAnual(u0, uDespues, areaM2, hdd18)
 
-  // 3) Resolver macrozona: prioriza la guardada en configEnergetica
+  // 3) Resolver macrozona de precios: prioriza la guardada; si no, desde la zona
+  //    OFICIAL DS N°15 (no la climática)
   const macrozona = configEnergetica?.macrozona
     || proy?.configEnergetica?.macrozona
-    || zonaOGUCaMacrozona(zonaEfectiva)
+    || zonaOGUCaMacrozona(zonaOficial || 'D')
 
   // 4) Ahorro económico
   const econ = ahorroEconomicoAnual(ahorroKwh, { ...configEnergetica, macrozona })

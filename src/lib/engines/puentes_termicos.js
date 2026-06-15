@@ -9,6 +9,7 @@
 
 import { obtenerPT, PUENTES_TERMICOS } from '../../data/puentes_termicos.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
+import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 
 /**
  * Calcula la pérdida anual de un único PT.
@@ -35,7 +36,7 @@ export function perdidaPTUnico(ptId, longitud_m, calidad, hdd18) {
  */
 export function analizarInventarioPT(inventario, { proy, configEnergetica }) {
   const comunaKey = configEnergetica?.comunaKey || proy?.comunaKey
-  const zonaEf = configEnergetica?.zonaDS15 || proy?.zona
+  const zonaEf = zonaClimaDeOGUC(proy?.zona, comunaKey || proy?.comuna)
   const hdd18 = obtenerHDD18(comunaKey, zonaEf)
 
   const detalles = []
