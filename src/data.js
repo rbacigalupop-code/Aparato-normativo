@@ -805,6 +805,13 @@ export const SC=[
   {cod:"3.1.P.EN.0.01",elem:"puerta",sistemas:null,desc:"Puerta enrollable metalica sin aislacion",capas:"Acero galvanizado 0.8mm",u:5.80,rf:null,ac_rw:18,zonas:"AB",usos:["Industrial","Comercio"],obs:"U=5.80. Solo zonas A-B."},
   {cod:"3.1.P.EN.0.02",elem:"puerta",sistemas:null,desc:"Puerta enrollable metalica + PU inyectado 40mm",capas:"Acero 0.5mm | PU inyectado 40mm | Acero 0.5mm",u:0.90,rf:null,ac_rw:24,zonas:"ABCDEFGHI",usos:["Industrial","Comercio","Vivienda"],obs:"U=0.90. PU lambda=0.027. Cumple todas las zonas A-I."},
   {cod:"3.1.P.EN.0.03",elem:"puerta",sistemas:null,desc:"Puerta enrollable metalica + lana mineral 60mm",capas:"Acero 0.5mm | Lana mineral 60mm | Acero 0.5mm",u:0.60,rf:"F30",ac_rw:28,zonas:"ABCDEFGHI",usos:["Industrial","Comercio"],obs:"U=0.60. RF F30. Lana mineral lambda=0.040. Cumple todas las zonas A-I."},
+  // ── Puertas exteriores certificadas acusticamente (LOSCAA Ed.13, codigos oficiales) ──
+  // Rw = valor CERTIFICADO LOSCAA. U = estimada NCh853 segun construccion (no certificada
+  // por LOSCAA). RF no la certifica LOSCAA -> null. Son puertas basicas: solo cumplen U en
+  // zona A; para B-I requieren nucleo aislante (ver puertas NC- con EPS/lana mineral).
+  {cod:"E.P.M.01.01",elem:"puerta",sistemas:null,desc:"Puerta exterior solida pino oregon 45mm (LOSCAA)",capas:"Madera maciza pino oregon 45mm",u:2.20,rf:null,ac_rw:17,zonas:"A",usos:["Vivienda","Educacion","Oficina"],obs:"Certificada acusticamente LOSCAA Ed.13 cod E.P.M.01.01 (Rw=17, C=18). U=2.20 estimada NCh853 (pino oregon lambda~0.13). Puerta basica: NO cumple U<=1.70 (DS N°15) salvo zona A; usar nucleo aislante para B-I. RF no certificada en LOSCAA."},
+  {cod:"E.P.M.01.02",elem:"puerta",sistemas:null,desc:"Puerta exterior liviana (hueca) 45mm (LOSCAA)",capas:"Tablero 3mm | Camara aire 39mm | Tablero 3mm",u:2.60,rf:null,ac_rw:22,zonas:"A",usos:["Vivienda","Educacion","Oficina"],obs:"Certificada acusticamente LOSCAA Ed.13 cod E.P.M.01.02 (Rw=22, C=20). U=2.60 estimada NCh853 (puerta hueca con camara de aire). NO cumple U<=1.70 (DS N°15) salvo zona A. RF no certificada en LOSCAA."},
+  {cod:"E.P.M.01.03",elem:"puerta",sistemas:null,desc:"Puerta exterior liviana con sello perimetral 45mm (LOSCAA)",capas:"Tablero 3mm | Camara aire 39mm | Tablero 3mm | Sello perimetral",u:2.60,rf:null,ac_rw:25,zonas:"A",usos:["Vivienda","Educacion","Oficina"],obs:"Certificada acusticamente LOSCAA Ed.13 cod E.P.M.01.03 (Rw=25, C=22 — la mejor puerta de LOSCAA). U=2.60 estimada NCh853; el sello mejora hermeticidad/acustica, no la U del tablero. NO cumple U<=1.70 (DS N°15) salvo zona A. RF no certificada."},
 ];
 
 // ─── BASES HOMOLOGACION ───────────────────────────────────────────────────────
