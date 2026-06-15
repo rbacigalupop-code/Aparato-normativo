@@ -88,23 +88,50 @@ function reglaMatchCota(r, cota, minAltMin) {
  * @param {number|null} cotaMsnm
  * @returns {string|null}
  */
-export function resolverZonaPorCota(comuna, cotaMsnm = null) {
+// "70° 44'" → 70.733 (grados decimales). El meridiano se expresa en °O (positivo).
+function meridDeg(s) {
+  const m = String(s || '').match(/(\d+)°(?:\s*(\d+)')?/)
+  return m ? +m[1] + (m[2] ? +m[2] / 60 : 0) : null
+}
+function reglaMatchMeridiano(r, lngOeste) {
+  if (!r.meridiano || lngOeste == null) return true
+  const deg = meridDeg(r.meridiano); if (deg == null) return true
+  if (/[≥]|>/.test(r.meridiano)) return lngOeste >= deg  // más al oeste (costa)
+  if (/[≤]|</.test(r.meridiano)) return lngOeste <= deg  // más al este (interior)
+  return true
+}
+
+/**
+ * Resuelve la zona única de una comuna usando la cota y/o la longitud del predio.
+ * Desambigua la duplicidad por ALTITUD (cota) y por MERIDIANO (longitud).
+ * @param {string} comuna
+ * @param {{cota?:number|null, lng?:number|null}} coords
+ *   cota: msnm. lng: longitud (se usa su valor absoluto en °O; acepta -73.0 o 73.0).
+ * @returns {string|null} zona única, o null si los datos no desambiguan.
+ */
+export function resolverZona(comuna, { cota = null, lng = null } = {}) {
   const reglas = reglasDeComuna(comuna)
   if (!reglas) return null
-  if (cotaMsnm == null || isNaN(cotaMsnm)) {
-    const zs = [...new Set(reglas.map(r => r.zona))]
-    return zs.length === 1 ? zs[0] : null
+  const lngO = (lng != null && !isNaN(lng)) ? Math.abs(lng) : null
+  let cand = reglas
+  if (cota != null && !isNaN(cota)) {
+    const minAltMin = Math.min(Infinity, ...reglas.filter(r => r.altMin != null).map(r => r.altMin))
+    let m = cand.filter(r => reglaMatchCota(r, cota, minAltMin))
+    // Cota bajo la banda más baja (p.ej. Camiña sin tramo <1.100 m) → banda inferior.
+    if (m.length === 0 && minAltMin !== Infinity && cota < minAltMin) {
+      const baja = reglas.filter(r => r.altMin != null).sort((a, b) => a.altMin - b.altMin)[0]
+      m = baja ? [baja] : []
+    }
+    cand = m
   }
-  const minAltMin = Math.min(Infinity, ...reglas.filter(r => r.altMin != null).map(r => r.altMin))
-  const zs = [...new Set(reglas.filter(r => reglaMatchCota(r, cotaMsnm, minAltMin)).map(r => r.zona))]
-  if (zs.length === 1) return zs[0]
-  // Cota bajo la banda más baja listada (p.ej. Camiña no tiene tramo <1.100 m):
-  // aplica la zona de menor altitud. Si quedan varias (corte por meridiano) → null.
-  if (zs.length === 0 && minAltMin !== Infinity && cotaMsnm < minAltMin) {
-    const baja = reglas.filter(r => r.altMin != null).sort((a, b) => a.altMin - b.altMin)[0]
-    return baja ? baja.zona : null
-  }
-  return null
+  if (lngO != null) cand = cand.filter(r => reglaMatchMeridiano(r, lngO))
+  const zs = [...new Set(cand.map(r => r.zona))]
+  return zs.length === 1 ? zs[0] : null
+}
+
+/** Compat: resuelve solo por cota (altitud). Ver resolverZona() para incluir longitud. */
+export function resolverZonaPorCota(comuna, cotaMsnm = null) {
+  return resolverZona(comuna, { cota: cotaMsnm })
 }
 
 /** ¿La comuna se divide en >1 zona (por cota o meridiano)? */

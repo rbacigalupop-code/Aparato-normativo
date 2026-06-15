@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, it, expect } from 'vitest'
 import {
-  COMUNAS_ZONA, zonasOficialesDeComuna, resolverZonaPorCota,
+  COMUNAS_ZONA, zonasOficialesDeComuna, resolverZonaPorCota, resolverZona,
   umbralesDeComuna, esMultiZona, reglasDeComuna,
 } from '../data/zonas_oficial.js'
 import { COMUNAS_ZT } from '../data/zonas_ditec.js'
@@ -51,6 +51,23 @@ describe('resolverZonaPorCota — la altitud resuelve la zona', () => {
     expect(zonasOficialesDeComuna('san_pedro_atacama').sort()).toEqual(['B', 'H'])
     expect(zonasOficialesDeComuna('Coyhaique')).toEqual(['I'])     // alias Coihaique
     expect(zonasOficialesDeComuna('puerto_aysen')).toEqual(['I'])  // alias Aisén
+  })
+})
+
+describe('resolverZona — desambigua por longitud (meridiano)', () => {
+  it('Antofagasta: costa (A) vs interior (B) bajo 3.000 m según longitud', () => {
+    expect(resolverZona('Antofagasta', { cota: 50, lng: -70.4 })).toBe('A')
+    expect(resolverZona('Antofagasta', { cota: 1000, lng: -69.5 })).toBe('B')
+    expect(resolverZona('Antofagasta', { cota: 3500 })).toBe('H')   // la cota basta
+    expect(resolverZona('Antofagasta', { cota: 1000 })).toBeNull()  // falta la longitud
+  })
+  it('La Serena (C >71° / B ≤71°) se resuelve solo por longitud', () => {
+    expect(resolverZona('La Serena', { lng: -71.25 })).toBe('C')
+    expect(resolverZona('La Serena', { lng: -70.8 })).toBe('B')
+  })
+  it('acepta longitud negativa o positiva (°O)', () => {
+    expect(resolverZona('La Union', { lng: -73.4 })).toBe('G')
+    expect(resolverZona('La Union', { lng: 73.0 })).toBe('F')
   })
 })
 

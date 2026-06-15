@@ -13,7 +13,7 @@ import {
 import { getOverrides, resolveZonas, getOverrideZona } from '../utils/zonaStorage.js'
 import { buscarComunaKey, obtenerDistribuidoraComuna } from '../data/comunas_chile.js'
 import { zonaClimaDeOGUC } from '../data/zona_clima.js'
-import { resolverZonaPorCota, umbralesDeComuna } from '../data/zonas_oficial.js'
+import { resolverZona, umbralesDeComuna } from '../data/zonas_oficial.js'
 import { DISTRIBUIDORAS_ELEC, TARIFA_ELEC_DEFAULT, zonaOGUCaMacrozona } from '../data/combustibles.js'
 
 // ─── Lookup: todas las comunas (base + overrides) ─────────────────────────────
@@ -556,18 +556,22 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
   // Divergencia solo si la zona elegida NO es ninguna de las oficiales de la comuna.
   const zonaDiverge = !!(proy.zona && zonasComunal.length && !zonasComunal.includes(proy.zona))
 
-  // Cota (msnm) del predio — OPCIONAL. Solo se usa para resolver la zona en
-  // comunas multi-zona (la zona depende de la altitud). Si el proyectista no la
+  // Cota (msnm) y longitud del predio — OPCIONALES. Solo resuelven la zona en
+  // comunas multi-zona: la cota desambigua la duplicidad por ALTITUD y la
+  // longitud la duplicidad por MERIDIANO (8 comunas). Si el proyectista no los
   // tiene, no se bloquea nada: se muestran las zonas y elige manualmente.
   const umbrales = multiZona ? umbralesDeComuna(proy.comuna) : []
+  const tieneMeridiano = umbrales.some(u => u.meridiano)
   const cota = proy.cota ?? ''
-  const cotaNum = cota !== '' && !isNaN(Number(cota)) ? Number(cota) : null
-  const zonaPorCota = (multiZona && cotaNum != null) ? resolverZonaPorCota(proy.comuna, cotaNum) : null
-  // Ingresar/editar la cota auto-aplica la zona resuelta (y re-deriva clima/macrozona).
-  const setCotaYZona = valor => setProy(p => {
-    const n = valor !== '' && !isNaN(Number(valor)) ? Number(valor) : null
-    const z = n != null ? resolverZonaPorCota(p.comuna, n) : null
-    const next = { ...p, cota: valor }
+  const lng = proy.lng ?? ''
+  const num = v => v !== '' && !isNaN(Number(v)) ? Number(v) : null
+  const cotaNum = num(cota), lngNum = num(lng)
+  const zonaPorCoords = (multiZona && (cotaNum != null || lngNum != null))
+    ? resolverZona(proy.comuna, { cota: cotaNum, lng: lngNum }) : null
+  // Ingresar/editar cota o longitud auto-aplica la zona resuelta (y re-deriva clima).
+  const aplicarCoords = (nuevaCota, nuevaLng) => setProy(p => {
+    const z = resolverZona(p.comuna, { cota: num(nuevaCota), lng: num(nuevaLng) })
+    const next = { ...p, cota: nuevaCota, lng: nuevaLng }
     if (z && z !== p.zona) {
       next.zona = z
       next.configEnergetica = {
@@ -885,8 +889,8 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               overrides={overrides}
               onChange={(comuna, zona) => setProy(p => {
                 const zonaOficial = zona ?? p.zona
-                // La cota es del predio anterior — se limpia al cambiar de comuna.
-                const updated = { ...p, comuna, zona: zonaOficial, cota: '' }
+                // Cota/longitud son del predio anterior — se limpian al cambiar de comuna.
+                const updated = { ...p, comuna, zona: zonaOficial, cota: '', lng: '' }
                 const cKey = buscarComunaKey(comuna)
                 if (cKey) {
                   const distribId = obtenerDistribuidoraComuna(cKey)
@@ -942,7 +946,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             {!zonaDiverge && multiZona && (
               <div style={{ fontSize: 10, color: '#2563eb', marginTop: 2 }}>
                 <div style={{ fontWeight: 600, marginBottom: 2 }}>
-                  ℹ "{proy.comuna}" cambia de zona térmica según la cota del predio:
+                  ℹ "{proy.comuna}" cambia de zona térmica según la {tieneMeridiano ? 'ubicación (cota y longitud)' : 'cota'} del predio:
                 </div>
                 <ul style={{ margin: '0 0 5px', paddingLeft: 16, listStyle: 'disc' }}>
                   {umbrales.map((u, i) => (
@@ -956,25 +960,38 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                   ))}
                 </ul>
                 <input
-                  type="number" inputMode="numeric" min="0" placeholder="Cota del predio (msnm) — opcional"
+                  type="number" inputMode="numeric" min="0" step="any" placeholder="Cota del predio (msnm) — opcional"
                   value={cota}
-                  onChange={e => setCotaYZona(e.target.value)}
+                  onChange={e => aplicarCoords(e.target.value, lng)}
                   style={{
                     width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '5px 8px',
                     border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 3,
                   }}
                 />
-                {zonaPorCota ? (
+                {tieneMeridiano && (
+                  <input
+                    type="number" inputMode="decimal" step="any" placeholder="Longitud O del predio (ej. -70.4) — opcional"
+                    value={lng}
+                    onChange={e => aplicarCoords(cota, e.target.value)}
+                    style={{
+                      width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '5px 8px',
+                      border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 3,
+                    }}
+                  />
+                )}
+                {zonaPorCoords ? (
                   <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                    ✓ Cota {cotaNum.toLocaleString('es-CL')} msnm → Zona {zonaPorCota} aplicada
+                    ✓ {cotaNum != null ? `Cota ${cotaNum.toLocaleString('es-CL')} m` : ''}
+                    {cotaNum != null && lngNum != null ? ' · ' : ''}
+                    {lngNum != null ? `Long ${lngNum}°O` : ''} → Zona {zonaPorCoords} aplicada
                   </span>
-                ) : cotaNum != null ? (
+                ) : (cotaNum != null || lngNum != null) ? (
                   <span style={{ color: '#d97706' }}>
-                    ⚠ A {cotaNum.toLocaleString('es-CL')} msnm la altitud no basta para decidir (corte por meridiano/longitud). Elige la zona manualmente.
+                    ⚠ Los datos ingresados no bastan para decidir la zona{tieneMeridiano ? ' (esta comuna también se parte por longitud E/O)' : ''}. Completa cota/longitud o elige la zona manualmente.
                   </span>
                 ) : (
                   <span style={{ color: '#64748b' }}>
-                    Opcional: ingresa la cota para fijar la zona automáticamente, o elígela manualmente arriba.
+                    Opcional: ingresa la cota{tieneMeridiano ? ' y la longitud' : ''} para fijar la zona automáticamente, o elígela manualmente arriba.
                   </span>
                 )}
               </div>

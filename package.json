@@ -22,6 +22,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:secretos": "node scripts/check-secretos.mjs"
+    "check:secretos": "node scripts/check-secretos.mjs",
+    "zonas:extraer": "node scripts/extraer-zt-ditec.mjs --write",
+    "zonas:auditar": "node scripts/auditar-zt-ditec.mjs"
   }
 }
