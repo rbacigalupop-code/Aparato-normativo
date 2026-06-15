@@ -8990,27 +8990,6 @@ ${cards}`)
                 ))}
               </tbody>
             </table>
-            {/* ── ⚠ AVISO TEMPORAL — discrepancia informe vs calculadora ──── */}
-            <div style={{
-              marginTop: 16, padding: '12px 16px',
-              background: '#fef3c7', border: '1.5px solid #f59e0b',
-              borderRadius: 8, fontSize: 12, color: '#78350f', lineHeight: 1.6,
-            }}>
-              <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
-                ⚠ Aviso importante antes de exportar
-              </div>
-              Si aplicaste <b>correcciones automáticas</b> en la pestaña <b>Cálculo U</b>
-              (Fachada Ventilada, EIFS, Trasdosado, aumentar espesor, etc.) o resolviste
-              condensación / RF mediante corrección sugerida, te recomendamos:
-              <ol style={{ margin: '6px 0 0 22px', padding: 0, lineHeight: 1.7 }}>
-                <li>Volver a la pestaña <b>Soluciones</b> y reaplicar la solución (o la corregida) para asegurar que el estado del proyecto está actualizado.</li>
-                <li>Revisar la <b>Vista previa</b> antes de exportar — si ves "no cumple" en algún elemento que en la calculadora cumple, repite el paso 1.</li>
-              </ol>
-              <div style={{ marginTop: 6, fontSize: 11, fontStyle: 'italic', color: '#92400e' }}>
-                Sabemos que el motor del informe puede usar el cálculo original cuando se aplica una corrección automática. Estamos trabajando en el fix.
-              </div>
-            </div>
-
             {/* ── Selector de formato + botón exportar ──────────────────── */}
             <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               {/* Píldoras de formato */}

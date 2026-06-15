@@ -1,10 +1,13 @@
-# ✅ RESUELTO — Discrepancia calculadora vs informe
+# ✅ RESUELTO Y CERRADO — Discrepancia calculadora vs informe
 
 > **Estado 2026-06-10: RESUELTO** en commit `d758488` (getCalcUData prioriza
-> `correccionAplicada` sobre el fallback "peor U"). Este documento se conserva
-> solo como registro histórico del diagnóstico. ÚNICO RESTO PENDIENTE: retirar
-> el banner amarillo defensivo de TabResultados cuando el usuario confirme con
-> casos reales que no quedan discrepancias (ver docs/PUNTO_DE_RETOMA.md).
+> `correccionAplicada` sobre el fallback "peor U"). Reforzado 2026-06-15 con A5
+> (al "Aplicar" se traspasa la U modificada del simulador de capas).
+> **2026-06-15: banner defensivo RETIRADO** de TabResultados — verificado en código
+> que getCalcUData prioriza la corrección aplicada, el informe usa `calcUData.capas`
+> en el orden corregido + el `res` precalculado (sin discrepancia de orden para
+> Glaser), y el RF se toma de `termica[elem].rf` (solución aplicada, no varía con
+> espesor). Documento conservado como registro histórico del diagnóstico.
 
 **Reportado:** 2026-05-27
 **Evidencia confirmada:** 2026-05-27 (mismo día — caso real comparado)
