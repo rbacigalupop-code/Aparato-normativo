@@ -37,19 +37,22 @@ El botón **"Aplicar"** ahora usa la **U recalculada del simulador de capas** (e
 
 ---
 
+## CERRADO 2026-06-15 (además de A3/M2/A4/A5)
+- **Unificación de zonas DITEC** (merge `242eecd`): COMUNAS_ZONA reconstruido desde tabla oficial DITEC con cota/longitud, 59 multi-zona, ingreso de altura opcional en TabDiag. Hecho en sesión paralela. Cruce de proyectos guardados: 0 afectados.
+- **Banner amarillo de discrepancia informe** retirado (`8859eff`): bug cerrado y verificado (getCalcUData prioriza correcciónAplicada, informe usa capas en orden corregido + res precalculado, RF desde solución aplicada). Ver `docs/BUG_PENDIENTE_INFORMES.md`.
+- **Catálogo P3 (parcial)** (`247fe00`): 3 puertas exteriores LOSCAA con código + Rw certificado (E.P.M.01.01/02/03). Celulosa insuflada NO se agregó (sin código LOSCAT; ya usable como material). Control solar/factor g → **chip de tarea** (módulo energético, no catálogo).
+
 ## DÓNDE QUEDAMOS (siguientes tareas)
 
-1. **Unificar zonas DS15** (chip de tarea abierto): `comunas_chile.js` (A-H) vs `COMUNAS_ZONA` (A-I oficial) no coinciden; el módulo energético/clima usa la fuente equivocada.
+1. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
 
-2. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
+2. **Integración PDA** (Planes Descontaminación Atmosférica): el usuario está descargando las 10 zonas a `Descargas\PDA\<zona>\`. Plan: extractor → `src/data/pda.js` (exigencias + fichas), mapeo comuna→PDA, categoría de hermeticidad.
 
-3. **Integración PDA** (Planes Descontaminación Atmosférica): el usuario está descargando las 10 zonas a `Descargas\PDA\<zona>\`. Plan: extractor → `src/data/pda.js` (exigencias + fichas), mapeo comuna→PDA, categoría de hermeticidad.
+3. **Factor solar g (vidrios control solar)** — chip abierto: modelar SHGC en el módulo energético (ganancias solares/demanda), no en el catálogo OGUC.
 
-4. **Catálogo Prioridad 3:** fibra de celulosa insuflada, vidrios control solar (factor g), puertas acústicas.
+4. **Opcional:** agregar capa explícita de pavimento en los strings `capas` de las soluciones de piso del catálogo (ej. `1.4.G.M1.1`).
 
-5. **Opcional:** agregar capa explícita de pavimento en los strings `capas` de las soluciones de piso del catálogo (ej. `1.4.G.M1.1`).
-
-6. **Bordes (BAJA):** `calcularU([])` → 5.88 (falta guard); `perdidaPTUnico(id_inválido)` → 0 silencioso; posible código muerto en engines.
+5. **Bordes (BAJA):** `calcularU([])` → 5.88 (falta guard); `perdidaPTUnico(id_inválido)` → 0 silencioso; posible código muerto en engines.
 
 ---
 
