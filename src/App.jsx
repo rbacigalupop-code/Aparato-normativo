@@ -2137,13 +2137,14 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
   const uso = proy.uso || 'Vivienda'
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
+  // Verificación SOLO térmica (U). La RF se evalúa en la pestaña 4 · Fuego.
   const ELEMS = [
-    { id:'muro',    label:'Muro',            umax: zona?.muro,  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos) },
-    { id:'techo',   label:'Techo/Cubierta',  umax: zona?.techo, rfReq: RF_ELEM_REQ('techo',uso,proy.pisos) },
-    { id:'piso',    label:'Piso',            umax: zona?.piso,  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos) },
-    { id:'tabique', label:'Tabique',         umax: null,        rfReq: RF_ELEM_REQ('tabique',uso,proy.pisos) },
-    { id:'ventana', label:'Ventana',         umax: null,        rfReq: '' },
-    { id:'puerta',  label:'Puerta exterior', umax: PUERTA_U[proy.zona]||null, rfReq: RF_ELEM_REQ('puerta',uso,proy.pisos,proy.zona) },
+    { id:'muro',    label:'Muro',            umax: zona?.muro },
+    { id:'techo',   label:'Techo/Cubierta',  umax: zona?.techo },
+    { id:'piso',    label:'Piso',            umax: zona?.piso },
+    { id:'tabique', label:'Tabique',         umax: null },
+    { id:'ventana', label:'Ventana',         umax: null },
+    { id:'puerta',  label:'Puerta exterior', umax: PUERTA_U[proy.zona]||null },
   ]
 
   const vpctAlerta = zona?.pda
@@ -2154,12 +2155,11 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
         titulo="Cómo usar — Verificación Térmica"
         pasos={[
           'Ingresa el valor U (W/m²K) para cada elemento: puedes tomarlo de la solución LOSCAT aplicada o calcularlo en <b>Cálculo U</b>.',
-          'El campo <b>RF propuesta</b> es opcional; si completaste Fuego, se toma automáticamente.',
           'El campo <b>Factor puente térmico (TB%)</b> corrige el U real según la presencia de estructura portante. Usa el valor de la solución LOSCAT o MINVU (guía puentes térmicos).',
+          'La verificación es solo térmica (U ≤ U-máx DS N°15). La <b>resistencia al fuego (RF)</b> se verifica en la pestaña <b>4 · Fuego</b>.',
           'Las filas en verde cumplen DS N°15 · Zona ' + (proy.zona||'—') + '. Las rojas requieren ajuste.',
-          'La columna <b>Condensación</b> se calcula en la pestaña Cálculo U con el método Glaser.',
         ]}
-        normativa="DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Art. 4.1.10 · LOFC Ed.17"
+        normativa="DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Art. 4.1.10"
       />
 
       {/* ── Soluciones aplicadas (resumen visual) ─────────────────────────── */}
@@ -2238,7 +2238,6 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                           <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{sol.cod}</div>
                           <div style={{ fontSize:10 }}>{sol.desc}</div>
                           <div style={{ fontSize:11, marginTop:2 }}>U = <b>{termica[k]?.u} W/m²K</b>{um && <> <span style={{ fontWeight:700, color: ok?'#166534':'#dc2626' }}>{ok?'✓':'✗'}</span></>}</div>
-                          {sol.rf && <div style={{ fontSize:10, color:'#374151' }}>RF {sol.rf}</div>}
                         </div>
                       )
                     })}
@@ -2270,7 +2269,6 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                       U = <b>{termica[k]?.u} W/m²K</b>
                       {um && <> · máx {um} · <span style={{ fontWeight:700, color: ok?'#166534':'#dc2626' }}>{ok?'✓ CUMPLE':'✗ NO CUMPLE'}</span></>}
                     </div>
-                    {sol.rf && <div style={{ fontSize:10, color:'#374151' }}>RF {sol.rf} · Rw {sol.ac_rw!=null?sol.ac_rw+'dB':'—'}</div>}
                   </div>
                 )
               })}
@@ -2290,12 +2288,10 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
             <th style={S.th}>TB% <span style={{ fontWeight:400, fontSize:10 }}>(opcional)</span></th>
             <th style={S.th}>U corregida</th>
             <th style={S.th}>U máx DS N°15</th>
-            <th style={S.th}>RF propuesta</th>
-            <th style={S.th}>RF mín OGUC</th>
             <th style={S.th}>Estado</th>
           </tr></thead>
           <tbody>
-            {ELEMS.map(({ id, label, umax, rfReq }) => {
+            {ELEMS.map(({ id, label, umax }) => {
               const sol = termica[id]?.solucion
               const uRaw = termica[id]?.u || ''
               const up = parseFloat(uRaw)
@@ -2303,9 +2299,6 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
               const uCorr = (!isNaN(up) && up > 0 && tbPct > 0) ? (up * (1 + tbPct/100)) : up
               const uDisplay = (!isNaN(uCorr) && uCorr > 0) ? uCorr.toFixed(3) : ''
               const cumpleU = !umax || !uDisplay || parseFloat(uDisplay) <= umax
-              const rfProp = termica[id]?.rf || (sol?.rf||'')
-              const cumpleRF = !rfReq || !rfProp || rfN(rfProp) >= rfN(rfReq)
-              const cumpleTodo = cumpleU && cumpleRF
               const uInvalid = uRaw !== '' && (isNaN(up) || up <= 0)
               // Sub-filas por sistema estructural
               const sistemasSolElem = (proy.estructuras?.length > 1)
@@ -2313,7 +2306,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                 : []
               return (
                 <React.Fragment key={id}>
-                <tr style={{ background: uDisplay&&!cumpleTodo?'#fff5f5':'transparent' }}>
+                <tr style={{ background: uDisplay&&!cumpleU?'#fff5f5':'transparent' }}>
                   <td style={S.td}>
                     <b>{label}</b>
                     {sol && <div style={{ fontSize:10, color:'#1e40af', marginTop:2 }}>📋 {sol.cod}</div>}
@@ -2337,18 +2330,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                     {umax ? `≤ ${umax}` : <span style={{ color:'#94a3b8' }}>—</span>}
                   </td>
                   <td style={S.td}>
-                    <select style={{ ...ist, width:75 }} value={termica[id]?.rf||''}
-                      onChange={e=>set(id,'rf',e.target.value)}>
-                      <option value="">—</option>
-                      {['F0','F15','F30','F60','F90','F120','F150','F180'].map(f=><option key={f}>{f}</option>)}
-                    </select>
-                    {sol?.rf && !termica[id]?.rf && <div style={{ fontSize:10, color:'#94a3b8' }}>↑ {sol.rf} (sol.)</div>}
-                  </td>
-                  <td style={{ ...S.td, color: rfReq?'#dc2626':'#94a3b8', fontWeight: rfReq?700:'normal' }}>
-                    {rfReq || '—'}
-                  </td>
-                  <td style={S.td}>
-                    {uDisplay ? <span style={S.badge(cumpleTodo)}>{cumpleTodo?'CUMPLE':'NO CUMPLE'}</span>
+                    {uDisplay ? <span style={S.badge(cumpleU)}>{cumpleU?'CUMPLE':'NO CUMPLE'}</span>
                       : <span style={{ fontSize:11, color:'#94a3b8' }}>—</span>}
                   </td>
                 </tr>
@@ -2357,11 +2339,8 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                   const d = est.soluciones[id]
                   const uS = parseFloat(d.u || 0)
                   const okU = !umax || uS <= umax
-                  const rfS = d.rf || ''
-                  const okRF = !rfReq || !rfS || rfN(rfS) >= rfN(rfReq)
-                  const okTodo = okU && okRF
                   return (
-                    <tr key={est.id} style={{ background: okTodo ? '#f0fdf4' : '#fff5f5' }}>
+                    <tr key={est.id} style={{ background: okU ? '#f0fdf4' : '#fff5f5' }}>
                       <td style={{ ...S.td, paddingLeft:24, fontSize:11 }}>
                         <span style={{ color:'#64748b' }}>↳ {est.tipo.replace('Albanileria','Alb.').replace('Hormigon armado','H.A.').replace('Estructura de acero','Acero')}</span>
                         {est.sector && <span style={{ marginLeft:4, color:'#94a3b8', fontSize:10 }}>{est.sector}</span>}
@@ -2372,9 +2351,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                       <td style={S.td}><span style={{ color:'#94a3b8', fontSize:10 }}>—</span></td>
                       <td style={{ ...S.td, fontWeight:700, color: okU ? '#166534' : '#dc2626' }}>{d.u || '—'}</td>
                       <td style={{ ...S.td, color:'#dc2626', fontWeight:700 }}>{umax ? `≤ ${umax}` : <span style={{ color:'#94a3b8' }}>—</span>}</td>
-                      <td style={{ ...S.td, fontWeight:700 }}>{rfS || <span style={{ color:'#94a3b8' }}>—</span>}</td>
-                      <td style={{ ...S.td, color: rfReq?'#dc2626':'#94a3b8', fontWeight: rfReq?700:'normal' }}>{rfReq || '—'}</td>
-                      <td style={S.td}><span style={S.badge(okTodo)}>{okTodo ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+                      <td style={S.td}><span style={S.badge(okU)}>{okU ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
                     </tr>
                   )
                 })}
