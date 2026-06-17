@@ -41,18 +41,19 @@ El botón **"Aplicar"** ahora usa la **U recalculada del simulador de capas** (e
 - **Unificación de zonas DITEC** (merge `242eecd`): COMUNAS_ZONA reconstruido desde tabla oficial DITEC con cota/longitud, 59 multi-zona, ingreso de altura opcional en TabDiag. Hecho en sesión paralela. Cruce de proyectos guardados: 0 afectados.
 - **Banner amarillo de discrepancia informe** retirado (`8859eff`): bug cerrado y verificado (getCalcUData prioriza correcciónAplicada, informe usa capas en orden corregido + res precalculado, RF desde solución aplicada). Ver `docs/BUG_PENDIENTE_INFORMES.md`.
 - **Catálogo P3 (parcial)** (`247fe00`): 3 puertas exteriores LOSCAA con código + Rw certificado (E.P.M.01.01/02/03). Celulosa insuflada NO se agregó (sin código LOSCAT; ya usable como material). Control solar/factor g → **chip de tarea** (módulo energético, no catálogo).
+- **Módulo Térmico sin RF** (`07369b4`): quitadas las columnas RF de la verificación térmica (vive en módulo 4 Fuego); Estado = solo U.
+- **Bordes BAJA B1/B2** (`83c0f0d`): `calcularU` sin capas → null (no 5.88); `perdidaPTUnico(id inválido)` → null (no 0). Test `engines_bordes.test.js`.
+- **Bug "estructura→madera"** CERRADO: no reapareció; el usuario confirmó retirarlo de la lista (no reproducible).
 
 ## DÓNDE QUEDAMOS (siguientes tareas)
 
-1. **Bug "estructura→madera"** PAUSADO: al aplicar una solución albañilería+EPS, en Resultados/Informe/Energético cambiaba a "estructura de madera". No reproducible hasta ahora. El usuario sacará captura + DevTools si reaparece.
+1. **Integración PDA** (Planes Descontaminación Atmosférica): el usuario está descargando las 10 zonas a `Descargas\PDA\<zona>\`. Plan: extractor → `src/data/pda.js` (exigencias + fichas), mapeo comuna→PDA, categoría de hermeticidad.
 
-2. **Integración PDA** (Planes Descontaminación Atmosférica): el usuario está descargando las 10 zonas a `Descargas\PDA\<zona>\`. Plan: extractor → `src/data/pda.js` (exigencias + fichas), mapeo comuna→PDA, categoría de hermeticidad.
+2. **Factor solar g (vidrios control solar)** — chip abierto: modelar SHGC en el módulo energético (ganancias solares/demanda), no en el catálogo OGUC.
 
-3. **Factor solar g (vidrios control solar)** — chip abierto: modelar SHGC en el módulo energético (ganancias solares/demanda), no en el catálogo OGUC.
+3. **Opcional / no recomendado:** capa explícita de pavimento en los strings `capas` de pisos — evaluado y descartado por ahora (cosmético, orientación variable por solución, entangled con el parser de Cálculo U).
 
-4. **Opcional:** agregar capa explícita de pavimento en los strings `capas` de las soluciones de piso del catálogo (ej. `1.4.G.M1.1`).
-
-5. **Bordes (BAJA):** `calcularU([])` → 5.88 (falta guard); `perdidaPTUnico(id_inválido)` → 0 silencioso; posible código muerto en engines.
+4. **B3 (limpieza, no urgente):** resto de posible código muerto en engines (requiere análisis de llamadas internas; hay falsos positivos).
 
 ---
 
