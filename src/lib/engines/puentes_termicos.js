@@ -18,11 +18,11 @@ import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
  * @param {number} longitud_m
  * @param {string} calidad - 'malo' | 'tipico' | 'mejor'
  * @param {number} hdd18
- * @returns {number} kWh/año
+ * @returns {number|null} kWh/año, o null si el ptId no existe en el catálogo
  */
 export function perdidaPTUnico(ptId, longitud_m, calidad, hdd18) {
   const pt = obtenerPT(ptId)
-  if (!pt) return 0
+  if (!pt) return null // id inexistente: null distingue "PT desconocido" de "0 pérdida"
   const psi = pt.psi[calidad] ?? pt.psi.tipico
   if (!psi || !longitud_m || !hdd18) return 0
   return Math.round(psi * longitud_m * hdd18 * 24 / 1000)

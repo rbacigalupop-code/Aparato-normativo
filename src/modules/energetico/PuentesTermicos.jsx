@@ -23,7 +23,6 @@ import {
 } from '../../data/puentes_termicos.js'
 import {
   analizarInventarioPT, porcentajeImpactoPT, severidadPT,
-  perdidaPTUnico,
 } from '../../lib/engines/puentes_termicos.js'
 import { envolventeFromCalcUInit, perdidasEnvolvente } from '../../lib/engines/demanda.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'

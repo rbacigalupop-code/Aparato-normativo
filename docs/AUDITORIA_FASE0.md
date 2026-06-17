@@ -122,14 +122,21 @@ Había TRES definiciones distintas:
 
 ## BAJA
 
-### B1 — `calcularU([])` con capas vacías → 5.88 ⬜
-`src/lib/engines/thermal.js` · devuelve 1/(Rsi+Rse) en vez de null. Edge; agregar guard si la UI puede invocarlo sin capas.
+### B1 — `calcularU([])` con capas vacías → 5.88 ✅ RESUELTO
+`src/lib/engines/thermal.js` · ahora devuelve **null** si no hay capas o ninguna aporta R
+(antes 1/(Rsi+Rse) ≈ 5.88, un U engañoso). Guard `aporto` + chequeo `capas.length`.
+Bloqueado por `src/__tests__/engines_bordes.test.js`.
 
-### B2 — `perdidaPTUnico(id_inválido)` → 0 silencioso ⬜
-`src/lib/engines/puentes_termicos.js` · un id de puente inexistente devuelve 0 sin avisar.
+### B2 — `perdidaPTUnico(id_inválido)` → 0 silencioso ✅ RESUELTO
+`src/lib/engines/puentes_termicos.js` · un ptId inexistente ahora devuelve **null**
+(distingue "PT desconocido" de "0 pérdida"). `analizarInventarioPT` ya filtraba `if(!pt) continue`,
+así que no se rompe. Bloqueado por `engines_bordes.test.js`. De paso, eliminado el import
+muerto de `perdidaPTUnico` en `PuentesTermicos.jsx` (parte de B3).
 
-### B3 — Posible código muerto en engines ⬜
-Varias funciones exportadas no se llaman fuera de su archivo (economic, renovables, fire helpers, thermal helpers, acoustic). Requiere análisis de llamadas internas para confirmar (hay falsos positivos). Candidato a limpieza, no urgente.
+### B3 — Posible código muerto en engines 🔶 PARCIAL
+Eliminados imports muertos detectados (acoustic en App.jsx — M2; `perdidaPTUnico` en
+PuentesTermicos.jsx — B2). Resto requiere análisis de llamadas internas (hay falsos
+positivos). Candidato a limpieza, no urgente.
 
 ---
 

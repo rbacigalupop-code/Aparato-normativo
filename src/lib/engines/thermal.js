@@ -5,16 +5,20 @@
 
 // ─── Cálculo de Transmitancia U según ISO 6946 ───────────────────────────────
 export function calcularU(capas, lam, esp, rsiRse) {
-  if (!capas || !lam || !esp || !rsiRse) return null
+  if (!capas || !capas.length || !lam || !esp || !rsiRse) return null
   let Rtot = rsiRse.rsi + rsiRse.rse
+  let aporto = false // ¿alguna capa aportó resistencia? (evita devolver 1/(Rsi+Rse))
   for (let i = 0; i < capas.length; i++) {
     const lamCapa = parseFloat(lam[i]) || 0
     const espCapa = parseFloat(esp[i]) || 0
     if (lamCapa > 0 && espCapa > 0) {
       Rtot += espCapa / 1000 / lamCapa
+      aporto = true
     }
   }
-  return Rtot > 0 ? 1 / Rtot : null
+  // Sin capas con aporte real, las resistencias superficiales solas darían un U
+  // engañoso (~5.88). Devolver null para que la UI lo trate como "sin dato".
+  return (aporto && Rtot > 0) ? 1 / Rtot : null
 }
 
 // ─── Cálculo de Transmitancia U de secciones constructivas (SC) ──────────────
