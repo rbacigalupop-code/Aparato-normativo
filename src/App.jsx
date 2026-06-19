@@ -212,9 +212,11 @@ function capasSeccionSvgStr(capas, opts = {}) {
     xCur += w
   })
 
-  // Tabla de leyenda: muestra nombres completos
+  // Tabla de leyenda. El nombre se trunca para no desbordar sobre la columna de
+  // Espesor (anclada en PL+300): el área de nombre es ~PL+14 → ~PL+290.
   const legendRows = capas.map((c, i) => {
     const name = c.esCamara ? 'Cámara de aire' : (c.mat || c.name || c.n || '—')
+    const nameShort = name.length > 42 ? name.slice(0, 41) + '…' : name
     const col  = fichaLayerColor(name)
     const esp  = c.esCamara ? '—' : `${Math.round(parseFloat(c.esp || 0))} mm`
     const lam  = (!c.esCamara && parseFloat(c.lam) > 0) ? parseFloat(c.lam).toFixed(3) : '—'
@@ -222,7 +224,7 @@ function capasSeccionSvgStr(capas, opts = {}) {
       ? (parseFloat(c.esp)/1000/parseFloat(c.lam)).toFixed(3) : '—'
     const ry   = LEGEND_Y + 13 + i * ROW_H
     return `<rect x="${PL}" y="${ry - 9}" width="9" height="9" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1" rx="1.5"/>
-<text x="${PL + 14}" y="${ry}" font-size="8.5" fill="#1e293b"><tspan font-weight="700">${i+1}.</tspan> ${name}</text>
+<text x="${PL + 14}" y="${ry}" font-size="8.5" fill="#1e293b"><tspan font-weight="700">${i+1}.</tspan> ${nameShort}</text>
 <text x="${PL + 300}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">${esp}</text>
 <text x="${PL + 370}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">λ ${lam}</text>
 <text x="${PL + 450}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">R ${Ri}</text>`
@@ -592,9 +594,19 @@ ${legendRows(horizCapas, horizRowsY)}
 }
 
 function fichaScSvgStr(s, capas, opts = {}) {
-  const W = 560, H = 270
-  const PL = 38, PR = 38, PT = 38, PB = 96
-  const gW = W - PL - PR, gH = H - PT - PB
+  // Layout: barras de capas con badge numerado dentro + leyenda debajo (N° →
+  // nombre/espesor/λ). Antes las etiquetas iban rotadas 38° desde el centro de
+  // cada capa y se superponían en capas delgadas/numerosas.
+  const W = 560
+  const PL = 38, PR = 38, PT = 40
+  const gW = W - PL - PR
+  const DIAG_H = 104
+  const ROW_H = 13
+  const legendHeadY = PT + DIAG_H + 14
+  const firstRowY = legendHeadY + 14
+  const legendEndY = firstRowY + capas.length * ROW_H
+  const badgesTop = legendEndY + 4
+  const H = badgesTop + 30
 
   const nCam = capas.filter(c => c.esCamara).length
   const realEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + Math.max(parseFloat(c.esp || 0), 1), 0)
@@ -614,34 +626,47 @@ function fichaScSvgStr(s, capas, opts = {}) {
 <pattern id="fp-metal" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
 </defs>`
 
+  // Barras + badge numerado + espesor dentro del bloque (si hay espacio)
   let xCur = PL
   const layerParts = capas.map((c, i) => {
     const w = rawW[i]
     const col = c.esCamara ? { fill: '#e0f2fe', stroke: '#7dd3fc', pat: 'air' } : fichaLayerColor(c.n || c.mat || c.name || '')
     const hasPat = ['insul', 'conc', 'wood', 'brick', 'air', 'mem', 'metal'].includes(col.pat)
     const mx = xCur + w / 2
-    const name = c.esCamara ? 'Cámara' : (c.n || c.mat || c.name || '—')
-    const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))} mm`
-    const shortN = name.length > 16 ? name.slice(0, 15) + '…' : name
-    const lY = PT + gH + 10
+    const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
     const out = [
-      `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${gH}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2"/>`,
-      hasPat ? `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${gH}" fill="url(#fp-${col.pat})" stroke="none"/>` : '',
-      w > 26 ? `<text x="${mx.toFixed(1)}" y="${(PT + gH / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="${w > 40 ? 9 : 7}" fill="#1e293b" font-weight="bold">${espStr}</text>` : '',
-      `<text x="${mx.toFixed(1)}" y="${lY}" text-anchor="start" font-size="8" fill="#374151" transform="rotate(38 ${mx.toFixed(1)} ${lY})">${shortN}</text>`,
+      `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${DIAG_H}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2"/>`,
+      hasPat ? `<rect x="${xCur.toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${DIAG_H}" fill="url(#fp-${col.pat})" stroke="none"/>` : '',
+      w > 12 ? `<circle cx="${mx.toFixed(1)}" cy="${PT + 13}" r="7" fill="${col.stroke}" opacity="0.92"/>
+<text x="${mx.toFixed(1)}" y="${PT + 16}" text-anchor="middle" font-size="8" fill="white" font-weight="700">${i + 1}</text>` : '',
+      w > 28 && espStr ? `<text x="${mx.toFixed(1)}" y="${(PT + DIAG_H / 2 + 8).toFixed(1)}" text-anchor="middle" font-size="${w > 40 ? 9 : 7}" fill="#1e293b" font-weight="bold">${espStr} mm</text>` : '',
     ].filter(Boolean).join('\n')
     xCur += w
     return out
   })
 
+  // Leyenda: N° → nombre · espesor · λ (nombre truncado para no desbordar)
+  const legendRows = capas.map((c, i) => {
+    const col = c.esCamara ? { fill: '#e0f2fe', stroke: '#7dd3fc' } : fichaLayerColor(c.n || c.mat || c.name || '')
+    const name = c.esCamara ? 'Cámara de aire' : (c.n || c.mat || c.name || '—')
+    const nameShort = name.length > 44 ? name.slice(0, 43) + '…' : name
+    const esp = c.esCamara ? '—' : `${Math.round(parseFloat(c.esp || 0))} mm`
+    const lam = (!c.esCamara && parseFloat(c.lam) > 0) ? parseFloat(c.lam).toFixed(3) : '—'
+    const ry = firstRowY + i * ROW_H
+    return `<rect x="${PL}" y="${ry - 8}" width="9" height="9" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1" rx="1.5"/>
+<text x="${PL + 14}" y="${ry}" font-size="8.5" fill="#1e293b"><tspan font-weight="700">${i + 1}.</tspan> ${nameShort}</text>
+<text x="${PL + gW - 66}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">${esp}</text>
+<text x="${PL + gW}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">λ ${lam}</text>`
+  }).join('\n')
+
   const { uMax, rfReq, acReq } = opts
   const tOk = !uMax || s.u <= uMax
   const fOk = !rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq)
   const aOk = !acReq || !s.ac_rw || s.ac_rw >= acReq
-  const bY = H - 12, bg = W / 3
+  const bY = badgesTop + 19, bg = W / 3
   const badges = [
-    `<rect x="0" y="${H - 28}" width="${W}" height="28" fill="#f8fafc"/>`,
-    `<line x1="0" y1="${H - 28}" x2="${W}" y2="${H - 28}" stroke="#e2e8f0" stroke-width="1"/>`,
+    `<rect x="0" y="${badgesTop}" width="${W}" height="30" fill="#f8fafc"/>`,
+    `<line x1="0" y1="${badgesTop}" x2="${W}" y2="${badgesTop}" stroke="#e2e8f0" stroke-width="1"/>`,
     `<text x="${(bg * 0.5).toFixed(1)}" y="${bY}" text-anchor="middle" font-size="8.5" fill="${uMax ? (tOk ? '#166534' : '#dc2626') : '#374151'}" font-weight="700">🌡 Térmico: U=${s.u}${uMax ? ` ≤${uMax}` : ''} W/m²K ${uMax ? (tOk ? '✓' : '✗') : ''}</text>`,
     `<text x="${(bg * 1.5).toFixed(1)}" y="${bY}" text-anchor="middle" font-size="8.5" fill="${rfReq ? (fOk ? '#166534' : '#dc2626') : '#374151'}" font-weight="700">🔥 Fuego: RF ${s.rf || '—'}${rfReq ? ` ≥${rfReq}` : ''} ${rfReq ? (fOk ? '✓' : '✗') : ''}</text>`,
     `<text x="${(bg * 2.5).toFixed(1)}" y="${bY}" text-anchor="middle" font-size="8.5" fill="${acReq ? (aOk ? '#166534' : '#dc2626') : '#374151'}" font-weight="700">🔊 Acústico: Rw ${s.ac_rw != null ? s.ac_rw + ' dB' : '—'}${acReq ? ` ≥${acReq} dB` : ''} ${acReq ? (aOk ? '✓' : '✗') : ''}</text>`,
@@ -652,11 +677,16 @@ ${defs}
 <rect width="${W}" height="${H}" fill="white" rx="6"/>
 <text x="${W / 2}" y="18" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="700">${s.cod || ''} — Sección constructiva (int → ext)</text>
 <text x="${W / 2}" y="31" text-anchor="middle" font-size="8.5" fill="#64748b">${(s.desc || '').slice(0, 74)}${(s.desc || '').length > 74 ? '…' : ''}</text>
-<text x="${PL - 4}" y="${PT + gH / 2 + 4}" text-anchor="end" font-size="9" fill="#475569" font-weight="600">INT</text>
-<line x1="${PL}" y1="${PT - 2}" x2="${PL}" y2="${PT + gH + 2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
-<text x="${PL + gW + 4}" y="${PT + gH / 2 + 4}" text-anchor="start" font-size="9" fill="#475569" font-weight="600">EXT</text>
-<line x1="${PL + gW}" y1="${PT - 2}" x2="${PL + gW}" y2="${PT + gH + 2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
+<text x="${PL - 4}" y="${PT + DIAG_H / 2 + 4}" text-anchor="end" font-size="9" fill="#475569" font-weight="600">INT</text>
+<line x1="${PL}" y1="${PT - 2}" x2="${PL}" y2="${PT + DIAG_H + 2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
+<text x="${PL + gW + 4}" y="${PT + DIAG_H / 2 + 4}" text-anchor="start" font-size="9" fill="#475569" font-weight="600">EXT</text>
+<line x1="${PL + gW}" y1="${PT - 2}" x2="${PL + gW}" y2="${PT + DIAG_H + 2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
 ${layerParts.join('\n')}
+<line x1="${PL}" y1="${legendHeadY - 2}" x2="${PL + gW}" y2="${legendHeadY - 2}" stroke="#e2e8f0" stroke-width="1"/>
+<text x="${PL + 14}" y="${legendHeadY + 8}" font-size="7.5" fill="#94a3b8" font-weight="600">N°  Material</text>
+<text x="${PL + gW - 66}" y="${legendHeadY + 8}" font-size="7.5" fill="#94a3b8" text-anchor="end">Espesor</text>
+<text x="${PL + gW}" y="${legendHeadY + 8}" font-size="7.5" fill="#94a3b8" text-anchor="end">λ W/mK</text>
+${legendRows}
 ${badges}
 <rect x="0" y="0" width="${W}" height="${H}" fill="none" stroke="#e2e8f0" stroke-width="1.5" rx="6"/>
 </svg>`
