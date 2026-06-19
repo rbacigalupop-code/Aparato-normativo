@@ -44,6 +44,7 @@ El botón **"Aplicar"** ahora usa la **U recalculada del simulador de capas** (e
 - **Módulo Térmico sin RF** (`07369b4`): quitadas las columnas RF de la verificación térmica (vive en módulo 4 Fuego); Estado = solo U.
 - **Bordes BAJA B1/B2** (`83c0f0d`): `calcularU` sin capas → null (no 5.88); `perdidaPTUnico(id inválido)` → null (no 0). Test `engines_bordes.test.js`.
 - **Bug "estructura→madera"** CERRADO: no reapareció; el usuario confirmó retirarlo de la lista (no reproducible).
+- **B3 código muerto en engines** (`85727b8`): eliminadas 25 funciones sin referencias (-369 líneas) en acoustic/fire/thermal/ventanas/puertas. Sonda repetible `scripts/audit-deadcode-engines.mjs` (0 MUERTO). Auditoría Fase 0 sin hallazgos abiertos.
 
 ## DÓNDE QUEDAMOS (siguientes tareas)
 
@@ -52,8 +53,6 @@ El botón **"Aplicar"** ahora usa la **U recalculada del simulador de capas** (e
 2. **Factor solar g (vidrios control solar)** — chip abierto: modelar SHGC en el módulo energético (ganancias solares/demanda), no en el catálogo OGUC.
 
 3. **Opcional / no recomendado:** capa explícita de pavimento en los strings `capas` de pisos — evaluado y descartado por ahora (cosmético, orientación variable por solución, entangled con el parser de Cálculo U).
-
-4. **B3 (limpieza, no urgente):** resto de posible código muerto en engines (requiere análisis de llamadas internas; hay falsos positivos).
 
 ---
 
