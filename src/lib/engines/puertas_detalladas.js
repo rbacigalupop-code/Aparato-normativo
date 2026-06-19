@@ -158,10 +158,3 @@ export function cumpleOGUC(anchoLibre_m, altoLibre_m, uso) {
     nota: req.nota,
   }
 }
-
-/**
- * Compara varias configuraciones de puerta en paralelo.
- */
-export function compararPuertas(configs) {
-  return configs.map(c => ({ ...c, resultado: calcularPuertaCombinada(c) }))
-}

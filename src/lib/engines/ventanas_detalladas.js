@@ -85,23 +85,8 @@ export function calcularVentanaCombinada({
   }
 }
 
-/**
- * Compara varias configuraciones de ventana en paralelo.
- */
-export function compararVentanas(configs) {
-  return configs.map(c => ({ ...c, resultado: calcularVentanaCombinada(c) }))
-}
-
-/**
- * Validación contra DS N°15 según zona.
- * Devuelve si cumple el Umax de ventanas para la zona dada.
- */
+// U-máx de ventanas por zona (referencial). El cumplimiento OFICIAL se evalúa por
+// la Tabla 3 (% vidriado vs U vs orientación) en src/data/ds15_ventanas.js.
 export const UMAX_VENTANA_DS15 = {
   'A': 5.8, 'B': 4.6, 'C': 4.0, 'D': 3.6, 'E': 3.0, 'F': 2.4, 'G': 2.0, 'H': 1.8, 'I': 1.4,
-}
-
-export function cumpleDS15(U, zona) {
-  const umax = UMAX_VENTANA_DS15[zona]
-  if (!umax) return null
-  return { umax, cumple: U <= umax, margen: Math.round((umax - U) * 100) / 100 }
 }

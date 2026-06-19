@@ -99,80 +99,11 @@ export function calcularGlaser(capas, Ti, Te, HR, tipoElem) {
   }
 }
 
-// ─── Generador de SVG para Diagrama de Glaser ──────────────────────────────
-export function generarGraficoGlaser(res, capas) {
-  if (!res || !capas) return ''
-
-  const W = 600
-  const H = 280
-  const MARGIN = { top: 30, bottom: 50, left: 60, right: 40 }
-
-  const pmin = Math.min(res.pvInterno, res.psatInterno, res.pvExterno, res.psatExterno) * 0.9
-  const pmax = Math.max(res.pvInterno, res.psatInterno, res.pvExterno, res.psatExterno) * 1.1
-
-  const gW = W - MARGIN.left - MARGIN.right
-  const gH = H - MARGIN.top - MARGIN.bottom
-
-  const scaleX = (i, nCap) => MARGIN.left + (i / nCap) * gW
-  const scaleY = (p) => MARGIN.top + gH - ((p - pmin) / (pmax - pmin)) * gH
-
-  let svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`
-  svg += `<defs><style>.gtext{font-size:11px;font-family:monospace}.grid{stroke:#ddd;stroke-width:0.5}</style></defs>`
-
-  // Grid
-  for (let i = 0; i <= 10; i++) {
-    const y = MARGIN.top + (i / 10) * gH
-    svg += `<line x1="${MARGIN.left}" y1="${y}" x2="${W - MARGIN.right}" y2="${y}" class="grid"/>`
-  }
-
-  // Ejes
-  svg += `<line x1="${MARGIN.left}" y1="${MARGIN.top}" x2="${MARGIN.left}" y2="${MARGIN.top + gH}" stroke="#000" stroke-width="2"/>`
-  svg += `<line x1="${MARGIN.left}" y1="${MARGIN.top + gH}" x2="${W - MARGIN.right}" y2="${MARGIN.top + gH}" stroke="#000" stroke-width="2"/>`
-
-  // Línea de presión de vapor saturada (curva de dew point)
-  let pathSat = `M ${scaleX(0, capas.length)} ${scaleY(res.psatInterno)}`
-  for (let i = 1; i < capas.length; i++) {
-    pathSat += ` L ${scaleX(i, capas.length)} ${scaleY(res.psatExterno)}`
-  }
-  svg += `<path d="${pathSat}" stroke="#0ea5e9" stroke-width="2" fill="none"/>`
-
-  // Línea de presión de vapor
-  svg += `<line x1="${scaleX(0, capas.length)}" y1="${scaleY(res.pvInterno)}" x2="${scaleX(capas.length, capas.length)}" y2="${scaleY(res.pvExterno)}" stroke="#f59e0b" stroke-width="2"/>`
-
-  // Marca de condensación
-  if (res.tieneCondensacion && res.posCondensacion !== null) {
-    const xCond = scaleX(res.posCondensacion, capas.length)
-    const yCond = scaleY(res.psatExterno)
-    svg += `<circle cx="${xCond}" cy="${yCond}" r="6" fill="#dc2626"/>`
-  }
-
-  svg += `</svg>`
-  return svg
-}
-
-// ─── Cálculo de U modificado (capas base + extras) ────────────────────────────
-export function calcularUmodificado(capasBase, capasExtra, lam, esp, rsiRse) {
-  const todasCapas = [...capasBase, ...(capasExtra || [])]
-  const toLam = [...(lam || []), ...(capasExtra || []).map(() => 0)]
-  const toEsp = [...(esp || []), ...(capasExtra || []).map(() => 0)]
-  return calcularU(todasCapas, toLam, toEsp, rsiRse)
-}
-
 // ─── Cálculo de Rw modificado (índice de reducción acústica) ──────────────────
 export function calcularRwmodificado(rwBase, pesoCapas) {
   if (!rwBase) return null
   const masPesos = pesoCapas.reduce((a, b) => a + (parseFloat(b) || 0), 0)
   return Math.max(0, rwBase + masPesos)
-}
-
-// ─── Validación de condensación crítica en aplicación ──────────────────────────
-export function validarCondensacionCritica(res) {
-  if (!res || !res.tieneCondensacion) return { ok: true, mensaje: 'Sin riesgo de condensación' }
-  return {
-    ok: false,
-    mensaje: `Riesgo de condensación en capa ${res.posCondensacion + 1}`,
-    capa: res.posCondensacion,
-  }
 }
 
 // ─── Búsqueda de soluciones térmicas por criterio ───────────────────────────

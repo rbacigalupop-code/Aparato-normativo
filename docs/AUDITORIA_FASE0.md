@@ -133,10 +133,17 @@ Bloqueado por `src/__tests__/engines_bordes.test.js`.
 así que no se rompe. Bloqueado por `engines_bordes.test.js`. De paso, eliminado el import
 muerto de `perdidaPTUnico` en `PuentesTermicos.jsx` (parte de B3).
 
-### B3 — Posible código muerto en engines 🔶 PARCIAL
-Eliminados imports muertos detectados (acoustic en App.jsx — M2; `perdidaPTUnico` en
-PuentesTermicos.jsx — B2). Resto requiere análisis de llamadas internas (hay falsos
-positivos). Candidato a limpieza, no urgente.
+### B3 — Código muerto en engines ✅ RESUELTO
+Sonda repetible: `node scripts/audit-deadcode-engines.mjs` (clasifica cada export en
+VIVO / SOLO-TEST / SOLO-INTERNO / MUERTO según refs externas, en tests e internas).
+- Antes: 23 funciones MUERTO (ext=0, test=0, int=0) en acoustic, fire, thermal,
+  ventanas_detalladas, puertas_detalladas. Eliminadas + 2 en cascada
+  (`obtenerRwRequerido`, `validarRFcumplimiento`) + el helper privado `clasificarAbsorcion`.
+- Conservadas las **SOLO-TEST** (validadas y reutilizables: estimarRwComposicion,
+  calcularMejoraAcustica, perdidaPTUnico, etaUtilizacion13790, …) y **SOLO-INTERNO**
+  (helpers de economic/renovables/demanda).
+- Imports muertos previos: acoustic en App.jsx (M2), `perdidaPTUnico` en PuentesTermicos.jsx (B2).
+- Resultado del re-scan: **0 MUERTO**. 254 tests verdes, build OK.
 
 ---
 
