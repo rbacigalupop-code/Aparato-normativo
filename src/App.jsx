@@ -150,7 +150,7 @@ function capasSeccionSvgStr(capas, opts = {}) {
   const uid = Math.random().toString(36).slice(2, 7)
 
   const W = 660
-  const PL = 44, PR = 16, PT = 48
+  const PL = 44, PR = 16, PT = 60  // PT alto: separa la cota superior del subtítulo
   const gW = W - PL - PR           // 600 px usables
   const LAYER_H = 120               // altura del bloque de capas
   const COTA_Y  = PT - 14          // y de la línea horizontal de cotas
@@ -222,7 +222,7 @@ function capasSeccionSvgStr(capas, opts = {}) {
     const lam  = (!c.esCamara && parseFloat(c.lam) > 0) ? parseFloat(c.lam).toFixed(3) : '—'
     const Ri   = (!c.esCamara && parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0)
       ? (parseFloat(c.esp)/1000/parseFloat(c.lam)).toFixed(3) : '—'
-    const ry   = LEGEND_Y + 13 + i * ROW_H
+    const ry   = LEGEND_Y + 24 + i * ROW_H
     return `<rect x="${PL}" y="${ry - 9}" width="9" height="9" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1" rx="1.5"/>
 <text x="${PL + 14}" y="${ry}" font-size="8.5" fill="#1e293b"><tspan font-weight="700">${i+1}.</tspan> ${nameShort}</text>
 <text x="${PL + 300}" y="${ry}" font-size="8.5" fill="#475569" text-anchor="end">${esp}</text>
@@ -232,7 +232,7 @@ function capasSeccionSvgStr(capas, opts = {}) {
 
   const totalEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0)
   const cumpleU  = uMax && uCalc != null ? parseFloat(uCalc) <= uMax : null
-  const legendEndY = LEGEND_Y + 13 + capas.length * ROW_H
+  const legendEndY = LEGEND_Y + 24 + capas.length * ROW_H
   const uBadgeY    = legendEndY + 8
   const H          = uBadgeY + (uCalc != null ? 20 : 6)
 
@@ -603,7 +603,7 @@ function fichaScSvgStr(s, capas, opts = {}) {
   const DIAG_H = 104
   const ROW_H = 13
   const legendHeadY = PT + DIAG_H + 14
-  const firstRowY = legendHeadY + 14
+  const firstRowY = legendHeadY + 20
   const legendEndY = firstRowY + capas.length * ROW_H
   const badgesTop = legendEndY + 4
   const H = badgesTop + 30
