@@ -849,6 +849,28 @@ export async function listarProyectosUsuario(userId, orgId) {
   return data
 }
 
+// ── ARCO+ (Ley 21.719): exportar mis datos (acceso / portabilidad) ────────────
+// Reúne el perfil y los proyectos del usuario para descarga. Los datos de cuenta
+// (email, consentimiento) los agrega el componente desde la sesión de auth.
+export async function exportarMisDatos(userId, orgId) {
+  const perfil = await obtenerPerfil(userId)
+  const proyectos = (orgId ? await listarProyectosUsuario(userId, orgId) : []) || []
+  return { perfil, proyectos }
+}
+
+// ── ARCO+ (Ley 21.719): eliminar mi cuenta y datos (cancelación) ──────────────
+// Llama a la función RPC `eliminar_mi_cuenta` (SECURITY DEFINER) que borra
+// proyectos + perfil + usuario de auth del propio llamante. Ver
+// sql/019_eliminar_cuenta.sql (debe estar creada en Supabase).
+export async function eliminarMiCuenta() {
+  const { error } = await supabase.rpc('eliminar_mi_cuenta')
+  if (error) {
+    console.warn('eliminarMiCuenta error:', error)
+    return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
+
 // Guardar proyecto nuevo
 export async function guardarProyectoUsuario(userId, orgId, id, nombre, data, snapshots = []) {
   if (!userId || !orgId) return false

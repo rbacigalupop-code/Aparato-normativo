@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import MisDatosPrivacidad from './MisDatosPrivacidad.jsx'
 
 /**
  * UserHeader
@@ -8,6 +9,7 @@ import { useAuth } from '../hooks/useAuth'
 export default function UserHeader({ onFeedback }) {
   const { perfil, isAdmin, signOut, tokens } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
+  const [showPrivacidad, setShowPrivacidad] = useState(false)
 
   async function handleLogout() {
     const ok = await signOut()
@@ -151,6 +153,25 @@ export default function UserHeader({ onFeedback }) {
                 </button>
               )}
               <button
+                onClick={() => { setShowMenu(false); setShowPrivacidad(true) }}
+                style={{
+                  width: '100%',
+                  padding: '8px 16px',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: 0,
+                  textAlign: 'left',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#475569',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => e.target.style.background = '#f1f5f9'}
+                onMouseLeave={(e) => e.target.style.background = 'none'}
+              >
+                🔒 Mis datos y privacidad
+              </button>
+              <button
                 onClick={handleLogout}
                 style={{
                   width: '100%',
@@ -173,6 +194,7 @@ export default function UserHeader({ onFeedback }) {
           </div>
         </div>
       )}
+      {showPrivacidad && <MisDatosPrivacidad onClose={() => setShowPrivacidad(false)} />}
     </div>
   )
 }
