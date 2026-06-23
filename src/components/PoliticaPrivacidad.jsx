@@ -16,7 +16,7 @@ export const POLITICA_VERSION = '2026-06-15'
 
 // Responsable del tratamiento. Por ahora persona natural; al constituir empresa,
 // reemplazar por razón social + RUT + domicilio y subir POLITICA_VERSION.
-const RESPONSABLE = '[COMPLETAR: tu nombre]'
+const RESPONSABLE = 'Roberto Bacigalupo Parra'
 const EMAIL_PRIVACIDAD = 'r.bacigalupo.p@gmail.com'
 
 const S = {
