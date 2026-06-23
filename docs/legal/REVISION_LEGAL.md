@@ -35,7 +35,7 @@ No se tratan datos sensibles ni de menores. No hay perfilamiento ni decisiones a
 
 ## 4. Qué falta (lo que necesitamos del abogado / decisiones)
 1. **Revisar y validar la Política de Privacidad** (`docs/legal/POLITICA_PRIVACIDAD.md`). Confirmar bases de licitud, redacción de derechos y cláusula de transferencia internacional.
-2. **Términos y Condiciones** del servicio (no existen aún) — ver outline en §6.
+2. **Términos y Condiciones** del servicio — borrador completo en `docs/legal/TERMINOS_CONDICIONES.md` (validar). Outline original en §6.
 3. **DPA (contrato de encargado) con Supabase y Vercel** — ver §5.
 4. **Datos del responsable**: hoy persona natural (nombre + email). Definir si conviene constituir empresa antes de salir de beta y, al hacerlo, actualizar responsable (razón social, RUT, domicilio).
 5. **Modelo de Prevención de Infracciones (MPI)**: evaluar si conviene adoptarlo (es atenuante de multas y, si se adopta, exige designar un Delegado de Protección de Datos).
