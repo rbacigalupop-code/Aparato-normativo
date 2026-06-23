@@ -841,6 +841,10 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
         <div style={{ marginBottom: 6, fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Identificación del proyecto
         </div>
+        {/* Aviso de privacidad (Ley 21.719) — datos de terceros opcionales */}
+        <div style={{ marginBottom: 10, fontSize: 11, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '7px 10px', lineHeight: 1.45 }}>
+          🔒 Estos datos son <b>opcionales</b> y se usan solo para el informe. Eres responsable de contar con la autorización del titular para tratarlos (Ley 21.719).
+        </div>
         <div style={{ ...S.row, marginBottom: 10 }}>
           <div style={S.col}>
             <label style={S.label(false)}>Nombre del proyecto</label>

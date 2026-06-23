@@ -14,7 +14,10 @@ import React from 'react'
 
 export const POLITICA_VERSION = '2026-06-15'
 
-const EMAIL_PRIVACIDAD = 'r.bacigalupo.p@gmail.com' // [COMPLETAR: correo de contacto de privacidad/DPO]
+// Responsable del tratamiento. Por ahora persona natural; al constituir empresa,
+// reemplazar por razón social + RUT + domicilio y subir POLITICA_VERSION.
+const RESPONSABLE = '[COMPLETAR: tu nombre]'
+const EMAIL_PRIVACIDAD = 'r.bacigalupo.p@gmail.com'
 
 const S = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
@@ -49,8 +52,7 @@ export function PoliticaPrivacidadModal({ onClose }) {
 
           <h2 style={S.h2}>1. Responsable del tratamiento</h2>
           <p style={S.p}>
-            NormaCheck, operado por <b>[COMPLETAR: razón social]</b>, RUT
-            <b> [COMPLETAR: RUT empresa]</b>, domicilio <b>[COMPLETAR: domicilio]</b>.
+            NormaCheck es operado por <b>{RESPONSABLE}</b> (persona natural).
             Contacto de privacidad: <b>{EMAIL_PRIVACIDAD}</b>.
           </p>
 
