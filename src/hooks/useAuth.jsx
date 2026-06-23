@@ -165,7 +165,7 @@ export function AuthProvider({ children }) {
   }, [user?.id])
 
   // Función: Registrarse
-  const handleSignUp = useCallback(async (email, password, nombreCompleto, passwordConfirm) => {
+  const handleSignUp = useCallback(async (email, password, nombreCompleto, passwordConfirm, consentVersion = null) => {
     setError(null)
 
     // Validaciones locales
@@ -199,7 +199,7 @@ export function AuthProvider({ children }) {
       return err
     }
 
-    const result = await signUp(email, password, nombreCompleto)
+    const result = await signUp(email, password, nombreCompleto, consentVersion)
     if (!result.ok) {
       setError(result.error?.message || result.error)
       return result

@@ -137,7 +137,7 @@ export async function eliminarProyectoDB(token, id) {
 // trigger SQL handle_new_user (sql/008_fix_signup_trigger.sql). El cliente NO
 // hace INSERTs directos porque al momento de signUp() aún no tiene sesión
 // autenticada y RLS rechaza los inserts con 401 Unauthorized.
-export async function signUp(email, password, nombreCompleto) {
+export async function signUp(email, password, nombreCompleto, consentVersion = null) {
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -145,6 +145,12 @@ export async function signUp(email, password, nombreCompleto) {
       data: {
         nombre_completo: nombreCompleto,
         name: nombreCompleto,
+        // Registro del consentimiento a la Política de Privacidad (Ley 21.719):
+        // versión aceptada + fecha, como prueba en user_metadata.
+        ...(consentVersion ? {
+          consent_privacidad_version: consentVersion,
+          consent_privacidad_at: new Date().toISOString(),
+        } : {}),
       },
     },
   })

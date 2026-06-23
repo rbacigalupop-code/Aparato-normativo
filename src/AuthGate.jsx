@@ -6,6 +6,7 @@ import {
   validarNombre,
   validarCoincidencia,
 } from './utils/validation'
+import { PoliticaPrivacidadModal, POLITICA_VERSION } from './components/PoliticaPrivacidad'
 
 export default function AuthGate({ children }) {
   const { session, cargando, isLoggedIn } = useAuth()
@@ -14,6 +15,8 @@ export default function AuthGate({ children }) {
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [aceptaPolitica, setAceptaPolitica] = useState(false) // consentimiento Ley 21.719
+  const [showPolitica, setShowPolitica] = useState(false)
 
   const { signIn, signUp } = useAuth()
 
@@ -109,6 +112,8 @@ export default function AuthGate({ children }) {
     const nombreErr = validarNombre(formData.nombreCompleto)
     if (nombreErr) errors.nombreCompleto = nombreErr
 
+    if (!aceptaPolitica) errors.politica = 'Debes aceptar la Política de Privacidad para crear una cuenta'
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       setError('Por favor corrige los errores indicados')
@@ -116,7 +121,7 @@ export default function AuthGate({ children }) {
     }
 
     setProcesando(true)
-    const result = await signUp(formData.email, formData.password, formData.nombreCompleto, formData.passwordConfirm)
+    const result = await signUp(formData.email, formData.password, formData.nombreCompleto, formData.passwordConfirm, POLITICA_VERSION)
     if (!result.ok) {
       const msg = typeof result.error === 'string'
         ? result.error
@@ -126,6 +131,7 @@ export default function AuthGate({ children }) {
       setModo('login')
       setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
       setFieldErrors({})
+      setAceptaPolitica(false)
       setError(null)
     }
     setProcesando(false)
@@ -155,6 +161,7 @@ export default function AuthGate({ children }) {
   // Formulario de login/signup
   return (
     <div style={styles.overlay}>
+      {showPolitica && <PoliticaPrivacidadModal onClose={() => setShowPolitica(false)} />}
       <div style={styles.bgPattern} />
       <div style={styles.card}>
         <img src="/logo.png" alt="NormaCheck" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
@@ -237,6 +244,33 @@ export default function AuthGate({ children }) {
             </div>
           )}
 
+          {/* Consentimiento Política de Privacidad (Ley 21.719) — solo signup */}
+          {modo === 'signup' && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#475569', cursor: 'pointer', lineHeight: 1.4 }}>
+                <input
+                  type="checkbox"
+                  checked={aceptaPolitica}
+                  onChange={e => { setAceptaPolitica(e.target.checked); setFieldErrors(prev => ({ ...prev, politica: undefined })) }}
+                  disabled={procesando}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                <span>
+                  He leído y acepto la{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowPolitica(true)}
+                    style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline', fontSize: 'inherit' }}
+                  >
+                    Política de Privacidad
+                  </button>
+                  {' '}y el tratamiento de mis datos personales.
+                </span>
+              </label>
+              {fieldErrors.politica && <div style={styles.fieldErrorText}>{fieldErrors.politica}</div>}
+            </div>
+          )}
+
           {/* Botón principal */}
           <button
             type="submit"
@@ -261,6 +295,7 @@ export default function AuthGate({ children }) {
                   setModo('signup')
                   setError(null)
                   setFieldErrors({})
+                  setAceptaPolitica(false)
                   setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
                 }}
                 style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}
@@ -276,6 +311,7 @@ export default function AuthGate({ children }) {
                   setModo('login')
                   setError(null)
                   setFieldErrors({})
+                  setAceptaPolitica(false)
                   setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
                 }}
                 style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}
@@ -286,8 +322,19 @@ export default function AuthGate({ children }) {
           )}
         </div>
 
+        {/* Enlace a Política de Privacidad (siempre accesible) */}
+        <div style={{ marginTop: 14, textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setShowPolitica(true)}
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 11, textDecoration: 'underline' }}
+          >
+            Política de Privacidad
+          </button>
+        </div>
+
         {/* Footer */}
-        <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid #f1f5f9', width: '100%', display: 'flex', justifyContent: 'center', gap: 16 }}>
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f1f5f9', width: '100%', display: 'flex', justifyContent: 'center', gap: 16 }}>
           {['DS N°15', 'NCh853', 'LOSCAT Ed.13', 'NCh352'].map(n => (
             <span key={n} style={{ fontSize: 10, color: '#cbd5e1', fontWeight: 600 }}>
               {n}
