@@ -4705,9 +4705,14 @@ ${cambios.length && solucion ? `
                   <b style={{ color:'#1e40af' }}>Cubierta ventilada</b>
                   <span style={{ fontSize:11, color:'#64748b' }}>(cámara de aire ventilada sobre el aislante)</span>
                 </label>
-                {cubiertaVent && (
+                {cubiertaVent && !capas.some(c => c.esCamara) && (
+                  <div style={{ marginTop:6, fontSize:11, color:'#92400e', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
+                    ⚠ <b>Falta la capa de cámara de aire.</b> Esta opción <b>no agrega</b> la cámara: aplica el método de cubierta ventilada sobre una cámara que ya exista en las capas. Agrega una capa <b>"Cámara de aire"</b> (botón <b>+ Cámara</b> abajo) sobre el aislante y vuelve a activar. Sin cámara, el cálculo no cambia.
+                  </div>
+                )}
+                {cubiertaVent && capas.some(c => c.esCamara) && (
                   <div style={{ marginTop:6, fontSize:11, color:'#1e40af', background:'#dbeafe', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
-                    <b>ISO 6946 §6.9.2:</b> al activar, el cálculo considera <b>sólo las capas bajo la cámara</b> (las superiores —teja, tablero, OSB— están a condiciones exteriores y no contribuyen). La cara que da a la cámara venteada usa <b>RSe = 0.10 m²K/W</b> (aire quieto, §6.9.4). Recalcula automáticamente.
+                    <b>ISO 6946 §6.9.2:</b> el cálculo considera <b>sólo las capas bajo la cámara</b> (las superiores —teja, tablero, OSB— están a condiciones exteriores y no contribuyen). La cara que da a la cámara venteada usa <b>RSe = 0.10 m²K/W</b> (aire quieto, §6.9.4). Recalcula automáticamente.
                   </div>
                 )}
               </div>
@@ -5419,13 +5424,20 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
     headerColor: cfg.color,
   }))
 
-  // Si hay sistemas con soluciones → mostrar paneles por sistema + tabique global
-  // Si no → mostrar 4 paneles fijos globales
+  // Si hay sistemas con soluciones → mostrar paneles por sistema + los globales
+  // que NO estén cubiertos por un sistema y que tengan datos (solución aplicada
+  // globalmente). El tabique siempre se incluye (no se gestiona por sistema).
+  // Antes solo se conservaba el tabique → un muro/techo/piso aplicado en modo
+  // global desaparecía de la calculadora (reportado por tester).
+  // Si no hay sistemas con soluciones → mostrar los 4 paneles fijos globales.
   let paneles
   if (panelesSistema.length > 0) {
-    // Añadir Tabique global (no se gestiona por sistema)
-    const tabiquePanelGlobal = panalesGlobales.find(p => p.elemKey === 'tabique')
-    paneles = [...panelesSistema, tabiquePanelGlobal]
+    const cubiertosPorSistema = new Set(panelesSistema.map(p => p.elemKey))
+    const globalesAMostrar = panalesGlobales.filter(p =>
+      !cubiertosPorSistema.has(p.elemKey) &&
+      (p.elemKey === 'tabique' || initData?.[p.elemKey])
+    )
+    paneles = [...panelesSistema, ...globalesAMostrar]
   } else {
     paneles = panalesGlobales
   }
