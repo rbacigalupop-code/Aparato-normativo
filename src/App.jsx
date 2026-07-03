@@ -1414,6 +1414,24 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
     if (ev.total===2)  return '#fde047'
     return '#fca5a5'
   }
+  // Explica POR QUÉ una solución no aplica al uso: enumera los criterios que no
+  // alcanzan la exigencia del uso/zona actual (motivo típico de la exclusión del
+  // catálogo). Si los 3 criterios calculados pasan, es una restricción de
+  // tipificación del catálogo, no un incumplimiento.
+  function motivoNoAplica(ev, s) {
+    const faltas = []
+    if (!ev.fOk) faltas.push(`Fuego: el uso exige RF ≥ ${rfReq} y esta solución declara ${s.rf}`)
+    if (!ev.tOk) faltas.push(`Térmico: la zona exige U ≤ ${uMax} y esta solución tiene U = ${s.u}`)
+    if (!ev.aOk) faltas.push(`Acústica: el uso exige Rw ≥ ${acReq} dB y esta solución declara ${s.ac_rw} dB`)
+    let txt = `No está tipificada para el uso ${uso} en el catálogo.`
+    if (faltas.length) {
+      txt += `\n\nMotivo probable — no alcanza la exigencia del uso:\n• ` + faltas.join('\n• ')
+      if (!ev.fOk) txt += `\n\nSugerencia: agrégale un revestimiento RF certificado (yeso cartón / fibrocemento) con el simulador de capas para subir su resistencia al fuego.`
+    } else {
+      txt += ` Cumple los 3 criterios calculados, pero está catalogada solo para: ${(s.usos || []).join(', ') || '—'}.`
+    }
+    return txt
+  }
 
   return (
     <div>
@@ -1858,7 +1876,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       </span>
                     )}
                     {!ev.aplica && (
-                      <span title={`Esta solución no está tipificada para el uso ${uso}`} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
+                      <span title={motivoNoAplica(ev, s)} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
                         No aplica al uso {uso} ⓘ
                       </span>
                     )}
