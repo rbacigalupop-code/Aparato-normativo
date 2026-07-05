@@ -15,6 +15,7 @@ import { buscarComunaKey, obtenerDistribuidoraComuna } from '../data/comunas_chi
 import { zonaClimaDeOGUC } from '../data/zona_clima.js'
 import { resolverZona, umbralesDeComuna } from '../data/zonas_oficial.js'
 import { DISTRIBUIDORAS_ELEC, TARIFA_ELEC_DEFAULT, zonaOGUCaMacrozona } from '../data/combustibles.js'
+import { PDA, resolvePDA } from '../data/pda.js'
 
 // ─── Lookup: todas las comunas (base + overrides) ─────────────────────────────
 // Combina las comunas de data.js con las del override (admin).
@@ -1104,6 +1105,28 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             <span style={S.norm}>Permite múltiples sistemas por sector de planta o tramo de pisos — LOFC Ed.17 2025</span>
           </div>
         </div>
+
+        {/* Aviso PDA — la comuna está bajo un Plan de Descontaminación Atmosférica */}
+        {(() => {
+          const pk = resolvePDA(proy.comuna)
+          if (!pk) return null
+          const p = PDA[pk]
+          return (
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginTop: 12, fontSize: 12.5, color: '#92400e', lineHeight: 1.6 }}>
+              <b>📋 {proy.comuna} está bajo un Plan de Descontaminación Atmosférica</b> — {p.nombre} ({p.decreto}).
+              {p.requisitos && (
+                <div style={{ marginTop: 4 }}>
+                  Aplica <b>reacondicionamiento térmico de vivienda existente</b> con U-máx propio del plan:
+                  muro <b>{p.requisitos.muro}</b> · techumbre <b>{p.requisitos.techo}</b> · piso <b>{p.requisitos.piso}</b> W/m²K
+                  {p.requisitos.infiltracion_ach != null && <> · infiltración ≤ {p.requisitos.infiltracion_ach} ren/h a 50 Pa</>}.
+                </div>
+              )}
+              <div style={{ marginTop: 4, color: '#78350f' }}>
+                En la pestaña <b>Soluciones</b> (muro / techumbre / piso) verás las fichas oficiales de reacondicionamiento de este PDA, con la etiqueta <span style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 4, padding: '0 4px' }}>PDA</span>.
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Fila 3: profesional responsable */}
         <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 14, paddingTop: 14 }}>
