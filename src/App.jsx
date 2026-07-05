@@ -27,6 +27,7 @@ import {
   getUIdx, MATS
 } from './data.js'
 import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
+import { PDA, PDA_SOLUCIONES, resolvePDA } from './data/pda.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
@@ -1270,6 +1271,26 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
   )
 }
 
+// PDA_SC — soluciones PDA en forma de catálogo, para mezclarlas en Soluciones.
+// U/RT/condensación son OFICIALES (no se recalculan); sin RF/Rw ni simulador de
+// capas. El U-máx de referencia es el del PDA (reacondicionamiento de vivienda
+// existente), NO la U-máx de la zona DS N°15 de obra nueva.
+const PDA_SC = PDA_SOLUCIONES.map(s => ({
+  cod: s.cod, elem: s.elem, sistemas: null,
+  desc: s.desc, capas: s.capas || 'Ver ficha oficial',
+  u: s.u, rf: null, ac_rw: null, zonas: null, usos: ['Vivienda'],
+  esPDA: true, pda: s.pda, rt: s.rt, cond: s.cond,
+  obs: `${s.fuente}. U=${s.u} W/m²K oficial (NCh853)`
+     + (s.rt ? `, RT=${s.rt} m²K/W` : '')
+     + (s.cond === 'sin' ? ', sin riesgo de condensación (NCh1973)'
+        : s.cond === 'con' ? ', con riesgo de condensación' : '')
+     + `. Reacondicionamiento térmico de vivienda existente — ${PDA[s.pda].nombre}.`,
+}))
+// U-máx que impone el PDA para el elemento (muro / techumbre→techo / piso).
+function pdaUmax(s) {
+  return PDA[s.pda]?.requisitos?.[s.elem === 'techumbre' ? 'techo' : s.elem] ?? null
+}
+
 function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNotas }) {
   const [elem,      setElem]      = useState('muro')
   const [expandido, setExpandido] = useState(null)
@@ -1287,6 +1308,9 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   // Lo reporta <SimuladorCapas onModificar>; lo usa "Aplicar" para traspasar la
   // U recalculada y las capas reales en vez del valor certificado original.
   const [modSim, setModSim] = useState(null)
+  // mostrarOtrosPda: incluir en el catálogo soluciones de PDA de OTRAS comunas
+  // (grises "no aplica a tu comuna"). Off = solo el PDA de la comuna del proyecto.
+  const [mostrarOtrosPda, setMostrarOtrosPda] = useState(false)
   // catalogRef: para hacer scroll al catálogo cuando el usuario elige un slot
   const catalogRef = React.useRef(null)
 
@@ -1310,6 +1334,9 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   const zona  = proy.zona  || 'D'
   const uso   = proy.uso   || 'Vivienda'
   const pisos = proy.pisos || '2'
+  // PDA de la comuna del proyecto (null si la comuna no está bajo ningún PDA).
+  const pdaKey  = resolvePDA(proy.comuna)
+  const pdaInfo = pdaKey ? PDA[pdaKey] : null
 
   // Sincronizar filtroSistema con proy.estructura al montar o cuando cambia
   useEffect(() => {
@@ -1342,12 +1369,17 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
     // A3: `aplica` = pertinencia por USO. La aptitud térmica por zona NO se gate
     // con el campo `zonas` (curado a mano, podía ocultar soluciones válidas o
     // marcar "aplica" sin cumplir); se deriva del cálculo `tOk = U ≤ U-máx`.
+    // PDA: `aplica` exige además que la comuna del proyecto pertenezca al PDA, y
+    // lo térmico se juzga contra la U-máx del PDA (reacond.), no la de la zona.
     const validUso = uso && uso.trim() ? uso : 'Vivienda'
-    const aplica = (s.usos || []).includes(validUso)
-    const tOk = !uMax  || s.u <= uMax
-    const fOk = !rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq)
-    const aOk = !acReq || !s.ac_rw || s.ac_rw >= acReq
-    return { aplica, tOk, fOk, aOk, total: (tOk?1:0)+(fOk?1:0)+(aOk?1:0) }
+    const usoOk  = (s.usos || []).includes(validUso)
+    const pdaOk  = !s.esPDA || s.pda === pdaKey
+    const aplica = usoOk && pdaOk
+    const uLim = s.esPDA ? pdaUmax(s) : uMax
+    const tOk = !uLim  || s.u <= uLim
+    const fOk = s.esPDA ? true : (!rfReq || !s.rf || rfN(s.rf) >= rfN(rfReq))
+    const aOk = s.esPDA ? true : (!acReq || !s.ac_rw || s.ac_rw >= acReq)
+    return { aplica, usoOk, pdaOk, esPDA: !!s.esPDA, uLim, tOk, fOk, aOk, total: (tOk?1:0)+(fOk?1:0)+(aOk?1:0) }
   }
 
   // ── Lista ordenada ────────────────────────────────────────────────────────
@@ -1366,14 +1398,26 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
     function ev(s) {
       // A3: aplicabilidad por uso; aptitud térmica por zona = tOk (no campo zonas)
-      const aplica = (s.usos || []).includes(_validUso)
-      const tOk = !_uMax  || s.u <= _uMax
-      const fOk = !_rfReq || !s.rf || rfN(s.rf) >= rfN(_rfReq)
-      const aOk = !_acReq || !s.ac_rw || s.ac_rw >= _acReq
-      return { aplica, tOk, fOk, aOk, total: (tOk?1:0)+(fOk?1:0)+(aOk?1:0) }
+      // PDA: aplica solo si la comuna calza; térmico vs U-máx del PDA (reacond.)
+      const usoOk  = (s.usos || []).includes(_validUso)
+      const pdaOk  = !s.esPDA || s.pda === pdaKey
+      const aplica = usoOk && pdaOk
+      const uLim = s.esPDA ? pdaUmax(s) : _uMax
+      const tOk = !uLim  || s.u <= uLim
+      const fOk = s.esPDA ? true : (!_rfReq || !s.rf || rfN(s.rf) >= rfN(_rfReq))
+      const aOk = s.esPDA ? true : (!_acReq || !s.ac_rw || s.ac_rw >= _acReq)
+      return { aplica, usoOk, pdaOk, esPDA: !!s.esPDA, uLim, tOk, fOk, aOk, total: (tOk?1:0)+(fOk?1:0)+(aOk?1:0) }
     }
 
-    let list = SC.filter(s => s.elem === elem).map(s => ({ ...s, ev: ev(s) }))
+    // Base = catálogo SC + soluciones PDA (solo muro/techumbre/piso). Por defecto
+    // solo se inyecta el PDA de la comuna del proyecto; con `mostrarOtrosPda` se
+    // suman las de otros PDA (grises "no aplica a tu comuna").
+    let base = SC
+    if (elem === 'muro' || elem === 'techumbre' || elem === 'piso') {
+      const pdaList = mostrarOtrosPda ? PDA_SC : PDA_SC.filter(s => s.pda === pdaKey)
+      base = [...SC, ...pdaList]
+    }
+    let list = base.filter(s => s.elem === elem).map(s => ({ ...s, ev: ev(s) }))
     // Filtro por sistema estructural: s.sistemas===null → sin restricción (aplica a todo)
     if (filtroSistema) list = list.filter(s => !s.sistemas || s.sistemas.includes(filtroSistema))
     if (soloOk) list = list.filter(s => s.ev.aplica && s.ev.total === 3)
@@ -1394,7 +1438,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
       return 0
     })
     return list
-  }, [elem, zona, uso, pisos, soloOk, orden, busqueda, filtroRF, filtroSistema])
+  }, [elem, zona, uso, pisos, soloOk, orden, busqueda, filtroRF, filtroSistema, proy.comuna, mostrarOtrosPda])
 
   const totalAplica = soluciones.filter(s => s.ev.aplica).length
   const totalOk     = soluciones.filter(s => s.ev.aplica && s.ev.total === 3).length
@@ -1681,6 +1725,14 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
             <option value="">RF mínimo: todos</option>
             {['F15','F30','F60','F90','F120'].map(f => <option key={f} value={f}>RF ≥ {f}</option>)}
           </select>
+          {/* Toggle: incluir soluciones PDA de otras comunas (grises) */}
+          {(elem==='muro'||elem==='techumbre'||elem==='piso') && (
+            <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', userSelect:'none' }}
+              title="Incluye soluciones de reacondicionamiento de otros PDA (aparecen en gris: no aplican a la comuna del proyecto)">
+              <input type="checkbox" checked={mostrarOtrosPda} onChange={e => setMostrarOtrosPda(e.target.checked)} />
+              Otros PDA
+            </label>
+          )}
           <span style={{ fontSize:11, color:'#94a3b8', marginLeft:8 }}>Ordenar:</span>
           {[['cumplimiento','Cumplimiento'],['u','U ↑'],['rf','RF ↓'],['rw','Rw ↓']].map(([k,l]) => (
             <button key={k} onClick={() => setOrden(k)}
@@ -1847,6 +1899,12 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
       {/* ── Lista de soluciones ──────────────────────────────────────────────── */}
       <div style={S.card}>
+        {pdaInfo && (elem==='muro'||elem==='techumbre'||elem==='piso') && (
+          <div style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'10px 14px', marginBottom:10, fontSize:12, color:'#92400e', lineHeight:1.6 }}>
+            📋 <b>{proy.comuna}</b> está bajo el <b>{pdaInfo.nombre}</b> ({pdaInfo.decreto}). Se incluyen sus <b>soluciones oficiales de reacondicionamiento térmico</b> (etiqueta <span style={{ background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'0 4px' }}>PDA</span>)
+            {pdaInfo.requisitos && <> con U-máx propio: muro {pdaInfo.requisitos.muro} · techo {pdaInfo.requisitos.techo} · piso {pdaInfo.requisitos.piso} W/m²K</>}.
+          </div>
+        )}
         {soluciones.length === 0 && (
           <div style={S.warn}>Sin resultados con los filtros actuales.</div>
         )}
@@ -1875,9 +1933,18 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         Homologable
                       </span>
                     )}
+                    {s.esPDA && (
+                      <span title={`Solución oficial de reacondicionamiento térmico del ${PDA[s.pda].nombre}. U oficial (NCh853) — no recalculable.`}
+                        style={{ fontSize:10, background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'1px 5px', color:'#92400e', cursor:'help' }}>
+                        PDA · {PDA[s.pda].nombre}
+                      </span>
+                    )}
                     {!ev.aplica && (
-                      <span title={motivoNoAplica(ev, s)} style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
-                        No aplica al uso {uso} ⓘ
+                      <span title={s.esPDA && !ev.pdaOk
+                          ? `Esta solución es del ${PDA[s.pda].nombre}; la comuna del proyecto (${proy.comuna || 'sin definir'}) no pertenece a ese PDA.`
+                          : motivoNoAplica(ev, s)}
+                        style={{ fontSize:10, background:'#f1f5f9', borderRadius:4, padding:'1px 5px', color:'#94a3b8', cursor:'help' }}>
+                        {s.esPDA && !ev.pdaOk ? 'otro PDA — no aplica a tu comuna' : `No aplica al uso ${uso}`} ⓘ
                       </span>
                     )}
                   </div>
@@ -1893,10 +1960,10 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       color:      !ev.aplica ? '#94a3b8' : ev.tOk ? '#166534' : '#dc2626',
                       background: !ev.aplica ? '#f1f5f9' : ev.tOk ? '#dcfce7' : '#fee2e2',
                     }}>
-                      T {ev.aplica ? (ev.tOk ? '✓' : '✗') : '–'} U={s.u}{uMax ? ` (≤${uMax})` : ''}
+                      T {ev.aplica ? (ev.tOk ? '✓' : '✗') : '–'} U={s.u}{ev.uLim ? ` (≤${ev.uLim}${s.esPDA ? ' · PDA' : ''})` : ''}
                     </span>
-                    {/* Fuego — solo si hay exigencia */}
-                    {rfReq && (
+                    {/* Fuego — solo obra nueva (las PDA no traen RF certificado) */}
+                    {!s.esPDA && rfReq && (
                       <span style={{
                         fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px',
                         color:      !ev.aplica ? '#94a3b8' : ev.fOk ? '#166534' : '#dc2626',
@@ -1905,14 +1972,24 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         F {ev.aplica ? (ev.fOk ? '✓' : '✗') : '–'} {s.rf || '—'}{` (≥${rfReq})`}
                       </span>
                     )}
-                    {/* Acústica — solo si hay exigencia */}
-                    {acReq && (
+                    {/* Acústica — solo obra nueva */}
+                    {!s.esPDA && acReq && (
                       <span style={{
                         fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px',
                         color:      !ev.aplica ? '#94a3b8' : ev.aOk ? '#166534' : '#dc2626',
                         background: !ev.aplica ? '#f1f5f9' : ev.aOk ? '#dcfce7' : '#fee2e2',
                       }}>
                         A {ev.aplica ? (ev.aOk ? '✓' : '✗') : '–'} Rw {s.ac_rw ?? '—'}{acReq ? ` (≥${acReq}dB)` : ''}
+                      </span>
+                    )}
+                    {/* Condensación (solo PDA — dato oficial de la ficha) */}
+                    {s.esPDA && s.cond && (
+                      <span style={{
+                        fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px',
+                        color:      s.cond === 'sin' ? '#166534' : '#92400e',
+                        background:  s.cond === 'sin' ? '#dcfce7' : '#fef3c7',
+                      }}>
+                        {s.cond === 'sin' ? '✓ Sin condensación' : '⚠ Riesgo condensación'}
                       </span>
                     )}
                   </div>
@@ -1942,26 +2019,37 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
               {exp && (
                 <div style={{ padding:'10px 16px', background:'#f8fafc', borderTop:'1px solid #e2e8f0' }}>
                   <div style={{ fontSize:12, color:'#374151', marginBottom:8 }}>{s.obs}</div>
-                  <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
-                    {/* A3: las zonas se DERIVAN del cálculo (U ≤ U-máx por zona),
-                        no del campo `zonas` curado a mano (que podía mentir). */}
-                    {(() => {
-                      const usosStr = Array.isArray(s.usos) ? s.usos.join(', ') : String(s.usos || '').split('').join(', ')
-                      const elemZ = s.elem === 'tabique' ? null : (s.elem === 'techumbre' ? 'techo' : s.elem)
-                      let cumpleZonas
-                      if (s.elem === 'puerta') cumpleZonas = Object.keys(ZONAS).filter(z => { const m = PUERTA_U[z]; return !m || s.u <= m }).join(', ') || 'ninguna'
-                      else if (elemZ) cumpleZonas = Object.keys(ZONAS).filter(z => s.u <= ZONAS[z][elemZ]).join(', ') || 'ninguna'
-                      else cumpleZonas = 'sin exigencia de U (tabique)'
-                      return <>Cumple térmico (U≤U-máx) en zonas: <b>{cumpleZonas}</b> · Usos: {usosStr || '—'}</>
-                    })()}
-                  </div>
+                  {!s.esPDA && (
+                    <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
+                      {/* A3: las zonas se DERIVAN del cálculo (U ≤ U-máx por zona),
+                          no del campo `zonas` curado a mano (que podía mentir). */}
+                      {(() => {
+                        const usosStr = Array.isArray(s.usos) ? s.usos.join(', ') : String(s.usos || '').split('').join(', ')
+                        const elemZ = s.elem === 'tabique' ? null : (s.elem === 'techumbre' ? 'techo' : s.elem)
+                        let cumpleZonas
+                        if (s.elem === 'puerta') cumpleZonas = Object.keys(ZONAS).filter(z => { const m = PUERTA_U[z]; return !m || s.u <= m }).join(', ') || 'ninguna'
+                        else if (elemZ) cumpleZonas = Object.keys(ZONAS).filter(z => s.u <= ZONAS[z][elemZ]).join(', ') || 'ninguna'
+                        else cumpleZonas = 'sin exigencia de U (tabique)'
+                        return <>Cumple térmico (U≤U-máx) en zonas: <b>{cumpleZonas}</b> · Usos: {usosStr || '—'}</>
+                      })()}
+                    </div>
+                  )}
+
+                  {/* PDA: nota de reacondicionamiento (U-máx del plan + comunas) */}
+                  {s.esPDA && (
+                    <div style={{ fontSize:11, color:'#92400e', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'8px 12px', marginBottom:10, lineHeight:1.6 }}>
+                      Cumple el U-máx de <b>reacondicionamiento térmico de vivienda existente</b> del <b>{PDA[s.pda].nombre}</b>: U={s.u} ≤ {pdaUmax(s)} W/m²K.
+                      Es una <b>ficha oficial MINVU</b> con U certificado — no se recalcula ni edita.
+                      <div style={{ marginTop:4, color:'#64748b' }}>Comunas del PDA: {PDA[s.pda].comunas.join(', ')}.</div>
+                    </div>
+                  )}
 
                   {/* ── Códigos Normativos (LOSCAT + LOFC + LOSCAA) ──────────── */}
-                  <CodigosNormativos sc={s} rfReq={rfReq} acReq={acReq} />
+                  {!s.esPDA && <CodigosNormativos sc={s} rfReq={rfReq} acReq={acReq} />}
 
 
-                  {/* ── Alternativas LOSCAT cuando incumple ──────────────────── */}
-                  {!ev.aplica && (
+                  {/* ── Alternativas LOSCAT cuando incumple (no en tarjetas PDA) ── */}
+                  {!ev.aplica && !s.esPDA && (
                     <div style={{ background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:6, padding:'10px 14px', marginBottom:10 }}>
                       <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>⚠ No aplica al uso — Alternativas que cumplen los 3 criterios para {zona}/{uso}</div>
                       {SC.filter(x => x.elem===elem && (x.usos || []).includes(uso))
@@ -1978,7 +2066,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     </div>
                   )}
 
-                  {ev.aplica && ev.total < 3 && (() => {
+                  {ev.aplica && !s.esPDA && ev.total < 3 && (() => {
                     const alts = SC.filter(x => x.elem===elem && (x.usos || []).includes(uso) && x.cod!==s.cod)
                       .map(x => ({ ...x, ev: evaluar(x) })).filter(x => x.ev.aplica && x.ev.total===3)
                     const porT = !ev.tOk ? alts.filter(x=>x.u<=uMax).sort((a,b)=>a.u-b.u).slice(0,3) : []
@@ -2023,7 +2111,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   })()}
 
                   {/* ── Sugerencias de mejoras térmicas cuando no cumple U ─── */}
-                  {ev.aplica && !ev.tOk && uMax && (() => {
+                  {ev.aplica && !s.esPDA && !ev.tOk && uMax && (() => {
                     const mejoras = sugerirMejorasTermicas(s, SC.filter(x => x.elem === elem), uMax, { zona, uso })
                     if (!mejoras || mejoras.cumple) return null
 
@@ -2070,8 +2158,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     )
                   })()}
 
-                  {/* Ficha gráfica */}
-                  <FichaSCCompleta s={s} uMax={uMax} rfReq={rfReq} acReq={acReq} />
+                  {/* Ficha gráfica (obra nueva; las PDA usan otra referencia) */}
+                  {!s.esPDA && <FichaSCCompleta s={s} uMax={uMax} rfReq={rfReq} acReq={acReq} />}
 
                   {/* Simulador de capas — solo cuando hay datos BH o SC_CAPAS (evita la violación de hooks) */}
                   {(BH.some(b => b.cod === s.cod) || !!SC_CAPAS[s.cod]) && (
