@@ -5176,7 +5176,7 @@ ${cambios.length && solucion ? `
             <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:8 }}>
               {!res.condInter&&<div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#166534', fontWeight:600 }}>✓ Sin condensación intersticial — interfaces internas OK.</div>}
               {res.condInter&&<div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#991b1b', fontWeight:600 }}>⚠ Riesgo de condensación intersticial — reordena capas con ↑↓ y recalcula.</div>}
-              {supExtBajaTd && (
+              {supExtBajaTd && !res.condInter && (
                 <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderLeft:'4px solid #0369a1', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#0c4a6e', lineHeight:1.6 }}>
                   <b>ℹ Información — no es problema normativo.</b> La superficie exterior está a {tSupExt}°C, bajo el punto de rocío del aire interior ({res.Tdew}°C). Esto es <b>físicamente normal en invierno</b> y no constituye incumplimiento:
                   <ul style={{ margin:'4px 0 0 18px', padding:0 }}>
@@ -5187,7 +5187,7 @@ ${cambios.length && solucion ? `
                   </ul>
                 </div>
               )}
-              {supExtBajaTd&&elemTipo==='piso'&&(
+              {supExtBajaTd&&!res.condInter&&elemTipo==='piso'&&(
                 <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#9a3412' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', cursor:'pointer' }} onClick={()=>setShowInterpret(v=>!v)}>
                     <b>△ Interpretación técnica — piso ventilado</b><span>{showInterpret?'▲':'▼'}</span>
