@@ -1279,7 +1279,7 @@ const PDA_SC = PDA_SOLUCIONES.map(s => ({
   cod: s.cod, elem: s.elem, sistemas: null,
   desc: s.desc, capas: s.capas || 'Ver ficha oficial',
   u: s.u, rf: null, ac_rw: null, zonas: null, usos: ['Vivienda'],
-  esPDA: true, pda: s.pda, rt: s.rt, cond: s.cond,
+  esPDA: true, pda: s.pda, rt: s.rt, cond: s.cond, capasStruct: s.capasStruct || null,
   obs: `${s.fuente}. U=${s.u} W/m²K oficial (NCh853)`
      + (s.rt ? `, RT=${s.rt} m²K/W` : '')
      + (s.cond === 'sin' ? ', sin riesgo de condensación (NCh1973)'
@@ -4748,7 +4748,13 @@ ${cambios.length && solucion ? `
               <div>
                 <div style={{ fontSize:12, fontWeight:700, color:'#1e40af' }}>📋 {solucion.cod} — {solucion.desc}</div>
                 <div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>{solucion.obs}</div>
-                <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>LOSCAT Ed.13 2025 · Capas cargadas automáticamente · Resultado calculado según NCh853:2021 + ISO 6946</div>
+                {solucion.esPDA ? (
+                  <div style={{ fontSize:10, color:'#92400e', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:5, padding:'5px 8px', marginTop:4, lineHeight:1.5 }}>
+                    <b>Ficha oficial PDA.</b> La <b>U oficial de cumplimiento es {solucion.uOficial} W/m²K</b> (NCh853, según la ficha MINVU). La U y la condensación que calcula esta pestaña son <b>referenciales</b> — sirven para analizar el sándwich (Glaser), usan λ estándar NCh853 y pueden diferir levemente del valor oficial.
+                  </div>
+                ) : (
+                  <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>LOSCAT Ed.13 2025 · Capas cargadas automáticamente · Resultado calculado según NCh853:2021 + ISO 6946</div>
+                )}
               </div>
               <button onClick={() => { setSolucion(null); setCapas([]); setRes(null); setCorrec([]); if (onLimpiarCalcU) onLimpiarCalcU(elemKey) }}
                 style={{ background:'#fff', border:'1px solid #fca5a5', borderRadius:5, padding:'4px 12px', cursor:'pointer', fontSize:11, color:'#dc2626', fontWeight:600 }}>
@@ -9923,6 +9929,15 @@ function AppInner() {
 
     // ── Helper compartido: construir capas para el panel Cálculo U ──────────────
     function buildCalcUCapas() {
+      // PDA: usar las capas estructuradas curadas (int→ext, con λ/μ) para el
+      // desglose + Glaser. La U OFICIAL (sc.u) manda; el cálculo es análisis.
+      if (sc.esPDA && sc.capasStruct?.length) {
+        return sc.capasStruct.map(c => ({
+          id: Date.now() + Math.random(),
+          mat: c.mat, lam: c.esCamara ? '' : String(c.lam ?? ''), esp: String(c.esp),
+          mu: c.esCamara ? '' : String(c.mu ?? '1'), esCamara: !!c.esCamara,
+        }))
+      }
       const rawCapas = buildCapas(sc.cod)
       const bhItem   = BH.find(b => b.cod === sc.cod)
       if (rawCapas?.length) {
@@ -9981,7 +9996,7 @@ function AppInner() {
         delete next[elem]                       // eliminar global stale
         delete next[`${targetId}::${elem}`]     // eliminar entry previa de este mismo target+elem
         next[`${targetId}::${elem}`] = calcUCapas?.length
-          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: uApplied, rf: rfVal, ac_rw: acRwNum } }
+          ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: uApplied, rf: rfVal, ac_rw: acRwNum, esPDA: !!sc.esPDA, uOficial: sc.esPDA ? sc.u : undefined } }
           : null
         return next
       })
@@ -10002,7 +10017,7 @@ function AppInner() {
         if (k.endsWith('::' + elem)) delete next[k]
       })
       next[elem] = calcUCapas?.length
-        ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: uApplied, rf: rfVal, ac_rw: acRwNum } }
+        ? { capas: calcUCapas, elem: sc.elem, solucion: { cod: sc.cod, desc: sc.desc, obs: sc.obs, u: uApplied, rf: rfVal, ac_rw: acRwNum, esPDA: !!sc.esPDA, uOficial: sc.esPDA ? sc.u : undefined } }
         : null
       return next
     })

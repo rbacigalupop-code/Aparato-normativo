@@ -61,3 +61,33 @@ describe('PDA — gating por comuna', () => {
     expect(pdaDeComuna('Rancagua').nombre).toMatch(/O.Higgins/)
   })
 })
+
+describe('PDA — capas curadas (calculadora)', () => {
+  const RSI = { muro: 0.13, techumbre: 0.10, piso: 0.17 }
+  const uSerie = (st, elem) => {
+    let R = RSI[elem] + 0.04
+    for (const c of st) {
+      if (c.esCamara) { R += c.esp >= 25 ? 0.18 : c.esp >= 10 ? 0.15 : 0.11; continue }
+      if (c.lam && c.esp) R += (c.esp / 1000) / c.lam
+    }
+    return 1 / R
+  }
+  const curadas = PDA_SOLUCIONES.filter(s => s.capasStruct)
+
+  it('las soluciones curadas tienen capas estructuradas válidas', () => {
+    for (const s of curadas) {
+      expect(s.capasStruct.length).toBeGreaterThanOrEqual(3)
+      for (const c of s.capasStruct) {
+        expect(typeof c.esp).toBe('number')
+        if (!c.esCamara) expect(typeof c.lam).toBe('number')
+      }
+    }
+  })
+
+  it('la U calculada de las capas curadas se acerca a la U oficial (≤0.06)', () => {
+    for (const s of curadas) {
+      const u = uSerie(s.capasStruct, s.elem)
+      expect(Math.abs(u - s.u), `${s.cod} calc=${u.toFixed(2)} of=${s.u}`).toBeLessThanOrEqual(0.06)
+    }
+  })
+})
