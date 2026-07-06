@@ -57,6 +57,14 @@ function buildHtmlInforme(d) {
   const recs = (d.recomendaciones || []).slice(0, 5)
   const totalAhorro = recs.reduce((s, r) => s + (r.ahorroClpAnio || 0), 0)
   const totalInversion = recs.reduce((s, r) => s + (r.costoClp || 0), 0)
+  // Payback acotado a la vida útil (~30 años): sobre eso el retorno por ahorro
+  // deja de ser relevante (>100 años). Se muestra "> 30" y se justifica por
+  // confort/salud/cumplimiento. Ver InformeEjecutivo.jsx.
+  const UMBRAL_PAYBACK = 30
+  const fmtPay = p => (p == null ? '—' : p > UMBRAL_PAYBACK ? `&gt; ${UMBRAL_PAYBACK}` : p)
+  const _gp = totalAhorro > 0 ? totalInversion / totalAhorro : null
+  const globalPayStr = _gp == null ? '—' : _gp > UMBRAL_PAYBACK ? `&gt; ${UMBRAL_PAYBACK} años` : `${_gp.toFixed(1)} años`
+  const hayLargos = recs.some(r => r.payback != null && r.payback > UMBRAL_PAYBACK)
 
   return `
 <!DOCTYPE html>
@@ -272,8 +280,8 @@ function buildHtmlInforme(d) {
         <div class="a">Ahorro: CLP ${fmtClp(r.ahorroClpAnio)}/año</div>
       </div>
       <div class="rec-pb">
-        <div class="v">${r.payback || '—'}</div>
-        <div class="l">años payback</div>
+        <div class="v">${fmtPay(r.payback)}</div>
+        <div class="l">${r.payback != null && r.payback > UMBRAL_PAYBACK ? 'años · no se recupera' : 'años payback'}</div>
       </div>
     </div>
   `).join('')}
@@ -290,9 +298,12 @@ function buildHtmlInforme(d) {
   </div>
   <div>
     <div class="l">Payback promedio</div>
-    <div class="v">${totalAhorro > 0 ? (totalInversion / totalAhorro).toFixed(1) : '—'} años</div>
+    <div class="v">${globalPayStr}</div>
   </div>
 </div>
+${hayLargos ? `<p style="font-size:10px;color:#64748b;font-style:italic;line-height:1.5;margin-top:8px">
+  Las mejoras marcadas <b>"no se recupera"</b> tienen un retorno por ahorro energético superior a la vida útil (${UMBRAL_PAYBACK} años) — habitual en climas templados o con energía barata. Su justificación no es económica sino de <b>confort térmico, salud (menos humedad/moho) y cumplimiento normativo</b> (obligatorio en obra nueva, exigido por el PDA en reacondicionamiento).
+</p>` : ''}
 
 <!-- IMPACTO AMBIENTAL -->
 <h2>🌱 Impacto ambiental</h2>

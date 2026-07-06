@@ -37,6 +37,18 @@ export default function InformeEjecutivo({ proy, calcUInit, fachadas }) {
   const totalInversion = recs.reduce((s, r) => s + (r.costoClp || 0), 0)
   const totalAhorro    = recs.reduce((s, r) => s + (r.ahorroClpAnio || 0), 0)
 
+  // Payback acotado: sobre la vida útil (~30 años) el retorno por ahorro deja de
+  // ser relevante (la construcción no dura tanto). En vez de un número absurdo
+  // (>100 años) se muestra "> 30" — la inversión igual se justifica por confort,
+  // salud y cumplimiento (obligatorio / exigencia PDA).
+  const UMBRAL_PAYBACK = 30
+  const fmtPayback = p =>
+    p == null ? { val: '—', muted: true, sinRetorno: false }
+    : p > UMBRAL_PAYBACK ? { val: `> ${UMBRAL_PAYBACK}`, muted: true, sinRetorno: true }
+    : { val: p, muted: false, sinRetorno: false }
+  const globalPay = totalAhorro > 0 ? totalInversion / totalAhorro : null
+  const hayLargos = recs.some(r => r.payback != null && r.payback > UMBRAL_PAYBACK)
+
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 28px', fontFamily: 'var(--font-body)' }}>
 
@@ -175,12 +187,17 @@ export default function InformeEjecutivo({ proy, calcUInit, fachadas }) {
             <div style={{
               background: 'var(--bg-alt)', padding: '6px 4px', borderRadius: 6, textAlign: 'center',
             }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>
-                {r.payback ?? '—'}
-              </div>
-              <div style={{ fontSize: 8, color: 'var(--ink-3)', textTransform: 'uppercase' }}>
-                años payback
-              </div>
+              {(() => {
+                const f = fmtPayback(r.payback)
+                return <>
+                  <div style={{ fontSize: f.muted ? 14 : 18, fontWeight: 800, color: f.muted ? 'var(--ink-3)' : 'var(--accent)', lineHeight: 1 }}>
+                    {f.val}
+                  </div>
+                  <div style={{ fontSize: 8, color: 'var(--ink-3)', textTransform: 'uppercase' }}>
+                    {f.sinRetorno ? 'años · no se recupera' : 'años payback'}
+                  </div>
+                </>
+              })()}
             </div>
           </div>
         ))}
@@ -203,11 +220,16 @@ export default function InformeEjecutivo({ proy, calcUInit, fachadas }) {
           </div>
           <div>
             <div style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--ink-3)', fontWeight: 600 }}>Payback promedio</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ok)' }}>
-              {totalAhorro > 0 ? (totalInversion / totalAhorro).toFixed(1) : '—'} años
+            <div style={{ fontSize: 18, fontWeight: 800, color: globalPay != null && globalPay > UMBRAL_PAYBACK ? 'var(--ink-3)' : 'var(--ok)' }}>
+              {globalPay == null ? '—' : globalPay > UMBRAL_PAYBACK ? `> ${UMBRAL_PAYBACK} años` : `${globalPay.toFixed(1)} años`}
             </div>
           </div>
         </div>
+        {hayLargos && (
+          <div style={{ marginTop: 10, fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.5, fontStyle: 'italic' }}>
+            Las mejoras marcadas <b>"no se recupera"</b> tienen un retorno por ahorro energético superior a la vida útil ({UMBRAL_PAYBACK} años) — habitual en climas templados o energía barata. Su justificación no es económica sino de <b>confort térmico, salud (menos humedad/moho) y cumplimiento normativo</b> (obligatorio en obra nueva, exigido por el PDA en reacondicionamiento).
+          </div>
+        )}
       </Card>
 
       {/* Impacto ambiental */}
