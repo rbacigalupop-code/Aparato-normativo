@@ -500,8 +500,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.71,
     "rt": 1.41,
     "cond": null,
-    "capas": "Poliestireno expandido 40mm d=20 | ESTUCO ELASTOMÉRICO 3mm | ADHESIVO EIFS 2mm",
-    "capasStruct": null,
+    "capas": "Muro albañilería existente 140mm | Adhesivo EIFS 2mm | Poliestireno expandido d=20 40mm | Estuco elastomérico + malla FV 3mm | Pasta texturizada 2mm",
+    "capasStruct": [
+      {
+        "mat": "Muro albañilería existente",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Adhesivo EIFS",
+        "esp": 2,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20",
+        "esp": 40,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco elastomérico + malla FV",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Pasta texturizada",
+        "esp": 2,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M1 · PDA O'higgins · MINVU"
   },
   {
@@ -512,8 +548,58 @@ export const PDA_SOLUCIONES = [
     "u": 0.74,
     "rt": 1.36,
     "cond": null,
-    "capas": "Polietileno 0.1mm | Poliestireno expandido 30mm d=20 | Cámara de aire 20mm | Placa OSB estructural 11.1mm | Tinglado fibrocemento 6mm | PLACA OSB 11.1mm",
-    "capasStruct": null,
+    "capas": "Muro albañilería existente 140mm | Polietileno (barrera vapor) 0.1mm | Poliestireno expandido d=20 30mm | Cámara de aire 20mm | Placa OSB estructural 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Muro albañilería existente",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20",
+        "esp": 30,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 20,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M2 · PDA O'higgins · MINVU"
   },
   {
@@ -524,8 +610,58 @@ export const PDA_SOLUCIONES = [
     "u": 0.68,
     "rt": 1.46,
     "cond": null,
-    "capas": "Polietileno 0.1mm | Cámara de aire 22mm | Placa OSB estructural 11.1mm | Tinglado fibrocemento 6mm | PLACA OSB 11.1mm | LANA FIBRA DE VIDRIO 40mm d=11 | Tinglado DE FRIBROCEMENTO 6mm",
-    "capasStruct": null,
+    "capas": "Muro albañilería existente 140mm | Polietileno (barrera vapor) 0.1mm | Lana fibra vidrio d=11 (λ efectivo por perfil acero) 40mm | Cámara de aire 22mm | Placa OSB estructural 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Muro albañilería existente",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11 (λ efectivo por perfil acero)",
+        "esp": 40,
+        "lam": 0.05,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 22,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M3 · PDA O'higgins · MINVU"
   },
   {
@@ -536,8 +672,65 @@ export const PDA_SOLUCIONES = [
     "u": 0.71,
     "rt": 1.41,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Poliestireno expandido 20mm d=20 | Placa fibrocemento 8mm | Adhesivo E.I.F.S. 2mm | Cámara de aire 55mm | ESTUCO ELASTOMÉRICO 3mm | RETORNO ADHESIVO EIFS 2mm",
-    "capasStruct": null,
+    "capas": "Revestimiento interior existente 10mm | Polietileno (barrera vapor) 0.1mm | Poliestireno expandido d=20 20mm | Cámara de aire 55mm | Placa fibrocemento 8mm | Poliestireno expandido d=20 (EIFS) 20mm | Estuco elastomérico + malla FV 3mm | Pasta texturizada 2mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior existente",
+        "esp": 10,
+        "lam": 0.3,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20",
+        "esp": 20,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 55,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20 (EIFS)",
+        "esp": 20,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco elastomérico + malla FV",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Pasta texturizada",
+        "esp": 2,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M4 · PDA O'higgins · MINVU"
   },
   {
@@ -548,8 +741,65 @@ export const PDA_SOLUCIONES = [
     "u": 0.76,
     "rt": 1.32,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Poliestireno expandido 40mm d=20 | Tinglado de fibrocemento 6mm | Cámara de aire 75mm | Placa OSB 11.1mm | Cámara de aire 10mm | Tinglado FIBROCEMENTO 6mm | PLACA FIBROCEMENTO 8mm",
-    "capasStruct": null,
+    "capas": "Revestimiento interior existente 10mm | Polietileno (barrera vapor) 0.1mm | Poliestireno expandido d=20 (λ efectivo tabique) 40mm | Cámara de aire 10mm | Placa fibrocemento 8mm | Placa OSB 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior existente",
+        "esp": 10,
+        "lam": 0.3,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20 (λ efectivo tabique)",
+        "esp": 40,
+        "lam": 0.047,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 10,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M5 · PDA O'higgins · MINVU"
   },
   {
@@ -560,8 +810,58 @@ export const PDA_SOLUCIONES = [
     "u": 0.7,
     "rt": 1.44,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Tinglado de fibrocemento 6mm | Cámara de aire 75mm | Placa OSB 11.1mm | Tinglado FIBROCEMENTO 6mm | PLACA FIBROCEMENTO 8mm",
-    "capasStruct": null,
+    "capas": "Revestimiento interior existente 10mm | Polietileno (barrera vapor) 0.1mm | Lana fibra vidrio d=11 50mm | Placa fibrocemento 8mm | Placa OSB 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior existente",
+        "esp": 10,
+        "lam": 0.3,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11",
+        "esp": 50,
+        "lam": 0.045,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M6 · PDA O'higgins · MINVU"
   },
   {
@@ -764,8 +1064,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.71,
     "rt": 1.41,
     "cond": "sin",
-    "capas": "Poliestireno expandido 40mm d=20 | ESTUCO ELASTOMÉRICO 3mm | ADHESIVO EIFS 2mm",
-    "capasStruct": null,
+    "capas": "Muro albañilería existente 140mm | Adhesivo EIFS 2mm | Poliestireno expandido d=20 40mm | Estuco elastomérico + malla FV 3mm | Pasta texturizada 2mm",
+    "capasStruct": [
+      {
+        "mat": "Muro albañilería existente",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Adhesivo EIFS",
+        "esp": 2,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20",
+        "esp": 40,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco elastomérico + malla FV",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Pasta texturizada",
+        "esp": 2,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M1 · PDA Talca–Maule · MINVU"
   },
   {
@@ -776,8 +1112,58 @@ export const PDA_SOLUCIONES = [
     "u": 0.74,
     "rt": 1.36,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Poliestireno expandido 30mm d=20 | Cámara de aire 20mm | Placa OSB estructural 11.1mm | Tinglado fibrocemento 6mm | PLACA OSB 11.1mm",
-    "capasStruct": null,
+    "capas": "Muro albañilería existente 140mm | Polietileno (barrera vapor) 0.1mm | Poliestireno expandido d=20 30mm | Cámara de aire 20mm | Placa OSB estructural 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Muro albañilería existente",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20",
+        "esp": 30,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 20,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M2 · PDA Talca–Maule · MINVU"
   },
   {
@@ -788,8 +1174,58 @@ export const PDA_SOLUCIONES = [
     "u": 0.68,
     "rt": 1.46,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Cámara de aire 22mm | Placa OSB estructural 11.1mm | Tinglado fibrocemento 6mm | PLACA OSB 11.1mm | LANA FIBRA DE VIDRIO 40mm d=11 | Tinglado DE FRIBROCEMENTO 6mm",
-    "capasStruct": null,
+    "capas": "Muro albañilería existente 140mm | Polietileno (barrera vapor) 0.1mm | Lana fibra vidrio d=11 (λ efectivo por perfil acero) 40mm | Cámara de aire 22mm | Placa OSB estructural 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Muro albañilería existente",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11 (λ efectivo por perfil acero)",
+        "esp": 40,
+        "lam": 0.05,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 22,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M3 · PDA Talca–Maule · MINVU"
   },
   {
@@ -800,8 +1236,65 @@ export const PDA_SOLUCIONES = [
     "u": 0.71,
     "rt": 1.41,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Poliestireno expandido 20mm d=20 | Placa fibrocemento 8mm | Adhesivo E.I.F.S. 2mm | Cámara de aire 55mm | ESTUCO ELASTOMÉRICO 3mm | RETORNO ADHESIVO EIFS 2mm",
-    "capasStruct": null,
+    "capas": "Revestimiento interior existente 10mm | Polietileno (barrera vapor) 0.1mm | Poliestireno expandido d=20 20mm | Cámara de aire 55mm | Placa fibrocemento 8mm | Poliestireno expandido d=20 (EIFS) 20mm | Estuco elastomérico + malla FV 3mm | Pasta texturizada 2mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior existente",
+        "esp": 10,
+        "lam": 0.3,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20",
+        "esp": 20,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 55,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20 (EIFS)",
+        "esp": 20,
+        "lam": 0.04,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco elastomérico + malla FV",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Pasta texturizada",
+        "esp": 2,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M4 · PDA Talca–Maule · MINVU"
   },
   {
@@ -812,8 +1305,65 @@ export const PDA_SOLUCIONES = [
     "u": 0.76,
     "rt": 1.32,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Poliestireno expandido 40mm d=20 | Tinglado de fibrocemento 6mm | Cámara de aire 75mm | Placa OSB 11.1mm | Cámara de aire 10mm | Tinglado FIBROCEMENTO 6mm | PLACA FIBROCEMENTO 8mm",
-    "capasStruct": null,
+    "capas": "Revestimiento interior existente 10mm | Polietileno (barrera vapor) 0.1mm | Poliestireno expandido d=20 (λ efectivo tabique) 40mm | Cámara de aire 10mm | Placa fibrocemento 8mm | Placa OSB 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior existente",
+        "esp": 10,
+        "lam": 0.3,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=20 (λ efectivo tabique)",
+        "esp": 40,
+        "lam": 0.047,
+        "mu": 60,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 10,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M5 · PDA Talca–Maule · MINVU"
   },
   {
@@ -824,8 +1374,58 @@ export const PDA_SOLUCIONES = [
     "u": 0.7,
     "rt": 1.44,
     "cond": "sin",
-    "capas": "Polietileno 0.1mm | Tinglado de fibrocemento 6mm | Cámara de aire 75mm | Placa OSB 11.1mm | Tinglado FIBROCEMENTO 6mm | PLACA FIBROCEMENTO 8mm",
-    "capasStruct": null,
+    "capas": "Revestimiento interior existente 10mm | Polietileno (barrera vapor) 0.1mm | Lana fibra vidrio d=11 50mm | Placa fibrocemento 8mm | Placa OSB 11.1mm | Fieltro asfáltico 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior existente",
+        "esp": 10,
+        "lam": 0.3,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.1,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11",
+        "esp": 50,
+        "lam": 0.045,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro asfáltico 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha M6 · PDA Talca–Maule · MINVU"
   },
   {
