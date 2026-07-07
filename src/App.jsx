@@ -114,6 +114,8 @@ const MAT_DEN = {
 // ─── SIMULADOR DE CAPAS ────────────────────────────────────────────────────────
 // ─── FICHA SC — VISOR GRÁFICO ─────────────────────────────────────────────────
 function capasParaSC(s) {
+  // PDA: capas curadas estructuradas (int→ext) → visor gráfico y ficha.
+  if (s.capasStruct?.length) return s.capasStruct.map(c => ({ n: c.mat, esp: c.esp || 0, lam: c.lam, mu: c.mu, esCamara: !!c.esCamara, esAislante: !c.esCamara && c.lam != null && c.lam <= 0.06 }))
   const bh = BH.find(b => b.cod === s.cod)
   if (bh?.capas?.length) return bh.capas.map(c => ({ n: c.n, esp: c.esp || 0, lam: c.lam, mu: c.mu, esCamara: !!c.esCamara, esAislante: !!c.esAislante }))
   const sc = SC_CAPAS[s.cod]
@@ -283,6 +285,8 @@ function capasComparacionSvgStr(capasOrig, capasModif, opts = {}) {
 // y como fallback parsea la cadena "Material1 esp | Material2 esp | ..."
 function getCapasParaSC(sc) {
   if (!sc) return null
+  // PDA: capas curadas estructuradas (para detalles/encuentros y puentes térmicos).
+  if (sc.capasStruct?.length) return sc.capasStruct.map(c => ({ mat: c.mat, lam: c.esCamara ? '' : c.lam, esp: c.esp, mu: c.esCamara ? '' : c.mu, esCamara: !!c.esCamara }))
   const raw = SC_CAPAS[sc.cod]
   if (raw?.length) return raw
   const bh = BH.find(b => b.cod === sc.cod)
@@ -2158,8 +2162,10 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     )
                   })()}
 
-                  {/* Ficha gráfica (obra nueva; las PDA usan otra referencia) */}
-                  {!s.esPDA && <FichaSCCompleta s={s} uMax={uMax} rfReq={rfReq} acReq={acReq} />}
+                  {/* Ficha gráfica — obra nueva y PDA curadas (con capas estructuradas) */}
+                  {(!s.esPDA || s.capasStruct?.length) && (
+                    <FichaSCCompleta s={s} uMax={s.esPDA ? pdaUmax(s) : uMax} rfReq={s.esPDA ? null : rfReq} acReq={s.esPDA ? null : acReq} />
+                  )}
 
                   {/* Simulador de capas — solo cuando hay datos BH o SC_CAPAS (evita la violación de hooks) */}
                   {(BH.some(b => b.cod === s.cod) || !!SC_CAPAS[s.cod]) && (
