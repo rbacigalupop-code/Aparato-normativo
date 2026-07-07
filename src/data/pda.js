@@ -452,8 +452,23 @@ export const PDA_SOLUCIONES = [
     "u": 0.23,
     "rt": 4.26,
     "cond": null,
-    "capas": "Revestimiento de cielo placa yeso cartón 10mm d=750",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo raso) 10mm | Lana fibra vidrio d=12.5 (papel una cara) 170mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo raso)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=12.5 (papel una cara)",
+        "esp": 170,
+        "lam": 0.04,
+        "mu": 1,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F10 · PDA Coyhaique · MINVU"
   },
   {
@@ -464,8 +479,23 @@ export const PDA_SOLUCIONES = [
     "u": 0.24,
     "rt": 4.13,
     "cond": null,
-    "capas": "Revestimiento de cielo placa yeso cartón 10mm d=750 | Aislación de fibra de celulosa soplada en húmedo 170mm d=22",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo raso) 10mm | Fibra de celulosa d=22.8 (a granel) 170mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo raso)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Fibra de celulosa d=22.8 (a granel)",
+        "esp": 170,
+        "lam": 0.042,
+        "mu": 2,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F11 · PDA Coyhaique · MINVU"
   },
   {
@@ -476,8 +506,37 @@ export const PDA_SOLUCIONES = [
     "u": 0.23,
     "rt": 4.27,
     "cond": null,
-    "capas": "Aislación de poliestireno expandido (contínuo) 70mm d=15 | Revestimiento de cielo placa yeso cartón 10mm d=750",
-    "capasStruct": null,
+    "capas": "Madera ranurada decorativa (cielo) 12mm | Barrera de vapor PE 0.2mm | Lana fibra vidrio d=12.5 (papel una cara) 100mm | Poliestireno expandido d=15 70mm",
+    "capasStruct": [
+      {
+        "mat": "Madera ranurada decorativa (cielo)",
+        "esp": 12,
+        "lam": 0.14,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Barrera de vapor PE",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=12.5 (papel una cara)",
+        "esp": 100,
+        "lam": 0.04,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 70,
+        "lam": 0.04,
+        "mu": 40,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F12 · PDA Coyhaique · MINVU"
   },
   {
@@ -488,8 +547,37 @@ export const PDA_SOLUCIONES = [
     "u": 0.25,
     "rt": 4.01,
     "cond": null,
-    "capas": "Aislación de poliestireno expandido 100mm d=10 | Aislación de poliestireno expandido (contínuo) 70mm d=15 | Revestimiento de cielo placa yeso cartón 10mm d=750",
-    "capasStruct": null,
+    "capas": "Yeso cartón RF (cielo) 12.5mm | Barrera de vapor PE 0.2mm | Poliestireno expandido d=10 100mm | Poliestireno expandido d=15 70mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón RF (cielo)",
+        "esp": 12.5,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Barrera de vapor PE",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=10",
+        "esp": 100,
+        "lam": 0.047,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 70,
+        "lam": 0.043,
+        "mu": 40,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F13 · PDA Coyhaique · MINVU"
   },
   {
@@ -1029,8 +1117,37 @@ export const PDA_SOLUCIONES = [
     "u": 0.35,
     "rt": 2.82,
     "cond": null,
-    "capas": "Aislación de poliestireno expandido 100mm d=15",
-    "capasStruct": null,
+    "capas": "Albañilería ladrillo rejilla 140mm | Poliestireno expandido d=15 100mm | Estuco + malla FV (EIFS) 5mm | Revestimiento texturado 3mm",
+    "capasStruct": [
+      {
+        "mat": "Albañilería ladrillo rejilla",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco + malla FV (EIFS)",
+        "esp": 5,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Revestimiento texturado",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F1 · PDA Osorno · MINVU"
   },
   {
@@ -1041,8 +1158,30 @@ export const PDA_SOLUCIONES = [
     "u": 0.25,
     "rt": 4.01,
     "cond": null,
-    "capas": "Aislación de poliestireno expandido 100mm d=10 | Aislación de poliestireno expandido (contínuo) 70mm d=15 | Revestimiento de cielo placa yeso cartón 10mm d=750",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo) 10mm | Poliestireno expandido d=10 100mm | Poliestireno expandido d=15 (continuo) 70mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=10",
+        "esp": 100,
+        "lam": 0.043,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (continuo)",
+        "esp": 70,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F13 · PDA Osorno · MINVU"
   },
   {
@@ -1053,8 +1192,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.41,
     "rt": 2.42,
     "cond": null,
-    "capas": "Aislación de poliestireno expandido 50mm d=15",
-    "capasStruct": null,
+    "capas": "Piso flotante HDF 7mm | Placa OSB (encamisado) 11mm | Poliestireno expandido d=15 50mm | Cámara de aire 40mm | Poliestireno expandido d=15 20mm",
+    "capasStruct": [
+      {
+        "mat": "Piso flotante HDF",
+        "esp": 7,
+        "lam": 0.15,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB (encamisado)",
+        "esp": 11,
+        "lam": 0.12,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 50,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Cámara de aire",
+        "esp": 40,
+        "lam": null,
+        "mu": null,
+        "esCamara": true
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 20,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F14 · PDA Osorno · MINVU"
   },
   {
@@ -1077,8 +1252,37 @@ export const PDA_SOLUCIONES = [
     "u": 0.35,
     "rt": 2.82,
     "cond": null,
-    "capas": "Aislación de poliestireno expandido 100mm d=15",
-    "capasStruct": null,
+    "capas": "Albañilería ladrillo rejilla 140mm | Poliestireno expandido d=15 100mm | Barrera de vapor PE 0.2mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Albañilería ladrillo rejilla",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Barrera de vapor PE",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F2 · PDA Osorno · MINVU"
   },
   {
@@ -1089,8 +1293,37 @@ export const PDA_SOLUCIONES = [
     "u": 0.35,
     "rt": 2.84,
     "cond": null,
-    "capas": "",
-    "capasStruct": null,
+    "capas": "Albañilería ladrillo rejilla 140mm | Lana vidrio d=12.5 (papel una cara) 100mm | Barrera de vapor PE 0.2mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Albañilería ladrillo rejilla",
+        "esp": 140,
+        "lam": 0.46,
+        "mu": 10,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana vidrio d=12.5 (papel una cara)",
+        "esp": 100,
+        "lam": 0.0406,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Barrera de vapor PE",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F3 · PDA Osorno · MINVU"
   },
   {
@@ -1101,8 +1334,51 @@ export const PDA_SOLUCIONES = [
     "u": 0.37,
     "rt": 2.74,
     "cond": null,
-    "capas": "Muro de hormigón armado 150mm d=2400 | Aislación de poliestireno expandido 100mm d=15",
-    "capasStruct": null,
+    "capas": "Mortero revoque interior 25mm | Hormigón armado 150mm | Mortero revoque exterior 25mm | Poliestireno expandido d=15 100mm | Estuco + malla FV (EIFS) 5mm | Revestimiento texturado 3mm",
+    "capasStruct": [
+      {
+        "mat": "Mortero revoque interior",
+        "esp": 25,
+        "lam": 1.4,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Hormigón armado",
+        "esp": 150,
+        "lam": 1.63,
+        "mu": 130,
+        "esCamara": false
+      },
+      {
+        "mat": "Mortero revoque exterior",
+        "esp": 25,
+        "lam": 1.4,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco + malla FV (EIFS)",
+        "esp": 5,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Revestimiento texturado",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F4 · PDA Osorno · MINVU"
   },
   {
@@ -1113,8 +1389,51 @@ export const PDA_SOLUCIONES = [
     "u": 0.38,
     "rt": 2.62,
     "cond": null,
-    "capas": "Muro de hormigón armado 150mm d=2400 | Aislación de poliestireno expandido 100mm d=10",
-    "capasStruct": null,
+    "capas": "Mortero revoque interior 25mm | Hormigón armado 150mm | Mortero revoque exterior 25mm | Poliestireno expandido d=10 100mm | Fieltro 15 lbs 0.5mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Mortero revoque interior",
+        "esp": 25,
+        "lam": 1.4,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Hormigón armado",
+        "esp": 150,
+        "lam": 1.63,
+        "mu": 130,
+        "esCamara": false
+      },
+      {
+        "mat": "Mortero revoque exterior",
+        "esp": 25,
+        "lam": 1.4,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=10",
+        "esp": 100,
+        "lam": 0.043,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Fieltro 15 lbs",
+        "esp": 0.5,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F5 · PDA Osorno · MINVU"
   },
   {
@@ -1125,8 +1444,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.36,
     "rt": 2.76,
     "cond": null,
-    "capas": "Muro de hormigón armado 150mm d=2400",
-    "capasStruct": null,
+    "capas": "Mortero revoque interior 25mm | Hormigón armado 150mm | Mortero revoque exterior 25mm | Lana vidrio d=12.5 (papel una cara) 100mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Mortero revoque interior",
+        "esp": 25,
+        "lam": 1.4,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Hormigón armado",
+        "esp": 150,
+        "lam": 1.63,
+        "mu": 130,
+        "esCamara": false
+      },
+      {
+        "mat": "Mortero revoque exterior",
+        "esp": 25,
+        "lam": 1.4,
+        "mu": 25,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana vidrio d=12.5 (papel una cara)",
+        "esp": 100,
+        "lam": 0.0406,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F6 · PDA Osorno · MINVU"
   },
   {
@@ -1137,8 +1492,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.38,
     "rt": 2.63,
     "cond": null,
-    "capas": "Revestimiento interior placa yeso cartón 10mm d=750",
-    "capasStruct": null,
+    "capas": "Revestimiento interior yeso cartón 10mm | Lana vidrio d=12.5 (λ efectivo por tabique) 70mm | Poliestireno expandido d=15 (continuo) 35mm | Barrera de vapor PE 0.2mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior yeso cartón",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana vidrio d=12.5 (λ efectivo por tabique)",
+        "esp": 70,
+        "lam": 0.045,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (continuo)",
+        "esp": 35,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Barrera de vapor PE",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F7 · PDA Osorno · MINVU"
   },
   {
@@ -1149,8 +1540,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.39,
     "rt": 2.55,
     "cond": null,
-    "capas": "Revestimiento interior placa yeso cartón 10mm d=750 | Aislación de poliestireno expandido (int. tabique) 70mm d=10",
-    "capasStruct": null,
+    "capas": "Revestimiento interior yeso cartón 10mm | Poliestireno expandido d=10 (λ efectivo por tabique) 70mm | Poliestireno expandido d=15 (continuo) 35mm | Barrera de vapor PE 0.2mm | Tinglado fibrocemento 6mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior yeso cartón",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=10 (λ efectivo por tabique)",
+        "esp": 70,
+        "lam": 0.047,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (continuo)",
+        "esp": 35,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Barrera de vapor PE",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Tinglado fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F8 · PDA Osorno · MINVU"
   },
   {
@@ -1161,8 +1588,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.39,
     "rt": 2.57,
     "cond": null,
-    "capas": "Revestimiento interior placa yeso cartón 10mm d=750 | Aislación de poliestireno expandido (int. tabique) 70mm d=10 | Sustrato fibrocemento 6mm d=1135 | Aislación de poliestireno expandido 35mm d=15",
-    "capasStruct": null,
+    "capas": "Revestimiento interior yeso cartón 10mm | Poliestireno expandido d=10 (λ efectivo por tabique) 70mm | Sustrato fibrocemento 6mm | Poliestireno expandido d=15 (EIFS) 35mm | Estuco + revestimiento texturado 3mm",
+    "capasStruct": [
+      {
+        "mat": "Revestimiento interior yeso cartón",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=10 (λ efectivo por tabique)",
+        "esp": 70,
+        "lam": 0.047,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Sustrato fibrocemento",
+        "esp": 6,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (EIFS)",
+        "esp": 35,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Estuco + revestimiento texturado",
+        "esp": 3,
+        "lam": 1,
+        "mu": 25,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha F9 · PDA Osorno · MINVU"
   },
   {
