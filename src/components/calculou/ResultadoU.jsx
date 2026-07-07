@@ -10,8 +10,12 @@ import React from 'react'
 import { IconCheck, IconX } from './icons.jsx'
 
 export default function ResultadoU({ uTotal, uMax, zona }) {
-  const cumple = uTotal <= uMax
-  const margen = ((1 - uTotal / uMax) * 100)
+  // Cumplimiento a 2 decimales: la U-máx del DS N°15 se especifica a 2 decimales
+  // y el número grande se muestra a 2 decimales, así que la comparación usa la U
+  // redondeada (0.602 → 0.60 ≤ 0.60 = cumple). Evita el "no cumple" al límite.
+  const uRound = Math.round(uTotal * 100) / 100
+  const cumple = uRound <= uMax + 1e-9
+  const margen = ((1 - uRound / uMax) * 100)
 
   return (
     <div style={{

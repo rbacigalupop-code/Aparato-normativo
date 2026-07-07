@@ -112,6 +112,12 @@ const MAT_DEN = {
 }
 
 // ─── SIMULADOR DE CAPAS ────────────────────────────────────────────────────────
+// Cumplimiento térmico a 2 decimales: la U-máx del DS N°15 se especifica a 2
+// decimales, así que la U calculada se compara redondeada a 2 decimales
+// (0.602 → 0.60 ≤ 0.60 = cumple). Evita marcar "no cumple" cuando el valor
+// mostrado (redondeado) ya está en el límite. 1e-9 cubre el error de coma flotante.
+const uCumpleMax = (u, umax) => Math.round(parseFloat(u) * 100) / 100 <= umax + 1e-9
+
 // ─── FICHA SC — VISOR GRÁFICO ─────────────────────────────────────────────────
 function capasParaSC(s) {
   // PDA: capas curadas estructuradas (int→ext) → visor gráfico y ficha.
@@ -234,7 +240,7 @@ function capasSeccionSvgStr(capas, opts = {}) {
   }).join('\n')
 
   const totalEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0)
-  const cumpleU  = uMax && uCalc != null ? parseFloat(uCalc) <= uMax : null
+  const cumpleU  = uMax && uCalc != null ? uCumpleMax(uCalc, uMax) : null
   const legendEndY = LEGEND_Y + 24 + capas.length * ROW_H
   const uBadgeY    = legendEndY + 8
   const H          = uBadgeY + (uCalc != null ? 20 : 6)
@@ -2440,7 +2446,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
               const tbPct = parseFloat(termica[id]?.tb || 0)
               const uCorr = (!isNaN(up) && up > 0 && tbPct > 0) ? (up * (1 + tbPct/100)) : up
               const uDisplay = (!isNaN(uCorr) && uCorr > 0) ? uCorr.toFixed(3) : ''
-              const cumpleU = !umax || !uDisplay || parseFloat(uDisplay) <= umax
+              const cumpleU = !umax || !uDisplay || uCumpleMax(uDisplay, umax)
               const uInvalid = uRaw !== '' && (isNaN(up) || up <= 0)
               // Sub-filas por sistema estructural
               const sistemasSolElem = (proy.estructuras?.length > 1)
@@ -4266,7 +4272,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       if (elemId !== 'tabique') {
         // Trigger en 3 casos: condensación, no cumple U, o cerca del límite
         const u_actual = parseFloat(r?.U)
-        const necesitaU = umax && u_actual > umax
+        const necesitaU = umax && !uCumpleMax(u_actual, umax)
         const optimizar = umax && u_actual > umax * 0.85
         const nec = r?.condInter || necesitaU || optimizar
         const esOptimizOnly = optimizar && !necesitaU && !r?.condInter
@@ -4371,7 +4377,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
         // 2. U excede el máximo (no cumple, debe corregirse)
         // 3. U está cerca del límite (>=85% del max) — sugerencias de optimización
         const u_actual = parseFloat(r?.U)
-        const necesitaU    = umax && u_actual > umax              // no cumple
+        const necesitaU    = umax && !uCumpleMax(u_actual, umax)  // no cumple (2 dec.)
         const optimizar    = umax && u_actual > umax * 0.85       // cerca del límite
         const necesita     = r?.condInter || necesitaU || optimizar
         const esOptimizOnly = optimizar && !necesitaU && !r?.condInter
@@ -4462,7 +4468,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     if (!solucion || !res) return ''
     const zona_nombre = proy.zona ? `Zona ${proy.zona} (${ZONAS[proy.zona]?.n || ''})` : 'zona no definida'
     const uCalc = parseFloat(res.U)
-    const cumpleU = !umax || uCalc <= umax
+    const cumpleU = !umax || uCumpleMax(uCalc, umax)
     const cambios = detectarCambios()
     const capasOrig = (origCapas || []).map((c,i) => `   ${i+1}. ${c.esCamara ? 'Cámara de aire' : `${c.mat} — λ=${c.lam} W/mK, e=${c.esp}mm, μ=${c.mu||1}`}`).join('\n')
     const capasMod  = capas.map((c,i) => `   ${i+1}. ${c.esCamara ? 'Cámara de aire' : `${c.mat} — λ=${c.lam} W/mK, e=${c.esp}mm, μ=${c.mu||1}`}`).join('\n')
@@ -4564,7 +4570,7 @@ ${'='.repeat(60)}`
       }
       onCalcUChange(elemKey, { capas: nuevas, res: r, correccionAplicada })
     }
-    const necesita = r?.condInter || (umax && parseFloat(r?.U || 99) > umax)
+    const necesita = r?.condInter || (umax && !uCumpleMax(r?.U ?? 99, umax))
     if (necesita) {
       setModoOptimiz(false)   // tras corregir, si aún falla → modo requerido
       const cvCorr = corr.capasCorregidas
@@ -4590,7 +4596,7 @@ ${'='.repeat(60)}`
   function exportarInformeDom() {
     if (!res) return
     const uCalc   = parseFloat(res.U)
-    const cumpleU = !umax || uCalc <= umax
+    const cumpleU = !umax || uCumpleMax(uCalc, umax)
     const svgStr  = getSvgString()
     const cambios = detectarCambios()
     const fechaHoy = new Date().toLocaleDateString('es-CL')
@@ -4741,7 +4747,7 @@ ${cambios.length && solucion ? `
         <span style={{ fontWeight: 700, fontSize: 13 }}>{label}</span>
         {solucion && <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 4, padding: '1px 8px', fontSize: 11 }}>{solucion.cod}</span>}
         {res && <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 4, padding: '1px 8px', fontSize: 11 }}>U = {res.U} W/m²K</span>}
-        {res && umax && <span style={{ background: parseFloat(res.U) <= umax ? '#dcfce7' : '#fee2e2', color: parseFloat(res.U) <= umax ? '#166534' : '#991b1b', borderRadius: 4, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{parseFloat(res.U) <= umax ? 'CUMPLE' : 'NO CUMPLE'}</span>}
+        {res && umax && (() => { const ok = uCumpleMax(res.U, umax); return <span style={{ background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b', borderRadius: 4, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{ok ? 'CUMPLE' : 'NO CUMPLE'}</span> })()}
         {!res && !solucion && <span style={{ fontSize: 11, opacity: 0.7 }}>Sin datos — aplica una solución o agrega capas</span>}
         <span style={{ marginLeft: 'auto', fontSize: 16 }}>{collapsed ? '▼' : '▲'}</span>
       </div>
@@ -5008,7 +5014,7 @@ ${cambios.length && solucion ? `
         const dU    = parseFloat(deltaU) || 0
         const uCalc = parseFloat(res.U) + dU
         const uCorrStr = uCalc.toFixed(3)
-        const cumpleU      = !umax || uCalc <= umax
+        const cumpleU      = !umax || uCumpleMax(uCalc, umax)
         const tSupExt      = parseFloat(res.temps[res.temps.length-1]).toFixed(2)
         const supExtBajaTd = parseFloat(tSupExt) < parseFloat(res.Tdew)
         const cumpleTodo   = cumpleU && (esTabique || !res.condInter)
@@ -5036,7 +5042,7 @@ ${cambios.length && solucion ? `
           const Uf   = dt < Bp
             ? (2 * lg) / (Math.PI * Bp + dt) * Math.log(Math.PI * Bp / dt + 1)
             : lg / (0.457 * Bp + dt)
-          iso13370 = { Uf: Uf.toFixed(3), Bp: Bp.toFixed(2), dt: dt.toFixed(3), cumple: !umax || Uf <= umax }
+          iso13370 = { Uf: Uf.toFixed(3), Bp: Bp.toFixed(2), dt: dt.toFixed(3), cumple: !umax || uCumpleMax(Uf, umax) }
         }
         const cambios      = detectarCambios()
         const hayModif     = cambios.length > 0

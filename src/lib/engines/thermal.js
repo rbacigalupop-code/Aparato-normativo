@@ -131,8 +131,9 @@ export function sugerirMejorasTermicas(solucionActual, soluciones, uMax, filtros
 
   const uActual = parseFloat(solucionActual.u) || Infinity
 
+  // Cumplimiento a 2 decimales (la U-máx del DS N°15 se especifica a 2 decimales)
   // Si ya cumple, no hay sugerencias necesarias
-  if (uActual <= uMax) {
+  if (Math.round(uActual * 100) / 100 <= uMax + 1e-9) {
     return {
       cumple: true,
       sugerencias: [],
@@ -218,7 +219,7 @@ export function validarCumplimientoTermico(solucion, uMax, soluciones, filtros =
   const uActual = parseFloat(solucion.u) || null
   if (!uActual) return { ok: false, error: 'U no calculada' }
 
-  const cumple = uActual <= uMax
+  const cumple = Math.round(uActual * 100) / 100 <= uMax + 1e-9  // 2 decimales (DS N°15)
   const mejoras = sugerirMejorasTermicas(solucion, soluciones, uMax, filtros)
 
   return {
