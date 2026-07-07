@@ -76,7 +76,8 @@ describe('PDA — capas curadas (calculadora)', () => {
 
   it('las soluciones curadas tienen capas estructuradas válidas', () => {
     for (const s of curadas) {
-      expect(s.capasStruct.length).toBeGreaterThanOrEqual(3)
+      // ≥2: cubierta ventilada válida con 2 capas (cielo + aislante bajo el ático)
+      expect(s.capasStruct.length).toBeGreaterThanOrEqual(2)
       for (const c of s.capasStruct) {
         expect(typeof c.esp).toBe('number')
         if (!c.esCamara) expect(typeof c.lam).toBe('number')

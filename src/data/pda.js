@@ -872,8 +872,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.6,
     "rt": null,
     "cond": null,
-    "capas": "Placa OSB estructural 11.1mm | Placa fibrocemento 8mm",
-    "capasStruct": null,
+    "capas": "Piso flotante HDF 6mm | Polietileno + espuma niveladora 0.2mm | Placa OSB estructural 11.1mm | Lana fibra vidrio d=11 (λ efectivo por envigado) 80mm | Placa fibrocemento 8mm",
+    "capasStruct": [
+      {
+        "mat": "Piso flotante HDF",
+        "esp": 6,
+        "lam": 0.17,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno + espuma niveladora",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11 (λ efectivo por envigado)",
+        "esp": 80,
+        "lam": 0.06,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha PV1 · PDA O'higgins · MINVU"
   },
   {
@@ -884,8 +920,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.58,
     "rt": null,
     "cond": null,
-    "capas": "Placa OSB estructural 11.1mm | Placa fibrocemento 8mm",
-    "capasStruct": null,
+    "capas": "Piso flotante HDF 6mm | Polietileno + espuma niveladora 0.2mm | Placa OSB estructural 11.1mm | Poliestireno expandido d=15 (entre envigado) 60mm | Placa fibrocemento 8mm",
+    "capasStruct": [
+      {
+        "mat": "Piso flotante HDF",
+        "esp": 6,
+        "lam": 0.17,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno + espuma niveladora",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (entre envigado)",
+        "esp": 60,
+        "lam": 0.043,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha PV2 · PDA O'higgins · MINVU"
   },
   {
@@ -896,8 +968,23 @@ export const PDA_SOLUCIONES = [
     "u": 0.38,
     "rt": null,
     "cond": null,
-    "capas": "",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo) 10mm | Lana fibra vidrio d=11 (papel una cara) 100mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11 (papel una cara)",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 1,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha T1 · PDA O'higgins · MINVU"
   },
   {
@@ -908,8 +995,30 @@ export const PDA_SOLUCIONES = [
     "u": 0.38,
     "rt": null,
     "cond": null,
-    "capas": "Polietileno 0.2mm",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo) 10mm | Polietileno (barrera vapor) 0.2mm | Poliestireno expandido d=15 (entre envigado) 100mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (entre envigado)",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha T2 · PDA O'higgins · MINVU"
   },
   {
@@ -1436,8 +1545,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.6,
     "rt": null,
     "cond": null,
-    "capas": "Placa OSB estructural 11.1mm | Placa fibrocemento 8mm",
-    "capasStruct": null,
+    "capas": "Piso flotante HDF 6mm | Polietileno + espuma niveladora 0.2mm | Placa OSB estructural 11.1mm | Lana fibra vidrio d=11 (λ efectivo por envigado) 80mm | Placa fibrocemento 8mm",
+    "capasStruct": [
+      {
+        "mat": "Piso flotante HDF",
+        "esp": 6,
+        "lam": 0.17,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno + espuma niveladora",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11 (λ efectivo por envigado)",
+        "esp": 80,
+        "lam": 0.06,
+        "mu": 1,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha PV1 · PDA Talca–Maule · MINVU"
   },
   {
@@ -1448,8 +1593,44 @@ export const PDA_SOLUCIONES = [
     "u": 0.58,
     "rt": null,
     "cond": null,
-    "capas": "Placa OSB estructural 11.1mm | Placa fibrocemento 8mm",
-    "capasStruct": null,
+    "capas": "Piso flotante HDF 6mm | Polietileno + espuma niveladora 0.2mm | Placa OSB estructural 11.1mm | Poliestireno expandido d=15 (entre envigado) 60mm | Placa fibrocemento 8mm",
+    "capasStruct": [
+      {
+        "mat": "Piso flotante HDF",
+        "esp": 6,
+        "lam": 0.17,
+        "mu": 50,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno + espuma niveladora",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa OSB estructural",
+        "esp": 11.1,
+        "lam": 0.23,
+        "mu": 200,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (entre envigado)",
+        "esp": 60,
+        "lam": 0.043,
+        "mu": 40,
+        "esCamara": false
+      },
+      {
+        "mat": "Placa fibrocemento",
+        "esp": 8,
+        "lam": 0.23,
+        "mu": 50,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha PV2 · PDA Talca–Maule · MINVU"
   },
   {
@@ -1460,8 +1641,23 @@ export const PDA_SOLUCIONES = [
     "u": 0.38,
     "rt": null,
     "cond": "sin",
-    "capas": "",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo) 10mm | Lana fibra vidrio d=11 (papel una cara) 100mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Lana fibra vidrio d=11 (papel una cara)",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 1,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha T1 · PDA Talca–Maule · MINVU"
   },
   {
@@ -1472,8 +1668,30 @@ export const PDA_SOLUCIONES = [
     "u": 0.38,
     "rt": null,
     "cond": "sin",
-    "capas": "Polietileno 0.2mm",
-    "capasStruct": null,
+    "capas": "Yeso cartón (cielo) 10mm | Polietileno (barrera vapor) 0.2mm | Poliestireno expandido d=15 (entre envigado) 100mm",
+    "capasStruct": [
+      {
+        "mat": "Yeso cartón (cielo)",
+        "esp": 10,
+        "lam": 0.26,
+        "mu": 8,
+        "esCamara": false
+      },
+      {
+        "mat": "Polietileno (barrera vapor)",
+        "esp": 0.2,
+        "lam": 0.5,
+        "mu": 50000,
+        "esCamara": false
+      },
+      {
+        "mat": "Poliestireno expandido d=15 (entre envigado)",
+        "esp": 100,
+        "lam": 0.041,
+        "mu": 40,
+        "esCamara": false
+      }
+    ],
     "fuente": "Ficha T2 · PDA Talca–Maule · MINVU"
   }
 ]
