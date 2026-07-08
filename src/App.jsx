@@ -349,9 +349,14 @@ function escantillonSvgStr(opts) {
 
   // Bloque horizontal (piso/techo)
   const HORIZ_X = 20
-  const HORIZ_W = W - HORIZ_X - 14   // 826 px
+  const HORIZ_W = W - HORIZ_X - 14   // 826 px (ancho total del canvas)
   const HORIZ_H = 116
   const HCOTA_X = HORIZ_X + 54       // x de la línea de cotas vertical del horiz
+  // El horizontal (piso/techo) se CORTA en el plano del muro perimetral: no se
+  // prolonga hacia el exterior. Termina en la cara exterior del muro (encuentro
+  // tipo), con línea de quiebre en el extremo interior (continúa hacia adentro).
+  const HORIZ_X2 = WALL_X + WALL_W   // línea de corte = cara exterior del muro
+  const HORIZ_WD = HORIZ_X2 - HORIZ_X // ancho dibujado del piso
 
   // Calcular Y según orientación
   const TOP_PAD = 56
@@ -443,13 +448,13 @@ function escantillonSvgStr(opts) {
     const espMm  = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
     const cy = yCur + h/2
 
-    // Rect con clipPath
-    horizRects.push(`<rect x="${HORIZ_X}" y="${f(yCur)}" width="${HORIZ_W}" height="${f(h)}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2" clip-path="url(#cwh-${uid})"/>`)
-    if (hasPat) horizRects.push(`<rect x="${HORIZ_X}" y="${f(yCur)}" width="${HORIZ_W}" height="${f(h)}" fill="url(#es-${col.pat}-${uid})" clip-path="url(#cwh-${uid})"/>`)
+    // Rect con clipPath — el piso termina en la cara exterior del muro (HORIZ_WD)
+    horizRects.push(`<rect x="${HORIZ_X}" y="${f(yCur)}" width="${HORIZ_WD}" height="${f(h)}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2" clip-path="url(#cwh-${uid})"/>`)
+    if (hasPat) horizRects.push(`<rect x="${HORIZ_X}" y="${f(yCur)}" width="${HORIZ_WD}" height="${f(h)}" fill="url(#es-${col.pat}-${uid})" clip-path="url(#cwh-${uid})"/>`)
 
-    // Badge a la derecha del muro (zona visible)
+    // Badge en la zona interior visible del piso (a la izquierda del muro)
     if (h > 12) {
-      const bx = WALL_X + WALL_W + 22
+      const bx = WALL_X - 15
       horizBadges.push(`<circle cx="${bx}" cy="${f(cy)}" r="7.5" fill="${col.stroke}" opacity="0.9"/>`)
       horizBadges.push(`<text x="${bx}" y="${f(cy + 3)}" text-anchor="middle" font-size="8.5" fill="white" font-weight="700">${i+1}</text>`)
     }
@@ -462,6 +467,15 @@ function escantillonSvgStr(opts) {
     }
     yCur += h
   })
+
+  // ── Línea de quiebre (corte) en el extremo interior del piso ──────
+  // Indica que el elemento continúa hacia el interior (no termina en el borde).
+  const brkN = 6, brkPts = []
+  for (let k = 0; k <= brkN; k++) {
+    const yy = HORIZ_Y + (HORIZ_H / brkN) * k
+    brkPts.push(`${f(HORIZ_X + (k % 2 ? 6 : 0))},${f(yy)}`)
+  }
+  const quiebrePiso = `<polyline points="${brkPts.join(' ')}" fill="none" stroke="#64748b" stroke-width="1.4" opacity="0.85"/>`
 
   // ── Zonas INT / EXT ───────────────────────────────────────────────
   const intX = HORIZ_X, intW = WALL_X - HORIZ_X
@@ -494,7 +508,7 @@ function escantillonSvgStr(opts) {
     const hmy = (horizAislY1 + horizAislY2) / 2
     const junctionY = muroArriba ? HORIZ_Y : WALL_Y
     lineaAislacion = `<line x1="${f(mx)}" y1="${f(junctionY)}" x2="${f(mx)}" y2="${f(hmy)}" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.9"/>
-<line x1="${f(mx)}" y1="${f(hmy)}" x2="${HORIZ_X + HORIZ_W - 28}" y2="${f(hmy)}" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.9"/>
+<line x1="${f(mx)}" y1="${f(hmy)}" x2="${f(WALL_X - 20)}" y2="${f(hmy)}" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.9"/>
 <text x="${f(mx + 7)}" y="${f(junctionY + 16)}" font-size="8" fill="#92400e" font-weight="700">↕ aislación continua</text>`
     estadoContinuidad = '✓ Ambos elementos tienen aislación identificada. Verificar continuidad en obra para evitar puentes térmicos.'
   } else if (muroAislIdx >= 0 || horizAislIdx >= 0) {
@@ -561,7 +575,7 @@ function escantillonSvgStr(opts) {
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${W}px;height:auto;display:block">
 <defs>
   <clipPath id="cwm-${uid}"><rect x="${WALL_X}" y="${WALL_Y}" width="${WALL_W}" height="${WALL_H}"/></clipPath>
-  <clipPath id="cwh-${uid}"><rect x="${HORIZ_X}" y="${HORIZ_Y}" width="${HORIZ_W}" height="${HORIZ_H}"/></clipPath>
+  <clipPath id="cwh-${uid}"><rect x="${HORIZ_X}" y="${HORIZ_Y}" width="${HORIZ_WD}" height="${HORIZ_H}"/></clipPath>
   <pattern id="es-insul-${uid}" patternUnits="userSpaceOnUse" width="8" height="8"><line x1="0" y1="8" x2="8" y2="0" stroke="#f59e0b" stroke-width="1.5" opacity="0.55"/></pattern>
   <pattern id="es-conc-${uid}"  patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="2" cy="2" r="1.2" fill="#94a3b8" opacity="0.45"/><circle cx="6" cy="6" r="1.2" fill="#94a3b8" opacity="0.45"/></pattern>
   <pattern id="es-wood-${uid}"  patternUnits="userSpaceOnUse" width="4" height="10"><line x1="0" y1="0" x2="4" y2="0" stroke="#d97706" stroke-width="1.2" opacity="0.45"/><line x1="0" y1="4" x2="4" y2="4" stroke="#d97706" stroke-width="0.7" opacity="0.3"/></pattern>
@@ -581,6 +595,7 @@ ${wallTitleEl}
 ${horizTitleEl}
 
 ${horizRects.join('\n')}
+${quiebrePiso}
 ${wallRects.join('\n')}
 ${wallBadges.join('\n')}
 ${horizBadges.join('\n')}
