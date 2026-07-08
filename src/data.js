@@ -938,7 +938,9 @@ export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";
 // rseOverride (opcional): para cubierta ventilada (ISO 6946 §6.9.2/6.9.4) — la
 // cara que da a la cámara venteada usa Rse = Rsi del flujo (aire quieto). El
 // caller debe truncar cv hasta la cámara (excluida) antes de llamar.
-export const calcGlaser=(cv,ti,te,hr,elemTipo="muro",rseOverride)=>{
+// hrExt (opcional): humedad relativa EXTERIOR de diseño (%). Default 80. Los PDA
+// preconfiguran valores por zona (85-95% en julio); ver CLIMA_PDA en data/pda.js.
+export const calcGlaser=(cv,ti,te,hr,elemTipo="muro",rseOverride,hrExt=80)=>{
   if(!cv||!cv.length||isNaN(ti)||isNaN(te)||isNaN(hr))return null;
   const rsiKey=elemTipo==="techumbre"?"techo":elemTipo==="piso"?"piso":"muro";
   const rsi=RSI_MAP[rsiKey]||0.13;
@@ -971,7 +973,7 @@ export const calcGlaser=(cv,ti,te,hr,elemTipo="muro",rseOverride)=>{
 
   // ── Presiones de vapor saturado y real (Método Glaser, NCh853:2021 Anexo C) ───
   const Pvsi=satP(ti)*hr/100;
-  const Pvse=satP(te)*0.80;
+  const Pvse=satP(te)*(hrExt/100);
   const sdTot=cv.reduce((s,c)=>{
     if(c.esCamara||c.camara) return s+(1*(c.esp||0));
     return s+((c.mu||1)*(c.esp*1000));
@@ -1275,7 +1277,7 @@ function insertarBVAntesAislante(cv,capa){
 // ─── Glaser ligero (sin ISO 6946) — SOLO para generarCorrecciones ────────────
 // Las capas construidas con AISLS nunca tienen `estructura_integrada`, así que
 // podemos usar la suma de serie pura y ahorrarnos la doble pasada de ISO 6946.
-function _calcGlaserSimple(cv,ti,te,hr,elemTipo="muro"){
+function _calcGlaserSimple(cv,ti,te,hr,elemTipo="muro",hrExt=80){
   if(!cv||!cv.length||isNaN(ti)||isNaN(te)||isNaN(hr))return null;
   const rsiKey=elemTipo==="techumbre"?"techo":elemTipo==="piso"?"piso":"muro";
   const rsi=RSI_MAP[rsiKey]||0.13;
@@ -1291,7 +1293,7 @@ function _calcGlaserSimple(cv,ti,te,hr,elemTipo="muro"){
   let Ra=rsi;
   for(const c of cv){Ra+=Rlay(c);temps.push(ti-(ti-te)*Ra/Rtot);}
   const Pvsi=satP(ti)*hr/100;
-  const Pvse=satP(te)*0.80;
+  const Pvse=satP(te)*(hrExt/100);
   const sdTot=cv.reduce((s,c)=>{
     if(c.esCamara||c.camara)return s+(1*(c.esp||0));
     return s+((c.mu||1)*(c.esp*1000));

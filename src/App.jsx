@@ -27,7 +27,7 @@ import {
   getUIdx, MATS
 } from './data.js'
 import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
-import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxEfectiva } from './data/pda.js'
+import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxEfectiva, climaPDA } from './data/pda.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
@@ -4279,8 +4279,11 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     // verán que su myToken != opToken.current y descartarán su resultado.
     const myToken = ++opToken.current
 
-    // Auto-calcular inmediatamente con las capas de la solución
-    const tiZ = zona?.Ti || 20, teZ = zona?.Te || 5, hrZ = zona?.HR || 70
+    // Auto-calcular inmediatamente con las capas de la solución. Si la comuna
+    // tiene PDA, el clima exterior (Te, He) sale del preset del plan (julio).
+    const _clima = climaPDA(proy.comuna)
+    const tiZ = zona?.Ti || 20, teZ = _clima ? _clima.te : (zona?.Te || 5), hrZ = zona?.HR || 70
+    const hrExtZ = _clima ? _clima.he : 80
     // Cámara: pasar su espesor (metros) para que resistenciaCamara use la R
     // según ISO 6946. Sin espesor → 0.18 (retrocompat con proyectos guardados).
     const cvFull = capasValidas.map(c => c.esCamara ? { esCamara: true, esp: (parseFloat(c.esp) || 0) / 1000 } : {
@@ -4291,7 +4294,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     const { cv, rseVent } = aplicarCubiertaVentilada(cvFull, autoVent, elemTipo)
     if (cv.length) {
       // calcGlaser es sync — siempre aplicar el resultado, sin token-check.
-      const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo, rseVent)
+      const r = calcGlaser(cv, tiZ, teZ, hrZ, elemTipo, rseVent, hrExtZ)
       setRes(r)
       // Tabique interior: no aplica verificación Glaser (NCh853 → solo envolvente)
       if (elemId !== 'tabique') {
@@ -4327,9 +4330,13 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
     // que también bumpea, causando que el cálculo síncrono se pierda.
   }, [initData])
 
+  // Clima de diseño. En comunas con PDA, el exterior (Te, He) usa el preset del
+  // plan (julio); el interior (Ti, HR) se mantiene. Ver CLIMA_PDA en data/pda.js.
+  const climaPda = climaPDA(proy.comuna)
   const ti = zona?.Ti || 20
-  const te = zona?.Te || 5
+  const te = climaPda ? climaPda.te : (zona?.Te || 5)
   const hr = zona?.HR || 70
+  const hrExt = climaPda ? climaPda.he : 80
 
   function addCapa() {
     setCapas(c => [...c, { id: Date.now(), mat: '', lam: '', esp: '', mu: '', esCamara: false }])
@@ -4389,7 +4396,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       const myToken = ++opToken.current
 
       // calcGlaser es sync — siempre aplicar el resultado
-      const r = calcGlaser(cv, ti, te, hr, elemTipo, rseVent)
+      const r = calcGlaser(cv, ti, te, hr, elemTipo, rseVent, hrExt)
       setRes(r)
       setShowHomolog(false)
       // Notificar al padre con las capas actualizadas y el resultado calculado.
@@ -4809,7 +4816,8 @@ ${cambios.length && solucion ? `
             )}
             <div style={{ ...S.col, fontSize: 12, color: '#64748b', marginBottom: 8 }}>
               <span style={S.label}>Condiciones diseño</span>
-              Ti: {ti}°C | Te: {te}°C | HR: {hr}% {umax && `| U máx: ${umax} W/m²K`}
+              Ti: {ti}°C | Te: {te}°C | HR int: {hr}% | HR ext: {hrExt}% {umax && `| U máx: ${umax} W/m²K`}
+              {climaPda && <span style={{ color:'#92400e', fontWeight:600 }}> · clima exterior del PDA (julio)</span>}
             </div>
             {/* ── Tipo de piso (solo piso) ───────────────────────────────────── */}
             {elemId === 'piso' && (

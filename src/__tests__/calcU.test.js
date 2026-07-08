@@ -128,6 +128,14 @@ describe('Cubierta ventilada — truncar stack + Rse aire quieto (ISO 6946 §6.9
     const con = calcGlaser(stackTruncado, 20, -1, 80, 'techumbre', 0.10)  // Rse=0.10
     expect(parseFloat(con.U)).toBeLessThan(parseFloat(sin.U))  // más Rse → menos U
   })
+  it('hrExt (humedad exterior PDA) sube la presión de vapor exterior', () => {
+    const cv = [{ lam: 0.26, esp: 0.013, mu: 8 }, { lam: 0.035, esp: 0.100, mu: 1 }, { lam: 0.23, esp: 0.006, mu: 50 }]
+    const r80 = calcGlaser(cv, 20, 2, 90, 'muro', undefined, 80)  // exterior 80% (default)
+    const r95 = calcGlaser(cv, 20, 2, 90, 'muro', undefined, 95)  // exterior 95% (Coyhaique)
+    expect(parseFloat(r95.Pvse)).toBeGreaterThan(parseFloat(r80.Pvse))
+    // sin pasar hrExt → default 80 (retrocompat)
+    expect(calcGlaser(cv, 20, 2, 90, 'muro').Pvse).toBe(r80.Pvse)
+  })
 })
 
 describe('calcGlaser — detección de condensación (Glaser)', () => {
