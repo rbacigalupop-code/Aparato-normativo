@@ -7284,10 +7284,15 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const _rfReqEsc    = _ogucRfEsc  || RF_DEF[uso]?.escaleras || 'F0'
     const _rfReqCub    = _ogucRfCub  || RF_DEF[uso]?.cubierta  || 'F0'
     const _rfReqCaja   = _ogucRfCaja || RF_DEF[uso]?.cajas_esc || null
+    // U-máx efectiva (zona DS N°15 vs PDA según tipo de obra) — misma fuente que
+    // los paneles de Cálculo U y Térmica, para que los resúmenes no diverjan.
+    const _umMuro  = uMaxEfectiva(proy.comuna, 'muro',  zona.muro,  proy.tipoObra)
+    const _umTecho = uMaxEfectiva(proy.comuna, 'techo', zona.techo, proy.tipoObra)
+    const _umPiso  = uMaxEfectiva(proy.comuna, 'piso',  zona.piso,  proy.tipoObra)
     return [
-      { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${zona.muro} W/m²K`,  ok: !uMuro  || parseFloat(uMuro)  <= zona.muro },
-      { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${zona.techo} W/m²K`, ok: !uTecho || parseFloat(uTecho) <= zona.techo },
-      { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${zona.piso} W/m²K`,  ok: !uPiso  || parseFloat(uPiso)  <= zona.piso },
+      { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro) },
+      { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho) },
+      { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${_umPiso} W/m²K`,  ok: !uPiso  || uCumpleMax(uPiso,  _umPiso) },
       { label:'Puerta U',          val: uPuerta,                    max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !uPuerta || !PUERTA_U[proy.zona] || parseFloat(uPuerta) <= PUERTA_U[proy.zona] },
       { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr) },
       { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
@@ -7834,7 +7839,8 @@ ${glaserHtml}`
           checksExtendido[idx] = {
             ...checksExtendido[idx],
             val: uReal.toFixed(4),
-            ok: !umaxEl || uReal <= umaxEl,
+            max: umaxEl ? `≤ ${umaxEl} W/m²K` : checksExtendido[idx].max,
+            ok: !umaxEl || uCumpleMax(uReal, umaxEl),
           }
         }
       }
