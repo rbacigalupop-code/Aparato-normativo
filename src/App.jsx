@@ -7309,7 +7309,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const _umMuro  = uMaxEfectiva(proy.comuna, 'muro',  zona.muro,  proy.tipoObra)
     const _umTecho = uMaxEfectiva(proy.comuna, 'techo', zona.techo, proy.tipoObra)
     const _umPiso  = uMaxEfectiva(proy.comuna, 'piso',  zona.piso,  proy.tipoObra)
-    return [
+    const _rows = [
       { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro) },
       { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho) },
       { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${_umPiso} W/m²K`,  ok: !uPiso  || uCumpleMax(uPiso,  _umPiso) },
@@ -7352,10 +7352,27 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       { label:'Rw fachada',        val: termica.ac_fachada?.rw      ? termica.ac_fachada.rw+'  dB':null,      max:`≥ ${AC_DEF[uso]?.fachada} dB`,        ok: !termica.ac_fachada?.rw       || parseFloat(termica.ac_fachada.rw)       >= (AC_DEF[uso]?.fachada||0) },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
       { label:"L'n,w impacto pisos", val: termica.ac_impacto_pisos?.lnw ? termica.ac_impacto_pisos.lnw+' dB':null, max:`≤ ${AC_IMPACT_DEF[uso]?.entre_pisos} dB`, ok: !termica.ac_impacto_pisos?.lnw || parseFloat(termica.ac_impacto_pisos.lnw) <= (AC_IMPACT_DEF[uso]?.entre_pisos||99) },
-    ].filter(c => c.val)
+    ]
+    // Cruce acústico ESTIMADO de una solución PDA de muro (Rw ley de masa vs
+    // fachada NCh352). No certificado → informativo: se muestra pero NO gatea el
+    // cumplimiento. Solo si el usuario aún no ingresó un Rw certificado de fachada.
+    const _pdaMuro = termica.muro?.solucion
+    if (_pdaMuro?.esPDA && _pdaMuro.rwEstimado != null && AC_DEF[uso]?.fachada && !termica.ac_fachada?.rw) {
+      _rows.push({
+        label: 'Rw fachada (PDA · estimado)',
+        val: `~${_pdaMuro.rwEstimado} dB`,
+        max: `≥ ${AC_DEF[uso].fachada} dB`,
+        ok: _pdaMuro.rwEstimado >= AC_DEF[uso].fachada,
+        norma: 'Ley de masa (ISO 15712) — estimado, no certificado',
+        informativo: true,
+      })
+    }
+    return _rows.filter(c => c.val)
   }, [proy, termica, calcUInit, zona, uso])
 
-  const allOk = checks.every(c => c.ok)
+  // allOk excluye los checks informativos (Rw estimado PDA) — no gatean el
+  // cumplimiento certificado; el proyectista los verifica/certifica aparte.
+  const allOk = checks.filter(c => !c.informativo).every(c => c.ok)
 
   // getCapasParaSC ahora es una utilidad de nivel de módulo (definida arriba en App.jsx)
   // — se usa por closure tanto aquí como en TabDetalles.
@@ -7895,7 +7912,8 @@ ${glaserHtml}`
     }
 
     // allOkLocal = cumple TODOS los chequeos incluidos condensación + VPCT
-    const allOkLocal = checksExtendido.every(c => c.ok)
+    // (excluye los informativos, p.ej. Rw estimado PDA — no gatean el cumplimiento)
+    const allOkLocal = checksExtendido.filter(c => !c.informativo).every(c => c.ok)
 
     const resumenRows = checksExtendido.map(c => {
       const categoria = c.label.startsWith('Muro') || c.label.startsWith('Techo') || c.label.startsWith('Piso') || c.label.startsWith('Puerta') ? 'Térmico' :
@@ -7908,7 +7926,9 @@ ${glaserHtml}`
         <td>${c.val || '—'}</td>
         <td>${c.max || '—'}</td>
         <td>${c.norma ? `<span style="font-size:8pt;color:#64748b">${c.norma}</span>` : ''}</td>
-        <td>${c.val ? `<span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '<span style="color:#94a3b8;font-size:9pt">Sin datos</span>'}</td>
+        <td>${c.val ? (c.informativo
+          ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">${c.ok ? 'CUMPLE (est.)' : 'REVISAR (est.)'}</span>`
+          : `<span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>`) : '<span style="color:#94a3b8;font-size:9pt">Sin datos</span>'}</td>
       </tr>`
     }).join('')
 
@@ -9187,7 +9207,9 @@ ${cards}`)
                     <td style={S.td}><b>{c.label}</b></td>
                     <td style={S.td}>{c.val}</td>
                     <td style={S.td}>{c.max}</td>
-                    <td style={S.td}><span style={S.badge(c.ok)}>{c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
+                    <td style={S.td}>{c.informativo
+                      ? <span title="Estimado por ley de masa — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
+                      : <span style={S.badge(c.ok)}>{c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>}</td>
                   </tr>
                 ))}
               </tbody>
