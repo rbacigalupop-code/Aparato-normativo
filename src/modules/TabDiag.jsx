@@ -1116,14 +1116,18 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               <b>📋 {proy.comuna} está bajo un Plan de Descontaminación Atmosférica</b> — {p.nombre} ({p.decreto}).
               {p.requisitos && (
                 <div style={{ marginTop: 4 }}>
-                  Aplica <b>reacondicionamiento térmico de vivienda existente</b> con U-máx propio del plan:
-                  muro <b>{p.requisitos.muro}</b> · techumbre <b>{p.requisitos.techo}</b> · piso <b>{p.requisitos.piso}</b> W/m²K
-                  {p.requisitos.infiltracion_ach != null && <> · infiltración ≤ {p.requisitos.infiltracion_ach} ren/h a 50 Pa</>}.
+                  <b>Obra nueva:</b> U-máx exigida por el PDA — muro <b>{p.requisitos.muro}</b> · techumbre <b>{p.requisitos.techo}</b> · piso <b>{p.requisitos.piso}</b> W/m²K
+                  {p.infiltracion_ach != null && <> · infiltración ≤ {p.infiltracion_ach} ren/h a 50 Pa (Blower Door)</>}.
+                  <div style={{ color: '#78350f', marginTop: 2 }}>
+                    La verificación toma <b>la más estricta</b> entre esta y la zona DS N°15. Aplica solo a esta comuna.
+                  </div>
                 </div>
               )}
-              <div style={{ marginTop: 4, color: '#78350f' }}>
-                En la pestaña <b>Soluciones</b> (muro / techumbre / piso) verás las fichas oficiales de reacondicionamiento de este PDA, con la etiqueta <span style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 4, padding: '0 4px' }}>PDA</span>.
-              </div>
+              {p.reacond && (
+                <div style={{ marginTop: 4, color: '#78350f' }}>
+                  Para <b>reacondicionamiento de vivienda existente</b>, el PDA tiene fichas oficiales (muro/techumbre/piso) con la etiqueta <span style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 4, padding: '0 4px' }}>PDA</span> en la pestaña Soluciones (estándar más laxo: muro {p.reacond.muro}).
+                </div>
+              )}
             </div>
           )
         })()}

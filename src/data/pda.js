@@ -12,35 +12,87 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PDA = {
-  // requisitos = U-máx (W/m²K) de acondicionamiento térmico de VIVIENDA EXISTENTE
-  // (reacondicionamiento) del PDA — que es a lo que apuntan estas fichas. La columna
-  // de Vivienda Nueva es más estricta (p.ej. Osorno techo 0.28 / piso 0.39). Fuente:
-  // tabla "REQUERIMIENTOS" de las fichas oficiales MINVU. infiltracion_ach = 50 Pa.
-  chillan: {
-    nombre: 'Chillán – Chillán Viejo', decreto: 'DS N°48/2015 MMA (por confirmar)',
-    comunas: ['Chillán', 'Chillán Viejo'],
-    requisitos: { muro: 0.45, techo: 0.38, piso: 0.60, puerta: 1.7, ventana: '36%', infiltracion_ach: 8, estanqueidad: 10 },
-  },
-  coyhaique: {
-    nombre: 'Coyhaique', decreto: 'DS N°46/2014 MMA (por confirmar)',
-    comunas: ['Coyhaique'],
-    requisitos: { muro: 0.35, techo: 0.25, piso: 0.32, puerta: 1.7, ventana: '36%', infiltracion_ach: 4 },
+  // requisitos = U-máx (W/m²K) de OBRA NUEVA bajo el PDA (matriz oficial). Es el
+  // umbral de cumplimiento OBLIGATORIO: si el proyecto lo supera → alerta roja.
+  // Aplica SOLO a las comunas del PDA; el resto del país usa solo la zona DS N°15.
+  // reacond = U-máx de reacondicionamiento de vivienda existente (fichas MINVU),
+  // estándar más laxo, para evaluar las soluciones de reacond (no obra nueva).
+  // infiltracion_ach = tasa máx. a 50 Pa (Blower Door). ventana_dvh_pct = % de
+  // vidrio sobre fachada desde el cual el DVH es obligatorio. clima = preset Glaser.
+  rm: {
+    nombre: 'Región Metropolitana', decreto: 'DS N°31/2016 MMA',
+    comunas: ['Santiago','Cerrillos','Cerro Navia','Conchalí','El Bosque','Estación Central','Huechuraba','Independencia','La Cisterna','La Florida','La Granja','La Pintana','La Reina','Las Condes','Lo Barnechea','Lo Espejo','Lo Prado','Macul','Maipú','Ñuñoa','Pedro Aguirre Cerda','Peñalolén','Providencia','Pudahuel','Quilicura','Quinta Normal','Recoleta','Renca','San Joaquín','San Miguel','San Ramón','Vitacura','Puente Alto','Pirque','San José de Maipo','San Bernardo','Buin','Calera de Tango','Paine','Talagante','El Monte','Isla de Maipo','Padre Hurtado','Peñaflor','Melipilla','Alhué','Curacaví','María Pinto','Colina','Lampa','Tiltil'],
+    requisitos: { muro: 1.10, techo: 0.47, piso: 0.60 }, reacond: null,
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centro',
   },
   ohiggins: {
-    nombre: "O'Higgins – Valle Central", decreto: 'DS N°1/2021 MMA (vigente 29-03-2023)',
+    nombre: "O'Higgins – Valle Central", decreto: 'DS N°15/2013 · DS N°1/2021 MMA',
     comunas: ['Mostazal','Graneros','Codegua','Doñihue','Coltauco','Coinco','Olivar','Quinta de Tilcoco','Rengo','Requínoa','Malloa','San Vicente de Tagua Tagua','Rancagua','Machalí','San Fernando','Placilla','Chimbarongo'],
-    requisitos: { muro: 0.80, techo: 0.38, piso: 0.60, puerta: 1.7, ventana: '36%', infiltracion_ach: 5 },
+    requisitos: { muro: 0.55, techo: 0.38, piso: 0.60 }, reacond: { muro: 0.80, techo: 0.38, piso: 0.60 },
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centro',
+  },
+  curico: {
+    nombre: 'Curicó – Valle Central', decreto: 'DS N°52/2020 MMA',
+    comunas: ['Curicó','Teno','Rauco','Romeral','Sagrada Familia','Molina'],
+    requisitos: { muro: 0.45, techo: 0.33, piso: 0.50 }, reacond: null,
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centroSur',
   },
   talca_maule: {
     nombre: 'Talca – Maule', decreto: 'DS N°49/2016 MMA',
     comunas: ['Talca', 'Maule'],
-    requisitos: { muro: 0.80, techo: 0.38, piso: 0.60, puerta: 1.7, ventana: '36%', infiltracion_ach: 5, estanqueidad: 10 },
+    requisitos: { muro: 0.45, techo: 0.33, piso: 0.50 }, reacond: { muro: 0.80, techo: 0.38, piso: 0.60 },
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centroSur',
+  },
+  chillan: {
+    nombre: 'Chillán – Chillán Viejo', decreto: 'DS N°48/2015 MMA',
+    comunas: ['Chillán', 'Chillán Viejo'],
+    requisitos: { muro: 0.45, techo: 0.33, piso: 0.50 }, reacond: { muro: 0.45, techo: 0.38, piso: 0.60 },
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centroSur',
+  },
+  concepcion: {
+    nombre: 'Concepción Metropolitano', decreto: 'DS N°6/2018 MMA',
+    comunas: ['Concepción','Talcahuano','San Pedro de la Paz','Coronel','Chiguayante','Hualqui','Penco','Tomé','Lota','Hualpén'],
+    requisitos: { muro: 0.45, techo: 0.28, piso: 0.40 }, reacond: null,
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centroSur',
+  },
+  losangeles: {
+    nombre: 'Los Ángeles', decreto: 'DS N°4/2018 MMA',
+    comunas: ['Los Ángeles'],
+    requisitos: { muro: 0.45, techo: 0.33, piso: 0.50 }, reacond: null,
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centroSur',
+  },
+  temuco: {
+    nombre: 'Temuco – Padre Las Casas', decreto: 'DS N°8/2015 MMA',
+    comunas: ['Temuco', 'Padre Las Casas'],
+    requisitos: { muro: 0.45, techo: 0.33, piso: 0.50 }, reacond: null,
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'centroSur',
+  },
+  valdivia: {
+    nombre: 'Valdivia', decreto: 'DS N°25/2014 MMA',
+    comunas: ['Valdivia'],
+    requisitos: { muro: 0.45, techo: 0.28, piso: 0.40 }, reacond: null,
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'sur',
   },
   osorno: {
     nombre: 'Osorno', decreto: 'DS N°47/2015 MMA',
     comunas: ['Osorno'],
-    requisitos: { muro: 0.40, techo: 0.33, piso: 0.50, puerta: 1.7, ventana: '36%', infiltracion_ach: 5 },
+    requisitos: { muro: 0.45, techo: 0.28, piso: 0.40 }, reacond: { muro: 0.40, techo: 0.33, piso: 0.50 },
+    infiltracion_ach: 5, ventana_dvh_pct: 20, clima: 'sur',
   },
+  coyhaique: {
+    nombre: 'Coyhaique', decreto: 'DS N°46/2014 MMA',
+    comunas: ['Coyhaique'],
+    requisitos: { muro: 0.35, techo: 0.25, piso: 0.35 }, reacond: { muro: 0.35, techo: 0.25, piso: 0.32 },
+    infiltracion_ach: 3, ventana_dvh_pct: 20, clima: 'austral',
+  },
+}
+
+// Presets climáticos del motor Glaser (julio) por macrozona; PDA[x].clima → clave.
+export const CLIMA_PDA = {
+  centro:    { te: 4.0,  he: 85 },  // RM, O'Higgins
+  centroSur: { te: 2.0,  he: 90 },  // Maule, Ñuble, Biobío, Araucanía
+  sur:       { te: 1.0,  he: 90 },  // Los Ríos, Los Lagos
+  austral:   { te: -2.0, he: 95 },  // Aysén (Coyhaique)
 }
 
 export const PDA_SOLUCIONES = [
@@ -2501,4 +2553,19 @@ export function pdaDeComuna(comuna) {
 export function solucionesPDA(comuna) {
   const k = comuna ? resolvePDA(comuna) : null
   return k ? PDA_SOLUCIONES.filter(s => s.pda === k) : []
+}
+/** Preset climático Glaser {te, he} del PDA de una comuna, o null. */
+export function climaPDA(comuna) {
+  const k = resolvePDA(comuna)
+  return k && PDA[k].clima ? CLIMA_PDA[PDA[k].clima] : null
+}
+/** U-máx OBRA NUEVA efectiva = la más estricta entre la zona DS N°15 y el PDA.
+ *  Aplica solo si la comuna tiene PDA; si no, devuelve la de zona sin cambios.
+ *  @param {string} comuna @param {'muro'|'techo'|'piso'} elem @param {number|null} uZona */
+export function uMaxObraNueva(comuna, elem, uZona) {
+  const k = resolvePDA(comuna)
+  const uPda = k ? PDA[k].requisitos?.[elem] : null
+  if (uPda == null) return uZona ?? null
+  if (uZona == null) return uPda
+  return Math.min(uZona, uPda)  // la más estricta (debe cumplir ambas)
 }

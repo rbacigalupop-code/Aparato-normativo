@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PDA, PDA_SOLUCIONES, PDA_DETALLES, resolvePDA, pdaDeComuna, solucionesPDA } from '../data/pda.js'
+import { PDA, PDA_SOLUCIONES, PDA_DETALLES, resolvePDA, pdaDeComuna, solucionesPDA, uMaxObraNueva } from '../data/pda.js'
 
 const ELEMS = ['muro', 'techumbre', 'piso']
 const reqKey = e => (e === 'techumbre' ? 'techo' : e)
@@ -24,9 +24,12 @@ describe('PDA — datos', () => {
     }
   })
 
-  it('INVARIANTE: cada solución cumple el U-máx (vivienda existente) de su PDA', () => {
+  it('INVARIANTE: cada solución cumple el U-máx de REACONDICIONAMIENTO de su PDA', () => {
+    // Las soluciones son fichas de vivienda existente → se comparan contra el
+    // estándar de reacondicionamiento (reacond), no el de obra nueva (requisitos).
     for (const s of PDA_SOLUCIONES) {
-      const uMax = PDA[s.pda].requisitos[reqKey(s.elem)]
+      const req = PDA[s.pda].reacond || PDA[s.pda].requisitos
+      const uMax = req[reqKey(s.elem)]
       expect(s.u, `${s.cod} U=${s.u} debe ≤ ${uMax}`).toBeLessThanOrEqual(uMax + 1e-9)
     }
   })
@@ -49,9 +52,19 @@ describe('PDA — gating por comuna', () => {
   })
 
   it('comuna sin PDA → null y sin soluciones', () => {
-    expect(resolvePDA('Santiago')).toBeNull()
+    // Antofagasta/La Serena no tienen PDA (Santiago ahora sí — PDA RM).
+    expect(resolvePDA('Antofagasta')).toBeNull()
+    expect(resolvePDA('La Serena')).toBeNull()
     expect(resolvePDA('')).toBeNull()
-    expect(solucionesPDA('Santiago')).toEqual([])
+    expect(solucionesPDA('Antofagasta')).toEqual([])
+  })
+
+  it('PDA RM cubre Gran Santiago; obra nueva más estricta que zona', () => {
+    expect(resolvePDA('Santiago')).toBe('rm')
+    expect(resolvePDA('Las Condes')).toBe('rm')
+    // uMaxObraNueva toma la más estricta entre zona y PDA
+    expect(uMaxObraNueva('Maule', 'muro', 0.60)).toBe(0.45)   // PDA manda
+    expect(uMaxObraNueva('Antofagasta', 'muro', 0.60)).toBe(0.60) // sin PDA, no cambia
   })
 
   it('solucionesPDA devuelve solo las del PDA de la comuna', () => {

@@ -27,7 +27,7 @@ import {
   getUIdx, MATS
 } from './data.js'
 import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
-import { PDA, PDA_SOLUCIONES, resolvePDA } from './data/pda.js'
+import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxObraNueva } from './data/pda.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
@@ -1311,9 +1311,13 @@ const PDA_SC = PDA_SOLUCIONES.map(s => ({
         : s.cond === 'con' ? ', con riesgo de condensación' : '')
      + `. Reacondicionamiento térmico de vivienda existente — ${PDA[s.pda].nombre}.`,
 }))
-// U-máx que impone el PDA para el elemento (muro / techumbre→techo / piso).
+// U-máx contra la que se evalúa una solución PDA. Las fichas son de vivienda
+// existente → se comparan contra el estándar de REACONDICIONAMIENTO (reacond),
+// no el de obra nueva (requisitos, que es más estricto).
 function pdaUmax(s) {
-  return PDA[s.pda]?.requisitos?.[s.elem === 'techumbre' ? 'techo' : s.elem] ?? null
+  const p = PDA[s.pda]; if (!p) return null
+  const k = s.elem === 'techumbre' ? 'techo' : s.elem
+  return (p.reacond || p.requisitos)?.[k] ?? null
 }
 
 function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNotas }) {
@@ -1370,12 +1374,16 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
   }, [proy.estructura])
 
   // ── Exigencias normativas según elemento ──────────────────────────────────
-  // Térmica — DS N°15 MINVU Tabla 1 / Tabla 3
-  const uMax =
+  // Térmica — DS N°15 MINVU Tabla 1 / Tabla 3. Si la comuna tiene PDA, la U-máx
+  // efectiva de obra nueva es la más estricta entre la zona y el PDA (uMaxObraNueva).
+  const _uMaxZona =
     elem==='muro'      ? ZONAS[zona]?.muro   :
     elem==='techumbre' ? ZONAS[zona]?.techo  :
     elem==='piso'      ? ZONAS[zona]?.piso   :
     elem==='puerta'    ? PUERTA_U[zona]      : null
+  const uMax = (elem==='muro'||elem==='techumbre'||elem==='piso')
+    ? uMaxObraNueva(proy.comuna, elem==='techumbre'?'techo':elem, _uMaxZona)
+    : _uMaxZona
 
   // Resistencia al fuego — fuente única RF_ELEM_REQ (mismo criterio que
   // Térmica/Resultados/Informe; ver src/__tests__/rf_consistencia.test.js)
@@ -1412,10 +1420,12 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
     // evaluar inline para evitar closure stale (uMax/rfReq/acReq dependen de elem)
     // Defensa contra uso vacío/nulo: usar 'Vivienda' como default
     const _validUso = (uso && uso.trim()) ? uso : 'Vivienda'
-    const _uMax  = elem==='muro'      ? ZONAS[zona]?.muro   :
+    const _uMaxZ = elem==='muro'      ? ZONAS[zona]?.muro   :
                    elem==='techumbre' ? ZONAS[zona]?.techo  :
                    elem==='piso'      ? ZONAS[zona]?.piso   :
                    elem==='puerta'    ? PUERTA_U[zona]      : null
+    const _uMax = (elem==='muro'||elem==='techumbre'||elem==='piso')
+                   ? uMaxObraNueva(proy.comuna, elem==='techumbre'?'techo':elem, _uMaxZ) : _uMaxZ
     const _rfReq = RF_ELEM_REQ(elem, _validUso, pisos, zona) || null
     const _acReq = (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[_validUso]?.entre_unidades ?? null :
                    (elem==='techumbre'||elem==='piso')                 ? AC_DEF[_validUso]?.entre_pisos    ?? null :
@@ -1926,8 +1936,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
       <div style={S.card}>
         {pdaInfo && (elem==='muro'||elem==='techumbre'||elem==='piso') && (
           <div style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'10px 14px', marginBottom:10, fontSize:12, color:'#92400e', lineHeight:1.6 }}>
-            📋 <b>{proy.comuna}</b> está bajo el <b>{pdaInfo.nombre}</b> ({pdaInfo.decreto}). Se incluyen sus <b>soluciones oficiales de reacondicionamiento térmico</b> (etiqueta <span style={{ background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'0 4px' }}>PDA</span>)
-            {pdaInfo.requisitos && <> con U-máx propio: muro {pdaInfo.requisitos.muro} · techo {pdaInfo.requisitos.techo} · piso {pdaInfo.requisitos.piso} W/m²K</>}.
+            📋 <b>{proy.comuna}</b> está bajo el <b>{pdaInfo.nombre}</b> ({pdaInfo.decreto}). La verificación de obra nueva usa la U-máx del PDA (muro {pdaInfo.requisitos.muro} · techo {pdaInfo.requisitos.techo} · piso {pdaInfo.requisitos.piso}) si es más estricta que la zona.
+            {pdaInfo.reacond && <> Las fichas <span style={{ background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'0 4px' }}>PDA</span> del catálogo son de <b>reacondicionamiento</b> (vivienda existente, estándar más laxo).</>}
           </div>
         )}
         {soluciones.length === 0 && (
@@ -5547,7 +5557,7 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
         elemKey,
         elemTipo:    cfg.elemTipo,
         label:       `${cfg.label} — ${tipoCorto}${sector}`,
-        umax:        cfg.umaxKey ? zona?.[cfg.umaxKey] : null,
+        umax:        cfg.umaxKey ? uMaxObraNueva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey]) : null,
         headerColor: cfg.color,
       })
     }
@@ -5559,7 +5569,7 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
     elemKey,
     elemTipo:    cfg.elemTipo,
     label:       cfg.label,
-    umax:        cfg.umaxKey ? zona?.[cfg.umaxKey] : null,
+    umax:        cfg.umaxKey ? uMaxObraNueva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey]) : null,
     headerColor: cfg.color,
   }))
 
@@ -7216,9 +7226,9 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   }, [previewHtml])
 
   const ELEMS_DEF = [
-    { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: zona?.muro,  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
-    { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: zona?.techo, rfReq: RF_ELEM_REQ('techo',uso,proy.pisos),  rwReq: AC_DEF[uso]?.entre_pisos },
-    { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: zona?.piso,  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_pisos },
+    { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: uMaxObraNueva(proy.comuna,'muro',zona?.muro),  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
+    { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: uMaxObraNueva(proy.comuna,'techo',zona?.techo), rfReq: RF_ELEM_REQ('techo',uso,proy.pisos),  rwReq: AC_DEF[uso]?.entre_pisos },
+    { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: uMaxObraNueva(proy.comuna,'piso',zona?.piso),  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_pisos },
     { key: 'tabique', label: 'Tabique',          tipo: 'muro',      umax: null,        rfReq: RF_ELEM_REQ('tabique',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
     { key: 'puerta',  label: 'Puerta exterior',  tipo: 'muro',      umax: PUERTA_U[proy.zona]||null, rfReq: RF_ELEM_REQ('puerta',uso,proy.pisos,proy.zona), rwReq: null },
   ]
