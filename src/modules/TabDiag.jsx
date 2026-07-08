@@ -1123,6 +1123,13 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                   </div>
                 </div>
               )}
+              {/* Chequeos extra del "Informe Favorable PDA" para la DOM */}
+              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #fde68a' }}>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>Verificaciones adicionales para el Informe Favorable PDA (DOM):</div>
+                <div>🌬 <b>Hermeticidad:</b> requiere <b>ensayo Blower Door</b> obligatorio para la recepción municipal (≤ {p.infiltracion_ach ?? 5} ren/h a 50 Pa{p.infiltracion_ach === 3 ? ' — estándar más exigente' : ''}).</div>
+                <div>🪟 <b>Ventanas:</b> si el vidrio supera ~{p.ventana_dvh_pct ?? 20}% de la fachada, el PDA exige <b>termopanel (DVH) en el 100%</b> de las ventanas, con marco de PVC o aluminio con rotura de puente térmico.</div>
+                <div>💨 <b>Ventilación mecánica:</b> al ser tan hermética, la vivienda debe proyectar <b>entrada de aire pasiva + extracción mecánica</b> en baño/cocina (o flujo cruzado con recuperador) para evitar CO₂/humedad.</div>
+              </div>
               {p.reacond && (
                 <div style={{ marginTop: 4, color: '#78350f' }}>
                   Para <b>reacondicionamiento de vivienda existente</b>, el PDA tiene fichas oficiales (muro/techumbre/piso) con la etiqueta <span style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 4, padding: '0 4px' }}>PDA</span> en la pestaña Soluciones (estándar más laxo: muro {p.reacond.muro}).
