@@ -142,7 +142,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M1 · PDA Chillán–Chillán Viejo · MINVU"
+    "fuente": "Ficha M1 · PDA Chillán–Chillán Viejo · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-CHL-M2",
@@ -204,7 +205,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M2 · PDA Chillán–Chillán Viejo · MINVU"
+    "fuente": "Ficha M2 · PDA Chillán–Chillán Viejo · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-CHL-M3",
@@ -266,7 +268,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M3 · PDA Chillán–Chillán Viejo · MINVU"
+    "fuente": "Ficha M3 · PDA Chillán–Chillán Viejo · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-CHL-M4",
@@ -335,7 +338,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M4 · PDA Chillán–Chillán Viejo · MINVU"
+    "fuente": "Ficha M4 · PDA Chillán–Chillán Viejo · MINVU",
+    "rwEstimado": 43
   },
   {
     "cod": "PDA-CHL-M5",
@@ -418,7 +422,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M5 · PDA Chillán–Chillán Viejo · MINVU"
+    "fuente": "Ficha M5 · PDA Chillán–Chillán Viejo · MINVU",
+    "rwEstimado": 43
   },
   {
     "cod": "PDA-CHL-M6",
@@ -494,7 +499,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M6 · PDA Chillán–Chillán Viejo · MINVU"
+    "fuente": "Ficha M6 · PDA Chillán–Chillán Viejo · MINVU",
+    "rwEstimado": 43
   },
   {
     "cod": "PDA-COY-F10",
@@ -521,7 +527,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F10 · PDA Coyhaique · MINVU"
+    "fuente": "Ficha F10 · PDA Coyhaique · MINVU",
+    "rwEstimado": 34
   },
   {
     "cod": "PDA-COY-F11",
@@ -548,7 +555,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F11 · PDA Coyhaique · MINVU"
+    "fuente": "Ficha F11 · PDA Coyhaique · MINVU",
+    "rwEstimado": 35
   },
   {
     "cod": "PDA-COY-F12",
@@ -589,7 +597,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F12 · PDA Coyhaique · MINVU"
+    "fuente": "Ficha F12 · PDA Coyhaique · MINVU",
+    "rwEstimado": 33
   },
   {
     "cod": "PDA-COY-F13",
@@ -630,7 +639,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F13 · PDA Coyhaique · MINVU"
+    "fuente": "Ficha F13 · PDA Coyhaique · MINVU",
+    "rwEstimado": 35
   },
   {
     "cod": "PDA-OH-M1",
@@ -678,7 +688,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M1 · PDA O'higgins · MINVU"
+    "fuente": "Ficha M1 · PDA O'higgins · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-OH-M2",
@@ -740,7 +751,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M2 · PDA O'higgins · MINVU"
+    "fuente": "Ficha M2 · PDA O'higgins · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-OH-M3",
@@ -802,7 +814,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M3 · PDA O'higgins · MINVU"
+    "fuente": "Ficha M3 · PDA O'higgins · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-OH-M4",
@@ -871,7 +884,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M4 · PDA O'higgins · MINVU"
+    "fuente": "Ficha M4 · PDA O'higgins · MINVU",
+    "rwEstimado": 43
   },
   {
     "cod": "PDA-OH-M5",
@@ -940,7 +954,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M5 · PDA O'higgins · MINVU"
+    "fuente": "Ficha M5 · PDA O'higgins · MINVU",
+    "rwEstimado": 45
   },
   {
     "cod": "PDA-OH-M6",
@@ -1002,7 +1017,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M6 · PDA O'higgins · MINVU"
+    "fuente": "Ficha M6 · PDA O'higgins · MINVU",
+    "rwEstimado": 45
   },
   {
     "cod": "PDA-OH-PV1",
@@ -1050,7 +1066,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha PV1 · PDA O'higgins · MINVU"
+    "fuente": "Ficha PV1 · PDA O'higgins · MINVU",
+    "rwEstimado": 41
   },
   {
     "cod": "PDA-OH-PV2",
@@ -1098,7 +1115,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha PV2 · PDA O'higgins · MINVU"
+    "fuente": "Ficha PV2 · PDA O'higgins · MINVU",
+    "rwEstimado": 41
   },
   {
     "cod": "PDA-OH-T1",
@@ -1125,7 +1143,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha T1 · PDA O'higgins · MINVU"
+    "fuente": "Ficha T1 · PDA O'higgins · MINVU",
+    "rwEstimado": 33
   },
   {
     "cod": "PDA-OH-T2",
@@ -1159,7 +1178,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha T2 · PDA O'higgins · MINVU"
+    "fuente": "Ficha T2 · PDA O'higgins · MINVU",
+    "rwEstimado": 33
   },
   {
     "cod": "PDA-OS-F1",
@@ -1200,7 +1220,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F1 · PDA Osorno · MINVU"
+    "fuente": "Ficha F1 · PDA Osorno · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-OS-F13",
@@ -1234,7 +1255,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F13 · PDA Osorno · MINVU"
+    "fuente": "Ficha F13 · PDA Osorno · MINVU",
+    "rwEstimado": 34
   },
   {
     "cod": "PDA-OS-F14",
@@ -1282,7 +1304,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F14 · PDA Osorno · MINVU"
+    "fuente": "Ficha F14 · PDA Osorno · MINVU",
+    "rwEstimado": 37
   },
   {
     "cod": "PDA-OS-F15",
@@ -1294,7 +1317,8 @@ export const PDA_SOLUCIONES = [
     "cond": null,
     "capas": "Aislación poliuretano rígido 20mm d=40",
     "capasStruct": null,
-    "fuente": "Ficha F15 · PDA Osorno · MINVU"
+    "fuente": "Ficha F15 · PDA Osorno · MINVU",
+    "rwEstimado": null
   },
   {
     "cod": "PDA-OS-F2",
@@ -1335,7 +1359,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F2 · PDA Osorno · MINVU"
+    "fuente": "Ficha F2 · PDA Osorno · MINVU",
+    "rwEstimado": 57
   },
   {
     "cod": "PDA-OS-F3",
@@ -1376,7 +1401,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F3 · PDA Osorno · MINVU"
+    "fuente": "Ficha F3 · PDA Osorno · MINVU",
+    "rwEstimado": 57
   },
   {
     "cod": "PDA-OS-F4",
@@ -1431,7 +1457,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F4 · PDA Osorno · MINVU"
+    "fuente": "Ficha F4 · PDA Osorno · MINVU",
+    "rwEstimado": 67
   },
   {
     "cod": "PDA-OS-F5",
@@ -1486,7 +1513,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F5 · PDA Osorno · MINVU"
+    "fuente": "Ficha F5 · PDA Osorno · MINVU",
+    "rwEstimado": 67
   },
   {
     "cod": "PDA-OS-F6",
@@ -1534,7 +1562,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F6 · PDA Osorno · MINVU"
+    "fuente": "Ficha F6 · PDA Osorno · MINVU",
+    "rwEstimado": 67
   },
   {
     "cod": "PDA-OS-F7",
@@ -1582,7 +1611,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F7 · PDA Osorno · MINVU"
+    "fuente": "Ficha F7 · PDA Osorno · MINVU",
+    "rwEstimado": 39
   },
   {
     "cod": "PDA-OS-F8",
@@ -1630,7 +1660,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F8 · PDA Osorno · MINVU"
+    "fuente": "Ficha F8 · PDA Osorno · MINVU",
+    "rwEstimado": 38
   },
   {
     "cod": "PDA-OS-F9",
@@ -1678,7 +1709,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha F9 · PDA Osorno · MINVU"
+    "fuente": "Ficha F9 · PDA Osorno · MINVU",
+    "rwEstimado": 41
   },
   {
     "cod": "PDA-TM-M1",
@@ -1726,7 +1758,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M1 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha M1 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-TM-M2",
@@ -1788,7 +1821,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M2 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha M2 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-TM-M3",
@@ -1850,7 +1884,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M3 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha M3 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 58
   },
   {
     "cod": "PDA-TM-M4",
@@ -1919,7 +1954,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M4 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha M4 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 43
   },
   {
     "cod": "PDA-TM-M5",
@@ -1988,7 +2024,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M5 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha M5 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 45
   },
   {
     "cod": "PDA-TM-M6",
@@ -2050,7 +2087,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha M6 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha M6 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 45
   },
   {
     "cod": "PDA-TM-PV1",
@@ -2098,7 +2136,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha PV1 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha PV1 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 41
   },
   {
     "cod": "PDA-TM-PV2",
@@ -2146,7 +2185,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha PV2 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha PV2 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 41
   },
   {
     "cod": "PDA-TM-T1",
@@ -2173,7 +2213,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha T1 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha T1 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 33
   },
   {
     "cod": "PDA-TM-T2",
@@ -2207,7 +2248,8 @@ export const PDA_SOLUCIONES = [
         "esCamara": false
       }
     ],
-    "fuente": "Ficha T2 · PDA Talca–Maule · MINVU"
+    "fuente": "Ficha T2 · PDA Talca–Maule · MINVU",
+    "rwEstimado": 33
   }
 ]
 

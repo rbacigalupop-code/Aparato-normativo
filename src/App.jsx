@@ -1305,6 +1305,7 @@ const PDA_SC = PDA_SOLUCIONES.map(s => ({
   desc: s.desc, capas: s.capas || 'Ver ficha oficial',
   u: s.u, rf: null, ac_rw: null, zonas: null, usos: ['Vivienda'],
   esPDA: true, pda: s.pda, rt: s.rt, cond: s.cond, capasStruct: s.capasStruct || null,
+  rwEstimado: s.rwEstimado ?? null,
   obs: `${s.fuente}. U=${s.u} W/m²K oficial (NCh853)`
      + (s.rt ? `, RT=${s.rt} m²K/W` : '')
      + (s.cond === 'sin' ? ', sin riesgo de condensación (NCh1973)'
@@ -2027,6 +2028,20 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         {s.cond === 'sin' ? '✓ Sin condensación' : '⚠ Riesgo condensación'}
                       </span>
                     )}
+                    {/* Acústica ESTIMADA (PDA) — ley de masa, no certificada */}
+                    {s.esPDA && s.rwEstimado != null && (
+                      <span title="Rw estimado por ley de masa (ISO 15712), NO certificado. Subestima en muros/tabiques con cámara o doble placa (masa-resorte-masa). Verifica con ensayo NCh2786 o una referencia LOSCAA."
+                        style={{ fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px', color:'#92400e', background:'#fef3c7', cursor:'help' }}>
+                        A ~{s.rwEstimado} dB (est.){acReq ? ` · req ≥${acReq}` : ''}
+                      </span>
+                    )}
+                    {/* Fuego (PDA) — no certificado, requiere revestimiento RF */}
+                    {s.esPDA && (
+                      <span title="Las fichas PDA no certifican resistencia al fuego. El núcleo aislante (EPS/lana) no aporta RF: agrega un revestimiento ignífugo certificado en la cara interior (yeso cartón RF ≈ F30, doble placa ≈ F60) y valídalo con ensayo NCh935 o el LOFC."
+                        style={{ fontSize:11, fontWeight:600, borderRadius:4, padding:'2px 8px', color:'#92400e', background:'#fef3c7', cursor:'help' }}>
+                        F ⚠ requiere revestimiento RF
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
@@ -2075,6 +2090,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     <div style={{ fontSize:11, color:'#92400e', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'8px 12px', marginBottom:10, lineHeight:1.6 }}>
                       Cumple el U-máx de <b>reacondicionamiento térmico de vivienda existente</b> del <b>{PDA[s.pda].nombre}</b>: U={s.u} ≤ {pdaUmax(s)} W/m²K.
                       Es una <b>ficha oficial MINVU</b> con U certificado — no se recalcula ni edita.
+                      <div style={{ marginTop:6, paddingTop:6, borderTop:'1px dashed #fde68a' }}>
+                        <b>⚠ La ficha PDA solo cubre lo térmico</b> (U + condensación). No certifica fuego ni acústica — la propia normativa exige esos criterios pero no los entrega con estas soluciones. Debes completarlos por separado:
+                        <div style={{ marginTop:3 }}>🔊 <b>Acústica:</b> Rw estimado <b>~{s.rwEstimado ?? '—'} dB</b> por ley de masa (ISO 15712), <b>no certificado</b>. Subestima si hay cámara/doble placa. Verifica en la pestaña Acústica contra el Rw del uso (NCh352), o con una referencia LOSCAA.</div>
+                        <div style={{ marginTop:3 }}>🔥 <b>Fuego:</b> el núcleo aislante <b>no aporta RF</b>. Agrega un <b>revestimiento ignífugo certificado</b> en la cara interior (yeso cartón RF ≈ F30, doble placa ≈ F60) y valídalo en la pestaña Fuego (OGUC) con ensayo NCh935 o el LOFC.</div>
+                      </div>
                       <div style={{ marginTop:4, color:'#64748b' }}>Comunas del PDA: {PDA[s.pda].comunas.join(', ')}.</div>
                     </div>
                   )}

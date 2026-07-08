@@ -104,4 +104,12 @@ describe('PDA — capas curadas (calculadora)', () => {
       expect(Math.abs(u - s.u), `${s.cod} calc=${u.toFixed(2)} of=${s.u}`).toBeLessThanOrEqual(0.06)
     }
   })
+
+  it('las soluciones curadas tienen Rw estimado (ley de masa) plausible', () => {
+    for (const s of curadas) {
+      expect(typeof s.rwEstimado, s.cod).toBe('number')
+      expect(s.rwEstimado).toBeGreaterThanOrEqual(20)  // muy liviano
+      expect(s.rwEstimado).toBeLessThanOrEqual(75)     // muy pesado (hormigón)
+    }
+  })
 })
