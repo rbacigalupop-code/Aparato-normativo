@@ -27,7 +27,7 @@ import {
   getUIdx, MATS
 } from './data.js'
 import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
-import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxObraNueva } from './data/pda.js'
+import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxEfectiva } from './data/pda.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
@@ -1382,7 +1382,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
     elem==='piso'      ? ZONAS[zona]?.piso   :
     elem==='puerta'    ? PUERTA_U[zona]      : null
   const uMax = (elem==='muro'||elem==='techumbre'||elem==='piso')
-    ? uMaxObraNueva(proy.comuna, elem==='techumbre'?'techo':elem, _uMaxZona)
+    ? uMaxEfectiva(proy.comuna, elem==='techumbre'?'techo':elem, _uMaxZona, proy.tipoObra)
     : _uMaxZona
 
   // Resistencia al fuego — fuente única RF_ELEM_REQ (mismo criterio que
@@ -1425,7 +1425,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                    elem==='piso'      ? ZONAS[zona]?.piso   :
                    elem==='puerta'    ? PUERTA_U[zona]      : null
     const _uMax = (elem==='muro'||elem==='techumbre'||elem==='piso')
-                   ? uMaxObraNueva(proy.comuna, elem==='techumbre'?'techo':elem, _uMaxZ) : _uMaxZ
+                   ? uMaxEfectiva(proy.comuna, elem==='techumbre'?'techo':elem, _uMaxZ, proy.tipoObra) : _uMaxZ
     const _rfReq = RF_ELEM_REQ(elem, _validUso, pisos, zona) || null
     const _acReq = (elem==='muro'||elem==='tabique'||elem==='puerta') ? AC_DEF[_validUso]?.entre_unidades ?? null :
                    (elem==='techumbre'||elem==='piso')                 ? AC_DEF[_validUso]?.entre_pisos    ?? null :
@@ -1473,7 +1473,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
       return 0
     })
     return list
-  }, [elem, zona, uso, pisos, soloOk, orden, busqueda, filtroRF, filtroSistema, proy.comuna, mostrarOtrosPda])
+  }, [elem, zona, uso, pisos, soloOk, orden, busqueda, filtroRF, filtroSistema, proy.comuna, proy.tipoObra, mostrarOtrosPda])
 
   const totalAplica = soluciones.filter(s => s.ev.aplica).length
   const totalOk     = soluciones.filter(s => s.ev.aplica && s.ev.total === 3).length
@@ -5557,7 +5557,7 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
         elemKey,
         elemTipo:    cfg.elemTipo,
         label:       `${cfg.label} — ${tipoCorto}${sector}`,
-        umax:        cfg.umaxKey ? uMaxObraNueva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey]) : null,
+        umax:        cfg.umaxKey ? uMaxEfectiva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey], proy.tipoObra) : null,
         headerColor: cfg.color,
       })
     }
@@ -5569,7 +5569,7 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
     elemKey,
     elemTipo:    cfg.elemTipo,
     label:       cfg.label,
-    umax:        cfg.umaxKey ? uMaxObraNueva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey]) : null,
+    umax:        cfg.umaxKey ? uMaxEfectiva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey], proy.tipoObra) : null,
     headerColor: cfg.color,
   }))
 
@@ -7226,9 +7226,9 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   }, [previewHtml])
 
   const ELEMS_DEF = [
-    { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: uMaxObraNueva(proy.comuna,'muro',zona?.muro),  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
-    { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: uMaxObraNueva(proy.comuna,'techo',zona?.techo), rfReq: RF_ELEM_REQ('techo',uso,proy.pisos),  rwReq: AC_DEF[uso]?.entre_pisos },
-    { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: uMaxObraNueva(proy.comuna,'piso',zona?.piso),  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_pisos },
+    { key: 'muro',    label: 'Muro',            tipo: 'muro',      umax: uMaxEfectiva(proy.comuna,'muro',zona?.muro,proy.tipoObra),  rfReq: RF_ELEM_REQ('muro',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
+    { key: 'techo',   label: 'Cubierta/Techo',  tipo: 'techumbre', umax: uMaxEfectiva(proy.comuna,'techo',zona?.techo,proy.tipoObra), rfReq: RF_ELEM_REQ('techo',uso,proy.pisos),  rwReq: AC_DEF[uso]?.entre_pisos },
+    { key: 'piso',    label: 'Piso',             tipo: 'piso',      umax: uMaxEfectiva(proy.comuna,'piso',zona?.piso,proy.tipoObra),  rfReq: RF_ELEM_REQ('piso',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_pisos },
     { key: 'tabique', label: 'Tabique',          tipo: 'muro',      umax: null,        rfReq: RF_ELEM_REQ('tabique',uso,proy.pisos), rwReq: AC_DEF[uso]?.entre_unidades },
     { key: 'puerta',  label: 'Puerta exterior',  tipo: 'muro',      umax: PUERTA_U[proy.zona]||null, rfReq: RF_ELEM_REQ('puerta',uso,proy.pisos,proy.zona), rwReq: null },
   ]

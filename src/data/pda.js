@@ -2559,13 +2559,23 @@ export function climaPDA(comuna) {
   const k = resolvePDA(comuna)
   return k && PDA[k].clima ? CLIMA_PDA[PDA[k].clima] : null
 }
-/** U-máx OBRA NUEVA efectiva = la más estricta entre la zona DS N°15 y el PDA.
- *  Aplica solo si la comuna tiene PDA; si no, devuelve la de zona sin cambios.
- *  @param {string} comuna @param {'muro'|'techo'|'piso'} elem @param {number|null} uZona */
-export function uMaxObraNueva(comuna, elem, uZona) {
+/** U-máx efectiva de una comuna según el tipo de obra.
+ *  - 'nueva' (obra nueva): la más estricta entre la zona DS N°15 y el PDA obra nueva.
+ *  - 'reacondicionamiento': el estándar de reacond del PDA (más laxo), o la zona
+ *    si el PDA no define reacond. NO se cruza con la zona (es vivienda existente).
+ *  Aplica el PDA solo si la comuna lo tiene; si no, devuelve la zona sin cambios.
+ *  @param {string} comuna @param {'muro'|'techo'|'piso'} elem @param {number|null} uZona
+ *  @param {'nueva'|'reacondicionamiento'} [tipoObra='nueva'] */
+export function uMaxEfectiva(comuna, elem, uZona, tipoObra = 'nueva') {
   const k = resolvePDA(comuna)
+  if (tipoObra === 'reacondicionamiento') {
+    const uRe = k ? PDA[k].reacond?.[elem] : null
+    return uRe ?? uZona ?? null
+  }
   const uPda = k ? PDA[k].requisitos?.[elem] : null
   if (uPda == null) return uZona ?? null
   if (uZona == null) return uPda
   return Math.min(uZona, uPda)  // la más estricta (debe cumplir ambas)
 }
+// Alias retrocompatible (obra nueva).
+export const uMaxObraNueva = (comuna, elem, uZona) => uMaxEfectiva(comuna, elem, uZona, 'nueva')

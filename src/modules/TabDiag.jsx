@@ -1006,6 +1006,16 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             )}
           </div>
 
+          {/* Tipo de obra — define el estándar U-máx en comunas con PDA */}
+          <div style={S.col}>
+            <label style={S.label(false)}>Tipo de obra</label>
+            <select style={S.sel(false)} value={proy.tipoObra || 'nueva'} onChange={e => setPr('tipoObra', e.target.value)}>
+              <option value="nueva">Obra nueva</option>
+              <option value="reacondicionamiento">Reacondicionamiento (vivienda existente)</option>
+            </select>
+            <span style={S.norm}>En comunas con PDA define la U-máx: obra nueva (estricta) o reacond.</span>
+          </div>
+
           {/* Uso */}
           <div style={S.col}>
             <label style={S.label(campoVacio('uso'))}>
@@ -1111,15 +1121,19 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
           const pk = resolvePDA(proy.comuna)
           if (!pk) return null
           const p = PDA[pk]
+          const esReacond = proy.tipoObra === 'reacondicionamiento'
+          const activo = esReacond && p.reacond ? p.reacond : p.requisitos
           return (
             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginTop: 12, fontSize: 12.5, color: '#92400e', lineHeight: 1.6 }}>
               <b>📋 {proy.comuna} está bajo un Plan de Descontaminación Atmosférica</b> — {p.nombre} ({p.decreto}).
-              {p.requisitos && (
+              {activo && (
                 <div style={{ marginTop: 4 }}>
-                  <b>Obra nueva:</b> U-máx exigida por el PDA — muro <b>{p.requisitos.muro}</b> · techumbre <b>{p.requisitos.techo}</b> · piso <b>{p.requisitos.piso}</b> W/m²K
+                  <b>{esReacond && p.reacond ? 'Reacondicionamiento' : 'Obra nueva'}:</b> U-máx exigida — muro <b>{activo.muro}</b> · techumbre <b>{activo.techo}</b> · piso <b>{activo.piso}</b> W/m²K
                   {p.infiltracion_ach != null && <> · infiltración ≤ {p.infiltracion_ach} ren/h a 50 Pa (Blower Door)</>}.
                   <div style={{ color: '#78350f', marginTop: 2 }}>
-                    La verificación toma <b>la más estricta</b> entre esta y la zona DS N°15. Aplica solo a esta comuna.
+                    {esReacond && p.reacond
+                      ? <>Estándar de vivienda existente. Para obra nueva es más estricto (muro {p.requisitos.muro}).</>
+                      : <>La verificación toma <b>la más estricta</b> entre esta y la zona DS N°15. Aplica solo a esta comuna.</>}
                   </div>
                 </div>
               )}
