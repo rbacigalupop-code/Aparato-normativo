@@ -13,6 +13,7 @@ import {
   estimarRwComposicion,
   calcularMejoraAcustica,
   validarRwCumplimiento,
+  rwFachadaCompuesta,
 } from '../lib/engines/acoustic.js'
 
 describe('estimarRwComposicion — paralelo (ISO 12354-3)', () => {
@@ -67,5 +68,34 @@ describe('validarRwCumplimiento — sin regresión', () => {
   })
   it('sin requisito → cumple', () => {
     expect(validarRwCumplimiento(30, null).cumple).toBe(true)
+  })
+})
+
+describe('rwFachadaCompuesta — muro + ventana en paralelo', () => {
+  it('el vidrio baja el Rw de fachada por debajo del muro', () => {
+    // muro 50, ventana 30, 30% vidriado → combinado < 50
+    const r = rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 30 })
+    expect(r).not.toBeNull()
+    expect(r.combinado).toBeLessThan(50)
+    expect(r.combinado).toBeGreaterThan(30)
+    expect(r.debil).toBe('ventana')
+  })
+
+  it('más superficie vidriada baja más el conjunto', () => {
+    const poco  = rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 15 })
+    const mucho = rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 50 })
+    expect(mucho.combinado).toBeLessThan(poco.combinado)
+  })
+
+  it('marca el muro como débil si la ventana aísla más', () => {
+    const r = rwFachadaCompuesta({ rwMuro: 32, rwVentana: 40, pctVidriado: 20 })
+    expect(r.debil).toBe('muro')
+  })
+
+  it('datos faltantes o % fuera de rango → null (cae a comportamiento previo)', () => {
+    expect(rwFachadaCompuesta({ rwMuro: 50, rwVentana: 0, pctVidriado: 30 })).toBeNull()
+    expect(rwFachadaCompuesta({ rwMuro: 0, rwVentana: 30, pctVidriado: 30 })).toBeNull()
+    expect(rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 0 })).toBeNull()
+    expect(rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 120 })).toBeNull()
   })
 })

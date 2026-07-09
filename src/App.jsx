@@ -5,6 +5,7 @@ import MigrationGate from './MigrationGate.jsx'
 import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
+import { rwFachadaCompuesta } from './lib/engines/acoustic.js'
 import { resolverAplicacionSC } from './lib/aplicarSolucion.js'
 import { analizarGlaserAnual } from './lib/engines/glaser_mensual.js'
 import { climaMensual } from './data/clima_mensual.js'
@@ -3955,9 +3956,15 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                 entre_pisos:    parseFloat(termica.piso?.rw||0) || parseFloat(termica.techo?.rw||0) || '',
               }[id] || ''
               const rwManual = termica['ac_' + id]?.rw || ''
-              const rw = parseFloat(rwManual || rwFromSol || 0)
+              // Fachada: si el usuario no ingresó un Rw manual y hay Rw de muro +
+              // ventana + % vidriado, el Rw real es la composición en paralelo
+              // (el vidrio baja el conjunto). El camino más débil domina.
+              const comp = id === 'fachada' && !rwManual
+                ? rwFachadaCompuesta({ rwMuro: rwFromSol, rwVentana: termica.ac_fachada?.rwVentana, pctVidriado: termica.ac_fachada?.pctVidriado })
+                : null
+              const rw = comp ? comp.combinado : parseFloat(rwManual || rwFromSol || 0)
               const cumple = !req || !rw || rw >= req
-              return (
+              const filas = [
                 <tr key={id}>
                   <td style={S.td}>
                     <b>{label}</b>
@@ -3967,7 +3974,9 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                     <input type="number" min={0} max={90} step="0.5" style={{ ...ist, width:70 }}
                       value={rwManual} onChange={e => set('ac_'+id, 'rw', e.target.value)}
                       placeholder="ej. 45"/>
-                    {!rwManual && rwFromSol ? (
+                    {!rwManual && comp ? (
+                      <div style={{ fontSize:10, color:'#7c3aed', marginTop:2, fontWeight:600 }}>↓ {comp.combinado} dB (muro {comp.rwMuro} + ventana {comp.rwVentana}, {comp.pctVidriado}% vidriado)</div>
+                    ) : !rwManual && rwFromSol ? (
                       <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rwFromSol} dB (solución)</div>
                     ) : null}
                   </td>
@@ -3980,8 +3989,50 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                       <div style={{ fontSize:10, color:'#b45309', marginTop:2 }}>⚠ Déficit ≤ 2 dB — verificar con ensayo NCh352 (tolerancia de medición ±2 dB)</div>
                     )}
                   </td>
-                </tr>
-              )
+                </tr>,
+              ]
+              // Sub-fila de composición de fachada (muro + ventana en paralelo).
+              if (id === 'fachada') {
+                filas.push(
+                  <tr key={id + '-comp'}>
+                    <td style={{ ...S.td, background:'#faf5ff', borderTop:'none' }} colSpan={4}>
+                      <div style={{ fontSize:11, color:'#7c3aed', fontWeight:700, marginBottom:4 }}>
+                        🪟 Composición de fachada (muro + ventana) <span style={{ fontWeight:400, color:'#64748b' }}>— opcional; el vidrio suele ser el eslabón débil</span>
+                      </div>
+                      <div style={{ display:'flex', gap:14, alignItems:'flex-end', flexWrap:'wrap' }}>
+                        <label style={{ fontSize:10, color:'#64748b' }}>
+                          Rw ventana (dB)<br/>
+                          <input type="number" min={0} max={60} step="0.5" style={{ ...ist, width:72 }}
+                            value={termica.ac_fachada?.rwVentana || ''}
+                            onChange={e => set('ac_fachada', 'rwVentana', e.target.value)}
+                            placeholder="ej. 32"/>
+                          <div style={{ fontSize:9, color:'#94a3b8', marginTop:1 }}>monolítico ~28 · DVH ~32 · laminado acústico ~38</div>
+                        </label>
+                        <label style={{ fontSize:10, color:'#64748b' }}>
+                          % vidriado de fachada<br/>
+                          <input type="number" min={0} max={100} step="1" style={{ ...ist, width:72 }}
+                            value={termica.ac_fachada?.pctVidriado || ''}
+                            onChange={e => set('ac_fachada', 'pctVidriado', e.target.value)}
+                            placeholder="ej. 25"/>
+                        </label>
+                        <div style={{ fontSize:10, color:'#64748b' }}>
+                          Muro: <b>{rwFromSol ? rwFromSol + ' dB' : '— (aplica una solución de muro)'}</b>
+                        </div>
+                        {comp && (
+                          <div style={{ fontSize:11, background:'#f3e8ff', border:'1px solid #d8b4fe', borderRadius:6, padding:'6px 10px', color:'#6b21a8' }}>
+                            Rw fachada combinado ≈ <b>{comp.combinado} dB</b> · eslabón débil: <b>{comp.debil}</b>
+                            {req && <> · {comp.combinado >= req ? '✓ cumple' : `✗ faltan ${(req - comp.combinado).toFixed(1)} dB`} (≥ {req} dB)</>}
+                          </div>
+                        )}
+                      </div>
+                      {rwManual && (
+                        <div style={{ fontSize:10, color:'#b45309', marginTop:4 }}>Ingresaste un Rw de fachada manual arriba — manda ese valor y la composición queda solo como referencia.</div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              }
+              return filas
             })}
           </tbody>
         </table>
@@ -7334,6 +7385,15 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const _umMuro  = uMaxEfectiva(proy.comuna, 'muro',  zona.muro,  proy.tipoObra)
     const _umTecho = uMaxEfectiva(proy.comuna, 'techo', zona.techo, proy.tipoObra)
     const _umPiso  = uMaxEfectiva(proy.comuna, 'piso',  zona.piso,  proy.tipoObra)
+    // Rw de fachada: prioridad manual (override) → composición muro+ventana en
+    // paralelo (el vidrio baja el conjunto) → null. Mismo criterio que el panel
+    // Acústica, para que resumen y panel no diverjan.
+    const _acFachReq = AC_DEF[uso]?.fachada || 0
+    const _rwFachManual = termica.ac_fachada?.rw ? parseFloat(termica.ac_fachada.rw) : null
+    const _rwFachComp = _rwFachManual == null
+      ? rwFachadaCompuesta({ rwMuro: parseFloat(termica.muro?.rw) || 0, rwVentana: termica.ac_fachada?.rwVentana, pctVidriado: termica.ac_fachada?.pctVidriado })
+      : null
+    const _rwFachVal = _rwFachManual != null ? _rwFachManual : (_rwFachComp ? _rwFachComp.combinado : null)
     const _rows = [
       { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro) },
       { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho) },
@@ -7374,7 +7434,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       })(),
       { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${_rfReqCub}`,             ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(_rfReqCub), norma:'OGUC Art. 4.5.7 Col.(7)' },
       { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
-      { label:'Rw fachada',        val: termica.ac_fachada?.rw      ? termica.ac_fachada.rw+'  dB':null,      max:`≥ ${AC_DEF[uso]?.fachada} dB`,        ok: !termica.ac_fachada?.rw       || parseFloat(termica.ac_fachada.rw)       >= (AC_DEF[uso]?.fachada||0) },
+      { label:'Rw fachada',        val: _rwFachVal != null ? `${_rwFachVal} dB${_rwFachComp ? ' (muro+ventana)' : ''}` : null, max:`≥ ${AC_DEF[uso]?.fachada} dB`, ok: _rwFachVal == null || _rwFachVal >= _acFachReq, norma: _rwFachComp ? 'Composición muro+ventana en paralelo (ISO 12354-3)' : undefined },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
       { label:"L'n,w impacto pisos", val: termica.ac_impacto_pisos?.lnw ? termica.ac_impacto_pisos.lnw+' dB':null, max:`≤ ${AC_IMPACT_DEF[uso]?.entre_pisos} dB`, ok: !termica.ac_impacto_pisos?.lnw || parseFloat(termica.ac_impacto_pisos.lnw) <= (AC_IMPACT_DEF[uso]?.entre_pisos||99) },
     ]
@@ -7382,7 +7442,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     // fachada NCh352). No certificado → informativo: se muestra pero NO gatea el
     // cumplimiento. Solo si el usuario aún no ingresó un Rw certificado de fachada.
     const _pdaMuro = termica.muro?.solucion
-    if (_pdaMuro?.esPDA && _pdaMuro.rwEstimado != null && AC_DEF[uso]?.fachada && !termica.ac_fachada?.rw) {
+    if (_pdaMuro?.esPDA && _pdaMuro.rwEstimado != null && AC_DEF[uso]?.fachada && _rwFachVal == null) {
       _rows.push({
         label: 'Rw fachada (PDA · estimado)',
         val: `~${_pdaMuro.rwEstimado} dB`,

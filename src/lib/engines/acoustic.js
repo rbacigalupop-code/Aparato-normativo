@@ -2,9 +2,11 @@
  * Acoustic Engine — Funciones puras de cálculo acústico
  * No contiene React, solo lógica de negocio normativa.
  *
- * Nota: la app calcula el Rw inline por ley de masa (ver TabSoluciones). Estas
- * funciones puras están cubiertas por tests (acoustic_engine.test.js) y quedan
- * como API reutilizable para cruces Rw / composición de elementos.
+ * `rwFachadaCompuesta` se usa EN VIVO en el cruce acústico de fachada (App.jsx):
+ * combina el Rw del muro opaco con el de la ventana en paralelo (el camino débil
+ * domina). `validarRwCumplimiento` y `calcularMejoraAcustica` quedan como API
+ * reutilizable (el Rw de elemento simple se calcula inline por ley de masa).
+ * Todas cubiertas por tests (acoustic_engine.test.js).
  */
 
 // ─── Validación de cumplimiento Rw (índice de reducción acústica) ────────────
@@ -81,5 +83,34 @@ export function calcularMejoraAcustica(rwBase, elementosAdicionales) {
     rwMejorado: Math.round(rwMejorado * 10) / 10,
     mejora: Math.round(deltaTotal * 10) / 10,
     elementosAgregados: elementosAdicionales.length,
+  }
+}
+
+// ─── Rw combinado de una FACHADA (muro opaco + ventana) ──────────────────────
+// Una fachada transmite ruido en paralelo por el muro y por la ventana. El Rw
+// real del conjunto NO es el del muro: lo baja el vidrio (camino más débil),
+// ponderado por el % de superficie vidriada. Usa estimarRwComposicion.
+//   pctVidriado = % de la fachada que es ventana (0-100).
+// Devuelve null si faltan datos (muro Rw, ventana Rw o % válido) → el llamador
+// cae a su comportamiento previo (Rw del muro) sin inventar nada.
+export function rwFachadaCompuesta({ rwMuro, rwVentana, pctVidriado }) {
+  const muro = parseFloat(rwMuro) || 0
+  const vent = parseFloat(rwVentana) || 0
+  const pct = parseFloat(pctVidriado)
+  if (!(muro > 0) || !(vent > 0) || !(pct > 0 && pct <= 100)) return null
+
+  const comp = estimarRwComposicion([
+    { rw: muro, area: 100 - pct },
+    { rw: vent, area: pct },
+  ])
+  if (!comp) return null
+
+  return {
+    combinado: comp.rwEstimado,
+    rwMuro: muro,
+    rwVentana: vent,
+    pctVidriado: pct,
+    debil: vent <= muro ? 'ventana' : 'muro',   // camino que domina la pérdida
+    metodo: 'Composición fachada muro+ventana en paralelo (ISO 12354-3, ponderada por área)',
   }
 }
