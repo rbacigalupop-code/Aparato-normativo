@@ -72,9 +72,9 @@ export function identificarEstructuraBase(loscat) {
   }
 
   // ── Albañilería de Ladrillo ────────────────────────────────────────────────
-  const matchLad = texto.match(/(?:ladrillo|albani[lñ]er[ií]a).*?(santiago\s*\d+|princesa\s*\d?|t[ií]tan\s*\w*|s9|s7)/i)
+  const matchLad = texto.match(/(?:ladrillo|alba[nñ]iler[ií]a).*?(santiago\s*\d+|princesa\s*\d?|t[ií]tan\s*\w*|s9|s7)/i)
                    || texto.match(/santiago\s*(\d+)/i)
-  if (matchLad || /ladrillo|albani[lñ]er[ií]a/i.test(texto)) {
+  if (matchLad || /ladrillo|alba[nñ]iler[ií]a/i.test(texto)) {
     const subtipo = matchLad ? matchLad[1].trim() : 'genérico'
     const matchEsp = texto.match(/(\d{2,3})\s*mm\s*(?:de\s+)?(?:espesor|ladrillo|albani)/i)
                      || texto.match(/(?:e=|espesor\s*=?)\s*(\d{2,3})\s*mm/i)

@@ -1177,7 +1177,7 @@ const ELEM_LIST   = ['muro','tabique','techumbre','piso','ventana','puerta']
 // ─── PANEL: Códigos Normativos (LOSCAT + LOFC + LOSCAA) ─────────────────────
 // Muestra los 3 códigos homologados para una solución constructiva.
 // Calcula on-demand usando el motor de homologación.
-function CodigosNormativos({ sc, rfReq, acReq }) {
+function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseReferencial = false }) {
   const homolog = useMemo(() => {
     try {
       return homologarSolucion(sc, { rfRequerido: rfReq, rwRequerido: acReq })
@@ -1189,6 +1189,16 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
 
   if (!homolog) return null
   const { termico, fuego, acustico, estructura_base } = homolog
+
+  // Modo PDA (referencial): solo confiamos el cruce LOFC/LOSCAA cuando la base
+  // detectada es MÁSICA/existente (hormigón, ladrillo, bloque, madera/CLT/SIP).
+  // Materiales livianos (acero, panel sándwich, tabique de yeso) en un retrofit
+  // casi siempre son el furring/revestimiento AÑADIDO, no la estructura base:
+  // homologarlos sobre-acreditaría RF/Rw. En ese caso mostramos "sin cruce".
+  const baseConfiable = !modoBaseReferencial
+    || ['hormigon_armado', 'ladrillo', 'bloque', 'madera', 'clt', 'sip'].includes(estructura_base?.material)
+  const fuegoShow = baseConfiable ? fuego : null
+  const acustShow = baseConfiable ? acustico : null
 
   const Card = ({ icon, titulo, codigo, valor, fuente, intrinseco, oficial, sinMatchTexto, color, descripcion }) => (
     <div style={{
@@ -1246,7 +1256,7 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>📋 Códigos normativos homologados</span>
-        {estructura_base?.material && (
+        {estructura_base?.material && baseConfiable && (
           <span style={{ fontSize: 10, background: '#dbeafe', color: '#1e40af', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
             Base: {estructura_base.material.replace(/_/g, ' ')}
             {estructura_base.espesor_estructura_mm ? ` ${estructura_base.espesor_estructura_mm}mm` : ''}
@@ -1254,43 +1264,56 @@ function CodigosNormativos({ sc, rfReq, acReq }) {
         )}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Card
-          icon="🌡️"
-          titulo="Térmico"
-          color="#1e40af"
-          codigo={termico?.codigo}
-          valor={termico?.u ? `U = ${termico.u} W/m²K` : null}
-          fuente={termico?.fuente}
-          descripcion={termico?.descripcion}
-          oficial={termico?.oficial}
-        />
+        {!omitirTermico && (
+          <Card
+            icon="🌡️"
+            titulo="Térmico"
+            color="#1e40af"
+            codigo={termico?.codigo}
+            valor={termico?.u ? `U = ${termico.u} W/m²K` : null}
+            fuente={termico?.fuente}
+            descripcion={termico?.descripcion}
+            oficial={termico?.oficial}
+          />
+        )}
         <Card
           icon="🔥"
           titulo="Fuego"
           color="#dc2626"
-          codigo={fuego?.codigo}
-          valor={fuego?.rf ? `RF = ${fuego.rf}` : null}
-          fuente={fuego?.fuente}
-          descripcion={fuego?.descripcion}
-          intrinseco={fuego?.intrinseco}
-          sinMatchTexto="Sin cruce automático en LOFC Ed.17 — el RF declarado es referencial. Respáldalo con ensayo NCh935/1 o certificación del fabricante, o agrega capas certificadas (p. ej. placas yeso cartón RF)."
+          codigo={fuegoShow?.codigo}
+          valor={fuegoShow?.rf ? `RF = ${fuegoShow.rf}` : null}
+          fuente={fuegoShow?.fuente}
+          descripcion={fuegoShow?.descripcion}
+          intrinseco={modoBaseReferencial ? undefined : fuegoShow?.intrinseco}
+          sinMatchTexto={modoBaseReferencial
+            ? 'Sin cruce en LOFC Ed.17: la estructura base de esta ficha PDA no es reconocible automáticamente. Aplica la guía de fuego de abajo (revestimiento RF certificado + ensayo NCh935).'
+            : 'Sin cruce automático en LOFC Ed.17 — el RF declarado es referencial. Respáldalo con ensayo NCh935/1 o certificación del fabricante, o agrega capas certificadas (p. ej. placas yeso cartón RF).'}
         />
         <Card
           icon="🔇"
           titulo="Acústico"
           color="#7c3aed"
-          codigo={acustico?.codigo}
-          valor={acustico?.rw ? `${acustico.rw_tipo || 'Rw'} = ${acustico.rw} dB` : null}
-          fuente={acustico?.fuente}
-          descripcion={acustico?.descripcion}
-          intrinseco={acustico?.intrinseco}
-          sinMatchTexto="Sin cruce automático en LOSCAA 2024 — el Rw declarado es referencial. Respáldalo con ensayo (NCh2786 / ISO 10140) o mejora la solución con capas (p. ej. doble placa + lana mineral)."
+          codigo={acustShow?.codigo}
+          valor={acustShow?.rw ? `${acustShow.rw_tipo || 'Rw'} = ${acustShow.rw} dB` : null}
+          fuente={acustShow?.fuente}
+          descripcion={acustShow?.descripcion}
+          intrinseco={modoBaseReferencial ? undefined : acustShow?.intrinseco}
+          sinMatchTexto={modoBaseReferencial
+            ? 'Sin cruce en LOSCAA 2024: la estructura base de esta ficha PDA no es reconocible automáticamente. Usa el Rw estimado de abajo como referencia y verifícalo con ensayo (NCh2786).'
+            : 'Sin cruce automático en LOSCAA 2024 — el Rw declarado es referencial. Respáldalo con ensayo (NCh2786 / ISO 10140) o mejora la solución con capas (p. ej. doble placa + lana mineral).'}
         />
       </div>
       <div style={{ fontSize: 10, color: '#64748b', marginTop: 8, lineHeight: 1.4 }}>
-        💡 Los códigos LOFC y LOSCAA se homologan automáticamente al material base de la solución.
-        El sello "no oficial — verificar" indica un valor calculado o referencial que no proviene de un
-        listado oficial: el profesional responsable debe validarlo antes de usarlo en un expediente.
+        {modoBaseReferencial ? (
+          <>🏗️ Ficha PDA: el cruce LOFC/LOSCAA se homologa a la <b>estructura base</b> (p. ej. el muro
+          existente). El aislante y revestimiento que agrega el reacondicionamiento tienen su propio
+          comportamiento al fuego/acústico — estos códigos son una <b>referencia del elemento base</b>,
+          no del conjunto terminado. Valídalos con el profesional responsable.</>
+        ) : (
+          <>💡 Los códigos LOFC y LOSCAA se homologan automáticamente al material base de la solución.
+          El sello "no oficial — verificar" indica un valor calculado o referencial que no proviene de un
+          listado oficial: el profesional responsable debe validarlo antes de usarlo en un expediente.</>
+        )}
       </div>
     </div>
   )
@@ -2092,8 +2115,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       Es una <b>ficha oficial MINVU</b> con U certificado — no se recalcula ni edita.
                       <div style={{ marginTop:6, paddingTop:6, borderTop:'1px dashed #fde68a' }}>
                         <b>⚠ La ficha PDA solo cubre lo térmico</b> (U + condensación). No certifica fuego ni acústica — la propia normativa exige esos criterios pero no los entrega con estas soluciones. Debes completarlos por separado:
-                        <div style={{ marginTop:3 }}>🔊 <b>Acústica:</b> Rw estimado <b>~{s.rwEstimado ?? '—'} dB</b> por ley de masa (ISO 15712), <b>no certificado</b>. Subestima si hay cámara/doble placa. Verifica en la pestaña Acústica contra el Rw del uso (NCh352), o con una referencia LOSCAA.</div>
-                        <div style={{ marginTop:3 }}>🔥 <b>Fuego:</b> el núcleo aislante <b>no aporta RF</b>. Agrega un <b>revestimiento ignífugo certificado</b> en la cara interior (yeso cartón RF ≈ F30, doble placa ≈ F60) y valídalo en la pestaña Fuego (OGUC) con ensayo NCh935 o el LOFC.</div>
+                        <div style={{ marginTop:3 }}>🔊 <b>Acústica:</b> Rw estimado <b>~{s.rwEstimado ?? '—'} dB</b> por ley de masa (ISO 15712), <b>no certificado</b>. Subestima si hay cámara/doble placa. Verifica en la pestaña Acústica contra el Rw del uso (NCh352). Si la estructura base es reconocible, abajo aparece la <b>referencia oficial LOSCAA</b>.</div>
+                        <div style={{ marginTop:3 }}>🔥 <b>Fuego:</b> el núcleo aislante <b>no aporta RF</b>. Agrega un <b>revestimiento ignífugo certificado</b> en la cara interior (yeso cartón RF ≈ F30, doble placa ≈ F60) y valídalo en la pestaña Fuego (OGUC) con ensayo NCh935. Abajo, si hay cruce, aparece el <b>RF de la estructura base (LOFC)</b>.</div>
                       </div>
                       <div style={{ marginTop:4, color:'#64748b' }}>Comunas del PDA: {PDA[s.pda].comunas.join(', ')}.</div>
                     </div>
@@ -2101,6 +2124,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
                   {/* ── Códigos Normativos (LOSCAT + LOFC + LOSCAA) ──────────── */}
                   {!s.esPDA && <CodigosNormativos sc={s} rfReq={rfReq} acReq={acReq} />}
+                  {/* PDA: homologación fuego/acústico por estructura base (referencial) */}
+                  {s.esPDA && <CodigosNormativos sc={s} rfReq={rfReq} acReq={acReq} omitirTermico modoBaseReferencial />}
 
 
                   {/* ── Alternativas LOSCAT cuando incumple (no en tarjetas PDA) ── */}
