@@ -10233,7 +10233,7 @@ function AppInner() {
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header} className="nc-header">
         {/* Logo Talora */}
-        <img src="/logo.png" alt="Talora" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
+        <img src="/logo-lockup-light.svg" alt="Talora" style={{ height: 40, width: 'auto', flexShrink: 0 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
           <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build {typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''}·{typeof __BUILD_COMMIT__ !== 'undefined' ? __BUILD_COMMIT__ : 'dev'}</div>
