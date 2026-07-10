@@ -164,8 +164,7 @@ export default function AuthGate({ children }) {
       {showPolitica && <PoliticaPrivacidadModal onClose={() => setShowPolitica(false)} />}
       <div style={styles.bgPattern} />
       <div style={styles.card}>
-        <img src="/logo.png" alt="Talora" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
-        <div style={styles.brand}>Talora</div>
+        <img src="/logo-lockup.svg" alt="Talora" style={{ width: 200, height: 'auto', marginBottom: 14 }} />
         <div style={styles.tagline}>Verificación normativa OGUC · DS N°15 · LOSCAT</div>
 
         <div style={styles.divider} />
