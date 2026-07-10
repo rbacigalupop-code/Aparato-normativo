@@ -231,7 +231,7 @@ function TipoBdCCard({ analisis, demandaKwh }) {
 function Hero() {
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #0891b2, #1e40af)',
+      background: 'linear-gradient(135deg, #0d9488, #0e6560)',
       borderRadius: 'var(--radius-lg, 12px)',
       padding: '20px 28px', color: '#fff', marginBottom: 16,
     }}>

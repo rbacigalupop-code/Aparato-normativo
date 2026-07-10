@@ -108,9 +108,9 @@ export default function ActividadUsuarios() {
               onClick={() => setDiasAtras(r.dias)}
               style={{
                 padding: '6px 12px', fontSize: 11, fontWeight: 600,
-                background: diasAtras === r.dias ? '#0369a1' : '#fff',
-                color: diasAtras === r.dias ? '#fff' : '#0369a1',
-                border: '1px solid #0369a1', borderRadius: 5,
+                background: diasAtras === r.dias ? '#0f766e' : '#fff',
+                color: diasAtras === r.dias ? '#fff' : '#0f766e',
+                border: '1px solid #0f766e', borderRadius: 5,
                 cursor: 'pointer',
               }}>
               {r.label}
@@ -179,7 +179,7 @@ export default function ActividadUsuarios() {
                     <td style={tdLeft}>
                       <div style={{ fontWeight: 600, fontSize: 11 }}>{u.nombre || '—'}</div>
                     </td>
-                    <td style={{ ...tdLeft, fontWeight: 700, color: '#0369a1', fontSize: 11, fontFamily: 'var(--font-num)' }}>
+                    <td style={{ ...tdLeft, fontWeight: 700, color: '#0f766e', fontSize: 11, fontFamily: 'var(--font-num)' }}>
                       {u.total}
                     </td>
                     {fechas.map(f => {
@@ -251,8 +251,8 @@ function formatFecha(f) {
 }
 
 const S = {
-  h1: { fontSize: 22, fontWeight: 700, color: '#1e40af', margin: 0 },
-  h2: { fontSize: 14, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
+  h1: { fontSize: 22, fontWeight: 700, color: '#0e6560', margin: 0 },
+  h2: { fontSize: 14, fontWeight: 700, color: '#0e6560', margin: '0 0 12px 0' },
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 },
 }
 const thLeft = { padding: '4px 10px', textAlign: 'left', fontSize: 10, color: '#64748b', fontWeight: 700,

@@ -36,7 +36,7 @@ export default function ModeSwitcher({ mode, onChange, perfil }) {
   const btnActive = {
     ...btnBase,
     background: 'rgba(255,255,255,0.95)',
-    color: '#1e40af',
+    color: '#0e6560',
     borderColor: '#fff',
     boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
   }

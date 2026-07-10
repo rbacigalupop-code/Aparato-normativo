@@ -387,7 +387,7 @@ export default function UserManager() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h1 style={{ ...S.h1, margin: 0 }}>👥 Gestión de usuarios</h1>
-        <button style={S.btnSm('#0369a1')} onClick={cargarUsuarios} disabled={cargando}>
+        <button style={S.btnSm('#0f766e')} onClick={cargarUsuarios} disabled={cargando}>
           {cargando ? '⏳ Cargando...' : '↺ Recargar'}
         </button>
       </div>
@@ -573,8 +573,8 @@ export default function UserManager() {
                           borderRadius: 12,
                           fontSize: 10,
                           fontWeight: 600,
-                          background: inv.rol === 'admin' ? '#dbeafe' : '#f1f5f9',
-                          color: inv.rol === 'admin' ? '#1e40af' : '#64748b',
+                          background: inv.rol === 'admin' ? '#ccfbf1' : '#f1f5f9',
+                          color: inv.rol === 'admin' ? '#0e6560' : '#64748b',
                         }}>
                           {inv.rol === 'admin' ? '👨‍💼 Admin' : '👁️ Viewer'}
                         </span>
@@ -586,7 +586,7 @@ export default function UserManager() {
                       {/* Acciones */}
                       <td style={{ padding: '8px 10px', borderBottom: '1px solid #fef3c7', whiteSpace: 'nowrap' }}>
                         <button
-                          style={{ ...S.btnSm('#0369a1'), marginRight: 4 }}
+                          style={{ ...S.btnSm('#0f766e'), marginRight: 4 }}
                           onClick={() => handleCopiarLink(inv.nombre_completo)}
                           title="Copiar link de invitación"
                         >
@@ -688,8 +688,8 @@ export default function UserManager() {
                               style={{
                                 fontSize: 11, border: '1px solid #e2e8f0',
                                 borderRadius: 4, padding: '3px 6px', cursor: 'pointer',
-                                background: u.plan === 'pro' ? '#fef3c7' : u.plan === 'trial' ? '#dbeafe' : '#fff',
-                                color: u.plan === 'pro' ? '#92400e' : u.plan === 'trial' ? '#1e40af' : '#475569',
+                                background: u.plan === 'pro' ? '#fef3c7' : u.plan === 'trial' ? '#ccfbf1' : '#fff',
+                                color: u.plan === 'pro' ? '#92400e' : u.plan === 'trial' ? '#0e6560' : '#475569',
                                 fontWeight: 600,
                               }}
                               value={u.plan === 'trial' ? 'trial' : (u.plan || 'free')}
@@ -705,7 +705,7 @@ export default function UserManager() {
                             </select>
                           </div>
                           {u.plan === 'trial' && u.trial_expira && (
-                            <span style={{ fontSize: 9, color: '#1e40af', fontStyle: 'italic' }}>
+                            <span style={{ fontSize: 9, color: '#0e6560', fontStyle: 'italic' }}>
                               hasta {new Date(u.trial_expira).toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })}
                             </span>
                           )}
@@ -714,7 +714,7 @@ export default function UserManager() {
                               onClick={() => handleActivarPrueba(u.id, u.nombre_completo)}
                               style={{
                                 fontSize: 9, fontWeight: 700, padding: '2px 6px',
-                                background: '#dbeafe', color: '#1e40af', border: '1px solid #93c5fd',
+                                background: '#ccfbf1', color: '#0e6560', border: '1px solid #5eead4',
                                 borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap',
                               }}
                               title="Activar prueba Pro temporal"
@@ -889,8 +889,8 @@ export default function UserManager() {
                 style={{
                   flex: 1,
                   background: '#fff',
-                  color: '#0369a1',
-                  border: '2px solid #0369a1',
+                  color: '#0f766e',
+                  border: '2px solid #0f766e',
                   borderRadius: 8,
                   padding: '12px 20px',
                   fontSize: 13,
@@ -926,11 +926,11 @@ export default function UserManager() {
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const S = {
-  h1: { fontSize: 22, fontWeight: 700, color: '#1e40af' },
-  h2: { fontSize: 15, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
+  h1: { fontSize: 22, fontWeight: 700, color: '#0e6560' },
+  h2: { fontSize: 15, fontWeight: 700, color: '#0e6560', margin: '0 0 12px 0' },
   label: { fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 },
   input: { border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%', boxSizing: 'border-box' },
-  btn: (c = '#1e40af') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
+  btn: (c = '#0e6560') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
   btnSm: (c = '#64748b') => ({ background: '#fff', color: c, border: `1px solid ${c}`, borderRadius: 5, padding: '3px 9px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }),
   row: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 },
   col: (w = 160) => ({ display: 'flex', flexDirection: 'column', gap: 3, minWidth: w }),
@@ -987,7 +987,7 @@ const S = {
   modalTitle: {
     fontSize: 22,
     fontWeight: 700,
-    color: '#0f172a',
+    color: '#04302e',
     textAlign: 'center',
     margin: '0 0 8px 0',
   },
@@ -1025,12 +1025,12 @@ const S = {
     textAlign: 'right',
   },
   infoMessage: {
-    background: '#eff6ff',
-    border: '1px solid #bfdbfe',
+    background: '#f0fdfa',
+    border: '1px solid #99f6e4',
     borderRadius: 8,
     padding: 14,
     fontSize: 12,
-    color: '#1e40af',
+    color: '#0e6560',
     marginBottom: 20,
   },
   infoList: {

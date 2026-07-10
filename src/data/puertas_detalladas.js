@@ -89,7 +89,7 @@ export const HOJAS = [
     id: 'vidrio_dvh',
     nombre: 'Vidrio DVH 4-12-4 (acceso vidriado)',
     u: 2.8, rf: 'F0', rw: 27, espesor_mm: 20,
-    color: '#bae6fd',
+    color: '#99f6e4',
     nota: 'Para acceso principal vidriado. Marco aporta a la solución conjunta; revisar.',
   },
   {

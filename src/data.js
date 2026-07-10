@@ -866,22 +866,22 @@ export const INST={
 
 // ─── ELEMENTOS NORMATIVOS ─────────────────────────────────────────────────────
 export const ELEM_NORM=[
-  {id:"muro",     label:"Muro perimetral",   icon:"▦", color:"#1e40af", tipoU:"muro",   condObl:true,  normativa:"NCh853 + NCh1973"},
-  {id:"techo",    label:"Techumbre",          icon:"△", color:"#0369a1", tipoU:"techo",  condObl:true,  normativa:"NCh853 + NCh1973"},
-  {id:"piso",     label:"Piso ventilado",     icon:"▬", color:"#0891b2", tipoU:"piso",   condObl:true,  normativa:"NCh853 + NCh1973"},
+  {id:"muro",     label:"Muro perimetral",   icon:"▦", color:"#0e6560", tipoU:"muro",   condObl:true,  normativa:"NCh853 + NCh1973"},
+  {id:"techo",    label:"Techumbre",          icon:"△", color:"#0f766e", tipoU:"techo",  condObl:true,  normativa:"NCh853 + NCh1973"},
+  {id:"piso",     label:"Piso ventilado",     icon:"▬", color:"#0d9488", tipoU:"piso",   condObl:true,  normativa:"NCh853 + NCh1973"},
   {id:"sobr",     label:"Sobrecimiento",      icon:"⊟", color:"#b45309", tipoU:"sobr",   condObl:true,  normativa:"DS N.15 — R100 min"},
   {id:"radier",   label:"Radier/Piso s/suelo",icon:"▒", color:"#92400e", tipoU:"radier", condObl:false, normativa:"DS N.15 — R100 min"},
-  {id:"ventana",  label:"Ventana",            icon:"⊡", color:"#0369a1", tipoU:null,     condObl:false, normativa:"Tabla VPCT"},
+  {id:"ventana",  label:"Ventana",            icon:"⊡", color:"#0f766e", tipoU:null,     condObl:false, normativa:"Tabla VPCT"},
   {id:"puerta",   label:"Puerta exterior",    icon:"◫", color:"#374151", tipoU:null,     condObl:false, normativa:"DS N.15 U max"},
 ];
 
 // ─── SUBGRUPOS PUERTA ─────────────────────────────────────────────────────────
 export const SUBGRUPOS_PUERTA=[
   {pref:"3.1.P.M.",  label:"Madera",                   icon:"🪵",color:"#92400e",bg:"#fef3c7"},
-  {pref:"3.1.P.AL.", label:"Aluminio",                  icon:"⬡", color:"#1e40af",bg:"#dbeafe"},
+  {pref:"3.1.P.AL.", label:"Aluminio",                  icon:"⬡", color:"#0e6560",bg:"#ccfbf1"},
   {pref:"3.1.P.A.",  label:"Metalica acero",            icon:"🔩",color:"#374151",bg:"#f1f5f9"},
-  {pref:"3.1.P.P.",  label:"PVC",                       icon:"⬜",color:"#0369a1",bg:"#eff6ff"},
-  {pref:"3.1.P.VI.", label:"Vidrio / Cristal",          icon:"🔲",color:"#0891b2",bg:"#ecfeff"},
+  {pref:"3.1.P.P.",  label:"PVC",                       icon:"⬜",color:"#0f766e",bg:"#f0fdfa"},
+  {pref:"3.1.P.VI.", label:"Vidrio / Cristal",          icon:"🔲",color:"#0d9488",bg:"#ecfeff"},
   {pref:"3.1.P.EN.", label:"Enrollable / Seccional",    icon:"⬛",color:"#166534",bg:"#dcfce7"},
   {pref:"3.1.P.G.",  label:"Garage / Acceso vehicular", icon:"🚗",color:"#166534",bg:"#f0fdf4"},
   {pref:"3.1.P.E.",  label:"Cortafuego / Emergencia",   icon:"🔥",color:"#dc2626",bg:"#fef2f2"},
@@ -1495,7 +1495,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         correcciones.push({
           id:'c2_ventilada_'+alt.n.replace(/\s/g,'_'),
           titulo:'C2 — Fachada Ventilada: '+esp+'mm '+alt.n+' + Tyvek + cámara + Fibrocemento',
-          etiqueta:'F. Ventilada',sistema:'Fachada Ventilada',color:'#0369a1',compatible_loscat:false,
+          etiqueta:'F. Ventilada',sistema:'Fachada Ventilada',color:'#0f766e',compatible_loscat:false,
           descripcion:'Para cumplir '+motivoStr+', se propone un complejo tipo Fachada Ventilada: '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK) + Barrera de humedad transpirable (Tyvek/fieltro, μ=150) posicionada entre el aislante y la cámara ventilada + Fibrocemento 6mm. La barrera de humedad queda correctamente entre el aislante y la cámara; jamás como capa final expuesta.',
           cambio:'+ '+esp+'mm '+alt.n+' + Tyvek (barrera humedad) + Cámara ventilada + Fibrocemento 6mm',
           capasCorregidas:cvNuevo,resultado:rN,
@@ -1654,7 +1654,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           titulo: 'C5b — Barrera de vapor + Cubierta ventilada (cámara tras aislante)',
           etiqueta: 'BV + Cámara',
           sistema: 'BV + Cámara ventilada',
-          color: '#0369a1',
+          color: '#0f766e',
           compatible_loscat: false,
           descripcion: 'Solución combinada para cubiertas con condensación intersticial donde la barrera de vapor sola no basta (típicamente por revestimiento exterior de alto μ como OSB o fibrocemento grueso que bloquea la salida del vapor restante). Combina: 1) Barrera de vapor de polietileno (μ=9999, 0.2mm) en cara caliente, antes del aislante. 2) Cámara ventilada (≥30mm) tras el aislante con aberturas continuas en alero y coronamiento. Según ISO 6946 §6.9.2, en cubierta ventilada las capas sobre la cámara no contribuyen al cálculo higrotérmico.',
           cambio: '+ Barrera vapor PE (cara caliente) + Cámara ventilada 30mm tras aislante',
@@ -1942,7 +1942,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         titulo: 'C8 — Agregar cámara ventilada exterior (rain screen)',
         etiqueta: 'Manual',
         sistema: 'Cámara ventilada',
-        color: '#0369a1',
+        color: '#0f766e',
         compatible_loscat: false,
         descripcion: `Las condiciones climáticas son extremas (Te=${te}°C, HR=${hr}%). Para evitar condensación, se recomienda una cámara ventilada (rain screen) entre el aislante y el revestimiento exterior. Esta cámara permite que la humedad que migra desde el interior se evapore al exterior sin acumularse. NCh853:2021 §6.9.2.`,
         cambio: 'Agregar cámara de aire ventilada (>=20mm) tras el aislante',

@@ -116,7 +116,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0f172a 100%)',
+    background: 'linear-gradient(135deg, #04302e 0%, #115e59 60%, #04302e 100%)',
   },
   card: {
     position: 'relative',
@@ -136,7 +136,7 @@ const styles = {
     width: 18,
     height: 18,
     border: '2px solid #e2e8f0',
-    borderTopColor: '#1e40af',
+    borderTopColor: '#0e6560',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
     flexShrink: 0,

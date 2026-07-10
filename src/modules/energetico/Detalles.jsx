@@ -15,7 +15,7 @@ import PaywallGate         from './PaywallGate.jsx'
 
 const SUB_TABS = [
   { id: 'pt',  label: '🌉 Puentes Térmicos',     color: '#7c3aed' },
-  { id: 'vd',  label: '🪟 Ventanas Detalladas',  color: '#0891b2' },
+  { id: 'vd',  label: '🪟 Ventanas Detalladas',  color: '#0d9488' },
   { id: 'pd',  label: '🚪 Puertas Detalladas',   color: '#b45309' },
   { id: 'hg',  label: '💧 Higrotérmico (WUFI)',  color: '#0e7490' },
 ]

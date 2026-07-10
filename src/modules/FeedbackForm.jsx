@@ -11,7 +11,7 @@ const TIPOS = [
 
 const ESTADO_BADGE = {
   pendiente: { bg: '#fef3c7', color: '#92400e', label: 'Pendiente' },
-  leido: { bg: '#dbeafe', color: '#1e40af', label: 'Leido' },
+  leido: { bg: '#ccfbf1', color: '#0e6560', label: 'Leido' },
   respondido: { bg: '#d1fae5', color: '#065f46', label: 'Respondido' },
   cerrado: { bg: '#f3f4f6', color: '#6b7280', label: 'Cerrado' },
 }
@@ -75,11 +75,11 @@ export default function FeedbackForm({ onClose }) {
     textarea: { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, minHeight: 100, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' },
     select: { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, background: '#fff', boxSizing: 'border-box' },
     btn: { padding: '8px 20px', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-    btnPrimary: { background: '#2563eb', color: '#fff' },
+    btnPrimary: { background: '#0d9488', color: '#fff' },
     btnGhost: { background: 'transparent', color: '#64748b' },
     field: { marginBottom: 14 },
     tabs: { display: 'flex', gap: 0, borderBottom: '1px solid #e5e7eb', padding: '0 20px' },
-    tab: (active) => ({ padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: active ? 700 : 400, color: active ? '#2563eb' : '#64748b', borderBottom: active ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -1 }),
+    tab: (active) => ({ padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: active ? 700 : 400, color: active ? '#0d9488' : '#64748b', borderBottom: active ? '2px solid #0d9488' : '2px solid transparent', marginBottom: -1 }),
   }
 
   return (

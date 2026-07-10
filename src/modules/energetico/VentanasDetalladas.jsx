@@ -213,7 +213,7 @@ function Hero({ r, pctOrient, zonaEf }) {
   if (!r) return null
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #1e40af, #1e293b)',
+      background: 'linear-gradient(135deg, #0e6560, #1e293b)',
       borderRadius: 'var(--radius-lg, 12px)',
       padding: '20px 28px', color: '#fff', marginBottom: 16,
     }}>

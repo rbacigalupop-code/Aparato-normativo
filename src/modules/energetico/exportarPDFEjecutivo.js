@@ -76,8 +76,8 @@ function buildHtmlInforme(d) {
   body { font-family: 'Inter', 'Helvetica', Arial, sans-serif; color: #1e293b; margin: 0; padding: 20px 24px; font-size: 11pt; }
   h1, h2, h3 { margin: 0; color: #1e293b; }
   h1 { font-size: 22pt; font-weight: 800; letter-spacing: -0.5px; }
-  h2 { font-size: 13pt; font-weight: 700; color: #1e40af; margin-top: 18pt; margin-bottom: 8pt;
-       border-bottom: 2px solid #1e40af; padding-bottom: 4pt; }
+  h2 { font-size: 13pt; font-weight: 700; color: #0e6560; margin-top: 18pt; margin-bottom: 8pt;
+       border-bottom: 2px solid #0e6560; padding-bottom: 4pt; }
   h3 { font-size: 11pt; font-weight: 700; margin: 8pt 0 4pt; }
   p { line-height: 1.5; margin: 4pt 0; }
   table { width: 100%; border-collapse: collapse; }
@@ -88,12 +88,12 @@ function buildHtmlInforme(d) {
 
   /* Encabezado */
   .header { display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 12pt; padding-bottom: 8pt; border-bottom: 3px solid #1e40af; }
+            margin-bottom: 12pt; padding-bottom: 8pt; border-bottom: 3px solid #0e6560; }
   .header-left { font-size: 9pt; color: #64748b; letter-spacing: 1pt; text-transform: uppercase; }
   .header-right { font-size: 9pt; color: #64748b; text-align: right; }
 
   /* Hero CEV */
-  .hero { background: linear-gradient(135deg, ${cev.color || '#1e40af'}, #1e293b);
+  .hero { background: linear-gradient(135deg, ${cev.color || '#0e6560'}, #1e293b);
           color: #fff; padding: 22pt 26pt; border-radius: 8pt; margin: 12pt 0; }
   .hero-grid { display: grid; grid-template-columns: 110pt 1fr; gap: 20pt; align-items: center; }
   .hero-letra { background: rgba(255,255,255,0.15); border: 2pt solid rgba(255,255,255,0.4);
@@ -110,7 +110,7 @@ function buildHtmlInforme(d) {
 
   /* KPIs */
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; margin: 8pt 0; }
-  .kpi { background: #f8fafc; padding: 8pt 10pt; border-radius: 5pt; border-left: 3pt solid #1e40af; }
+  .kpi { background: #f8fafc; padding: 8pt 10pt; border-radius: 5pt; border-left: 3pt solid #0e6560; }
   .kpi .l { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.5pt; }
   .kpi .v { font-size: 14pt; font-weight: 800; color: #1e293b; margin-top: 2pt; }
   .kpi .s { font-size: 8pt; color: #64748b; margin-top: 1pt; }
@@ -127,7 +127,7 @@ function buildHtmlInforme(d) {
   /* Recomendaciones */
   .rec { display: grid; grid-template-columns: 30pt 1fr 110pt 80pt; gap: 8pt;
          padding: 8pt 10pt; border-bottom: 1px solid #e2e8f0; align-items: center; }
-  .rec-num { background: #1e40af; color: #fff; border-radius: 50%; width: 22pt; height: 22pt;
+  .rec-num { background: #0e6560; color: #fff; border-radius: 50%; width: 22pt; height: 22pt;
              font-weight: 800; display: flex; align-items: center; justify-content: center; }
   .rec-titulo { font-size: 10pt; font-weight: 700; color: #1e293b; }
   .rec-imp { font-size: 8.5pt; color: #64748b; margin-top: 1pt; }
@@ -135,7 +135,7 @@ function buildHtmlInforme(d) {
   .rec-money .c { font-size: 8pt; color: #dc2626; }
   .rec-money .a { font-size: 10pt; font-weight: 800; color: #16a34a; }
   .rec-pb { background: #f1f5f9; padding: 4pt; border-radius: 4pt; text-align: center; }
-  .rec-pb .v { font-size: 13pt; font-weight: 800; color: #0369a1; }
+  .rec-pb .v { font-size: 13pt; font-weight: 800; color: #0f766e; }
   .rec-pb .l { font-size: 7pt; color: #64748b; text-transform: uppercase; }
 
   /* Totales */

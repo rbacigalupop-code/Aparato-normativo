@@ -16,7 +16,7 @@ export function AyudaPanel({ titulo, pasos, normativa, alwaysOpen = false }) {
     <div
       className="nc-ayuda-inline"
       style={{
-        border: '1px solid #bfdbfe',
+        border: '1px solid #99f6e4',
         borderRadius: 7,
         overflow: 'hidden',
         marginBottom: 12,
@@ -29,9 +29,9 @@ export function AyudaPanel({ titulo, pasos, normativa, alwaysOpen = false }) {
           style={{
             width: '100%', display: 'flex', justifyContent: 'space-between',
             alignItems: 'center', padding: '7px 13px',
-            background: open ? '#dbeafe' : '#eff6ff',
+            background: open ? '#ccfbf1' : '#f0fdfa',
             border: 'none', cursor: 'pointer',
-            fontSize: 12, color: '#1e40af', fontWeight: 600, textAlign: 'left',
+            fontSize: 12, color: '#0e6560', fontWeight: 600, textAlign: 'left',
             transition: 'background 0.15s',
           }}
         >
@@ -39,7 +39,7 @@ export function AyudaPanel({ titulo, pasos, normativa, alwaysOpen = false }) {
             <span style={{ fontSize: 14 }}>ℹ</span>
             {titulo}
           </span>
-          <span style={{ fontSize: 11, color: '#93c5fd' }}>{open ? '▲ cerrar' : '▼ ver instrucciones'}</span>
+          <span style={{ fontSize: 11, color: '#5eead4' }}>{open ? '▲ cerrar' : '▼ ver instrucciones'}</span>
         </button>
       )}
 
@@ -47,8 +47,8 @@ export function AyudaPanel({ titulo, pasos, normativa, alwaysOpen = false }) {
       {alwaysOpen && (
         <div style={{
           padding: '10px 13px 8px',
-          background: '#dbeafe',
-          fontSize: 12, color: '#1e40af', fontWeight: 700,
+          background: '#ccfbf1',
+          fontSize: 12, color: '#0e6560', fontWeight: 700,
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span style={{ fontSize: 14 }}>ℹ</span>

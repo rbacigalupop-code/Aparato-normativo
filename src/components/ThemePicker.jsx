@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 
 export const THEMES = [
-  { id: 'base',    lab: 'Base',    desc: 'Actual · System UI',       swatch: ['#f1f5f9', '#1e40af'] },
-  { id: 'tecnico', lab: 'Claro',   desc: 'Papel · Inter Tight',      swatch: ['#fafaf7', '#3955c2'] },
+  { id: 'base',    lab: 'Base',    desc: 'Actual · System UI',       swatch: ['#f1f5f9', '#0e6560'] },
+  { id: 'tecnico', lab: 'Claro',   desc: 'Papel · Inter Tight',      swatch: ['#fafaf7', '#0d9488'] },
   { id: 'papel',   lab: 'Papel',   desc: 'Crema · Source Serif',     swatch: ['#f5efe0', '#5b7c3f'] },
-  { id: 'nordico', lab: 'Nórdico', desc: 'Petróleo · IBM Plex',      swatch: ['#f1f4f7', '#296c8c'] },
+  { id: 'nordico', lab: 'Nórdico', desc: 'Petróleo · IBM Plex',      swatch: ['#f1f4f7', '#0f766e'] },
   { id: 'tinta',   lab: 'Tinta',   desc: 'Editorial · EB Garamond',  swatch: ['#ffffff', '#111111'] },
-  { id: 'tech',    lab: 'Tech',    desc: 'Oscuro · Geist',           swatch: ['#1e2230', '#5dd8e8'] },
+  { id: 'tech',    lab: 'Tech',    desc: 'Oscuro · Geist',           swatch: ['#1e2230', '#5eead4'] },
 ]
 
 /**
@@ -104,8 +104,8 @@ export default function ThemePicker({ theme, onChange }) {
                 onClick={() => { onChange(o.id); setOpen(false) }}
                 style={{
                   padding: '9px 10px',
-                  border: `1.5px solid ${theme === o.id ? '#1e40af' : '#e2e8f0'}`,
-                  background: theme === o.id ? '#eff6ff' : '#f8fafc',
+                  border: `1.5px solid ${theme === o.id ? '#0e6560' : '#e2e8f0'}`,
+                  background: theme === o.id ? '#f0fdfa' : '#f8fafc',
                   borderRadius: 7,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -123,7 +123,7 @@ export default function ThemePicker({ theme, onChange }) {
                     }} />
                   ))}
                   {theme === o.id && (
-                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#1e40af' }}>✓</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#0e6560' }}>✓</span>
                   )}
                 </div>
                 <div>

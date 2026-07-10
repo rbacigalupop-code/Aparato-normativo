@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 272 80" role="img" aria-label="Talora">
-  <line x1="30" y1="15" x2="30" y2="33" stroke="#1e40af" stroke-width="3" stroke-linecap="round"/>
-  <path d="M30 32 C41 41 41 55 30 67 C19 55 19 41 30 32 Z" fill="#1e40af"/>
+  <line x1="30" y1="15" x2="30" y2="33" stroke="#0e6560" stroke-width="3" stroke-linecap="round"/>
+  <path d="M30 32 C41 41 41 55 30 67 C19 55 19 41 30 32 Z" fill="#0e6560"/>
   <text x="66" y="53" font-family="system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif" font-size="44" font-weight="500" letter-spacing="0.5" fill="#17191a">talora</text>
 </svg>

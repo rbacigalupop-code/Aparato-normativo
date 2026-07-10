@@ -19,14 +19,14 @@
 import React, { useState } from 'react'
 
 const ORIGEN_LABELS = {
-  'normativo:diagnostico':   { label: 'Diagnóstico',   color: '#1e40af', modulo: 'Normativo' },
-  'normativo:calculo-u':     { label: 'Cálculo U',     color: '#0369a1', modulo: 'Normativo' },
+  'normativo:diagnostico':   { label: 'Diagnóstico',   color: '#0e6560', modulo: 'Normativo' },
+  'normativo:calculo-u':     { label: 'Cálculo U',     color: '#0f766e', modulo: 'Normativo' },
   'normativo:ventana':       { label: 'Ventana',       color: '#7c3aed', modulo: 'Normativo' },
   'normativo:soluciones':    { label: 'Soluciones',    color: '#166534', modulo: 'Normativo' },
   'energetico:configuracion':{ label: 'Configuración', color: '#ea580c', modulo: 'Energético' },
   'energetico:proyecto':     { label: 'Proyecto',      color: '#64748b', modulo: 'Proyecto' },
   'usuario':                 { label: 'Tú',            color: '#475569', modulo: 'Input directo' },
-  'auto':                    { label: 'Auto',          color: '#0891b2', modulo: 'Calculado' },
+  'auto':                    { label: 'Auto',          color: '#0d9488', modulo: 'Calculado' },
 }
 
 export default function AyudaEnergetico({

@@ -77,9 +77,9 @@ const calcU_ISO6946 = calcU_ISO6946_completo
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
   app: { fontFamily: 'system-ui,sans-serif', fontSize: 13, color: '#1e293b', minHeight: '100vh', background: '#f1f5f9' },
-  header: { background: 'linear-gradient(135deg,#1e40af,#0369a1)', color: '#fff', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  header: { background: 'linear-gradient(135deg,#0e6560,#0f766e)', color: '#fff', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   tabs: { display: 'flex', gap: 2, background: '#e2e8f0', padding: '4px 8px 0', flexWrap: 'wrap' },
-  tab: (a) => ({ padding: '7px 14px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', fontSize: 12, fontWeight: a ? 700 : 400, background: a ? '#fff' : 'transparent', color: a ? '#1e40af' : '#64748b' }),
+  tab: (a) => ({ padding: '7px 14px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', fontSize: 12, fontWeight: a ? 700 : 400, background: a ? '#fff' : 'transparent', color: a ? '#0e6560' : '#64748b' }),
   body: { padding: 16, maxWidth: 1100, margin: '0 auto' },
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 12 },
   row: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' },
@@ -87,12 +87,12 @@ const S = {
   label: { fontSize: 11, color: '#64748b', fontWeight: 600 },
   input: { ...ist, width: 160 },
   sel: { ...ist, width: 180 },
-  btn: (c = '#1e40af') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
+  btn: (c = '#0e6560') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
   badge: (ok) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b' }),
   warn: { background: '#fef9c3', border: '1px solid #fde047', borderRadius: 6, padding: '8px 12px', fontSize: 12 },
   err: { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991b1b' },
   ok: { background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#166534' },
-  h2: { fontSize: 15, fontWeight: 700, color: '#1e40af', marginBottom: 8, marginTop: 0 },
+  h2: { fontSize: 15, fontWeight: 700, color: '#0e6560', marginBottom: 8, marginTop: 0 },
   h3: { fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6, marginTop: 0 },
   sep: { borderTop: '1px solid #e2e8f0', margin: '10px 0' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 12 },
@@ -137,7 +137,7 @@ function capasParaSC(s) {
 
 function fichaLayerColor(nombre) {
   const n = (nombre || '').toLowerCase()
-  if (n.includes('camara') || n.includes('aire')) return { fill: '#e0f2fe', stroke: '#7dd3fc', pat: 'air' }
+  if (n.includes('camara') || n.includes('aire')) return { fill: '#ccfbf1', stroke: '#7dd3fc', pat: 'air' }
   if (n.includes('barrera') || n.includes('membrana') || n.includes('polietileno') || n.includes('epdm') || n.includes('sbs')) return { fill: '#ede9fe', stroke: '#a78bfa', pat: 'mem' }
   if (n.includes('h.a') || n.includes('ha ') || n.includes('hormig') || n.includes('gravilla') || n.includes('malla at') || n.includes('nervad') || n.includes('losa') || n.includes('radier') || n.includes('granit') || n.includes('marmol') || n.includes('piedra')) return { fill: '#cbd5e1', stroke: '#64748b', pat: 'conc' }
   if (n.includes('albanil') || n.includes('ladrillo') || n.includes('ceramica') || n.includes('bloque') || n.includes('teja')) return { fill: '#fecaca', stroke: '#f87171', pat: 'brick' }
@@ -146,7 +146,7 @@ function fichaLayerColor(nombre) {
   if (n.includes('acero') || n.includes('zinc') || n.includes('galv') || n.includes('alumin') || n.includes('cobre') || n.includes('titanio')) return { fill: '#64748b', stroke: '#334155', pat: 'metal' }
   if (n.includes('fibrocemento') || n.includes('fibro') || n.includes('cementic') || n.includes('hardiboard') || n.includes('cedral')) return { fill: '#d1d5db', stroke: '#9ca3af', pat: 'fibrc' }
   if (n.includes('yeso') || n.includes('mortero') || n.includes('revoq') || n.includes('revoc') || n.includes('pasta') || n.includes('elastic') || n.includes('latex') || n.includes('vinil') || n.includes('lino') || n.includes('eifs') || n.includes('etics') || n.includes('sto') || n.includes('mineral')) return { fill: '#f0fdf4', stroke: '#86efac', pat: 'plast' }
-  if (n.includes('vidrio') || n.includes('dvh') || n.includes('tvh') || n.includes('marco') || n.includes('polica')) return { fill: '#bae6fd', stroke: '#0ea5e9', pat: 'glass' }
+  if (n.includes('vidrio') || n.includes('dvh') || n.includes('tvh') || n.includes('marco') || n.includes('polica')) return { fill: '#99f6e4', stroke: '#0ea5e9', pat: 'glass' }
   if (n.includes('corcho')) return { fill: '#fef9c3', stroke: '#fde047', pat: 'plain' }
   if (n.includes('alfombra')) return { fill: '#fcd9a3', stroke: '#c2853f', pat: 'plain' }
   return { fill: '#f8fafc', stroke: '#cbd5e1', pat: 'plain' }
@@ -258,10 +258,10 @@ function capasSeccionSvgStr(capas, opts = {}) {
   <pattern id="cs-metal-${uid}" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
 </defs>
 <rect width="${W}" height="${H}" fill="white" rx="6" stroke="#e2e8f0" stroke-width="1.5"/>
-<text x="${W/2}" y="16" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="700">${titulo}</text>
+<text x="${W/2}" y="16" text-anchor="middle" font-size="10.5" fill="#0e6560" font-weight="700">${titulo}</text>
 <text x="${W/2}" y="29" text-anchor="middle" font-size="8.5" fill="#64748b">${label ? label + ' · ' : ''}${capas.length} capas · Espesor total: ${totalEsp.toFixed(0)} mm</text>
 <text x="${PL - 5}" y="${f(PT + LAYER_H/2 + 4)}" text-anchor="end" font-size="9.5" fill="#92400e" font-weight="700">INT</text>
-<text x="${PL + gW + 5}" y="${f(PT + LAYER_H/2 + 4)}" text-anchor="start" font-size="9.5" fill="#1e40af" font-weight="700">EXT</text>
+<text x="${PL + gW + 5}" y="${f(PT + LAYER_H/2 + 4)}" text-anchor="start" font-size="9.5" fill="#0e6560" font-weight="700">EXT</text>
 <line x1="${PL}" y1="${PT - 2}" x2="${PL}" y2="${PT + LAYER_H + 2}" stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3,2"/>
 <line x1="${PL+gW}" y1="${PT - 2}" x2="${PL+gW}" y2="${PT + LAYER_H + 2}" stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3,2"/>
 ${cotaParts.join('\n')}
@@ -486,10 +486,10 @@ function escantillonSvgStr(opts) {
   const zoneH = muroArriba ? WALL_H : HORIZ_H
   const intZone = `<rect x="${intX}" y="${zoneY}" width="${intW}" height="${zoneH}" fill="#fffbeb" opacity="0.5"/>
 <text x="${intX + intW/2}" y="${zoneY + zoneH/2}" text-anchor="middle" font-size="9" fill="#92400e" font-weight="800" opacity="0.65" transform="rotate(-90 ${intX + intW/2} ${zoneY + zoneH/2})">INTERIOR</text>`
-  const extZone = `<rect x="${extX}" y="${zoneY}" width="${extW}" height="${zoneH}" fill="#eff6ff" opacity="0.5"/>
-<text x="${extX + extW/2}" y="${zoneY + zoneH/2}" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="800" opacity="0.65" transform="rotate(-90 ${extX + extW/2} ${zoneY + zoneH/2})">EXTERIOR</text>`
+  const extZone = `<rect x="${extX}" y="${zoneY}" width="${extW}" height="${zoneH}" fill="#f0fdfa" opacity="0.5"/>
+<text x="${extX + extW/2}" y="${zoneY + zoneH/2}" text-anchor="middle" font-size="9" fill="#0e6560" font-weight="800" opacity="0.65" transform="rotate(-90 ${extX + extW/2} ${zoneY + zoneH/2})">EXTERIOR</text>`
   const intLabel = `<text x="${WALL_X - 6}" y="${f(WALL_Y + WALL_H/2 + 4)}" text-anchor="end" font-size="10.5" fill="#92400e" font-weight="700">INT</text>`
-  const extLabel = `<text x="${WALL_X + WALL_W + 6}" y="${f(WALL_Y + WALL_H/2 + 4)}" text-anchor="start" font-size="10.5" fill="#1e40af" font-weight="700">EXT</text>`
+  const extLabel = `<text x="${WALL_X + WALL_W + 6}" y="${f(WALL_Y + WALL_H/2 + 4)}" text-anchor="start" font-size="10.5" fill="#0e6560" font-weight="700">EXT</text>`
 
   // ── Continuidad de aislación ──────────────────────────────────────
   let muroAislX1 = null, muroAislX2 = null
@@ -568,10 +568,10 @@ function escantillonSvgStr(opts) {
   const horizTotDisplay = horizCapas.filter(c=>!c.esCamara).reduce((a,c)=>a+parseFloat(c.esp||0),0)
 
   const wallTitleY  = muroArriba ? WALL_Y - COTA_H - 8 : WALL_Y + WALL_H + 18
-  const wallTitleEl = `<text x="${f(WALL_X + WALL_W/2)}" y="${wallTitleY}" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="700">${muroLabel}${muroSc ? ` · ${muroSc}` : ''}${muroU != null ? ` · U=${muroU}` : ''}</text>`
+  const wallTitleEl = `<text x="${f(WALL_X + WALL_W/2)}" y="${wallTitleY}" text-anchor="middle" font-size="10" fill="#0e6560" font-weight="700">${muroLabel}${muroSc ? ` · ${muroSc}` : ''}${muroU != null ? ` · U=${muroU}` : ''}</text>`
 
   const hTitleX = 9, hTitleY = HORIZ_Y + HORIZ_H/2
-  const horizTitleEl = `<text x="${hTitleX}" y="${hTitleY}" text-anchor="middle" font-size="9.5" fill="#1e40af" font-weight="700" transform="rotate(-90 ${hTitleX} ${hTitleY})">${horizLabel}${horizSc ? ` · ${horizSc}` : ''}${horizU != null ? ` · U=${horizU}` : ''}</text>`
+  const horizTitleEl = `<text x="${hTitleX}" y="${hTitleY}" text-anchor="middle" font-size="9.5" fill="#0e6560" font-weight="700" transform="rotate(-90 ${hTitleX} ${hTitleY})">${horizLabel}${horizSc ? ` · ${horizSc}` : ''}${horizU != null ? ` · U=${horizU}` : ''}</text>`
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${W}px;height:auto;display:block">
 <defs>
@@ -586,10 +586,10 @@ function escantillonSvgStr(opts) {
   <pattern id="es-metal-${uid}" patternUnits="userSpaceOnUse" width="5" height="5"><line x1="0" y1="0" x2="5" y2="5" stroke="#334155" stroke-width="0.8" opacity="0.4"/></pattern>
 </defs>
 <rect width="${W}" height="${H}" fill="#f8fafc" rx="8" stroke="#cbd5e1" stroke-width="1.5"/>
-<rect x="0" y="0" width="${W}" height="52" fill="#1e3a8a" rx="8"/>
-<rect x="0" y="44" width="${W}" height="8" fill="#1e3a8a"/>
+<rect x="0" y="0" width="${W}" height="52" fill="#115e59" rx="8"/>
+<rect x="0" y="44" width="${W}" height="8" fill="#115e59"/>
 <text x="${W/2}" y="22" text-anchor="middle" font-size="13" fill="white" font-weight="800">${titleStr}</text>
-<text x="${W/2}" y="40" text-anchor="middle" font-size="9" fill="#bfdbfe">${muroLabel}: ${muroTotDisplay} mm · ${horizLabel}: ${horizTotDisplay} mm · espesores en mm · sección esquemática</text>
+<text x="${W/2}" y="40" text-anchor="middle" font-size="9" fill="#99f6e4">${muroLabel}: ${muroTotDisplay} mm · ${horizLabel}: ${horizTotDisplay} mm · espesores en mm · sección esquemática</text>
 
 ${intZone}${extZone}${intLabel}${extLabel}
 ${wallTitleEl}
@@ -606,13 +606,13 @@ ${lineaAislacion}
 ${zonaPuente}
 
 <line x1="20" y1="${SEP_Y}" x2="${W - 10}" y2="${SEP_Y}" stroke="#e2e8f0" stroke-width="1.5"/>
-<text x="24" y="${muroHdrY}" font-size="10" fill="#1e40af" font-weight="700">🧱 ${muroLabel}</text>
+<text x="24" y="${muroHdrY}" font-size="10" fill="#0e6560" font-weight="700">🧱 ${muroLabel}</text>
 <text x="${COL_ESP}" y="${muroHdrY}" font-size="7.5" fill="#94a3b8" text-anchor="end">Espesor</text>
 <text x="${COL_LAM}" y="${muroHdrY}" font-size="7.5" fill="#94a3b8" text-anchor="end">λ W/mK</text>
 <text x="${COL_R}"   y="${muroHdrY}" font-size="7.5" fill="#94a3b8" text-anchor="end">R m²K/W</text>
 ${legendRows(muroCapas, muroRowsY)}
 <line x1="24" y1="${horizHdrY - 5}" x2="${W - 10}" y2="${horizHdrY - 5}" stroke="#e2e8f0" stroke-width="1"/>
-<text x="24" y="${horizHdrY}" font-size="10" fill="#1e40af" font-weight="700">📐 ${horizLabel}</text>
+<text x="24" y="${horizHdrY}" font-size="10" fill="#0e6560" font-weight="700">📐 ${horizLabel}</text>
 ${legendRows(horizCapas, horizRowsY)}
 <rect x="20" y="${analBoxY}" width="${W - 30}" height="34" fill="${analBg}" stroke="${analBorder}" stroke-width="1.5" rx="6"/>
 <text x="30" y="${analBoxY + 13}" font-size="9.5" fill="${analColor}" font-weight="700">📊 Análisis de continuidad de aislación</text>
@@ -657,7 +657,7 @@ function fichaScSvgStr(s, capas, opts = {}) {
   let xCur = PL
   const layerParts = capas.map((c, i) => {
     const w = rawW[i]
-    const col = c.esCamara ? { fill: '#e0f2fe', stroke: '#7dd3fc', pat: 'air' } : fichaLayerColor(c.n || c.mat || c.name || '')
+    const col = c.esCamara ? { fill: '#ccfbf1', stroke: '#7dd3fc', pat: 'air' } : fichaLayerColor(c.n || c.mat || c.name || '')
     const hasPat = ['insul', 'conc', 'wood', 'brick', 'air', 'mem', 'metal'].includes(col.pat)
     const mx = xCur + w / 2
     const espStr = c.esCamara ? '' : `${Math.round(parseFloat(c.esp || 0))}`
@@ -674,7 +674,7 @@ function fichaScSvgStr(s, capas, opts = {}) {
 
   // Leyenda: N° → nombre · espesor · λ (nombre truncado para no desbordar)
   const legendRows = capas.map((c, i) => {
-    const col = c.esCamara ? { fill: '#e0f2fe', stroke: '#7dd3fc' } : fichaLayerColor(c.n || c.mat || c.name || '')
+    const col = c.esCamara ? { fill: '#ccfbf1', stroke: '#7dd3fc' } : fichaLayerColor(c.n || c.mat || c.name || '')
     const name = c.esCamara ? 'Cámara de aire' : (c.n || c.mat || c.name || '—')
     const nameShort = name.length > 44 ? name.slice(0, 43) + '…' : name
     const esp = c.esCamara ? '—' : `${Math.round(parseFloat(c.esp || 0))} mm`
@@ -702,7 +702,7 @@ function fichaScSvgStr(s, capas, opts = {}) {
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
 ${defs}
 <rect width="${W}" height="${H}" fill="white" rx="6"/>
-<text x="${W / 2}" y="18" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="700">${s.cod || ''} — Sección constructiva (int → ext)</text>
+<text x="${W / 2}" y="18" text-anchor="middle" font-size="10.5" fill="#0e6560" font-weight="700">${s.cod || ''} — Sección constructiva (int → ext)</text>
 <text x="${W / 2}" y="31" text-anchor="middle" font-size="8.5" fill="#64748b">${(s.desc || '').slice(0, 74)}${(s.desc || '').length > 74 ? '…' : ''}</text>
 <text x="${PL - 4}" y="${PT + DIAG_H / 2 + 4}" text-anchor="end" font-size="9" fill="#475569" font-weight="600">INT</text>
 <line x1="${PL}" y1="${PT - 2}" x2="${PL}" y2="${PT + DIAG_H + 2}" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="3,2"/>
@@ -732,7 +732,7 @@ function FichaModuloCards({ s, uMax, rfReq, acReq }) {
   return (
     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
       <div style={card(tOk, !!uMax)}>
-        <div style={{ fontWeight: 700, fontSize: 11, color: '#1e40af', marginBottom: 4 }}>🌡 Módulo Térmico</div>
+        <div style={{ fontWeight: 700, fontSize: 11, color: '#0e6560', marginBottom: 4 }}>🌡 Módulo Térmico</div>
         <div style={{ fontSize: 11 }}><b>U certificado:</b> {s.u} W/m²K</div>
         {uMax && <div style={{ fontSize: 11 }}><b>U máx. DS N°15:</b> {uMax} W/m²K</div>}
         <div style={{ marginTop: 4 }}><span style={S.badge(tOk)}>{uMax ? (tOk ? 'CUMPLE' : 'NO CUMPLE') : 'Sin límite U'}</span></div>
@@ -746,7 +746,7 @@ function FichaModuloCards({ s, uMax, rfReq, acReq }) {
         <div style={{ fontSize: 9, color: '#64748b', marginTop: 4 }}>OGUC Art. 4.5.4 · LOFC Ed.17 2025 · NCh850</div>
       </div>
       <div style={card(aOk, !!acReq)}>
-        <div style={{ fontWeight: 700, fontSize: 11, color: '#0369a1', marginBottom: 4 }}>🔊 Módulo Acústico</div>
+        <div style={{ fontWeight: 700, fontSize: 11, color: '#0f766e', marginBottom: 4 }}>🔊 Módulo Acústico</div>
         <div style={{ fontSize: 11 }}><b>Rw certificado:</b> {s.ac_rw != null ? s.ac_rw + ' dB' : '—'}</div>
         {acReq && <div style={{ fontSize: 11 }}><b>Rw mín. NCh352:</b> ≥ {acReq} dB</div>}
         <div style={{ marginTop: 4 }}><span style={S.badge(aOk)}>{acReq ? (aOk ? 'CUMPLE' : 'NO CUMPLE') : 'Sin exigencia Rw'}</span></div>
@@ -762,7 +762,7 @@ const FichaSCCompleta = React.memo(function FichaSCCompleta({ s, uMax, rfReq, ac
   const totalEsp = capas.filter(c => !c.esCamara).reduce((a, c) => a + parseFloat(c.esp || 0), 0)
   return (
     <div style={{ marginTop: 10, borderTop: '1px solid #e2e8f0', paddingTop: 10 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e40af', marginBottom: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#0e6560', marginBottom: 6 }}>
         📐 Ficha gráfica — {s.cod}
         <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 8 }}>{capas.filter(c => !c.esCamara).length} capas · {totalEsp} mm total</span>
       </div>
@@ -770,7 +770,7 @@ const FichaSCCompleta = React.memo(function FichaSCCompleta({ s, uMax, rfReq, ac
         dangerouslySetInnerHTML={{ __html: svgStr }} />
       <FichaModuloCards s={s} uMax={uMax} rfReq={rfReq} acReq={acReq} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 9, color: '#64748b' }}>
-        {[['#cbd5e1', 'Hormigón/HA'], ['#fecaca', 'Albañilería'], ['#fef08a', 'Aislante'], ['#fde68a', 'Madera/OSB'], ['#e0f2fe', 'Cámara aire'], ['#f0fdf4', 'Revoque/Yeso'], ['#64748b', 'Acero']].map(([c, l]) => (
+        {[['#cbd5e1', 'Hormigón/HA'], ['#fecaca', 'Albañilería'], ['#fef08a', 'Aislante'], ['#fde68a', 'Madera/OSB'], ['#ccfbf1', 'Cámara aire'], ['#f0fdf4', 'Revoque/Yeso'], ['#64748b', 'Acero']].map(([c, l]) => (
           <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <span style={{ width: 10, height: 10, background: c, border: '1px solid #e2e8f0', borderRadius: 2, display: 'inline-block' }} />
             {l}
@@ -957,7 +957,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
   const allForViz = [...capas, ...extra].filter(c => !c.esCamara && parseFloat(c.esp) > 0)
   const totalEsp  = allForViz.reduce((t, c) => t + parseFloat(c.esp), 0)
   function colorCapa(c) {
-    if (c.esAislante) return '#bfdbfe'
+    if (c.esAislante) return '#99f6e4'
     const n = (c.name||'').toLowerCase()
     if (n.includes('hormig')||n.includes('albanil')||n.includes('ladrillo')||n.includes('bloque')) return '#fecaca'
     if (n.includes('yeso')||n.includes('revoqu')||n.includes('mortero')) return '#d1fae5'
@@ -984,7 +984,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
 
       {/* ── Encabezado + acciones rápidas */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, flexWrap:'wrap', gap:6 }}>
-        <span style={{ fontSize:12, fontWeight:700, color:'#1e40af' }}>
+        <span style={{ fontSize:12, fontWeight:700, color:'#0e6560' }}>
           Simulador de capas
           <span style={{ fontSize:10, fontWeight:400, color:'#64748b', marginLeft:8 }}>
             {bhData ? '· BH homologado (◆ editables)' : '· SC_CAPAS base'}
@@ -1013,7 +1013,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
             })}
           </div>
           <div style={{ display:'flex', gap:10, marginTop:3, flexWrap:'wrap' }}>
-            {[['#bfdbfe','Aislante'],['#fecaca','Hormigón/Albanilería'],['#d1fae5','Revoque/Yeso'],['#fef3c7','Madera/Derivados'],['#f3f4f6','Otro']].map(([c,l]) => (
+            {[['#99f6e4','Aislante'],['#fecaca','Hormigón/Albanilería'],['#d1fae5','Revoque/Yeso'],['#fef3c7','Madera/Derivados'],['#f3f4f6','Otro']].map(([c,l]) => (
               <span key={l} style={{ fontSize:9, color:'#64748b', display:'flex', alignItems:'center', gap:3 }}>
                 <span style={{ width:9,height:9,background:c,border:'1px solid #e2e8f0',borderRadius:2,display:'inline-block' }}/>
                 {l}
@@ -1028,8 +1028,8 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
         <thead><tr>{['Capa (int→ext)','λ W/mK','Espesor mm','R m²K/W'].map(h=><th key={h} style={ts}>{h}</th>)}</tr></thead>
         <tbody>
           {capas.map(c => (
-            <tr key={c.id} style={{ background:c.esAislante?'#eff6ff':'transparent' }}>
-              <td style={cs}>{c.esAislante&&<span style={{ fontSize:9,color:'#1e40af',marginRight:3 }}>◆</span>}{c.esCamara?<i>Cámara de aire</i>:c.name}</td>
+            <tr key={c.id} style={{ background:c.esAislante?'#f0fdfa':'transparent' }}>
+              <td style={cs}>{c.esAislante&&<span style={{ fontSize:9,color:'#0e6560',marginRight:3 }}>◆</span>}{c.esCamara?<i>Cámara de aire</i>:c.name}</td>
               <td style={cs}>{c.esCamara?'—':c.lam}</td>
               <td style={cs}>
                 {c.esCamara?'—':c.esAislante
@@ -1074,7 +1074,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
         <input type="number" min={5} max={300} placeholder="mm" value={newEsp} onChange={e=>setNewEsp(e.target.value)}
           style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11,width:62 }}/>
         <button onClick={agregarCapa} disabled={!newMat||!newEsp}
-          style={{ background:newMat&&newEsp?'#1e40af':'#e2e8f0',color:newMat&&newEsp?'#fff':'#94a3b8',border:'none',borderRadius:5,padding:'5px 12px',cursor:newMat&&newEsp?'pointer':'default',fontSize:11,fontWeight:600 }}>
+          style={{ background:newMat&&newEsp?'#0e6560':'#e2e8f0',color:newMat&&newEsp?'#fff':'#94a3b8',border:'none',borderRadius:5,padding:'5px 12px',cursor:newMat&&newEsp?'pointer':'default',fontSize:11,fontWeight:600 }}>
           Agregar
         </button>
         {extra.length>0&&<button onClick={()=>setExtra([])} style={btnSm('#fef2f2','#991b1b','#fca5a5')}>Limpiar extras</button>}
@@ -1249,16 +1249,16 @@ function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseRe
 
   return (
     <div style={{
-      background: '#f0f9ff',
-      border: '1px solid #bae6fd',
+      background: '#f0fdfa',
+      border: '1px solid #99f6e4',
       borderRadius: 8,
       padding: 12,
       marginBottom: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>📋 Códigos normativos homologados</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f766e' }}>📋 Códigos normativos homologados</span>
         {estructura_base?.material && baseConfiable && (
-          <span style={{ fontSize: 10, background: '#dbeafe', color: '#1e40af', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
+          <span style={{ fontSize: 10, background: '#ccfbf1', color: '#0e6560', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
             Base: {estructura_base.material.replace(/_/g, ' ')}
             {estructura_base.espesor_estructura_mm ? ` ${estructura_base.espesor_estructura_mm}mm` : ''}
           </span>
@@ -1269,7 +1269,7 @@ function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseRe
           <Card
             icon="🌡️"
             titulo="Térmico"
-            color="#1e40af"
+            color="#0e6560"
             codigo={termico?.codigo}
             valor={termico?.u ? `U = ${termico.u} W/m²K` : null}
             fuente={termico?.fuente}
@@ -1571,9 +1571,9 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
           .replace('Mixta HA + albanileria','Mixta HA+alb.')
 
         return (
-          <div style={{ ...S.card, border:'1.5px solid #bfdbfe', background:'#f8faff' }}>
+          <div style={{ ...S.card, border:'1.5px solid #99f6e4', background:'#f8faff' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-              <p style={{ ...S.h2, marginBottom:0, color:'#1e40af' }}>
+              <p style={{ ...S.h2, marginBottom:0, color:'#0e6560' }}>
                 Soluciones por sistema estructural
               </p>
               {targetSistema && (
@@ -1599,7 +1599,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                 }}>
                   {/* Cabecera del sistema */}
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                    <div style={{ fontWeight:800, fontSize:13, color: isActive ? '#166534' : '#1e40af' }}>
+                    <div style={{ fontWeight:800, fontSize:13, color: isActive ? '#166534' : '#0e6560' }}>
                       {tipoCorto(est.tipo)}
                     </div>
                     {est.sector && (
@@ -1636,12 +1636,12 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
                           {d ? (
                             <>
-                              <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{d.solucion?.cod}</div>
+                              <div style={{ fontSize:11, fontWeight:700, color:'#0e6560' }}>{d.solucion?.cod}</div>
                               <div style={{ fontSize:10, color:'#374151', marginBottom:4, lineHeight:1.3 }}>{d.solucion?.desc}</div>
                               <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:6 }}>
-                                {d.u && <span style={{ fontSize:9, background:'#dbeafe', color:'#1e40af', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>U {d.u}</span>}
+                                {d.u && <span style={{ fontSize:9, background:'#ccfbf1', color:'#0e6560', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>U {d.u}</span>}
                                 {d.rf && <span style={{ fontSize:9, background:'#fee2e2', color:'#991b1b', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>{d.rf}</span>}
-                                {d.rw && <span style={{ fontSize:9, background:'#eff6ff', color:'#1d4ed8', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>Rw {d.rw}dB</span>}
+                                {d.rw && <span style={{ fontSize:9, background:'#f0fdfa', color:'#0f766e', borderRadius:3, padding:'1px 5px', fontWeight:700 }}>Rw {d.rw}dB</span>}
                               </div>
                               <div style={{ display:'flex', gap:4 }}>
                                 <button
@@ -1651,7 +1651,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                                     setFiltroSistema(est.tipo)
                                     setTimeout(() => catalogRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 50)
                                   }}
-                                  style={{ fontSize:10, color:'#1e40af', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'2px 7px', cursor:'pointer' }}>
+                                  style={{ fontSize:10, color:'#0e6560', background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:4, padding:'2px 7px', cursor:'pointer' }}>
                                   Cambiar
                                 </button>
                                 <button
@@ -1726,9 +1726,9 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
             <button key={e} onClick={() => { setElem(e); setExpandido(null) }}
               style={{ padding:'5px 13px', fontSize:12, fontWeight: elem===e ? 700 : 400,
                 border:'1.5px solid', borderRadius:6, cursor:'pointer',
-                borderColor: elem===e ? '#1e40af' : '#cbd5e1',
-                background: elem===e ? '#eff6ff' : '#fff',
-                color: elem===e ? '#1e40af' : '#374151' }}>
+                borderColor: elem===e ? '#0e6560' : '#cbd5e1',
+                background: elem===e ? '#f0fdfa' : '#fff',
+                color: elem===e ? '#0e6560' : '#374151' }}>
               {ELEM_LABELS[e]}
               <span style={{ marginLeft:4, fontSize:10, color:'#94a3b8' }}>({SC.filter(s=>s.elem===e).length})</span>
             </button>
@@ -1738,11 +1738,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
         {/* Exigencias calculadas */}
         <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:6, padding:'8px 14px', marginBottom:10, fontSize:11, display:'flex', gap:14, flexWrap:'wrap', alignItems:'center' }}>
           <span><b>Exigencias {ELEM_LABELS[elem]}:</b></span>
-          <span style={{ color: uMax ? '#1e40af' : '#94a3b8' }}>
+          <span style={{ color: uMax ? '#0e6560' : '#94a3b8' }}>
             🌡 U {uMax ? `≤ ${uMax} W/m²K` : 'sin límite'}</span>
           <span style={{ color: rfReq ? '#dc2626' : '#94a3b8' }}>
             🔥 RF {rfReq ? `≥ ${rfReq}` : 'no aplica'}</span>
-          <span style={{ color: acReq ? '#0369a1' : '#94a3b8' }}>
+          <span style={{ color: acReq ? '#0f766e' : '#94a3b8' }}>
             🔊 Rw {acReq ? `≥ ${acReq} dB` : 'no aplica'}</span>
           <span style={{ marginLeft:'auto', fontWeight:700, color:'#166534' }}>
             {totalOk}/{totalAplica} cumplen todo
@@ -1773,8 +1773,8 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
           {/* Filtro sistema estructural */}
           <select value={filtroSistema} onChange={e => setFiltroSistema(e.target.value)}
             style={{ border:'1.5px solid', borderRadius:5, padding:'3px 8px', fontSize:11,
-              borderColor: filtroSistema ? '#1e40af' : '#cbd5e1',
-              color: filtroSistema ? '#1e40af' : '#94a3b8',
+              borderColor: filtroSistema ? '#0e6560' : '#cbd5e1',
+              color: filtroSistema ? '#0e6560' : '#94a3b8',
               fontWeight: filtroSistema ? 700 : 400 }}>
             <option value="">Sistema: todos</option>
             {ESTRUCTURAS.map(e => <option key={e} value={e}>{e}</option>)}
@@ -1841,7 +1841,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
             </button>
             {targetSistema && (proy.estructuras?.length > 1) && (
               <button onClick={() => onAplicarTodos(x)} title="Aplicar a TODOS los sistemas"
-                style={{ background:'#0369a1', color:'#fff', border:'none', borderRadius:5, padding:'4px 9px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                style={{ background:'#0f766e', color:'#fff', border:'none', borderRadius:5, padding:'4px 9px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                 Todos →
               </button>
             )}
@@ -1874,13 +1874,13 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     {cumplen.slice(0, 3).map(x => (
                       <div key={x.cod} style={{ background:'#fff', border:'1px solid #86efac', borderRadius:6, padding:'8px 11px', marginBottom:6, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
                         <div style={{ minWidth:180, flex:1 }}>
-                          <div style={{ fontWeight:700, fontSize:12, color:'#1e40af' }}>{x.cod} — {x.desc}</div>
+                          <div style={{ fontWeight:700, fontSize:12, color:'#0e6560' }}>{x.cod} — {x.desc}</div>
                           <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{x.capas}</div>
                         </div>
                         <div style={{ display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
                           <span style={{ fontSize:10, background:'#dcfce7', color:'#166534', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>U={x.u}</span>
                           {x.rf && <span style={{ fontSize:10, background:'#fee2e2', color:'#991b1b', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>RF={x.rf}</span>}
-                          {x.ac_rw && <span style={{ fontSize:10, background:'#dbeafe', color:'#1e40af', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>Rw={x.ac_rw}dB</span>}
+                          {x.ac_rw && <span style={{ fontSize:10, background:'#ccfbf1', color:'#0e6560', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>Rw={x.ac_rw}dB</span>}
                           {aplicarBtns(x)}
                         </div>
                       </div>
@@ -1900,7 +1900,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       <div key={x.cod} style={{ background:'#fff', border:'1px solid #fca5a5', borderRadius:6, padding:'8px 11px', marginBottom:6 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
                           <div style={{ minWidth:180, flex:1 }}>
-                            <div style={{ fontWeight:700, fontSize:12, color:'#1e40af' }}>{x.cod} — {x.desc}</div>
+                            <div style={{ fontWeight:700, fontSize:12, color:'#0e6560' }}>{x.cod} — {x.desc}</div>
                             <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{x.capas}</div>
                           </div>
                           {aplicarBtns(x)}
@@ -1917,7 +1917,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                             </span>
                           )}
                           {x.gapA > 0 && (
-                            <span style={{ fontSize:10, background:'#dbeafe', color:'#1e40af', borderRadius:4, padding:'2px 7px', fontWeight:600 }}>
+                            <span style={{ fontSize:10, background:'#ccfbf1', color:'#0e6560', borderRadius:4, padding:'2px 7px', fontWeight:600 }}>
                               🔊 Rw {x.ac_rw || 0}dB — faltan {x.gapA} dB (requiere {acReq})
                             </span>
                           )}
@@ -1989,7 +1989,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:3 }}>
                     <span style={{ fontWeight:700, fontSize:12 }}>{s.desc}</span>
                     {isBH && (
-                      <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 5px', color:'#1e40af' }}>
+                      <span style={{ fontSize:10, background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:4, padding:'1px 5px', color:'#0e6560' }}>
                         Homologable
                       </span>
                     )}
@@ -2078,7 +2078,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                       })
                     }}
                     style={{
-                      background: selComp.find(x => x.cod === s.cod) ? '#1e40af' : '#f1f5f9',
+                      background: selComp.find(x => x.cod === s.cod) ? '#0e6560' : '#f1f5f9',
                       color: selComp.find(x => x.cod === s.cod) ? '#fff' : '#64748b',
                       border: '1px solid #e2e8f0', borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: 'pointer'
                     }}
@@ -2140,7 +2140,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         .slice(0,4)
                         .map(x => (
                           <div key={x.cod} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0', borderBottom:'1px solid #e2e8f0', fontSize:11 }}>
-                            <span><b style={{ color:'#1e40af' }}>{x.cod}</b> — {x.desc}</span>
+                            <span><b style={{ color:'#0e6560' }}>{x.cod}</b> — {x.desc}</span>
                             <span style={{ color:'#16a34a', fontWeight:700, whiteSpace:'nowrap', marginLeft:8 }}>U={x.u} RF={x.rf||'—'} Rw={x.ac_rw||'—'}</span>
                           </div>
                         ))}
@@ -2166,13 +2166,13 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                         {mostrar.map(x => (
                           <div key={x.cod} style={{ background:'#fff', border:'1px solid #fed7aa', borderRadius:5, padding:'7px 10px', marginBottom:5, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6 }}>
                             <div>
-                              <div style={{ fontWeight:700, fontSize:11, color:'#1e40af' }}>{x.cod} — {x.desc}</div>
+                              <div style={{ fontWeight:700, fontSize:11, color:'#0e6560' }}>{x.cod} — {x.desc}</div>
                               <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{x.capas}</div>
                             </div>
                             <div style={{ display:'flex', gap:6, flexShrink:0, alignItems:'center' }}>
                               <span style={{ fontSize:10, background:'#dcfce7', color:'#166534', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>U={x.u}</span>
                               {x.rf&&<span style={{ fontSize:10, background:'#fee2e2', color:'#991b1b', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>RF={x.rf}</span>}
-                              {x.ac_rw&&<span style={{ fontSize:10, background:'#dbeafe', color:'#1e40af', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>Rw={x.ac_rw}dB</span>}
+                              {x.ac_rw&&<span style={{ fontSize:10, background:'#ccfbf1', color:'#0e6560', borderRadius:4, padding:'2px 6px', fontWeight:700 }}>Rw={x.ac_rw}dB</span>}
                               <button onClick={()=>onAplicar(x, targetSistema)}
                                 style={{ background:'#166534', color:'#fff', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                                 Aplicar →
@@ -2180,7 +2180,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                               {targetSistema && (proy.estructuras?.length > 1) && (
                                 <button onClick={()=>onAplicarTodos(x)}
                                   title="Aplicar a TODOS los sistemas"
-                                  style={{ background:'#0369a1', color:'#fff', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                                  style={{ background:'#0f766e', color:'#fff', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                                   Todos →
                                 </button>
                               )}
@@ -2262,7 +2262,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                     {/* Botón "Aplicar a todos" — cuando hay >1 sistema y se está asignando a uno */}
                     {targetSistema && (proy.estructuras?.length > 1) && (
                       <button
-                        style={{ ...S.btn('#0369a1'), display:'flex', alignItems:'center', gap:6 }}
+                        style={{ ...S.btn('#0f766e'), display:'flex', alignItems:'center', gap:6 }}
                         title={`Aplica esta solución de ${ELEM_LABELS[s.elem] || s.elem} a TODOS los sistemas del proyecto`}
                         onClick={() => onAplicarTodos(s, modSim?.cod === s.cod ? modSim : null)}
                       >
@@ -2279,11 +2279,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
       {/* ── Barra flotante de comparación ──────────────────────────────────── */}
       {selComp.length > 0 && (
-        <div style={{ position: 'sticky', bottom: 0, background: '#1e40af', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: '12px 12px 0 0', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}>
+        <div style={{ position: 'sticky', bottom: 0, background: '#0e6560', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: '12px 12px 0 0', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}>
           <span style={{ color: '#fff', fontSize: 13, fontWeight: 700, flex: 1 }}>
             {selComp.length === 1 ? `"${selComp[0].desc?.substring(0,40)}..." seleccionada — elige una más` : `2 soluciones seleccionadas`}
           </span>
-          {selComp.length === 2 && <button onClick={() => setShowComp(true)} style={{ background: '#fff', color: '#1e40af', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Ver comparación →</button>}
+          {selComp.length === 2 && <button onClick={() => setShowComp(true)} style={{ background: '#fff', color: '#0e6560', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Ver comparación →</button>}
           <button onClick={() => setSelComp([])} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>✕ Limpiar</button>
         </div>
       )}
@@ -2292,7 +2292,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
       {showComp && selComp.length === 2 && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 760, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <div style={{ background: '#1e40af', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0 }}>
+            <div style={{ background: '#0e6560', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0 }}>
               <span style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>Comparador de soluciones</span>
               <button onClick={() => setShowComp(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
@@ -2302,7 +2302,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
                   <tr>
                     <th style={{ padding: '8px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', width: '20%', color: '#64748b', fontSize: 11 }}>CAMPO</th>
                     {selComp.map((sc, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: 'left', background: i === 0 ? '#eff6ff' : '#f0fdf4', borderBottom: '2px solid #e2e8f0', color: i === 0 ? '#1e40af' : '#166534' }}>
+                      <th key={i} style={{ padding: '8px 12px', textAlign: 'left', background: i === 0 ? '#f0fdfa' : '#f0fdf4', borderBottom: '2px solid #e2e8f0', color: i === 0 ? '#0e6560' : '#166534' }}>
                         {sc.cod}
                       </th>
                     ))}
@@ -2329,11 +2329,11 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
               <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap:'wrap' }}>
                 {selComp.map((sc, i) => (
                   <React.Fragment key={i}>
-                    <button onClick={() => { onAplicar(sc, targetSistema); setShowComp(false) }} style={{ flex: 1, minWidth:120, padding: '10px 0', background: i === 0 ? '#1e40af' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+                    <button onClick={() => { onAplicar(sc, targetSistema); setShowComp(false) }} style={{ flex: 1, minWidth:120, padding: '10px 0', background: i === 0 ? '#0e6560' : '#166534', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
                       Usar {sc.cod}
                     </button>
                     {targetSistema && (proy.estructuras?.length > 1) && (
-                      <button onClick={() => { onAplicarTodos(sc); setShowComp(false) }} style={{ flex: 1, minWidth:120, padding: '10px 0', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
+                      <button onClick={() => { onAplicarTodos(sc); setShowComp(false) }} style={{ flex: 1, minWidth:120, padding: '10px 0', background: '#0f766e', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
                         {sc.cod} → todos los sistemas
                       </button>
                     )}
@@ -2424,7 +2424,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                           return (
                             <div key={k} style={{ background: ok?'#f0fdf4':'#fff5f5', border:`1px solid ${ok?'#86efac':'#fca5a5'}`, borderRadius:6, padding:'6px 10px', minWidth:160 }}>
                               <div style={{ fontSize:9, color:'#64748b', textTransform:'uppercase', letterSpacing:1 }}>{k}</div>
-                              <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{d.solucion?.cod}</div>
+                              <div style={{ fontSize:11, fontWeight:700, color:'#0e6560' }}>{d.solucion?.cod}</div>
                               <div style={{ fontSize:10 }}>{d.solucion?.desc}</div>
                               <div style={{ fontSize:11, marginTop:2 }}>
                                 U = <b>{d.u} W/m²K</b>
@@ -2454,7 +2454,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                       return (
                         <div key={k} style={{ background: ok?'#f0fdf4':'#fff5f5', border:`1px solid ${ok?'#86efac':'#fca5a5'}`, borderRadius:6, padding:'6px 10px', minWidth:160 }}>
                           <div style={{ fontSize:9, color:'#64748b', textTransform:'uppercase', letterSpacing:1 }}>{k}</div>
-                          <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{sol.cod}</div>
+                          <div style={{ fontSize:11, fontWeight:700, color:'#0e6560' }}>{sol.cod}</div>
                           <div style={{ fontSize:10 }}>{sol.desc}</div>
                           <div style={{ fontSize:11, marginTop:2 }}>U = <b>{termica[k]?.u} W/m²K</b>{um && <> <span style={{ fontWeight:700, color: ok?'#166534':'#dc2626' }}>{ok?'✓':'✗'}</span></>}</div>
                         </div>
@@ -2482,7 +2482,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                 return (
                   <div key={k} style={{ background: ok?'#f0fdf4':'#fff5f5', border:`1px solid ${ok?'#86efac':'#fca5a5'}`, borderRadius:8, padding:'8px 12px', minWidth:180, flex:1 }}>
                     <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:1 }}>{k}</div>
-                    <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>{sol.cod}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#0e6560' }}>{sol.cod}</div>
                     <div style={{ fontSize:11 }}>{sol.desc}</div>
                     <div style={{ fontSize:11, marginTop:2 }}>
                       U = <b>{termica[k]?.u} W/m²K</b>
@@ -2528,7 +2528,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                 <tr style={{ background: uDisplay&&!cumpleU?'#fff5f5':'transparent' }}>
                   <td style={S.td}>
                     <b>{label}</b>
-                    {sol && <div style={{ fontSize:10, color:'#1e40af', marginTop:2 }}>📋 {sol.cod}</div>}
+                    {sol && <div style={{ fontSize:10, color:'#0e6560', marginTop:2 }}>📋 {sol.cod}</div>}
                     {sistemasSolElem.length > 0 && <div style={{ fontSize:9, color:'#64748b', marginTop:2 }}>+ {sistemasSolElem.length} sistema(s) con solución específica ↓</div>}
                   </td>
                   <td style={S.td}>
@@ -2564,7 +2564,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                         <span style={{ color:'#64748b' }}>↳ {est.tipo.replace('Albanileria','Alb.').replace('Hormigon armado','H.A.').replace('Estructura de acero','Acero')}</span>
                         {est.sector && <span style={{ marginLeft:4, color:'#94a3b8', fontSize:10 }}>{est.sector}</span>}
                         {est.desde && <span style={{ marginLeft:4, color:'#94a3b8', fontSize:10 }}>P{est.desde}{est.hasta !== est.desde ? `–${est.hasta}` : ''}</span>}
-                        {d.solucion && <div style={{ fontSize:10, color:'#1e40af' }}>📋 {d.solucion.cod} — {d.solucion.desc}</div>}
+                        {d.solucion && <div style={{ fontSize:10, color:'#0e6560' }}>📋 {d.solucion.cod} — {d.solucion.desc}</div>}
                       </td>
                       <td style={{ ...S.td, fontWeight:700 }}>{d.u}</td>
                       <td style={S.td}><span style={{ color:'#94a3b8', fontSize:10 }}>—</span></td>
@@ -2835,8 +2835,8 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
           <>
             {/* Tabla orientativa DFT */}
             {!hpA && (
-              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:5,
-                padding:'6px 10px', fontSize:11, color:'#1e40af', marginBottom:8 }}>
+              <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:5,
+                padding:'6px 10px', fontSize:11, color:'#0e6560', marginBottom:8 }}>
                 ℹ Ingresa el factor de sección (Paso 1) para ver los DFT orientativos.
               </div>
             )}
@@ -2965,8 +2965,8 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
           // ── Sistemas con espesor calculable ──────────────────────────────
           <>
             {!hpA && (
-              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:5,
-                padding:'6px 10px', fontSize:11, color:'#1e40af', marginBottom:8 }}>
+              <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:5,
+                padding:'6px 10px', fontSize:11, color:'#0e6560', marginBottom:8 }}>
                 ℹ Ingresa el factor de sección (Paso 1) para ver los espesores requeridos.
               </div>
             )}
@@ -3056,8 +3056,8 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
                         </div>
                       )
                     ) : (
-                      <div style={{ padding:'7px 12px', background:'#eff6ff',
-                        border:'1px solid #bfdbfe', borderRadius:6, fontSize:11, color:'#1e40af' }}>
+                      <div style={{ padding:'7px 12px', background:'#f0fdfa',
+                        border:'1px solid #99f6e4', borderRadius:6, fontSize:11, color:'#0e6560' }}>
                         Espesor mínimo requerido: <b>{protReq.text}</b> de {protSys?.nombre?.toLowerCase()}.
                         Ingresa el espesor que se aplicará para confirmar cumplimiento.
                       </div>
@@ -3125,10 +3125,10 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
   const badgeWarn= { display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:700, background:'#fef9c3', color:'#713f12' }
 
   return (
-    <div style={{ background:'#fff', border:'1.5px solid #e0f2fe', borderRadius:10, padding:16, marginTop:14 }}>
+    <div style={{ background:'#fff', border:'1.5px solid #ccfbf1', borderRadius:10, padding:16, marginTop:14 }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14,
-        background:'linear-gradient(90deg,#0369a1,#0284c7)', color:'#fff',
+        background:'linear-gradient(90deg,#0f766e,#0d9488)', color:'#fff',
         borderRadius:7, padding:'8px 14px', margin:'-16px -16px 14px' }}>
         <span style={{ fontSize:20 }}>🚶</span>
         <div>
@@ -3140,14 +3140,14 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
       </div>
 
       {/* Banda normativa */}
-      <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:6,
+      <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6,
         padding:'8px 12px', marginBottom:12, fontSize:11, lineHeight:1.6 }}>
-        <b style={{ color:'#0369a1' }}>OGUC Art. 4.5.7 — Escaleras de evacuación:</b> Todo edificio con más de un piso debe
+        <b style={{ color:'#0f766e' }}>OGUC Art. 4.5.7 — Escaleras de evacuación:</b> Todo edificio con más de un piso debe
         contar con escaleras de evacuación. Las escaleras deben ser construidas con materiales cuya RF
         cumpla lo señalado en la Tabla 1 del Tít. 4 Cap. 3, columna (9). La <b>caja de escalera</b> (recinto
         de protección) se exige según uso y número de pisos, con RF según columna (4) de la misma tabla.
         <br/>
-        <b style={{ color:'#0369a1' }}>Referencia de columnas OGUC Tabla 1:</b>{' '}
+        <b style={{ color:'#0f766e' }}>Referencia de columnas OGUC Tabla 1:</b>{' '}
         Col. (4) → Cajas de escalera, ascensores y ductos &nbsp;·&nbsp; Col. (9) → Escaleras
       </div>
 
@@ -3258,9 +3258,9 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
           {MAT_ESCAL.map(m => (
             <button key={m.id}
               onClick={() => setMatId(m.id)}
-              style={{ padding:'5px 11px', borderRadius:6, border:`1.5px solid ${matId===m.id?'#0369a1':'#e2e8f0'}`,
-                background: matId===m.id ? '#e0f2fe' : '#f8fafc',
-                color: matId===m.id ? '#0369a1' : '#374151',
+              style={{ padding:'5px 11px', borderRadius:6, border:`1.5px solid ${matId===m.id?'#0f766e':'#e2e8f0'}`,
+                background: matId===m.id ? '#ccfbf1' : '#f8fafc',
+                color: matId===m.id ? '#0f766e' : '#374151',
                 fontWeight: matId===m.id ? 700 : 400, fontSize:11, cursor:'pointer' }}>
               {m.label}
             </button>
@@ -3325,7 +3325,7 @@ function CalcRFEscalera({ proy, letraOGUC, rfReqEscalera, rfReqCaja, matId: matI
           <tbody>
             {MAT_ESCAL.map((m, i) => (
               <tr key={m.id} style={{ background: i%2===0 ? '#fff' : '#f8fafc',
-                outline: matId===m.id ? '2px solid #0369a1' : 'none' }}>
+                outline: matId===m.id ? '2px solid #0f766e' : 'none' }}>
                 <td style={{ padding:'5px 8px', borderBottom:'1px solid #f1f5f9', fontWeight: matId===m.id?700:400 }}>{m.label}</td>
                 <td style={{ padding:'5px 8px', borderBottom:'1px solid #f1f5f9',
                   fontWeight:700, color: m.rfBase==='F0'?'#dc2626': m.rfBase===null?'#d97706':'#166534' }}>
@@ -3582,7 +3582,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
               {/* Letra resultante */}
               <div style={{ flex:'0 0 auto' }}>
                 {letraOGUC ? (
-                  <div style={{ background:'#1e40af', color:'#fff', borderRadius:8,
+                  <div style={{ background:'#0e6560', color:'#fff', borderRadius:8,
                     padding:'6px 16px', textAlign:'center', fontWeight:900, fontSize:20,
                     letterSpacing:'0.05em', lineHeight:1 }}>
                     {letraOGUC.toUpperCase()}
@@ -3662,7 +3662,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                             </>
                           ) : (
                             <>
-                              <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }} title="Código LOSCAT — térmico">{sol.cod}</span>
+                              <span style={{ fontSize:10, background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:4, padding:'1px 6px', color:'#0e6560', fontWeight:700 }} title="Código LOSCAT — térmico">{sol.cod}</span>
                               <span style={{ fontSize:11, fontWeight:700 }}>{rfSol || '—'}</span>
                             </>
                           )}
@@ -3912,7 +3912,7 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                   background: sinRw?'#fafafa':cumple?'#f0fdf4':'#fff5f5',
                   border:`1px solid ${sinRw?'#e2e8f0':cumple?'#86efac':'#fca5a5'}`, borderRadius:6, flexWrap:'wrap' }}>
                   <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
-                    <span style={{ fontSize:10, background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:4, padding:'1px 6px', color:'#1e40af', fontWeight:700 }} title="Código LOSCAT — térmico">
+                    <span style={{ fontSize:10, background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:4, padding:'1px 6px', color:'#0e6560', fontWeight:700 }} title="Código LOSCAT — térmico">
                       {sol.cod}
                     </span>
                     {codigoLOSCAA && (
@@ -3980,7 +3980,7 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                       <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rwFromSol} dB (solución)</div>
                     ) : null}
                   </td>
-                  <td style={{ ...S.td, color:'#0369a1', fontWeight:700 }}>{req ? req + ' dB' : '—'}</td>
+                  <td style={{ ...S.td, color:'#0f766e', fontWeight:700 }}>{req ? req + ' dB' : '—'}</td>
                   <td style={S.td}>
                     {(rw || rwFromSol) && req
                       ? <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
@@ -4072,7 +4072,7 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                   placeholder="ej. 58"/>
                 <div style={{ fontSize:9, color:'#94a3b8', marginTop:2 }}>dB (medido)</div>
               </td>
-              <td style={{ ...S.td, color:'#0369a1', fontWeight:700 }}>
+              <td style={{ ...S.td, color:'#0f766e', fontWeight:700 }}>
                 {acImpact.entre_pisos ? `≤ ${acImpact.entre_pisos} dB` : '—'}
               </td>
               <td style={S.td}>
@@ -4107,8 +4107,8 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
         const elemSC = { entre_unidades:'muro', fachada:'muro', entre_pisos:'piso' }[e.id]
         const alts = elemSC ? SC.filter(s => s.elem===elemSC && (s.usos || []).includes(uso||'Vivienda') && s.ac_rw && s.ac_rw >= e.req).sort((a,b)=>b.ac_rw-a.ac_rw).slice(0,4) : []
         return (
-          <div key={e.id} style={{ ...S.card, borderColor:'#bfdbfe', background:'#f0f7ff' }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#1e40af', marginBottom:6 }}>
+          <div key={e.id} style={{ ...S.card, borderColor:'#99f6e4', background:'#f0f7ff' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#0e6560', marginBottom:6 }}>
               ❌ {e.label}: Rw propuesto ({termica['ac_'+e.id]?.rw||'—'} dB) insuficiente — se requiere ≥ {e.req} dB
             </div>
             {alts.length > 0 ? (
@@ -4116,8 +4116,8 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                 <div style={{ fontSize:11, color:'#374151', marginBottom:6 }}>Soluciones LOSCAT con Rw ≥ {e.req} dB:</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                   {alts.map(s => (
-                    <div key={s.cod} style={{ background:'#fff', border:'1px solid #bfdbfe', borderRadius:6, padding:'6px 10px', flex:1, minWidth:180 }}>
-                      <div style={{ fontWeight:700, fontSize:11, color:'#1e40af' }}>{s.cod} · Rw {s.ac_rw} dB</div>
+                    <div key={s.cod} style={{ background:'#fff', border:'1px solid #99f6e4', borderRadius:6, padding:'6px 10px', flex:1, minWidth:180 }}>
+                      <div style={{ fontWeight:700, fontSize:11, color:'#0e6560' }}>{s.cod} · Rw {s.ac_rw} dB</div>
                       <div style={{ fontSize:11 }}>{s.desc}</div>
                       <div style={{ fontSize:10, color:'#64748b' }}>U={s.u} W/m²K · RF {s.rf||'—'}</div>
                     </div>
@@ -4239,7 +4239,7 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
       <text x={PAD.l + gW + 2} y={yTd + 3} fontSize={8} fill="#f59e0b">{`Td=${res.Tdew}°`}</text>
 
       {/* Línea de temperatura — azul */}
-      <polyline points={tempPts} fill="none" stroke="#1e40af" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={tempPts} fill="none" stroke="#0e6560" strokeWidth={2} strokeLinejoin="round" />
 
       {/* Puntos de interfaz — solo donde temps[i] esté definido */}
       {rsAcum.map((r, i) => {
@@ -4250,7 +4250,7 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
         return (
           <circle key={i} cx={xPx(r)} cy={yPx(t)}
             r={i === 0 || i === rsAcum.length - 1 ? 3 : 4}
-            fill={riesgo ? '#dc2626' : '#1e40af'}
+            fill={riesgo ? '#dc2626' : '#0e6560'}
             stroke="#fff" strokeWidth={1.5}
           />
         )
@@ -4753,8 +4753,8 @@ ${'='.repeat(60)}`
 <title>Informe DOM — ${solucion?.cod || 'Cálculo U'}</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 11pt; color: #1e293b; max-width: 800px; margin: 30px auto; padding: 0 20px }
-  h1 { font-size: 15pt; color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 6px }
-  h2 { font-size: 12pt; color: #1e40af; margin-top: 22px; margin-bottom: 6px; border-left: 4px solid #1e40af; padding-left: 8px }
+  h1 { font-size: 15pt; color: #0e6560; border-bottom: 2px solid #0e6560; padding-bottom: 6px }
+  h2 { font-size: 12pt; color: #0e6560; margin-top: 22px; margin-bottom: 6px; border-left: 4px solid #0e6560; padding-left: 8px }
   h3 { font-size: 11pt; color: #374151; margin-top: 14px; margin-bottom: 4px }
   table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt }
   th { background: #f1f5f9; padding: 6px 8px; text-align: left; border: 1px solid #cbd5e1; font-weight: 700 }
@@ -4884,9 +4884,9 @@ ${cambios.length && solucion ? `
       {!collapsed && (
         <div style={{ border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '12px' }}>
           {solucion && (
-            <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, padding:'10px 16px', marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
+            <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:8, padding:'10px 16px', marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:700, color:'#1e40af' }}>📋 {solucion.cod} — {solucion.desc}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:'#0e6560' }}>📋 {solucion.cod} — {solucion.desc}</div>
                 <div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>{solucion.obs}</div>
                 {solucion.esPDA ? (
                   <div style={{ fontSize:10, color:'#92400e', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:5, padding:'5px 8px', marginTop:4, lineHeight:1.5 }}>
@@ -4906,7 +4906,7 @@ ${cambios.length && solucion ? `
             <p style={S.h2}>Calculadora U + Condensación (NCh853 U · NCh1973 condensación / Glaser)</p>
             {/* ── Hint cuando no hay solución ni capas ───────────────────────── */}
             {!solucion && capas.length === 0 && (
-              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'8px 14px', marginBottom:10, fontSize:12, color:'#1e40af' }}>
+              <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6, padding:'8px 14px', marginBottom:10, fontSize:12, color:'#0e6560' }}>
                 💡 Ve a la pestaña <b>Soluciones</b> para aplicar una solución constructiva, o agrega capas manualmente con el botón <b>+ Capa</b>.
               </div>
             )}
@@ -4952,10 +4952,10 @@ ${cambios.length && solucion ? `
 
             {/* ── Cubierta ventilada (solo techo) ────────────────────────────── */}
             {elemId === 'techo' && (
-              <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
+              <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
                 <label style={{ fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
                   <input type="checkbox" checked={cubiertaVent} onChange={e=>setCubiertaVent(e.target.checked)} style={{ cursor:'pointer' }} />
-                  <b style={{ color:'#1e40af' }}>Cubierta ventilada</b>
+                  <b style={{ color:'#0e6560' }}>Cubierta ventilada</b>
                   <span style={{ fontSize:11, color:'#64748b' }}>(cámara de aire ventilada sobre el aislante)</span>
                 </label>
                 {cubiertaVent && !capas.some(c => c.esCamara) && (
@@ -4964,7 +4964,7 @@ ${cambios.length && solucion ? `
                   </div>
                 )}
                 {cubiertaVent && capas.some(c => c.esCamara) && (
-                  <div style={{ marginTop:6, fontSize:11, color:'#1e40af', background:'#dbeafe', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
+                  <div style={{ marginTop:6, fontSize:11, color:'#0e6560', background:'#ccfbf1', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
                     <b>ISO 6946 §6.9.2:</b> el cálculo considera <b>sólo las capas bajo la cámara</b> (las superiores —teja, tablero, OSB— están a condiciones exteriores y no contribuyen). La cara que da a la cámara venteada usa <b>RSe = 0.10 m²K/W</b> (aire quieto, §6.9.4). Recalcula automáticamente.
                   </div>
                 )}
@@ -5012,11 +5012,11 @@ ${cambios.length && solucion ? `
               return (
                 <React.Fragment key={c.id}>
                   {c.esCamara ? (
-                    <tr style={{ background:'#eff6ff' }}>
+                    <tr style={{ background:'#f0fdfa' }}>
                       <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>{idx+1}</td>
                       <td style={S.td}><i>Cámara de aire</i></td>
                       {/* λ col: R según espesor (ISO 6946) */}
-                      <td style={{ ...S.td, fontSize:11, color:'#0369a1' }}>
+                      <td style={{ ...S.td, fontSize:11, color:'#0f766e' }}>
                         R={resistenciaCamara((parseFloat(c.esp)||0)/1000).toFixed(2)}
                       </td>
                       {/* Espesor editable (mm). Vacío → 0.18 legado */}
@@ -5126,7 +5126,7 @@ ${cambios.length && solucion ? `
         </div>
         <div style={{ ...S.row, marginTop:8 }}>
           <button style={S.btn('#64748b')} onClick={addCapa}>+ Capa</button>
-          <button style={S.btn('#0369a1')} onClick={addCamara}>+ Cámara</button>
+          <button style={S.btn('#0f766e')} onClick={addCamara}>+ Cámara</button>
           <button style={S.btn()} onClick={calcular}>Calcular U</button>
           {origCapas?.length > 0 && detectarCambios().length > 0 && (
             <button style={S.btn('#b45309')} onClick={restaurarOriginal}
@@ -5281,7 +5281,7 @@ ${cambios.length && solucion ? `
 
             {/* ── Nota técnica tabique (sin Glaser) ──────────────────────────── */}
             {esTabique && (
-              <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#0369a1', marginBottom:8 }}>
+              <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#0f766e', marginBottom:8 }}>
                 ℹ <b>Tabique interior</b> — La verificación higrotérmica (Método de Glaser, NCh853:2021) aplica exclusivamente a elementos de la envolvente en contacto con el exterior. No corresponde aplicarla a tabiques interiores.
               </div>
             )}
@@ -5324,7 +5324,7 @@ ${cambios.length && solucion ? `
               {!res.condInter&&<div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#166534', fontWeight:600 }}>✓ Sin condensación intersticial — interfaces internas OK.</div>}
               {res.condInter&&<div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:6, padding:'8px 14px', fontSize:12, color:'#991b1b', fontWeight:600 }}>⚠ Riesgo de condensación intersticial — reordena capas con ↑↓ y recalcula.</div>}
               {supExtBajaTd && !res.condInter && (
-                <div style={{ background:'#f0f9ff', border:'1px solid #bae6fd', borderLeft:'4px solid #0369a1', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#0c4a6e', lineHeight:1.6 }}>
+                <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderLeft:'4px solid #0f766e', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#115e59', lineHeight:1.6 }}>
                   <b>ℹ Información — no es problema normativo.</b> La superficie exterior está a {tSupExt}°C, bajo el punto de rocío del aire interior ({res.Tdew}°C). Esto es <b>físicamente normal en invierno</b> y no constituye incumplimiento:
                   <ul style={{ margin:'4px 0 0 18px', padding:0 }}>
                     <li><b>NCh853:2021</b> evalúa condensación superficial <b>interior</b> (fRsi ≥ 0.83 ✓ aquí cumple) e <b>intersticial</b> (método Glaser). No exige verificar la cara exterior como criterio de cumplimiento.</li>
@@ -5445,7 +5445,7 @@ ${cambios.length && solucion ? `
             {/* ── Correcciones sugeridas ──────────────────────────────────────── */}
             {calcuando&&(
               <div style={{ display:'flex',alignItems:'center',gap:8,color:'#64748b',fontSize:13,padding:'10px 0' }}>
-                <div style={{ width:16,height:16,border:'2px solid #e2e8f0',borderTopColor:'#1e40af',borderRadius:'50%',animation:'spin 0.8s linear infinite',flexShrink:0 }}/>
+                <div style={{ width:16,height:16,border:'2px solid #e2e8f0',borderTopColor:'#0e6560',borderRadius:'50%',animation:'spin 0.8s linear infinite',flexShrink:0 }}/>
                 Calculando correcciones normativas…
               </div>
             )}
@@ -5511,7 +5511,7 @@ ${cambios.length && solucion ? `
                               💰 CLP {econ.costoTotal.toLocaleString('es-CL')}
                             </span>
                             <span title={`Ahorro estimado para ${areaDef} m² de elemento, HDD18 ${econ.detalle.hdd18}`}
-                              style={{ fontSize:11, fontWeight:700, background:'#dbeafe', color:'#1e40af', border:'1px solid #93c5fd', borderRadius:6, padding:'3px 8px' }}>
+                              style={{ fontSize:11, fontWeight:700, background:'#ccfbf1', color:'#0e6560', border:'1px solid #5eead4', borderRadius:6, padding:'3px 8px' }}>
                               ⚡ {econ.ahorroKwh.toLocaleString('es-CL')} kWh/año
                             </span>
                             <span title={`Combustible: ${econ.combustibleId} a ${econ.clpKwhUtil} CLP/kWh útil`}
@@ -5586,7 +5586,7 @@ ${cambios.length && solucion ? `
                 <div style={S.sep}/>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
                   <div>
-                    <div style={{ fontSize:12, fontWeight:700, color: cumpleTodo&&hayModif?'#166534':cumpleTodo?'#1e40af':'#94a3b8' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color: cumpleTodo&&hayModif?'#166534':cumpleTodo?'#0e6560':'#94a3b8' }}>
                       {cumpleTodo && hayModif && '📄 Homologación disponible — solución modificada cumple norma'}
                       {cumpleTodo && !hayModif && '✓ Solución original sin modificaciones — no requiere homologación'}
                   {!solucion && cumpleTodo && '✓ Cálculo cumple norma'}
@@ -5597,7 +5597,7 @@ ${cambios.length && solucion ? `
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     {cumpleTodo && hayModif && (
                       <button onClick={()=>setShowHomolog(v=>!v)}
-                        style={{ background:'#1e40af', color:'#fff', border:'none', borderRadius:6, padding:'7px 14px', cursor:'pointer', fontSize:12, fontWeight:600 }}>
+                        style={{ background:'#0e6560', color:'#fff', border:'none', borderRadius:6, padding:'7px 14px', cursor:'pointer', fontSize:12, fontWeight:600 }}>
                         {showHomolog?'▲ Ocultar':'📋 Texto de homologación'}
                       </button>
                     )}
@@ -5634,8 +5634,8 @@ ${cambios.length && solucion ? `
 // ─── PESTAÑA CÁLCULO U + GLASER ───────────────────────────────────────────────
 // Configuración fija por tipo de elemento
 const CALC_U_ELEM_CFG = {
-  muro:    { elemTipo:'muro',      label:'Muro',             color:'#1e40af', umaxKey:'muro'  },
-  techo:   { elemTipo:'techumbre', label:'Cubierta / Techo', color:'#4f46e5', umaxKey:'techo' },
+  muro:    { elemTipo:'muro',      label:'Muro',             color:'#0e6560', umaxKey:'muro'  },
+  techo:   { elemTipo:'techumbre', label:'Cubierta / Techo', color:'#0d9488', umaxKey:'techo' },
   piso:    { elemTipo:'piso',      label:'Piso',             color:'#166534', umaxKey:'piso'  },
   tabique: { elemTipo:'muro',      label:'Tabique',          color:'#b45309', umaxKey:null    },
 }
@@ -5747,7 +5747,7 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
     return b ? `U≤${b}` : 'U>5.8 (no permitido)'
   }
   const ORIENTS = [{ key: 'N', label: 'Norte' }, { key: 'OP', label: 'Oriente / Poniente' }, { key: 'S', label: 'Sur' }]
-  const ORIENT_COLORS = { N: '#1e40af', OP: '#166534', S: '#7c3aed' }
+  const ORIENT_COLORS = { N: '#0e6560', OP: '#166534', S: '#7c3aed' }
 
   // ─── Calculadora U ventana ───────────────────────────────────────────────────
   const [vidrio, setVidrio] = useState('')
@@ -5880,10 +5880,10 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
             <div style={S.col}><span style={S.label} title="Paños/hojas de vidrio lado a lado: fija = 1, corredera = 2">N° paños</span><input style={{ ...S.input, width: 64 }} value={winN} onChange={e => setWinN(e.target.value)} placeholder="2" /></div>
             <div style={S.col}><span style={S.label} title="Ancho visible del perfil del marco (típico 5–8 cm)">Ancho marco (m)</span><input style={{ ...S.input, width: 84 }} value={winB} onChange={e => setWinB(e.target.value)} placeholder="0.06" /></div>
             <div style={{ ...S.col, justifyContent: 'flex-end' }}>
-              <button style={S.btn('#0369a1')} onClick={estimarAreas}>Estimar áreas →</button>
+              <button style={S.btn('#0f766e')} onClick={estimarAreas}>Estimar áreas →</button>
             </div>
           </div>
-          {estimMsg && <div style={{ fontSize: 11, color: '#0369a1', marginTop: 6 }}>{estimMsg}</div>}
+          {estimMsg && <div style={{ fontSize: 11, color: '#0f766e', marginTop: 6 }}>{estimMsg}</div>}
         </div>
 
         <div style={S.row}>
@@ -5898,14 +5898,14 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
           Son las medidas <b>reales</b> de tu ventana (no por m²): <b>Ag</b> = vidrio transparente · <b>Af</b> = marco/perfiles · <b>Ag + Af = ventana completa</b> · <b>Lg</b> = perímetro del vidrio. El Uw resultante ya queda expresado por m².
         </div>
         {resUw && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4' }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
               U ventana = <span style={{ color: colSem(parseFloat(resUw.Uw)) }}>{resUw.Uw} W/m²K</span>
             </div>
             <div style={{ fontSize: 12, color: '#64748b' }}>
               Uw = ({resUw.Ug}×{resUw.Ag} + {resUw.Uf}×{resUw.Af} + {resUw.psi}×{resUw.Lg}) / {resUw.Aw.toFixed(2)} m²
             </div>
-            <div style={{ marginTop: 6, fontSize: 12, color: '#0369a1' }}>
+            <div style={{ marginTop: 6, fontSize: 12, color: '#0f766e' }}>
               → bracket DS N°15 Tabla 3: <b>{bracketLabel(resUw.Uw)}</b> — copia este Uw al ingresar las fachadas abajo
             </div>
           </div>
@@ -6191,7 +6191,7 @@ function IncumplimientosPanelPuerta({ puerta: p, zona }) {
               <span style={{ fontSize: 14 }}>{it.icon}</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{it.titulo}</span>
             </div>
-            <div style={{ fontSize: 11, color: '#0369a1', marginBottom: 3, fontWeight: 600 }}>
+            <div style={{ fontSize: 11, color: '#0f766e', marginBottom: 3, fontWeight: 600 }}>
               📖 Norma: {it.norma}
             </div>
             <div style={{ fontSize: 11, color: '#7c2d12', marginBottom: 6 }}>
@@ -6345,7 +6345,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
           Ingresa las <b>dimensiones reales</b> de la puerta (ancho × alto totales). A diferencia de la ventana, aquí <b>no</b> calculas áreas: el sistema descompone solo el área de hoja, de marco y el perímetro del sello según el ancho del marco elegido. El U resultante ya queda expresado por m².
         </div>
         {resCalc && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4' }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
               U puerta = <span style={{ color: colSem(parseFloat(resCalc.U)) }}>{resCalc.U} W/m²K</span>
               {' · '}RF: <b>{resCalc.rf}</b>
@@ -6355,7 +6355,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
               U = ({resCalc.componentes.hoja.u}×{resCalc.A_hoja} + {resCalc.componentes.marco.u}×{resCalc.A_marco} + {resCalc.componentes.sello.psi}×{resCalc.L_sello}) / {resCalc.A_total} m²
               {' · '}Ancho libre paso: {resCalc.anchoLibre_m} m
             </div>
-            <div style={{ marginTop: 6, fontSize: 12, color: '#0369a1' }}>
+            <div style={{ marginTop: 6, fontSize: 12, color: '#0f766e' }}>
               → Copia estos valores al registro de puertas abajo, o ajusta según el uso real.
             </div>
           </div>
@@ -6366,7 +6366,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
       <div style={S.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <p style={{ ...S.h2, margin: 0 }}>Registro de puertas del proyecto — Zona {zona}</p>
-          <button style={S.btn('#1e40af')} onClick={addPuerta}>+ Agregar puerta</button>
+          <button style={S.btn('#0e6560')} onClick={addPuerta}>+ Agregar puerta</button>
         </div>
         <p style={{ fontSize: 12, color: '#64748b', marginTop: -2, marginBottom: 16 }}>
           Cada fila es una puerta del proyecto. Edita nombre, uso, dimensiones y componentes.
@@ -6377,7 +6377,7 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
           <div key={p.id} style={{ marginBottom: 10, padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
             {/* Fila 1: nombre + uso + dimensiones + botón borrar */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 8 }}>
-              <div style={{ minWidth: 20, fontSize: 12, fontWeight: 700, color: '#1e40af', paddingBottom: 3 }}>{idx + 1}</div>
+              <div style={{ minWidth: 20, fontSize: 12, fontWeight: 700, color: '#0e6560', paddingBottom: 3 }}>{idx + 1}</div>
               <div style={S.col}>
                 <span style={S.label}>Nombre</span>
                 <input style={{ ...S.input, width: 200 }} value={p.nombre} onChange={e => updP(p.id, 'nombre', e.target.value)} placeholder={`Puerta ${idx + 1}`} />
@@ -6532,7 +6532,7 @@ function glaserSvgStr(res, capas) {
   const dots = rsAcum.map((r, i) => {
     if (temps[i] == null) return ''
     const iface = res.ifaces[i - 1]
-    return `<circle cx="${xPx(r)}" cy="${yPx(temps[i])}" r="${(i === 0 || i === rsAcum.length - 1) ? 3 : 4}" fill="${iface?.riesgo ? '#dc2626' : '#1e40af'}" stroke="#fff" stroke-width="1.5"/>`
+    return `<circle cx="${xPx(r)}" cy="${yPx(temps[i])}" r="${(i === 0 || i === rsAcum.length - 1) ? 3 : 4}" fill="${iface?.riesgo ? '#dc2626' : '#0e6560'}" stroke="#fff" stroke-width="1.5"/>`
   }).join('')
   const capaLabels = (capas || []).filter(c => !c.esCamara).map((c, i) => {
     const x0 = parseFloat(xPx(rsAcum[i + 1] - (Rs[i + 1] || 0) / Rtot))
@@ -6546,7 +6546,7 @@ function glaserSvgStr(res, capas) {
 ${gridLines}${sepLines}${riskRect}
 <line x1="${PAD.l}" x2="${PAD.l + gW}" y1="${yTd}" y2="${yTd}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,3"/>
 <text x="${(PAD.l + gW + 2)}" y="${(parseFloat(yTd) + 3).toFixed(1)}" font-size="8" fill="#f59e0b">Td=${res.Tdew}°</text>
-<polyline points="${tempPts}" fill="none" stroke="#1e40af" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="${tempPts}" fill="none" stroke="#0e6560" stroke-width="2" stroke-linejoin="round"/>
 ${dots}
 <text x="${PAD.l + 2}" y="${PAD.t + gH + 14}" font-size="9" fill="#64748b">int</text>
 <text x="${PAD.l + gW - 2}" y="${PAD.t + gH + 14}" font-size="9" fill="#64748b" text-anchor="end">ext</text>
@@ -6645,10 +6645,10 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas, detallesIlustr
             onClick={() => setSubTab(t.id)}
             style={{
               padding:'10px 18px', background:'transparent', border:'none',
-              borderBottom: subTab === t.id ? '3px solid #1e40af' : '3px solid transparent',
+              borderBottom: subTab === t.id ? '3px solid #0e6560' : '3px solid transparent',
               marginBottom:-2, cursor:'pointer', fontSize:13,
               fontWeight: subTab === t.id ? 700 : 500,
-              color: subTab === t.id ? '#1e40af' : '#64748b',
+              color: subTab === t.id ? '#0e6560' : '#64748b',
               transition:'all 0.15s',
             }}
             title={t.desc}
@@ -6691,8 +6691,8 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas, detallesIlustr
                 disabled={!d.disponible}
                 style={{
                   padding:'10px 16px', borderRadius:8, border:'2px solid',
-                  borderColor: detalleActivo === d.id ? '#1e40af' : (d.disponible ? '#cbd5e1' : '#e2e8f0'),
-                  background: detalleActivo === d.id ? '#1e40af' : (d.disponible ? '#fff' : '#f8fafc'),
+                  borderColor: detalleActivo === d.id ? '#0e6560' : (d.disponible ? '#cbd5e1' : '#e2e8f0'),
+                  background: detalleActivo === d.id ? '#0e6560' : (d.disponible ? '#fff' : '#f8fafc'),
                   color: detalleActivo === d.id ? '#fff' : (d.disponible ? '#1e293b' : '#94a3b8'),
                   cursor: d.disponible ? 'pointer' : 'not-allowed',
                   fontWeight: 600, fontSize:12, opacity: d.disponible ? 1 : 0.6,
@@ -6711,8 +6711,8 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas, detallesIlustr
       {/* Render del detalle activo */}
       {tieneAlgo && activo && activo.disponible && (
         <div style={S.card}>
-          <div style={{ marginBottom:12, padding:'10px 14px', background:'#eff6ff', borderLeft:'4px solid #1e40af', borderRadius:6 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:'#1e40af', marginBottom:3 }}>{activo.titulo}</div>
+          <div style={{ marginBottom:12, padding:'10px 14px', background:'#f0fdfa', borderLeft:'4px solid #0e6560', borderRadius:6 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#0e6560', marginBottom:3 }}>{activo.titulo}</div>
             <div style={{ fontSize:11, color:'#475569', lineHeight:1.5 }}>{activo.desc}</div>
           </div>
           <div
@@ -6738,7 +6738,7 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas, detallesIlustr
             const horizAislIdx = findAislacionIdx(activo.horiz.capas)
             return (
               <div style={{ marginTop:14, padding:'12px 16px', background:'#f8fafc', borderRadius:8, fontSize:12, lineHeight:1.6 }}>
-                <div style={{ fontWeight:700, color:'#1e40af', fontSize:12, marginBottom:6 }}>🔍 Análisis técnico de la unión</div>
+                <div style={{ fontWeight:700, color:'#0e6560', fontSize:12, marginBottom:6 }}>🔍 Análisis técnico de la unión</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   <div>
                     <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:0.5, marginBottom:2 }}>Condiciones</div>
@@ -6780,7 +6780,7 @@ function TabDetalles({ proy, termica, calcUInit, notas, setNotas, detallesIlustr
             {[{ titulo:'Capas del muro (INT → EXT)', capas: activo.muro.capas, sc: activo.muro.sc, U: activo.muro.U },
               { titulo:`Capas del ${activo.horizLabel.toLowerCase()} (INT → EXT)`, capas: activo.horiz.capas, sc: activo.horiz.sc, U: activo.horiz.U }].map((t, i) => (
               <div key={i} style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'8px 12px', fontSize:11, background:'#fff' }}>
-                <div style={{ fontWeight:700, color:'#1e40af', marginBottom:4, fontSize:11.5 }}>
+                <div style={{ fontWeight:700, color:'#0e6560', marginBottom:4, fontSize:11.5 }}>
                   {t.titulo}
                   {t.sc && <span style={{ marginLeft:6, color:'#64748b', fontFamily:'monospace', fontSize:10 }}>LOSCAT {t.sc}</span>}
                 </div>
@@ -6849,7 +6849,7 @@ function DetallesIlustradosPanel({
           </div>
           <button
             onClick={() => setShowUploadModal(true)}
-            style={{ padding:'10px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap' }}
+            style={{ padding:'10px 18px', background:'#0e6560', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap' }}
           >
             ＋ Subir nuevo detalle
           </button>
@@ -6875,7 +6875,7 @@ function DetallesIlustradosPanel({
                       position:'absolute', left:`${m.x * 100}%`, top:`${m.y * 100}%`,
                       transform:'translate(-50%,-50%)',
                       width:18, height:18, borderRadius:'50%',
-                      background: m.elemento ? '#1e40af' : '#94a3b8',
+                      background: m.elemento ? '#0e6560' : '#94a3b8',
                       color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
                       fontSize:9, fontWeight:800, border:'2px solid #fff',
                       boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
@@ -6890,7 +6890,7 @@ function DetallesIlustradosPanel({
                   <div style={{ display:'flex', gap:6 }}>
                     <button
                       onClick={() => setViewingDetalle(d)}
-                      style={{ flex:1, padding:'5px 8px', background:'#1e40af', color:'#fff', border:'none', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer' }}
+                      style={{ flex:1, padding:'5px 8px', background:'#0e6560', color:'#fff', border:'none', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer' }}
                     >👁 Ver con análisis</button>
                     <button
                       onClick={() => setEditingDetalle(d)}
@@ -7002,7 +7002,7 @@ function UploadDetalleModal({ onClose, onUpload }) {
       style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.7)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
       <div style={{ background:'#fff', borderRadius:12, maxWidth:560, width:'100%', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ padding:'16px 24px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontSize:16, fontWeight:800, color:'#1e40af' }}>＋ Subir detalle ilustrado</div>
+          <div style={{ fontSize:16, fontWeight:800, color:'#0e6560' }}>＋ Subir detalle ilustrado</div>
           <button onClick={onClose} style={{ padding:'4px 10px', background:'#f1f5f9', border:'none', borderRadius:5, cursor:'pointer', fontSize:12, fontWeight:600 }}>✕</button>
         </div>
         <div style={{ padding:'18px 24px' }}>
@@ -7033,7 +7033,7 @@ function UploadDetalleModal({ onClose, onUpload }) {
 
           <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
             <button onClick={onClose} style={{ padding:'8px 16px', background:'#f1f5f9', color:'#475569', border:'none', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
-            <button onClick={handleSubmit} style={{ padding:'8px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>Continuar → colocar marcadores</button>
+            <button onClick={handleSubmit} style={{ padding:'8px 18px', background:'#0e6560', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>Continuar → colocar marcadores</button>
           </div>
         </div>
       </div>
@@ -7075,7 +7075,7 @@ function MarkerEditorModal({ detalle, onClose, onSave }) {
       style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.85)', zIndex:9999, display:'flex', alignItems:'stretch', padding:16 }}>
       <div style={{ background:'#fff', borderRadius:12, flex:1, display:'flex', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.4)' }}>
         {/* Imagen con marcadores (izq) */}
-        <div style={{ flex:'1 1 65%', background:'#0f172a', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', overflow:'auto' }}>
+        <div style={{ flex:'1 1 65%', background:'#04302e', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', overflow:'auto' }}>
           <div style={{ position:'relative', display:'inline-block' }}>
             <img
               ref={imgRef}
@@ -7089,7 +7089,7 @@ function MarkerEditorModal({ detalle, onClose, onSave }) {
                 position:'absolute', left:`${m.x * 100}%`, top:`${m.y * 100}%`,
                 transform:'translate(-50%,-50%)',
                 width:28, height:28, borderRadius:'50%',
-                background: m.elemento ? '#1e40af' : '#dc2626',
+                background: m.elemento ? '#0e6560' : '#dc2626',
                 color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
                 fontSize:13, fontWeight:800, border:'3px solid #fff',
                 boxShadow:'0 2px 8px rgba(0,0,0,0.5)',
@@ -7102,7 +7102,7 @@ function MarkerEditorModal({ detalle, onClose, onSave }) {
         {/* Panel lateral (der): lista de marcadores */}
         <div style={{ width:340, background:'#fff', borderLeft:'1px solid #e2e8f0', display:'flex', flexDirection:'column' }}>
           <div style={{ padding:'14px 18px', borderBottom:'1px solid #e2e8f0' }}>
-            <div style={{ fontSize:15, fontWeight:800, color:'#1e40af', marginBottom:2 }}>✏ Editor de marcadores</div>
+            <div style={{ fontSize:15, fontWeight:800, color:'#0e6560', marginBottom:2 }}>✏ Editor de marcadores</div>
             <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>
               <b>Clickea sobre la imagen</b> para agregar marcadores. Luego asigná a cada uno el elemento (muro, piso, techo, etc.) al que corresponde en el dibujo.
             </div>
@@ -7116,7 +7116,7 @@ function MarkerEditorModal({ detalle, onClose, onSave }) {
               marcadores.map(m => (
                 <div key={m.id} style={{ marginBottom:10, padding:10, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8 }}>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
-                    <div style={{ width:24, height:24, borderRadius:'50%', background: m.elemento ? '#1e40af' : '#dc2626', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, flexShrink:0 }}>{m.label}</div>
+                    <div style={{ width:24, height:24, borderRadius:'50%', background: m.elemento ? '#0e6560' : '#dc2626', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, flexShrink:0 }}>{m.label}</div>
                     <input value={m.label} onChange={e => actualizarMarcador(m.id, 'label', e.target.value.slice(0, 3).toUpperCase())} style={{ width:50, padding:'3px 6px', border:'1px solid #cbd5e1', borderRadius:4, fontSize:11, fontWeight:700, textAlign:'center' }} />
                     <select value={m.elemento} onChange={e => actualizarMarcador(m.id, 'elemento', e.target.value)} style={{ flex:1, padding:'4px 6px', border:'1px solid #cbd5e1', borderRadius:4, fontSize:11, background:'#fff' }}>
                       <option value="">— sin asignar —</option>
@@ -7180,7 +7180,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
       style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.85)', zIndex:9999, display:'flex', flexDirection:'column', padding:16 }}>
       <div style={{ background:'#fff', borderRadius:12, flex:1, display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.4)' }}>
         {/* Toolbar */}
-        <div style={{ padding:'12px 22px', background:'#1e40af', color:'#fff', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding:'12px 22px', background:'#0e6560', color:'#fff', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
             <div style={{ fontSize:15, fontWeight:800 }}>👁 {detalle.nombre}</div>
             <div style={{ fontSize:11, opacity:0.85 }}>{detalle.tipo} · {detalle.marcadores?.length || 0} marcadores · {elementosConData.length} elementos identificados</div>
@@ -7199,7 +7199,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
                   position:'absolute', left:`${m.x * 100}%`, top:`${m.y * 100}%`,
                   transform:'translate(-50%,-50%)',
                   width:30, height:30, borderRadius:'50%',
-                  background: m.elemento ? '#1e40af' : '#94a3b8',
+                  background: m.elemento ? '#0e6560' : '#94a3b8',
                   color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
                   fontSize:14, fontWeight:800, border:'3px solid #fff',
                   boxShadow:'0 2px 8px rgba(0,0,0,0.4)',
@@ -7210,7 +7210,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
 
           {/* Leyenda técnica automática */}
           <div style={{ width:380, background:'#fff', borderLeft:'1px solid #e2e8f0', overflowY:'auto', padding:'18px 22px' }}>
-            <div style={{ fontSize:14, fontWeight:800, color:'#1e40af', marginBottom:14, paddingBottom:8, borderBottom:'2px solid #dbeafe' }}>
+            <div style={{ fontSize:14, fontWeight:800, color:'#0e6560', marginBottom:14, paddingBottom:8, borderBottom:'2px solid #ccfbf1' }}>
               📋 Leyenda técnica
             </div>
 
@@ -7223,13 +7223,13 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
             {elementosConData.map(({ elem, marks, capas }) => {
               const muroAislIdx = findAislacionIdx(capas.capas)
               return (
-                <div key={elem} style={{ marginBottom:18, padding:'12px 14px', background:'#f8fafc', borderLeft:'4px solid #1e40af', borderRadius:6 }}>
+                <div key={elem} style={{ marginBottom:18, padding:'12px 14px', background:'#f8fafc', borderLeft:'4px solid #0e6560', borderRadius:6 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                     {marks.map(m => (
-                      <div key={m.id} style={{ width:22, height:22, borderRadius:'50%', background:'#1e40af', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, flexShrink:0 }}>{m.label}</div>
+                      <div key={m.id} style={{ width:22, height:22, borderRadius:'50%', background:'#0e6560', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, flexShrink:0 }}>{m.label}</div>
                     ))}
                     <div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'#1e40af' }}>{ELEM_LABELS[elem] || elem}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#0e6560' }}>{ELEM_LABELS[elem] || elem}</div>
                       {capas.sc && <div style={{ fontSize:10, color:'#64748b', fontFamily:'monospace' }}>LOSCAT {capas.sc}{capas.U ? ` · U=${parseFloat(capas.U).toFixed(4)} W/m²K` : ''}</div>}
                     </div>
                   </div>
@@ -7255,7 +7255,7 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
 
             {/* Condiciones de zona */}
             {proy.zona && (
-              <div style={{ marginTop:14, padding:'10px 14px', background:'#eff6ff', borderRadius:6, fontSize:10.5, color:'#1e40af', lineHeight:1.5 }}>
+              <div style={{ marginTop:14, padding:'10px 14px', background:'#f0fdfa', borderRadius:6, fontSize:10.5, color:'#0e6560', lineHeight:1.5 }}>
                 <b>Condiciones Zona {proy.zona}:</b> Ti={ZONAS[proy.zona]?.Ti}°C · Te={ZONAS[proy.zona]?.Te}°C · HR={ZONAS[proy.zona]?.HR}%
               </div>
             )}
@@ -7642,7 +7642,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       const esTabiqueRpt = el.key === 'tabique'
       let glaserHtml = ''
       if (esTabiqueRpt) {
-        glaserHtml = `<div class="ok-box" style="color:#0369a1;background:#f0f9ff;border-color:#bae6fd">ℹ Tabique interior — verificación higrotérmica (Método de Glaser, NCh1973:2014) no aplica. La norma exige esta verificación solo para elementos de la envolvente en contacto con el exterior.</div>`
+        glaserHtml = `<div class="ok-box" style="color:#0f766e;background:#f0fdfa;border-color:#99f6e4">ℹ Tabique interior — verificación higrotérmica (Método de Glaser, NCh1973:2014) no aplica. La norma exige esta verificación solo para elementos de la envolvente en contacto con el exterior.</div>`
       } else if (res) {
         const svgStr = glaserSvgStr(res, capas || [])
         glaserHtml = `
@@ -7739,11 +7739,11 @@ ${res.condInter
             const intr = (v) => v?.intrinseco === true ? '<span style="background:#dcfce7;color:#166534;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">intrínseco</span>'
                             : v?.intrinseco === false ? '<span style="background:#fef3c7;color:#92400e;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">requiere capas</span>'
                             : ''
-            homologHtml = `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 12px;margin:6px 0">
-              <div style="font-size:11pt;font-weight:700;color:#0369a1;margin-bottom:6px">📋 Códigos normativos homologados</div>
+            homologHtml = `<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;padding:10px 12px;margin:6px 0">
+              <div style="font-size:11pt;font-weight:700;color:#0f766e;margin-bottom:6px">📋 Códigos normativos homologados</div>
               <table style="width:100%;border-collapse:collapse;font-size:9pt">
                 <tr>
-                  <th style="background:#dbeafe;color:#1e40af;padding:4px 6px;text-align:left;width:33%">🌡️ Térmico (LOSCAT)</th>
+                  <th style="background:#ccfbf1;color:#0e6560;padding:4px 6px;text-align:left;width:33%">🌡️ Térmico (LOSCAT)</th>
                   <th style="background:#fee2e2;color:#dc2626;padding:4px 6px;text-align:left;width:33%">🔥 Fuego (LOFC Ed.17)</th>
                   <th style="background:#f3e8ff;color:#7c3aed;padding:4px 6px;text-align:left;width:34%">🔇 Acústico (LOSCAA 2024)</th>
                 </tr>
@@ -7907,7 +7907,7 @@ ${glaserHtml}`
       return `<tr>
         <td>${e.label}</td>
         <td><b>${rw || '—'} ${rw ? 'dB' : ''}</b>${src ? ` <span style="font-size:9pt;color:#64748b">(${src})</span>` : ''}</td>
-        <td style="color:#0369a1;font-weight:700">${e.req ? e.req + ' dB' : '—'}</td>
+        <td style="color:#0f766e;font-weight:700">${e.req ? e.req + ' dB' : '—'}</td>
         <td>${rw && e.req ? `<span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '—'}</td>
       </tr>`
     }).join('')
@@ -7917,7 +7917,7 @@ ${glaserHtml}`
     const lnwRow = lnwImpact ? `<tr>
       <td>Entre pisos — ruido de impacto L'n,w</td>
       <td><b>${lnwImpact} dB</b></td>
-      <td style="color:#0369a1;font-weight:700">${lnwReq ? '≤ '+lnwReq+' dB' : '—'}</td>
+      <td style="color:#0f766e;font-weight:700">${lnwReq ? '≤ '+lnwReq+' dB' : '—'}</td>
       <td>${lnwReq ? `<span class="${lnwCumple?'badge-ok':'badge-no'}">${lnwCumple?'CUMPLE':'NO CUMPLE'}</span>` : '—'}</td>
     </tr>` : ''
 
@@ -8005,7 +8005,7 @@ ${glaserHtml}`
         c.label.startsWith('RF') ? 'Incendio' :
         c.label.startsWith('Rw') || c.label.startsWith("L'n,w") ? 'Acústico' :
         c.label.startsWith('Cond.') ? 'Higrotérmico' : 'Otro'
-      const catColor = categoria === 'Térmico' ? '#1e40af' : categoria === 'Incendio' ? '#dc2626' : categoria === 'Acústico' ? '#0369a1' : categoria === 'Higrotérmico' ? '#7c3aed' : '#64748b'
+      const catColor = categoria === 'Térmico' ? '#0e6560' : categoria === 'Incendio' ? '#dc2626' : categoria === 'Acústico' ? '#0f766e' : categoria === 'Higrotérmico' ? '#7c3aed' : '#64748b'
       return `<tr>
         <td><span style="font-size:8pt;color:${catColor};font-weight:700;background:${catColor}15;border-radius:3px;padding:1px 5px;margin-right:4px">${categoria}</span><b>${c.label}</b></td>
         <td>${c.val || '—'}</td>
@@ -8187,7 +8187,7 @@ ${glaserHtml}`
           const recubMin = 20  // mm — NCh430 §5.5 para F120
           return `
 <table>
-  <tr><th colspan="2" style="background:#f0f9ff;color:#0369a1">Cálculo de RF — Hormigón armado (NCh430 · LOFC Ed.17 Tabla A4)</th></tr>
+  <tr><th colspan="2" style="background:#f0fdfa;color:#0f766e">Cálculo de RF — Hormigón armado (NCh430 · LOFC Ed.17 Tabla A4)</th></tr>
   <tr><td><b>Recubrimiento mínimo del acero (c)</b></td><td>≥ <b>${recubMin} mm</b> (NCh430 §5.5)</td></tr>
   <tr><td><b>Tiempo máximo a temp. crítica</b></td><td>El acero alcanza 500°C en <b>≥ 120 min</b> con c = 20 mm (LOFC Tabla A4)</td></tr>
   <tr><td><b>RF resultante por cálculo</b></td><td><b>F120</b> ${mat.id === 'ha_pref' ? '(F90 si recubrimiento entre 15-19 mm)' : ''}</td></tr>
@@ -8223,7 +8223,7 @@ ${glaserHtml}`
           const seccionRes = seccionInicial - 2 * carbonTotal
           return `
 <table>
-  <tr><th colspan="2" style="background:#f0f9ff;color:#0369a1">Cálculo de RF — ${mat.id === 'clt' ? 'CLT (madera contralaminada)' : 'Madera maciza estructural'} (LOFC Ed.17 Tabla A6)</th></tr>
+  <tr><th colspan="2" style="background:#f0fdfa;color:#0f766e">Cálculo de RF — ${mat.id === 'clt' ? 'CLT (madera contralaminada)' : 'Madera maciza estructural'} (LOFC Ed.17 Tabla A6)</th></tr>
   <tr><td><b>Sección mínima inicial (b)</b></td><td>≥ <b>${seccionInicial} mm</b></td></tr>
   <tr><td><b>Velocidad de carbonización (β₀)</b></td><td><b>${beta} mm/min</b> ${mat.id === 'clt' ? '(CLT — capas adhesivadas reducen avance)' : '(madera maciza coníferas)'}</td></tr>
   <tr><td><b>Tiempo de exposición al fuego</b></td><td>${tiempoBaseMin} min (= RF base ${mat.rfBase})</td></tr>
@@ -8241,7 +8241,7 @@ ${glaserHtml}`
           const espesorMin = 110  // mm para F60
           return `
 <table>
-  <tr><th colspan="2" style="background:#f0f9ff;color:#0369a1">Cálculo de RF — Mampostería de ladrillo / bloque (LOFC Ed.17 Tabla A2)</th></tr>
+  <tr><th colspan="2" style="background:#f0fdfa;color:#0f766e">Cálculo de RF — Mampostería de ladrillo / bloque (LOFC Ed.17 Tabla A2)</th></tr>
   <tr><td><b>Espesor mínimo del muro (e)</b></td><td>≥ <b>${espesorMin} mm</b> para F60 (LOFC Tabla A2)</td></tr>
   <tr><td><b>Tipo de mampostería</b></td><td>Ladrillo cerámico macizo / perforado · bloque hormigón macizo</td></tr>
   <tr><td><b>Densidad mínima</b></td><td>ρ ≥ 1500 kg/m³</td></tr>
@@ -8332,7 +8332,7 @@ ${alternativasOk.length > 0 ? `
 <h2 id="modulo-6">Módulo 6 — Notas y observaciones del proyectista</h2>
 ${notasEntries.map(([k, v]) => `
 <div style="margin-bottom:12px">
-  <div style="font-weight:700;color:#1e40af;font-size:10pt;margin-bottom:4px;border-left:3px solid #93c5fd;padding-left:8px">${TAB_NAMES_RPT[k] || k}</div>
+  <div style="font-weight:700;color:#0e6560;font-size:10pt;margin-bottom:4px;border-left:3px solid #5eead4;padding-left:8px">${TAB_NAMES_RPT[k] || k}</div>
   <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:10pt;white-space:pre-wrap;line-height:1.6;color:#1e293b">${v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
 </div>`).join('')}` : ''
 
@@ -8378,10 +8378,10 @@ ${notasEntries.map(([k, v]) => `
         const fechaAplic = corr.aplicada_en
           ? new Date(corr.aplicada_en).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })
           : ''
-        return `<div style="background:#fff;border:1px solid #e2e8f0;border-left:5px solid ${corr.color || '#1e40af'};border-radius:8px;padding:14px 18px;margin:10px 0;page-break-inside:avoid">
+        return `<div style="background:#fff;border:1px solid #e2e8f0;border-left:5px solid ${corr.color || '#0e6560'};border-radius:8px;padding:14px 18px;margin:10px 0;page-break-inside:avoid">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="background:${corr.color || '#1e40af'};color:#fff;font-weight:800;font-size:11pt;padding:4px 12px;border-radius:6px;letter-spacing:0.5px">${strat.code}</span>
+      <span style="background:${corr.color || '#0e6560'};color:#fff;font-weight:800;font-size:11pt;padding:4px 12px;border-radius:6px;letter-spacing:0.5px">${strat.code}</span>
       <span style="font-weight:700;font-size:11pt;color:#1e293b">${label}</span>
       ${corr.etiqueta ? `<span style="background:#f1f5f9;color:#475569;font-size:9pt;padding:2px 8px;border-radius:4px;font-weight:600">${corr.etiqueta}</span>` : ''}
       ${corr.compatible_loscat
@@ -8390,7 +8390,7 @@ ${notasEntries.map(([k, v]) => `
     </div>
     ${fechaAplic ? `<span style="font-size:8.5pt;color:#94a3b8">Aplicada: ${fechaAplic}</span>` : ''}
   </div>
-  <div style="font-size:9.5pt;color:#1e40af;font-weight:700;margin-bottom:4px">Estrategia: ${strat.nombre}</div>
+  <div style="font-size:9.5pt;color:#0e6560;font-weight:700;margin-bottom:4px">Estrategia: ${strat.nombre}</div>
   <div style="font-size:9.5pt;color:#1e293b;line-height:1.6;margin-bottom:8px">${corr.descripcion || corr.titulo || '—'}</div>
   <table style="width:100%;font-size:9pt;margin:6px 0">
     <tr>
@@ -8428,7 +8428,7 @@ ${notasEntries.map(([k, v]) => `
     const strat = strategyFromId(corr.id)
     const uF = data.res?.U ? parseFloat(data.res.U).toFixed(4) : '—'
     return `<tr>
-      <td style="text-align:center"><span style="background:${corr.color || '#1e40af'};color:#fff;font-weight:700;font-size:9pt;padding:2px 8px;border-radius:4px">${strat.code}</span></td>
+      <td style="text-align:center"><span style="background:${corr.color || '#0e6560'};color:#fff;font-weight:700;font-size:9pt;padding:2px 8px;border-radius:4px">${strat.code}</span></td>
       <td><b>${label}</b></td>
       <td style="font-size:9pt">${corr.etiqueta || strat.nombre}</td>
       <td style="font-family:monospace;font-weight:700">${uF}</td>
@@ -8446,7 +8446,7 @@ ${notasEntries.map(([k, v]) => `
 </div>
 ${resumenTbl}
 ${tarjetas}
-<div style="margin-top:14px;font-size:8.5pt;color:#64748b;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 14px;line-height:1.7">
+<div style="margin-top:14px;font-size:8.5pt;color:#64748b;background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;padding:10px 14px;line-height:1.7">
   <b>📘 Catálogo de estrategias disponibles en el motor Talora:</b>
   <ul style="margin:4px 0 0 16px;padding:0;line-height:1.7">
     <li><b>C1</b> — Sistema EIFS/SATE: aislación exterior adherida + estuco cemento.</li>
@@ -8520,7 +8520,7 @@ ${tarjetas}
               ⚠ <b>Puente térmico probable:</b> Uno de los elementos no tiene aislación claramente identificada. Considera aplicar estrategia C1/C2/C3 para crear envolvente térmica continua.
             </div>`
         return `<div style="page-break-inside:avoid;margin-bottom:18px">
-  <h3 style="font-size:10.5pt;color:#1e40af;margin:14px 0 6px;border-left:3px solid #93c5fd;padding-left:8px">${d.titulo}</h3>
+  <h3 style="font-size:10.5pt;color:#0e6560;margin:14px 0 6px;border-left:3px solid #5eead4;padding-left:8px">${d.titulo}</h3>
   <div style="text-align:center;background:#fff;padding:4px;border:1px solid #e2e8f0;border-radius:8px">${svg}</div>
   ${recomendacion}
 </div>`
@@ -8531,7 +8531,7 @@ ${tarjetas}
 <div style="font-size:9pt;color:#64748b;margin-bottom:12px;line-height:1.6">
   Este módulo presenta los <b>escantillones automáticos</b> de las principales uniones constructivas del proyecto, generados a partir de las capas LOSCAT aplicadas a cada elemento. Cada diagrama muestra en sección las capas del muro y del elemento horizontal (piso, cubierta o techumbre), identificando visualmente la <b>continuidad de la aislación térmica</b> en la línea de encuentro.
 </div>
-<div style="font-size:9pt;color:#475569;margin-bottom:14px;background:#eff6ff;border-left:4px solid #1e40af;border-radius:6px;padding:10px 14px;line-height:1.65">
+<div style="font-size:9pt;color:#475569;margin-bottom:14px;background:#f0fdfa;border-left:4px solid #0e6560;border-radius:6px;padding:10px 14px;line-height:1.65">
   📚 <b>Marco normativo:</b> La <b>NCh853:2021</b> y la <b>Guía MINVU de Puentes Térmicos</b> establecen que la envolvente térmica debe ser <b>continua</b> en encuentros y singularidades. La interrupción de la aislación en uniones (puentes térmicos lineales) puede aumentar el U efectivo del muro entre 10-30% y generar riesgo de condensación superficial intersticial (<b>ISO 14683</b>).
 </div>
 ${cards}
@@ -8547,14 +8547,14 @@ ${cards}
 <title>Memoria de Cálculo DOM — ${proy.nombre || 'Proyecto'}</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #1e293b; max-width: 820px; margin: 30px auto; padding: 0 24px }
-  h1 { font-size: 15pt; color: #1e40af; border-bottom: 3px solid #1e40af; padding-bottom: 8px; margin-bottom: 4px }
-  h2 { font-size: 12.5pt; color: #1e40af; margin-top: 28px; margin-bottom: 8px; border-left: 4px solid #1e40af; padding-left: 9px; page-break-before: auto }
-  h3 { font-size: 11pt; color: #374151; margin-top: 16px; margin-bottom: 5px; border-left: 3px solid #93c5fd; padding-left: 7px }
+  h1 { font-size: 15pt; color: #0e6560; border-bottom: 3px solid #0e6560; padding-bottom: 8px; margin-bottom: 4px }
+  h2 { font-size: 12.5pt; color: #0e6560; margin-top: 28px; margin-bottom: 8px; border-left: 4px solid #0e6560; padding-left: 9px; page-break-before: auto }
+  h3 { font-size: 11pt; color: #374151; margin-top: 16px; margin-bottom: 5px; border-left: 3px solid #5eead4; padding-left: 7px }
   table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt }
   th { background: #f1f5f9; padding: 6px 8px; text-align: left; border: 1px solid #cbd5e1; font-weight: 700 }
   td { padding: 5px 8px; border: 1px solid #e2e8f0 }
   tr.subtotal td { background: #f8fafc; font-weight: 600 }
-  tr.total td { background: #dbeafe; font-weight: 700 }
+  tr.total td { background: #ccfbf1; font-weight: 700 }
   tr.riesgo td { background: #fee2e2 }
   .badge-ok  { background: #dcfce7; color: #166534; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap }
   .badge-no  { background: #fee2e2; color: #991b1b; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap }
@@ -8580,11 +8580,11 @@ ${cards}
   .estado-no  .sello { background: #dc2626; color: #fff }
   /* ── TOC clickeable ───────────────────────────────────────────────────── */
   .toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 24px; margin: 20px 0 28px; page-break-inside: avoid }
-  .toc-title { font-size: 12pt; font-weight: 700; color: #1e40af; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #dbeafe; display: flex; align-items: center; gap: 8px }
+  .toc-title { font-size: 12pt; font-weight: 700; color: #0e6560; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #ccfbf1; display: flex; align-items: center; gap: 8px }
   .toc-list { list-style: none; padding: 0; margin: 0; counter-reset: toc-counter }
   .toc-list li { counter-increment: toc-counter; margin: 4px 0; display: flex; align-items: baseline; gap: 8px; font-size: 10pt }
-  .toc-list li a { color: #1e40af; text-decoration: none; font-weight: 500 }
-  .toc-list li a:hover { text-decoration: underline; color: #0c4a6e }
+  .toc-list li a { color: #0e6560; text-decoration: none; font-weight: 500 }
+  .toc-list li a:hover { text-decoration: underline; color: #115e59 }
   .toc-list li::before { content: counter(toc-counter, decimal-leading-zero); font-family: monospace; color: #94a3b8; font-size: 9pt; font-weight: 700; min-width: 24px }
   .toc-list .toc-dots { flex: 1; border-bottom: 1px dotted #cbd5e1; transform: translateY(-3px) }
   .toc-list .toc-page { font-family: monospace; font-size: 9pt; color: #64748b }
@@ -8592,8 +8592,8 @@ ${cards}
   .running-header { display: none }
   hr.sep { margin: 24px 0; border: none; border-top: 1px dashed #cbd5e1 }
   .nota { font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 10px; text-align: center; line-height: 1.6 }
-  .mem-desc { background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0369a1; border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 9.5pt; line-height: 1.7 }
-  .mem-desc-title { font-weight: 700; color: #0369a1; font-size: 10pt; margin-bottom: 6px }
+  .mem-desc { background: #f0fdfa; border: 1px solid #99f6e4; border-left: 4px solid #0f766e; border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 9.5pt; line-height: 1.7 }
+  .mem-desc-title { font-weight: 700; color: #0f766e; font-size: 10pt; margin-bottom: 6px }
   .mem-desc p { margin: 4px 0 }
   .traz-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 16px; margin: 8px 0; font-size: 9pt }
   .traz-box table { font-size: 9pt; margin: 0 }
@@ -8616,7 +8616,7 @@ ${cards}
       right: 0;
       height: 12mm;
       padding: 2mm 8mm;
-      background: linear-gradient(135deg, #1e40af 0%, #0369a1 100%);
+      background: linear-gradient(135deg, #0e6560 0%, #0f766e 100%);
       color: #fff;
       align-items: center;
       justify-content: space-between;
@@ -8648,7 +8648,7 @@ ${cards}
 </div>
 
 <!-- ══ PORTADA TALORA ══════════════════════════════════════════════════ -->
-<div style="background:linear-gradient(135deg,#1e40af,#0369a1);color:#fff;padding:24px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:20px">
+<div style="background:linear-gradient(135deg,#0e6560,#0f766e);color:#fff;padding:24px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:20px">
   <div style="display:flex;align-items:center;gap:16px;flex:1">
     ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:80px;width:auto;border-radius:8px;flex-shrink:0" alt="Talora"/>` : '<div style="font-size:24px;font-weight:900">Talora</div>'}
     <div>
@@ -8684,24 +8684,24 @@ ${cards}
 </div>
 ${zonaData ? `<div class="aviso">Condiciones de diseño Zona ${proy.zona}: Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Exigencias DS N°15: U<sub>muro</sub> ≤ ${zonaData.muro} · U<sub>techo</sub> ≤ ${zonaData.techo} · U<sub>piso</sub> ≤ ${zonaData.piso} W/m²K</div>` : ''}
 ${(proy.profesional || proy.arq || proy.propietario) ? `
-<div style="margin-top:12px;padding:12px 16px;background:#eff6ff;border-radius:8px;border-left:4px solid #1e40af;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+<div style="margin-top:12px;padding:12px 16px;background:#f0fdfa;border-radius:8px;border-left:4px solid #0e6560;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
   ${proy.propietario ? `
-  <div style="flex:1;min-width:180px;padding-right:16px;border-right:1px solid #bfdbfe">
-    <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Propietario / Mandante</div>
+  <div style="flex:1;min-width:180px;padding-right:16px;border-right:1px solid #99f6e4">
+    <div style="font-size:9pt;color:#0e6560;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Propietario / Mandante</div>
     <div style="font-weight:700;font-size:12pt;color:#1e293b">${proy.propietario}</div>
     ${proy.rutPropietario ? `<div style="font-size:10pt;color:#475569">RUT: ${proy.rutPropietario}</div>` : ''}
     ${proy.direccion ? `<div style="font-size:10pt;color:#475569">📍 ${proy.direccion}</div>` : ''}
     ${proy.rolAvaluo ? `<div style="font-size:10pt;color:#64748b">Rol de avalúo: ${proy.rolAvaluo}</div>` : ''}
   </div>` : ''}
   <div style="flex:1;min-width:180px">
-    <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Profesional Responsable</div>
+    <div style="font-size:9pt;color:#0e6560;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Profesional Responsable</div>
     <div style="font-weight:800;font-size:13pt;color:#1e293b">${proy.profesional || proy.arq || '—'}</div>
     ${proy.titulo ? `<div style="font-size:11pt;color:#475569">${proy.titulo}</div>` : ''}
     ${proy.rol ? `<div style="font-size:10pt;color:#64748b">${proy.rol}</div>` : ''}
   </div>
   ${proy.email || proy.telefono ? `
   <div style="flex:1;min-width:140px">
-    <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contacto</div>
+    <div style="font-size:9pt;color:#0e6560;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contacto</div>
     ${proy.email ? `<div style="font-size:10pt;color:#475569">✉ ${proy.email}</div>` : ''}
     ${proy.telefono ? `<div style="font-size:10pt;color:#475569">☎ ${proy.telefono}</div>` : ''}
   </div>` : ''}
@@ -8931,7 +8931,7 @@ ${(() => {
       })).filter(e => e.capas)
       const leyenda = elementosConData.map(({ elem, marks, capas }) => {
         const aislIdx = findAislacionIdx(capas.capas)
-        const marksBadges = marks.map(m => `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1e40af;color:#fff;font-size:9pt;font-weight:800;text-align:center;line-height:18px;margin-right:3px">${m.label}</span>`).join('')
+        const marksBadges = marks.map(m => `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#0e6560;color:#fff;font-size:9pt;font-weight:800;text-align:center;line-height:18px;margin-right:3px">${m.label}</span>`).join('')
         const capasList = capas.capas.map((c, idx) => {
           const highlight = idx === aislIdx
           return `<li style="margin-bottom:2px;${highlight ? 'background:#fef3c7;padding:1px 4px;border-radius:3px' : ''}">
@@ -8942,8 +8942,8 @@ ${(() => {
           </li>`
         }).join('')
         const notasMarcs = marks.filter(m => m.nota).map(m => `${m.label}: ${m.nota}`).join(' · ')
-        return `<div style="margin-bottom:12px;padding:10px 12px;background:#f8fafc;border-left:4px solid #1e40af;border-radius:6px;page-break-inside:avoid">
-          <div style="margin-bottom:4px">${marksBadges}<b style="color:#1e40af;font-size:10.5pt">${ELEM_LABELS_R[elem] || elem}</b>
+        return `<div style="margin-bottom:12px;padding:10px 12px;background:#f8fafc;border-left:4px solid #0e6560;border-radius:6px;page-break-inside:avoid">
+          <div style="margin-bottom:4px">${marksBadges}<b style="color:#0e6560;font-size:10.5pt">${ELEM_LABELS_R[elem] || elem}</b>
           ${capas.sc ? `<span style="color:#64748b;font-family:monospace;font-size:8.5pt;margin-left:6px">LOSCAT ${capas.sc}${capas.U ? ` · U=${parseFloat(capas.U).toFixed(4)}` : ''}</span>` : ''}</div>
           ${notasMarcs ? `<div style="font-size:9pt;color:#475569;font-style:italic;margin-bottom:4px">${notasMarcs}</div>` : ''}
           <ol style="margin:4px 0 0 18px;padding:0;font-size:9.5pt;line-height:1.6;color:#1e293b">${capasList}</ol>
@@ -8953,13 +8953,13 @@ ${(() => {
       // Insertar imagen con marcadores como HTML (imagen + overlay)
       // En el informe, mostramos la imagen + leyenda en columnas
       return `<div style="page-break-inside:avoid;margin:18px 0;padding:14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
-        <h3 style="font-size:11pt;color:#1e40af;margin:0 0 4px;border-left:3px solid #93c5fd;padding-left:8px">${d.nombre}</h3>
+        <h3 style="font-size:11pt;color:#0e6560;margin:0 0 4px;border-left:3px solid #5eead4;padding-left:8px">${d.nombre}</h3>
         <div style="font-size:9pt;color:#64748b;margin-bottom:10px">${d.tipo || 'otro'} · ${d.marcadores?.length || 0} marcadores · ${elementosConData.length} elementos identificados</div>
         <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
           <div style="flex:1 1 55%;min-width:280px;position:relative;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;display:flex;align-items:center;justify-content:center">
             <div style="position:relative;display:inline-block;max-width:100%">
               <img src="${d.imagenDataUrl}" alt="${d.nombre}" style="max-width:100%;height:auto;display:block;border-radius:4px"/>
-              ${(d.marcadores || []).map(m => `<div style="position:absolute;left:${(m.x*100).toFixed(2)}%;top:${(m.y*100).toFixed(2)}%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:${m.elemento ? '#1e40af' : '#94a3b8'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10pt;font-weight:800;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4)">${m.label}</div>`).join('')}
+              ${(d.marcadores || []).map(m => `<div style="position:absolute;left:${(m.x*100).toFixed(2)}%;top:${(m.y*100).toFixed(2)}%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:${m.elemento ? '#0e6560' : '#94a3b8'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10pt;font-weight:800;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4)">${m.label}</div>`).join('')}
             </div>
           </div>
           <div style="flex:1 1 38%;min-width:240px">
@@ -9018,7 +9018,7 @@ ${cards}`)
   <table style="width:100%;font-size:10pt">
     <tr>
       <td style="width:48%;padding-right:20px;border-right:1px solid #e2e8f0;vertical-align:top">
-        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Profesional Responsable</div>
+        <div style="font-size:9pt;color:#0e6560;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Profesional Responsable</div>
         <table style="font-size:10pt;width:100%">
           <tr><td style="padding:5px 0;color:#64748b;width:42%;border-bottom:1px solid #f1f5f9">Nombre completo</td><td style="font-weight:700;border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.profesional || proy.arq || '<span style="color:#cbd5e1;font-weight:400">[Pendiente]</span>'}</td></tr>
           <tr><td style="padding:5px 0;color:#64748b;border-bottom:1px solid #f1f5f9">Profesión / Título</td><td style="border-bottom:1px solid #f1f5f9;padding:5px 0">${proy.titulo || '<span style="color:#cbd5e1">[Pendiente]</span>'}</td></tr>
@@ -9030,7 +9030,7 @@ ${cards}`)
         </table>
       </td>
       <td style="width:52%;padding-left:20px;vertical-align:top">
-        <div style="font-size:9pt;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Firma, Timbre y Sello Profesional</div>
+        <div style="font-size:9pt;color:#0e6560;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Firma, Timbre y Sello Profesional</div>
         <div style="height:120px;border:1.5px dashed #94a3b8;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;background:#fafbfc;position:relative">
           <div style="position:absolute;top:8px;left:10px;font-size:7pt;color:#cbd5e1;letter-spacing:1px;font-weight:600">FIRMA · TIMBRE · SELLO</div>
           <span style="font-size:8pt;color:#94a3b8;font-style:italic">Espacio reservado para firma profesional</span>
@@ -9048,8 +9048,8 @@ ${cards}`)
 </div>
 
 <!-- Declaración legal expandida -->
-<div style="margin-top:14px;font-size:8.5pt;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #1e40af;border-radius:6px;padding:12px 16px;line-height:1.7">
-  <div style="font-weight:700;color:#1e40af;font-size:9.5pt;margin-bottom:6px">📋 Declaración de responsabilidad profesional</div>
+<div style="margin-top:14px;font-size:8.5pt;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0e6560;border-radius:6px;padding:12px 16px;line-height:1.7">
+  <div style="font-weight:700;color:#0e6560;font-size:9.5pt;margin-bottom:6px">📋 Declaración de responsabilidad profesional</div>
   El profesional que firma el presente documento <b>declara haber revisado</b> los cálculos contenidos en esta memoria y <b>asume la responsabilidad técnica</b> de los resultados obtenidos, en conformidad con la normativa vigente:
   <ul style="margin:6px 0 6px 18px;padding:0;line-height:1.65">
     <li><b>OGUC Art. 1.2.2</b> — Responsabilidad del profesional competente en la presentación de proyectos.</li>
@@ -9065,7 +9065,7 @@ ${cards}`)
 <!-- ══ PIE DE PÁGINA ════════════════════════════════════════════════════════ -->
 <div style="margin-top:32px;padding:14px 20px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
   <div style="flex:1;min-width:200px">
-    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:40px;width:auto;border-radius:5px;margin-bottom:6px" alt="Talora"/>` : '<b style="color:#1e40af">Talora</b>'}
+    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:40px;width:auto;border-radius:5px;margin-bottom:6px" alt="Talora"/>` : '<b style="color:#0e6560">Talora</b>'}
     <div style="font-size:8pt;color:#94a3b8;line-height:1.6">
       Generado: ${fechaHoy} · Plataforma Talora — Verificación Normativa OGUC<br>
       Normativas: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Tít. IV · LOFC Ed.17 2025 · NCh352:2013 · EN ISO 13788
@@ -9167,7 +9167,7 @@ ${cards}`)
       />
 
       {/* ── Panel de configuración del informe ──────────────────────────────── */}
-      <div style={{ ...S.card, border:'1.5px solid #bfdbfe', background:'#f8faff' }}>
+      <div style={{ ...S.card, border:'1.5px solid #99f6e4', background:'#f8faff' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
           <p style={{ ...S.h2, marginBottom:0 }}>📋 Módulos del informe</p>
           {modulosInforme && (
@@ -9238,9 +9238,9 @@ ${cards}`)
             const activo = mods[key]
             return (
               <div key={key} style={{
-                border: activo ? (req ? '2px solid #166534' : '1.5px solid #1e40af') : '1px solid #e2e8f0',
+                border: activo ? (req ? '2px solid #166534' : '1.5px solid #0e6560') : '1px solid #e2e8f0',
                 borderRadius:8, padding:'10px 12px',
-                background: activo ? (req ? '#f0fdf4' : '#eff6ff') : '#fafafa',
+                background: activo ? (req ? '#f0fdf4' : '#f0fdfa') : '#fafafa',
                 opacity: activo ? 1 : 0.65,
               }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
@@ -9248,7 +9248,7 @@ ${cards}`)
                   <span style={{ fontWeight:700, fontSize:12, flex:1, color: activo ? '#1e293b' : '#94a3b8' }}>{label}</span>
                   <label style={{ display:'flex', alignItems:'center', gap:5, cursor:'pointer' }}>
                     <input type="checkbox" checked={activo} onChange={() => toggleMod(key)}
-                      style={{ width:15, height:15, cursor:'pointer', accentColor: req ? '#166534' : '#1e40af' }} />
+                      style={{ width:15, height:15, cursor:'pointer', accentColor: req ? '#166534' : '#0e6560' }} />
                   </label>
                 </div>
                 {norma && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4 }}>{norma}</div>}
@@ -9314,7 +9314,7 @@ ${cards}`)
                     style={{
                       padding: '6px 14px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                       borderLeft: i > 0 ? '1px solid #e2e8f0' : 'none',
-                      background: formatoExport === f.id ? '#1e40af' : '#f8fafc',
+                      background: formatoExport === f.id ? '#0e6560' : '#f8fafc',
                       color:      formatoExport === f.id ? '#fff'    : '#64748b',
                       transition: 'background 0.15s',
                     }}>
@@ -9325,7 +9325,7 @@ ${cards}`)
 
               {/* Botón Vista Previa (no consume token) */}
               <button
-                style={{ ...S.btn('#0369a1'), background:'#0369a1' }}
+                style={{ ...S.btn('#0f766e'), background:'#0f766e' }}
                 onClick={() => exportarInforme('preview')}
                 title="Revisar el informe antes de generar/descargar — no consume token"
               >
@@ -9370,7 +9370,7 @@ ${cards}`)
           {/* Toolbar superior */}
           <div style={{
             display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
-            padding:'8px 16px', background:'#1e40af', color:'#fff', borderRadius:'8px 8px 0 0',
+            padding:'8px 16px', background:'#0e6560', color:'#fff', borderRadius:'8px 8px 0 0',
             boxShadow:'0 -2px 8px rgba(0,0,0,0.15)',
           }}>
             <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -9395,7 +9395,7 @@ ${cards}`)
                     setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
                   }
                 }}
-                style={{ padding:'6px 14px', background:'#fff', color:'#1e40af', border:'none', borderRadius:6, fontWeight:700, cursor:'pointer', fontSize:12 }}
+                style={{ padding:'6px 14px', background:'#fff', color:'#0e6560', border:'none', borderRadius:6, fontWeight:700, cursor:'pointer', fontSize:12 }}
               >
                 🖨 Imprimir / Guardar PDF
               </button>
@@ -9543,7 +9543,7 @@ function AdminPanel({ onOverridesChanged }) {
     padding: '6px 16px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer',
     fontSize: 12, fontWeight: active ? 700 : 400,
     background: active ? '#fff' : 'transparent',
-    color: active ? '#1e40af' : '#64748b',
+    color: active ? '#0e6560' : '#64748b',
   })
   return (
     <div>
@@ -9824,10 +9824,10 @@ function AppInner() {
           max-height: calc(100vh - 80px);
           overflow-y: auto;
           scrollbar-width: thin;
-          scrollbar-color: #bfdbfe transparent;
+          scrollbar-color: #99f6e4 transparent;
         }
         .nc-sidebar::-webkit-scrollbar { width: 4px; }
-        .nc-sidebar::-webkit-scrollbar-thumb { background: #bfdbfe; border-radius: 4px; }
+        .nc-sidebar::-webkit-scrollbar-thumb { background: #99f6e4; border-radius: 4px; }
         .nc-has-sidebar .nc-ayuda-inline { display: none !important; }
       }
 
@@ -10263,14 +10263,14 @@ function AppInner() {
         </div>
       )}
       {showFeedbackBanner && (
-        <div style={{ background:'#eff6ff', borderBottom:'2px solid #bfdbfe', padding:'10px 20px', display:'flex', alignItems:'center', gap:12, fontSize:13, flexWrap:'wrap' }}>
+        <div style={{ background:'#f0fdfa', borderBottom:'2px solid #99f6e4', padding:'10px 20px', display:'flex', alignItems:'center', gap:12, fontSize:13, flexWrap:'wrap' }}>
           <span style={{ fontSize:18, flexShrink:0 }}>📬</span>
-          <span style={{ flex:1, minWidth:200, color:'#1e3a8a' }}>
+          <span style={{ flex:1, minWidth:200, color:'#115e59' }}>
             <b>¿Tienes dudas, encontraste un error o quieres sugerir algo?</b> Ahora puedes escribirnos directo desde la app — leemos todos los mensajes. También lo encuentras en el menú de tu usuario.
           </span>
           <button
             onClick={() => { dismissFeedbackBanner(); setShowFeedback(true) }}
-            style={{ background:'#2563eb', color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', fontWeight:700, fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
+            style={{ background:'#0d9488', color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', fontWeight:700, fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
           >
             Enviar un mensaje
           </button>
@@ -10294,10 +10294,10 @@ function AppInner() {
             onClick={() => setShowAyuda(v => !v)}
             style={{
               marginLeft: 'auto', marginBottom: 2, padding: '5px 11px',
-              background: showAyuda ? '#dbeafe' : '#eff6ff',
-              border: `1px solid ${showAyuda ? '#93c5fd' : '#bfdbfe'}`,
+              background: showAyuda ? '#ccfbf1' : '#f0fdfa',
+              border: `1px solid ${showAyuda ? '#5eead4' : '#99f6e4'}`,
               borderRadius: 6, fontSize: 11, fontWeight: 700,
-              color: '#1e40af', cursor: 'pointer', whiteSpace: 'nowrap',
+              color: '#0e6560', cursor: 'pointer', whiteSpace: 'nowrap',
               display: 'flex', alignItems: 'center', gap: 5,
             }}
           >
@@ -10406,10 +10406,10 @@ function AppInner() {
           Aparece al cargar la app si hay un borrador autoguardado con
           contenido. 3 opciones: continuar borrador / abrir guardado / nuevo. */}
       {esDemo && (
-        <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:9000, background:'#0369a1', color:'#fff', padding:'8px 16px', display:'flex', alignItems:'center', gap:12, fontSize:13, boxShadow:'0 2px 8px rgba(0,0,0,0.25)', flexWrap:'wrap' }}>
+        <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:9000, background:'#0f766e', color:'#fff', padding:'8px 16px', display:'flex', alignItems:'center', gap:12, fontSize:13, boxShadow:'0 2px 8px rgba(0,0,0,0.25)', flexWrap:'wrap' }}>
           <span style={{ fontWeight:700 }}>📘 Proyecto de ejemplo</span>
           <span style={{ opacity:0.92, flex:1, minWidth:180 }}>Explóralo libremente: el Diagnóstico, las Ventanas y Puertas ya traen datos. Prueba Soluciones y Cálculo U. Ningún dato es real.</span>
-          <button onClick={() => { setEsDemo(false); setProy(p => ({ ...p, nombre: '' })) }} style={{ background:'#fff', color:'#0369a1', border:'none', borderRadius:6, padding:'5px 12px', fontWeight:700, cursor:'pointer', fontSize:12, whiteSpace:'nowrap' }}>Crear mi proyecto a partir de este</button>
+          <button onClick={() => { setEsDemo(false); setProy(p => ({ ...p, nombre: '' })) }} style={{ background:'#fff', color:'#0f766e', border:'none', borderRadius:6, padding:'5px 12px', fontWeight:700, cursor:'pointer', fontSize:12, whiteSpace:'nowrap' }}>Crear mi proyecto a partir de este</button>
           <button onClick={() => setEsDemo(false)} style={{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.5)', borderRadius:6, padding:'5px 10px', cursor:'pointer', fontSize:12 }}>Cerrar</button>
         </div>
       )}
@@ -10426,7 +10426,7 @@ function AppInner() {
             background:'#fff', borderRadius:12, padding:'28px 24px', maxWidth:520, width:'100%',
             boxShadow:'0 20px 50px rgba(0,0,0,0.3)',
           }}>
-            <div style={{ fontSize:14, color:'#0369a1', fontWeight:700, marginBottom:4 }}>
+            <div style={{ fontSize:14, color:'#0f766e', fontWeight:700, marginBottom:4 }}>
               👋 Bienvenido a Talora
             </div>
             <div style={{ fontSize:18, fontWeight:800, color:'#1e293b', marginBottom:8 }}>
@@ -10444,7 +10444,7 @@ function AppInner() {
                 onClick={() => setShowWelcome(false)}
                 style={{
                   display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
-                  background:'#1e40af', color:'#fff', border:'none', borderRadius:8,
+                  background:'#0e6560', color:'#fff', border:'none', borderRadius:8,
                   cursor:'pointer', fontSize:13, fontWeight:700, textAlign:'left',
                 }}
               >
@@ -10479,7 +10479,7 @@ function AppInner() {
                 onClick={() => { setShowWelcome(false); setShowProjects(true) }}
                 style={{
                   display:'flex', alignItems:'center', gap:10, padding:'12px 16px',
-                  background:'#fff', color:'#0369a1', border:'1.5px solid #bae6fd', borderRadius:8,
+                  background:'#fff', color:'#0f766e', border:'1.5px solid #99f6e4', borderRadius:8,
                   cursor:'pointer', fontSize:13, fontWeight:700, textAlign:'left',
                 }}
               >

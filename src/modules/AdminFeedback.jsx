@@ -4,7 +4,7 @@ import { listarFeedbackAdmin, responderFeedback, cambiarEstadoFeedback } from '.
 
 const ESTADOS = [
   { value: 'pendiente', label: 'Pendiente', bg: '#fef3c7', color: '#92400e' },
-  { value: 'leido', label: 'Leido', bg: '#dbeafe', color: '#1e40af' },
+  { value: 'leido', label: 'Leido', bg: '#ccfbf1', color: '#0e6560' },
   { value: 'respondido', label: 'Respondido', bg: '#d1fae5', color: '#065f46' },
   { value: 'cerrado', label: 'Cerrado', bg: '#f3f4f6', color: '#6b7280' },
 ]
@@ -57,7 +57,7 @@ export default function AdminFeedback() {
     card: { border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 10, background: '#fff' },
     meta: { fontSize: 11, color: '#94a3b8' },
     btnSm: { padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 11, cursor: 'pointer', background: '#fff', color: '#475569' },
-    btnPrimary: { padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: 11, cursor: 'pointer', background: '#2563eb', color: '#fff', fontWeight: 600 },
+    btnPrimary: { padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: 11, cursor: 'pointer', background: '#0d9488', color: '#fff', fontWeight: 600 },
   }
 
   return (

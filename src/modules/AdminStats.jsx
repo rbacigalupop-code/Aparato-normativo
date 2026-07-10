@@ -85,7 +85,7 @@ export default function AdminStats() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h1 style={{ ...S.h1, margin: 0 }}>📊 Estadísticas</h1>
-        <button style={S.btnSm('#0369a1')} onClick={cargarDatos} disabled={cargando}>
+        <button style={S.btnSm('#0f766e')} onClick={cargarDatos} disabled={cargando}>
           {cargando ? '⏳ Actualizando...' : '↺ Actualizar'}
         </button>
       </div>
@@ -178,7 +178,7 @@ export default function AdminStats() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>
                   {user.nombre_completo}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#0369a1', marginBottom: 2 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#0f766e', marginBottom: 2 }}>
                   {user.cantidad_proyectos}
                 </div>
                 <div style={{ fontSize: 10, color: '#94a3b8' }}>
@@ -336,7 +336,7 @@ function UsagePlatforma({ usage, cargando }) {
             {proyMb != null && (
               <div style={{ marginTop: 10 }}>
                 <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 4, fontWeight: 600 }}>DESGLOSE</div>
-                <DesgloseFila label="Proyectos (datos + snapshots)" mb={proyMb} total={dbMb} color="#0369a1" />
+                <DesgloseFila label="Proyectos (datos + snapshots)" mb={proyMb} total={dbMb} color="#0f766e" />
                 <DesgloseFila label="Resto (auth, índices, auditoría)" mb={Math.max(0, dbMb - proyMb)} total={dbMb} color="#94a3b8" />
               </div>
             )}
@@ -427,9 +427,9 @@ function ExternalLink({ href, label, icon }) {
       rel="noopener noreferrer"
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        padding: '6px 10px', background: '#eff6ff',
-        border: '1px solid #bfdbfe', borderRadius: 6,
-        fontSize: 11, color: '#1e40af', textDecoration: 'none', fontWeight: 600,
+        padding: '6px 10px', background: '#f0fdfa',
+        border: '1px solid #99f6e4', borderRadius: 6,
+        fontSize: 11, color: '#0e6560', textDecoration: 'none', fontWeight: 600,
       }}
     >
       {icon} {label}
@@ -442,7 +442,7 @@ function MetricCard({ icon, label, value, sublabel, small, loading }) {
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ fontSize: 24 }}>{icon}</div>
       <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>{label}</div>
-      <div style={{ fontSize: small ? 16 : 24, fontWeight: 700, color: '#0369a1' }}>
+      <div style={{ fontSize: small ? 16 : 24, fontWeight: 700, color: '#0f766e' }}>
         {loading ? '...' : value}
       </div>
       {sublabel && <div style={{ fontSize: 10, color: '#94a3b8' }}>{sublabel}</div>}
@@ -453,7 +453,7 @@ function MetricCard({ icon, label, value, sublabel, small, loading }) {
 function getActionColor(accion) {
   const actions = {
     INSERT: { bg: '#dcfce7', color: '#166534' },
-    UPDATE: { bg: '#dbeafe', color: '#0c4a6e' },
+    UPDATE: { bg: '#ccfbf1', color: '#115e59' },
     DELETE: { bg: '#fee2e2', color: '#991b1b' },
     SELECT: { bg: '#fef3c7', color: '#713f12' },
   }
@@ -462,8 +462,8 @@ function getActionColor(accion) {
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const S = {
-  h1: { fontSize: 22, fontWeight: 700, color: '#1e40af' },
-  h2: { fontSize: 15, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
+  h1: { fontSize: 22, fontWeight: 700, color: '#0e6560' },
+  h2: { fontSize: 15, fontWeight: 700, color: '#0e6560', margin: '0 0 12px 0' },
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 },
   cardsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 },
   btnSm: (c = '#64748b') => ({ background: '#fff', color: c, border: `1px solid ${c}`, borderRadius: 5, padding: '3px 9px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }),

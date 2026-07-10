@@ -13,7 +13,7 @@ import PaywallGate   from './PaywallGate.jsx'
 const SUB_TABS = [
   { id: 'fv',     label: '☀️ Solar FV',          color: '#f59e0b' },
   { id: 'st',     label: '♨️ Solar Térmico',      color: '#ea580c' },
-  { id: 'bdc',    label: '🌡️ Bomba de Calor',    color: '#0891b2' },
+  { id: 'bdc',    label: '🌡️ Bomba de Calor',    color: '#0d9488' },
 ]
 
 export default function Renovables({ proy, calcUInit, perfil }) {

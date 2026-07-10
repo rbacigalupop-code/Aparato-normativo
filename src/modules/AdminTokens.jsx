@@ -4,11 +4,11 @@ import { useAuth } from '../hooks/useAuth'
 
 const S = {
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 12 },
-  h1: { fontSize: 22, fontWeight: 700, color: '#1e40af', margin: '0 0 16px 0' },
-  h2: { fontSize: 15, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
+  h1: { fontSize: 22, fontWeight: 700, color: '#0e6560', margin: '0 0 16px 0' },
+  h2: { fontSize: 15, fontWeight: 700, color: '#0e6560', margin: '0 0 12px 0' },
   label: { fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 },
   input: { border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%', boxSizing: 'border-box' },
-  btn: (c = '#1e40af') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
+  btn: (c = '#0e6560') => ({ background: c, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }),
   btnSm: (c = '#64748b') => ({ background: '#fff', color: c, border: `1px solid ${c}`, borderRadius: 5, padding: '4px 9px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }),
   ok: { background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#166534', marginBottom: 12 },
   err: { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991b1b', marginBottom: 12 },
@@ -22,7 +22,7 @@ const S = {
     flex: 1,
     minWidth: 140,
   },
-  metricValue: { fontSize: 28, fontWeight: 800, color: '#1e40af', lineHeight: 1 },
+  metricValue: { fontSize: 28, fontWeight: 800, color: '#0e6560', lineHeight: 1 },
   metricLabel: { fontSize: 11, color: '#64748b', marginTop: 4 },
 }
 
@@ -130,7 +130,7 @@ export default function AdminTokens() {
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h1 style={{ ...S.h1, margin: 0 }}>🎫 Gestión de Tokens</h1>
-        <button style={S.btn('#0369a1')} onClick={cargar} disabled={cargando}>
+        <button style={S.btn('#0f766e')} onClick={cargar} disabled={cargando}>
           {cargando ? '⏳ Cargando...' : '↺ Recargar'}
         </button>
       </div>
@@ -143,8 +143,8 @@ export default function AdminTokens() {
           <div style={S.metricValue}>{totalUsuarios}</div>
           <div style={S.metricLabel}>👥 Usuarios</div>
         </div>
-        <div style={{ ...S.metric, background: '#dbeafe', borderColor: '#93c5fd' }}>
-          <div style={{ ...S.metricValue, color: '#1e40af' }}>{totalDisponibles}</div>
+        <div style={{ ...S.metric, background: '#ccfbf1', borderColor: '#5eead4' }}>
+          <div style={{ ...S.metricValue, color: '#0e6560' }}>{totalDisponibles}</div>
           <div style={S.metricLabel}>🎫 Tokens disponibles</div>
         </div>
         <div style={{ ...S.metric, background: '#dcfce7', borderColor: '#86efac' }}>
@@ -217,8 +217,8 @@ export default function AdminTokens() {
                           borderRadius: 12,
                           fontSize: 10,
                           fontWeight: 600,
-                          background: u.rol === 'admin' ? '#dbeafe' : '#f1f5f9',
-                          color: u.rol === 'admin' ? '#1e40af' : '#64748b',
+                          background: u.rol === 'admin' ? '#ccfbf1' : '#f1f5f9',
+                          color: u.rol === 'admin' ? '#0e6560' : '#64748b',
                         }}>
                           {u.rol === 'admin' ? '👨‍💼 Admin' : '👁️ Viewer'}
                         </span>
@@ -227,8 +227,8 @@ export default function AdminTokens() {
                       <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>
                         <div style={{
                           display: 'inline-block',
-                          background: bajos ? '#fee2e2' : '#dbeafe',
-                          color: bajos ? '#991b1b' : '#1e40af',
+                          background: bajos ? '#fee2e2' : '#ccfbf1',
+                          color: bajos ? '#991b1b' : '#0e6560',
                           padding: '3px 10px',
                           borderRadius: 6,
                           fontSize: 13,
@@ -264,7 +264,7 @@ export default function AdminTokens() {
                             +10
                           </button>
                           <button
-                            style={S.btnSm('#0369a1')}
+                            style={S.btnSm('#0f766e')}
                             onClick={() => setModalAsignar({ usuario: u, cantidad: String(disponibles) })}
                             disabled={cargando}
                             title="Establecer cantidad exacta"
@@ -303,15 +303,15 @@ export default function AdminTokens() {
             style={{ background: '#fff', borderRadius: 14, padding: '28px 24px', maxWidth: 420, width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}
             onClick={e => e.stopPropagation()}
           >
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#04302e', margin: '0 0 4px 0' }}>
               🎫 Editar tokens
             </h2>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px 0' }}>
-              Usuario: <strong style={{ color: '#1e40af', fontFamily: 'monospace' }}>{modalAsignar.usuario.nombre_completo}</strong>
+              Usuario: <strong style={{ color: '#0e6560', fontFamily: 'monospace' }}>{modalAsignar.usuario.nombre_completo}</strong>
             </p>
 
             <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: '#64748b' }}>
-              <div>Disponibles actuales: <strong style={{ color: '#1e40af' }}>{modalAsignar.usuario.tokens_disponibles ?? 0}</strong></div>
+              <div>Disponibles actuales: <strong style={{ color: '#0e6560' }}>{modalAsignar.usuario.tokens_disponibles ?? 0}</strong></div>
               <div>Usados (histórico): <strong>{modalAsignar.usuario.tokens_usados ?? 0}</strong></div>
             </div>
 
@@ -329,7 +329,7 @@ export default function AdminTokens() {
               {[5, 10, 25, 50, 100].map(n => (
                 <button
                   key={n}
-                  style={S.btnSm('#0369a1')}
+                  style={S.btnSm('#0f766e')}
                   onClick={() => setModalAsignar({ ...modalAsignar, cantidad: String(n) })}
                 >
                   {n}

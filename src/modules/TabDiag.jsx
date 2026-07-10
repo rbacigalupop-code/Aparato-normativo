@@ -54,17 +54,17 @@ const S = {
   input:   (err) => ({ border: `1.5px solid ${err ? '#fca5a5' : '#cbd5e1'}`, borderRadius: 6, padding: '5px 8px', fontSize: 12, background: '#fff', width: 180 }),
   sel:     (err) => ({ border: `1.5px solid ${err ? '#fca5a5' : '#cbd5e1'}`, borderRadius: 6, padding: '5px 8px', fontSize: 12, background: '#fff', width: 200 }),
   num:     (err) => ({ border: `1.5px solid ${err ? '#fca5a5' : '#cbd5e1'}`, borderRadius: 6, padding: '5px 8px', fontSize: 12, background: '#fff', width: 70 }),
-  h2:      { fontSize: 15, fontWeight: 700, color: '#1e40af', margin: '0 0 12px 0' },
+  h2:      { fontSize: 15, fontWeight: 700, color: '#0e6560', margin: '0 0 12px 0' },
   h3:      { fontSize: 12, fontWeight: 700, color: '#374151', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' },
   sep:     { borderTop: '1px solid #f1f5f9', margin: '14px 0' },
   table:   { width: '100%', borderCollapse: 'collapse', fontSize: 12 },
   th:      { background: '#f8fafc', padding: '6px 10px', textAlign: 'left', fontWeight: 700, borderBottom: '2px solid #e2e8f0', fontSize: 11, color: '#64748b' },
   td:      { padding: '6px 10px', borderBottom: '1px solid #f8fafc', verticalAlign: 'middle' },
-  val:     (ok) => ({ fontWeight: 700, color: ok === false ? '#dc2626' : ok === true ? '#166534' : '#1e40af' }),
-  chip:    { display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#1e40af', fontWeight: 600 },
+  val:     (ok) => ({ fontWeight: 700, color: ok === false ? '#dc2626' : ok === true ? '#166534' : '#0e6560' }),
+  chip:    { display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#0e6560', fontWeight: 600 },
   warn:    { background: '#fef9c3', border: '1px solid #fde047', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#713f12' },
   err:     { background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#991b1b' },
-  info:    { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#1e40af' },
+  info:    { background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#0e6560' },
   ok:      { background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#166534' },
   norm:    { fontSize: 10, color: '#94a3b8', marginTop: 2 },
   dot:     (c) => ({ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: c, marginRight: 4 }),
@@ -175,7 +175,7 @@ function ProgresoForm({ proy }) {
         }
       </div>
       <div style={{ background: '#e2e8f0', borderRadius: 99, height: 5, overflow: 'hidden' }}>
-        <div style={{ width: pct + '%', height: '100%', background: pct === 100 ? '#16a34a' : '#3b82f6', transition: 'width 0.3s', borderRadius: 99 }} />
+        <div style={{ width: pct + '%', height: '100%', background: pct === 100 ? '#16a34a' : '#14b8a6', transition: 'width 0.3s', borderRadius: 99 }} />
       </div>
     </div>
   )
@@ -199,7 +199,7 @@ function ChipsZona({ zona }) {
       {items.map(({ label, val, ref }) => (
         <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
           <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>{label}</div>
-          <div style={{ fontWeight: 700, color: val && val.includes('Oblig') ? '#dc2626' : '#1e40af', fontSize: 13 }}>
+          <div style={{ fontWeight: 700, color: val && val.includes('Oblig') ? '#dc2626' : '#0e6560', fontSize: 13 }}>
             {val ?? <span style={{ color: '#94a3b8', fontSize: 11 }}>Exenta</span>}
           </div>
           <div style={S.norm}>{ref}</div>
@@ -217,8 +217,8 @@ function CarOcupBox({ uso, superficie, ocupantes, setOcupantes }) {
   const coFinal  = parseInt(ocupantes) > 0 ? parseInt(ocupantes) : coAuto
 
   return (
-    <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', marginTop: 10 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', marginBottom: 10 }}>
+    <div style={{ background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 8, padding: '12px 16px', marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', marginBottom: 10 }}>
         Carga de ocupación — OGUC Art. 4.2.4
       </div>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -227,7 +227,7 @@ function CarOcupBox({ uso, superficie, ocupantes, setOcupantes }) {
         {densInfo ? (
           <div style={{ minWidth: 160 }}>
             <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>Densidad de uso</div>
-            <div style={{ fontWeight: 700, color: '#0c4a6e', fontSize: 13 }}>{densInfo.factor} m²/persona</div>
+            <div style={{ fontWeight: 700, color: '#115e59', fontSize: 13 }}>{densInfo.factor} m²/persona</div>
             <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{densInfo.desc}</div>
             <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{densInfo.ref}</div>
           </div>
@@ -239,7 +239,7 @@ function CarOcupBox({ uso, superficie, ocupantes, setOcupantes }) {
         {coAuto != null && (
           <div style={{ minWidth: 130 }}>
             <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>CO calculada (auto)</div>
-            <div style={{ fontWeight: 700, color: '#0369a1', fontSize: 15 }}>{coAuto} pers.</div>
+            <div style={{ fontWeight: 700, color: '#0f766e', fontSize: 15 }}>{coAuto} pers.</div>
             <div style={{ fontSize: 10, color: '#94a3b8' }}>{supN} m² ÷ {densInfo.factor}</div>
           </div>
         )}
@@ -273,18 +273,18 @@ function CarOcupBox({ uso, superficie, ocupantes, setOcupantes }) {
         {/* Resultado final */}
         {coFinal && (
           <div style={{
-            background: '#fff', border: '2px solid #0369a1', borderRadius: 10,
+            background: '#fff', border: '2px solid #0f766e', borderRadius: 10,
             padding: '8px 18px', textAlign: 'center', minWidth: 110,
           }}>
-            <div style={{ fontSize: 9, color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>CO aplicada</div>
-            <div style={{ fontWeight: 900, fontSize: 22, color: '#0369a1', lineHeight: 1.1 }}>{coFinal}</div>
+            <div style={{ fontSize: 9, color: '#0f766e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>CO aplicada</div>
+            <div style={{ fontWeight: 900, fontSize: 22, color: '#0f766e', lineHeight: 1.1 }}>{coFinal}</div>
             <div style={{ fontSize: 10, color: '#64748b' }}>personas</div>
           </div>
         )}
       </div>
 
       {/* Nota normativa */}
-      <div style={{ fontSize: 10, color: '#64748b', marginTop: 10, borderTop: '1px solid #bae6fd', paddingTop: 6 }}>
+      <div style={{ fontSize: 10, color: '#64748b', marginTop: 10, borderTop: '1px solid #99f6e4', paddingTop: 6 }}>
         <b>Fuente:</b> OGUC Art. 4.2.4 — La CO determina la letra (a/b/c/d) para Educación (Tabla 2) e informa
         el dimensionamiento de salidas de evacuación (OGUC Art. 4.2.5).
         {uso === 'Educacion' && <span> <b>Para este destino se aplica Tabla 2 OGUC</b> en lugar de Tabla 1.</span>}
@@ -352,7 +352,7 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
   const numStyle  = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', width: 52, textAlign: 'center' }
   const txtStyle  = { border: '1.5px solid #cbd5e1', borderRadius: 6, padding: '4px 6px', fontSize: 12, background: '#fff', width: 148 }
   const btnDel    = { background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }
-  const btnAdd    = { background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
+  const btnAdd    = { background: '#f0fdfa', color: '#0e6560', border: '1px solid #99f6e4', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
 
   return (
     <div>
@@ -364,7 +364,7 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
 
       {estructuras.map((e) => {
         const rfReal = RF_EST[e.tipo]
-        const rfColor = rfNum(rfReal) === 0 ? '#dc2626' : rfNum(rfReal) >= 150 ? '#166534' : '#1e40af'
+        const rfColor = rfNum(rfReal) === 0 ? '#dc2626' : rfNum(rfReal) >= 150 ? '#166534' : '#0e6560'
         return (
           <div key={e.id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap',
             background: '#f8fafc', borderRadius: 6, padding: '6px 8px', border: '1px solid #e2e8f0' }}>
@@ -435,7 +435,7 @@ function EstructuraMixta({ estructuras, pisos, onChange }) {
         </div>
       )}
       {estructuras.length > 1 && estructuras.some(e => e.sector?.trim()) && (
-        <div style={{ marginTop: 4, fontSize: 10, color: '#1e40af' }}>
+        <div style={{ marginTop: 4, fontSize: 10, color: '#0e6560' }}>
           💡 Múltiples sistemas en el mismo piso: cada sector se evaluará independientemente en la pestaña Fuego.
         </div>
       )}
@@ -662,10 +662,10 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
       />
       {/* ── PLANTILLAS RÁPIDAS POR USO ─────────────────────────────────────── */}
       {plantillas?.length > 0 && (
-        <div style={{ ...S.card, background:'linear-gradient(135deg,#eff6ff,#f0f9ff)', border:'1.5px solid #bfdbfe' }}>
+        <div style={{ ...S.card, background:'linear-gradient(135deg,#f0fdfa,#f0fdfa)', border:'1.5px solid #99f6e4' }}>
           <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
             <div style={{ flex:1, minWidth:240 }}>
-              <div style={{ fontSize:14, fontWeight:700, color:'#1e40af', marginBottom:4 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'#0e6560', marginBottom:4 }}>
                 ⚡ Plantillas rápidas por tipo de proyecto
               </div>
               <div style={{ fontSize:12, color:'#475569', lineHeight:1.5, marginBottom:plantillaActiva ? 10 : 0 }}>
@@ -690,7 +690,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap' }}>
               <button
                 onClick={() => setShowPlantillas(true)}
-                style={{ padding:'10px 18px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap' }}
+                style={{ padding:'10px 18px', background:'#0e6560', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, whiteSpace:'nowrap' }}
               >
                 📋 {plantillaActiva ? 'Cambiar plantilla' : 'Elegir plantilla'}
               </button>
@@ -717,7 +717,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
           <div style={{ background:'#fff', borderRadius:12, maxWidth:780, width:'100%', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
             <div style={{ position:'sticky', top:0, background:'#fff', padding:'16px 24px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <div>
-                <div style={{ fontSize:18, fontWeight:800, color:'#1e40af' }}>📋 Plantillas por tipo de proyecto</div>
+                <div style={{ fontSize:18, fontWeight:800, color:'#0e6560' }}>📋 Plantillas por tipo de proyecto</div>
                 <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>Selecciona la plantilla que mejor se ajuste a tu proyecto</div>
               </div>
               <button
@@ -740,8 +740,8 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                   }}
                   onMouseEnter={e => {
                     if (p.id === plantillaActivaId) return
-                    e.currentTarget.style.borderColor = '#1e40af'
-                    e.currentTarget.style.background = '#eff6ff'
+                    e.currentTarget.style.borderColor = '#0e6560'
+                    e.currentTarget.style.background = '#f0fdfa'
                   }}
                   onMouseLeave={e => {
                     if (p.id === plantillaActivaId) return
@@ -754,12 +754,12 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
                   )}
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                     <span style={{ fontSize:22 }}>{p.icono}</span>
-                    <span style={{ fontWeight:700, fontSize:13, color:'#1e40af' }}>{p.nombre}</span>
+                    <span style={{ fontWeight:700, fontSize:13, color:'#0e6560' }}>{p.nombre}</span>
                   </div>
                   <div style={{ fontSize:11.5, color:'#475569', lineHeight:1.5, marginBottom:8 }}>{p.descripcion}</div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:4, fontSize:10 }}>
-                    {p.proy?.uso && <span style={{ background:'#dbeafe', color:'#1e40af', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.uso}</span>}
-                    {p.proy?.pisos && <span style={{ background:'#e0e7ff', color:'#4338ca', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.pisos} pisos</span>}
+                    {p.proy?.uso && <span style={{ background:'#ccfbf1', color:'#0e6560', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.uso}</span>}
+                    {p.proy?.pisos && <span style={{ background:'#ccfbf1', color:'#0f766e', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.pisos} pisos</span>}
                     {p.proy?.estructura && <span style={{ background:'#f1f5f9', color:'#475569', padding:'2px 7px', borderRadius:3, fontWeight:600 }}>{p.proy.estructura}</span>}
                   </div>
                   {p.termica && (
@@ -796,7 +796,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
               <span style={{ fontSize:28 }}>{confirmAplicar.plantilla.icono}</span>
               <div>
-                <div style={{ fontSize:16, fontWeight:800, color:'#1e40af' }}>Aplicar "{confirmAplicar.plantilla.nombre}"</div>
+                <div style={{ fontSize:16, fontWeight:800, color:'#0e6560' }}>Aplicar "{confirmAplicar.plantilla.nombre}"</div>
                 <div style={{ fontSize:11, color:'#64748b' }}>Ya tenés valores RF/Rw ingresados</div>
               </div>
             </div>
@@ -806,7 +806,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               <button
                 onClick={() => aplicarPlantilla(confirmAplicar.plantilla, 'replace')}
-                style={{ padding:'12px 16px', background:'#1e40af', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, textAlign:'left' }}
+                style={{ padding:'12px 16px', background:'#0e6560', color:'#fff', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, textAlign:'left' }}
               >
                 🔄 Reemplazar valores existentes
                 <div style={{ fontSize:10.5, fontWeight:400, opacity:0.85, marginTop:2 }}>
@@ -815,7 +815,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               </button>
               <button
                 onClick={() => aplicarPlantilla(confirmAplicar.plantilla, 'merge')}
-                style={{ padding:'12px 16px', background:'#fff', color:'#1e40af', border:'2px solid #bfdbfe', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, textAlign:'left' }}
+                style={{ padding:'12px 16px', background:'#fff', color:'#0e6560', border:'2px solid #99f6e4', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:13, textAlign:'left' }}
               >
                 ➕ Completar solo campos vacíos
                 <div style={{ fontSize:10.5, fontWeight:400, color:'#64748b', marginTop:2 }}>
@@ -949,7 +949,7 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               </span>
             )}
             {!zonaDiverge && multiZona && (
-              <div style={{ fontSize: 10, color: '#2563eb', marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: '#0d9488', marginTop: 2 }}>
                 <div style={{ fontWeight: 600, marginBottom: 2 }}>
                   ℹ "{proy.comuna}" cambia de zona térmica según la {tieneMeridiano ? 'ubicación (cota y longitud)' : 'cota'} del predio:
                 </div>

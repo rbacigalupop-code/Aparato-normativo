@@ -464,7 +464,7 @@ const inputStyle = {
 }
 const btnPrimaryStyle = {
   padding: '8px 14px', fontSize: 12, fontWeight: 700,
-  background: '#1e40af', color: '#fff',
+  background: '#0e6560', color: '#fff',
   border: 'none', borderRadius: 6, cursor: 'pointer',
   transition: 'background 0.15s, transform 0.1s',
 }

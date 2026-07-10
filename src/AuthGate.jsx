@@ -259,7 +259,7 @@ export default function AuthGate({ children }) {
                   <button
                     type="button"
                     onClick={() => setShowPolitica(true)}
-                    style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline', fontSize: 'inherit' }}
+                    style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline', fontSize: 'inherit' }}
                   >
                     Política de Privacidad
                   </button>
@@ -297,7 +297,7 @@ export default function AuthGate({ children }) {
                   setAceptaPolitica(false)
                   setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
                 }}
-                style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}
+                style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 600 }}
               >
                 Crear una
               </button>
@@ -313,7 +313,7 @@ export default function AuthGate({ children }) {
                   setAceptaPolitica(false)
                   setFormData({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
                 }}
-                style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}
+                style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 600 }}
               >
                 Inicia sesión
               </button>
@@ -354,7 +354,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0f172a 100%)',
+    background: 'linear-gradient(135deg, #04302e 0%, #115e59 60%, #04302e 100%)',
   },
   bgPattern: {
     position: 'fixed',
@@ -395,7 +395,7 @@ const styles = {
   btn: {
     width: '100%',
     padding: '12px 0',
-    background: 'linear-gradient(135deg, #1e40af, #0369a1)',
+    background: 'linear-gradient(135deg, #0e6560, #0f766e)',
     color: '#fff',
     border: 'none',
     borderRadius: 9,
@@ -425,7 +425,7 @@ const styles = {
     width: 18,
     height: 18,
     border: '2px solid #e2e8f0',
-    borderTopColor: '#1e40af',
+    borderTopColor: '#0e6560',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
     flexShrink: 0,

@@ -318,7 +318,7 @@ function GraficoMensual({ detalles, idxCritica }) {
         const x = padL + i * barW + 2
         const h = (v / maxV) * gH
         const y = padT + gH - h
-        const color = v > 200 ? '#dc2626' : v > 50 ? '#f59e0b' : '#0891b2'
+        const color = v > 200 ? '#dc2626' : v > 50 ? '#f59e0b' : '#0d9488'
         return (
           <g key={i}>
             <rect x={x} y={y} width={barW - 4} height={Math.max(0, h)} fill={color} rx={1} />

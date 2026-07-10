@@ -26,8 +26,8 @@ export default function UserHeader({ onFeedback }) {
   const tokensDisponibles = tokens?.disponibles ?? 0
   const tokensBajos = tokensDisponibles > 0 && tokensDisponibles < 2
   const tokensAgotados = tokensDisponibles === 0
-  const tokenBg = tokensAgotados ? '#fee2e2' : tokensBajos ? '#fef3c7' : '#dbeafe'
-  const tokenColor = tokensAgotados ? '#991b1b' : tokensBajos ? '#a16207' : '#1e40af'
+  const tokenBg = tokensAgotados ? '#fee2e2' : tokensBajos ? '#fef3c7' : '#ccfbf1'
+  const tokenColor = tokensAgotados ? '#991b1b' : tokensBajos ? '#a16207' : '#0e6560'
 
   return (
     <div className="nc-user-header" style={{ position: 'relative', minWidth: 0, maxWidth: '100%' }}>
@@ -143,10 +143,10 @@ export default function UserHeader({ onFeedback }) {
                     textAlign: 'left',
                     fontSize: 12,
                     fontWeight: 600,
-                    color: '#2563eb',
+                    color: '#0d9488',
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) => e.target.style.background = '#eff6ff'}
+                  onMouseEnter={(e) => e.target.style.background = '#f0fdfa'}
                   onMouseLeave={(e) => e.target.style.background = 'none'}
                 >
                   📬 Enviar feedback

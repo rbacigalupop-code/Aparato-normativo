@@ -12,7 +12,7 @@ import {
 import { COMUNAS_ZONA } from '../data.js'
 
 const VALID_ZONAS = ['A','B','C','D','E','F','G','H','I']
-const ZONA_COLORS = { A:'#fbbf24',B:'#f97316',C:'#ef4444',D:'#f43f5e',E:'#06b6d4',F:'#22c55e',G:'#3b82f6',H:'#6366f1',I:'#1e3a8a' }
+const ZONA_COLORS = { A:'#fbbf24',B:'#f97316',C:'#ef4444',D:'#f43f5e',E:'#06b6d4',F:'#22c55e',G:'#14b8a6',H:'#14b8a6',I:'#115e59' }
 const zonaChip = z => ({
   display:'inline-block', padding:'1px 7px', borderRadius:10,
   background: ZONA_COLORS[z]+'22', border:`1px solid ${ZONA_COLORS[z]}`,
@@ -21,21 +21,21 @@ const zonaChip = z => ({
 
 const S = {
   card:   { background:'#fff', border:'1px solid #e2e8f0', borderRadius:8, padding:16, marginBottom:12 },
-  h2:     { fontSize:15, fontWeight:700, color:'#1e40af', margin:'0 0 12px 0' },
+  h2:     { fontSize:15, fontWeight:700, color:'#0e6560', margin:'0 0 12px 0' },
   h3:     { fontSize:12, fontWeight:700, color:'#374151', margin:'0 0 8px 0', textTransform:'uppercase', letterSpacing:'0.05em' },
   sep:    { borderTop:'1px solid #f1f5f9', margin:'14px 0' },
-  btn:    (c='#1e40af') => ({ background:c, color:'#fff', border:'none', borderRadius:6, padding:'7px 14px', cursor:'pointer', fontSize:12, fontWeight:600 }),
+  btn:    (c='#0e6560') => ({ background:c, color:'#fff', border:'none', borderRadius:6, padding:'7px 14px', cursor:'pointer', fontSize:12, fontWeight:600 }),
   btnOut: (c='#64748b') => ({ background:'#fff', color:c, border:`1.5px solid ${c}`, borderRadius:6, padding:'6px 13px', cursor:'pointer', fontSize:12, fontWeight:600 }),
   warn:   { background:'#fef9c3', border:'1px solid #fde047', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#713f12' },
   err:    { background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#991b1b' },
   ok:     { background:'#dcfce7', border:'1px solid #86efac', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#166534' },
-  info:   { background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#1e40af' },
+  info:   { background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6, padding:'10px 14px', fontSize:12, color:'#0e6560' },
   table:  { width:'100%', borderCollapse:'collapse', fontSize:12 },
   th:     { background:'#f8fafc', padding:'6px 10px', textAlign:'left', fontWeight:700, borderBottom:'2px solid #e2e8f0', fontSize:11, color:'#64748b' },
   td:     { padding:'5px 10px', borderBottom:'1px solid #f8fafc' },
   drop:   (over) => ({
-    border:`2px dashed ${over ? '#3b82f6' : '#cbd5e1'}`, borderRadius:10,
-    background: over ? '#eff6ff' : '#f8fafc',
+    border:`2px dashed ${over ? '#14b8a6' : '#cbd5e1'}`, borderRadius:10,
+    background: over ? '#f0fdfa' : '#f8fafc',
     padding:'32px 20px', textAlign:'center', cursor:'pointer',
     transition:'all 0.15s',
   }),
@@ -171,9 +171,9 @@ export default function AdminZonas({ onOverridesChanged }) {
         ) : (
           <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
             {[
-              ['Total comunas con override', Object.keys(overrides).length, '#1e40af'],
+              ['Total comunas con override', Object.keys(overrides).length, '#0e6560'],
               ['Difieren de data.js',        diffs.length,                  diffs.length ? '#dc2626' : '#16a34a'],
-              ['Cobertura vs data.js',       `${cobertura.pct}%`,           '#0369a1'],
+              ['Cobertura vs data.js',       `${cobertura.pct}%`,           '#0f766e'],
               ['Última carga',               meta?.savedAt ? new Date(meta.savedAt).toLocaleDateString('es-CL') : '—', '#374151'],
             ].map(([label, val, color]) => (
               <div key={label} style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 16px', minWidth:140 }}>
@@ -219,7 +219,7 @@ export default function AdminZonas({ onOverridesChanged }) {
         <div style={{ marginTop:8, fontSize:11, color:'#64748b' }}>
           💡 Descarga la tabla oficial:{' '}
           <a href="https://www.calificacionenergetica.cl/media/TABLA-ZT_REGIONES_PROVINCIAS-Y-COMUNAS.pdf"
-            target="_blank" rel="noreferrer" style={{ color:'#1e40af' }}>
+            target="_blank" rel="noreferrer" style={{ color:'#0e6560' }}>
             DITEC — calificacionenergetica.cl
           </a>
         </div>
@@ -323,7 +323,7 @@ export default function AdminZonas({ onOverridesChanged }) {
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <p style={{ ...S.h3, margin:0 }}>Correcciones activas ({Object.keys(overrides).length})</p>
             <div style={{ display:'flex', gap:8 }}>
-              <button style={S.btnOut('#0369a1')} onClick={() => exportOverridesJSON(overrides)}>
+              <button style={S.btnOut('#0f766e')} onClick={() => exportOverridesJSON(overrides)}>
                 ⬇ Exportar JSON
               </button>
               <button style={S.btnOut('#dc2626')} onClick={limpiar}>
@@ -373,7 +373,7 @@ export default function AdminZonas({ onOverridesChanged }) {
                       <td style={S.td}>{diff
                         ? <span style={{ color:'#d97706', fontSize:11, fontWeight:700 }}>Corregida</span>
                         : zonaBase ? <span style={{ color:'#16a34a', fontSize:11 }}>Igual</span>
-                        : <span style={{ color:'#0369a1', fontSize:11 }}>Nueva</span>}
+                        : <span style={{ color:'#0f766e', fontSize:11 }}>Nueva</span>}
                       </td>
                     </tr>
                   )

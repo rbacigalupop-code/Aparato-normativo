@@ -19,13 +19,13 @@ const S = {
   card: { background: '#fff', borderRadius: 12, maxWidth: 520, width: '100%', maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' },
   head: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid #e2e8f0' },
   body: { padding: '18px 22px', overflowY: 'auto' },
-  h1: { fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 },
+  h1: { fontSize: 16, fontWeight: 800, color: '#04302e', margin: 0 },
   close: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b', lineHeight: 1 },
   sect: { border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 12 },
   sTit: { fontSize: 13, fontWeight: 700, color: '#1e293b', margin: '0 0 4px' },
   sTxt: { fontSize: 12, color: '#64748b', margin: '0 0 10px', lineHeight: 1.5 },
   btn: (bg) => ({ background: bg, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 14px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }),
-  btnGhost: { background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', padding: 0 },
+  btnGhost: { background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', padding: 0 },
   input: { width: '100%', boxSizing: 'border-box', padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12.5, marginTop: 6 },
   err: { fontSize: 11.5, color: '#dc2626', marginTop: 8, lineHeight: 1.4 },
 }
@@ -97,7 +97,7 @@ export default function MisDatosPrivacidad({ onClose }) {
           <div style={S.sect}>
             <p style={S.sTit}>Descargar mis datos</p>
             <p style={S.sTxt}>Obtén una copia de tu cuenta, perfil y proyectos en formato JSON (derecho de acceso y portabilidad).</p>
-            <button style={S.btn('#2563eb')} onClick={descargar} disabled={descargando}>
+            <button style={S.btn('#0d9488')} onClick={descargar} disabled={descargando}>
               {descargando ? '⏳ Generando…' : '⬇ Descargar mis datos'}
             </button>
           </div>

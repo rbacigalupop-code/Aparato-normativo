@@ -131,21 +131,21 @@ export default function ProjectManager({ open, onClose, proyectoActual, setProye
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:560, maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.3)', overflow:'hidden' }}>
         {/* Header */}
-        <div style={{ background:'#1e40af', padding:'14px 20px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+        <div style={{ background:'#0e6560', padding:'14px 20px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
           <span style={{ color:'#fff', fontWeight:800, fontSize:16 }}>☁️ Proyectos guardados</span>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', color:'#fff', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:16 }}>✕</button>
         </div>
 
         <div style={{ overflowY:'auto', flex:1, padding:20 }}>
           {/* Mensaje de feedback */}
-          {msg && <div style={{ background: msg.startsWith('✅') ? '#f0fdf4' : msg.startsWith('ℹ️') ? '#eff6ff' : '#fef2f2', border:`1px solid ${msg.startsWith('✅') ? '#86efac' : msg.startsWith('ℹ️') ? '#bfdbfe' : '#fca5a5'}`, color: msg.startsWith('✅') ? '#166534' : msg.startsWith('ℹ️') ? '#1e40af' : '#991b1b', borderRadius:8, padding:'8px 14px', marginBottom:14, fontSize:13, fontWeight:600 }}>{msg}</div>}
+          {msg && <div style={{ background: msg.startsWith('✅') ? '#f0fdf4' : msg.startsWith('ℹ️') ? '#f0fdfa' : '#fef2f2', border:`1px solid ${msg.startsWith('✅') ? '#86efac' : msg.startsWith('ℹ️') ? '#99f6e4' : '#fca5a5'}`, color: msg.startsWith('✅') ? '#166534' : msg.startsWith('ℹ️') ? '#0e6560' : '#991b1b', borderRadius:8, padding:'8px 14px', marginBottom:14, fontSize:13, fontWeight:600 }}>{msg}</div>}
 
           {/* Guardar actual */}
           <div style={{ background:'#f8fafc', borderRadius:10, padding:14, marginBottom:16, border:'1px solid #e2e8f0' }}>
             <div style={{ fontSize:13, fontWeight:700, color:'#1e293b', marginBottom:10 }}>Guardar proyecto actual</div>
             {proyectoActual && (
               <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
-                Proyecto abierto: <b style={{ color:'#1e40af' }}>{proyectoActual.nombre}</b>
+                Proyecto abierto: <b style={{ color:'#0e6560' }}>{proyectoActual.nombre}</b>
               </div>
             )}
             <div style={{ display:'flex', gap:8 }}>
@@ -174,7 +174,7 @@ export default function ProjectManager({ open, onClose, proyectoActual, setProye
               {loading ? 'Cargando...' : `Proyectos guardados (${lista.length})`}
             </span>
             <div style={{ display:'flex', gap:6 }}>
-              <button onClick={handleMigrar} disabled={loading} style={{ background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:7, padding:'6px 10px', fontSize:11, fontWeight:600, cursor:'pointer' }} title="Migrar proyectos del navegador a la nube">
+              <button onClick={handleMigrar} disabled={loading} style={{ background:'#f0fdfa', color:'#0f766e', border:'1px solid #99f6e4', borderRadius:7, padding:'6px 10px', fontSize:11, fontWeight:600, cursor:'pointer' }} title="Migrar proyectos del navegador a la nube">
                 ↑ Migrar locales
               </button>
               <button onClick={() => fileRef.current.click()} disabled={loading} style={{ background:'#475569', color:'#fff', border:'none', borderRadius:7, padding:'6px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>
@@ -194,17 +194,17 @@ export default function ProjectManager({ open, onClose, proyectoActual, setProye
           ) : (
             lista.map(p => (
               <div key={p.id}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:8, marginBottom:4, background: proyectoActual?.id === p.id ? '#eff6ff' : '#fff', borderColor: proyectoActual?.id === p.id ? '#93c5fd' : '#e2e8f0' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:8, marginBottom:4, background: proyectoActual?.id === p.id ? '#f0fdfa' : '#fff', borderColor: proyectoActual?.id === p.id ? '#5eead4' : '#e2e8f0' }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontWeight:700, fontSize:13, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {proyectoActual?.id === p.id && <span style={{ color:'#1e40af', marginRight:4 }}>●</span>}
+                      {proyectoActual?.id === p.id && <span style={{ color:'#0e6560', marginRight:4 }}>●</span>}
                       {p.nombre}
                     </div>
                     <div style={{ fontSize:11, color:'#94a3b8' }}>{fmtFecha(p.savedAt || p.updated_at)}</div>
                   </div>
-                  <button onClick={() => handleAbrir(p)} style={{ background:'#1e40af', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:12, fontWeight:600, cursor:'pointer' }}>Abrir</button>
+                  <button onClick={() => handleAbrir(p)} style={{ background:'#0e6560', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:12, fontWeight:600, cursor:'pointer' }}>Abrir</button>
                   <button onClick={() => handleExportar(p)} style={{ background:'#f1f5f9', color:'#475569', border:'1px solid #e2e8f0', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Exportar como .json">↓</button>
-                  <button onClick={() => handleDuplicar(p.id)} style={{ background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Duplicar">📋</button>
+                  <button onClick={() => handleDuplicar(p.id)} style={{ background:'#f0fdfa', color:'#0f766e', border:'1px solid #99f6e4', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Duplicar">📋</button>
                   <button onClick={() => setHistorialOpen(historialOpen === p.id ? null : p.id)} style={{ background:'#f5f3ff', color:'#6d28d9', border:'1px solid #ddd6fe', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Historial">🕐</button>
                   <button onClick={() => handleEliminar(p.id)} style={{ background:'#fee2e2', color:'#991b1b', border:'none', borderRadius:6, padding:'5px 8px', fontSize:12, cursor:'pointer' }} title="Eliminar">🗑</button>
                 </div>

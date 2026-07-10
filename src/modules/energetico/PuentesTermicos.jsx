@@ -37,10 +37,10 @@ const CALIDAD_LABELS = {
 
 const CATEGORIA_COLORS = {
   piso:        '#f97316',
-  cubierta:    '#0891b2',
+  cubierta:    '#0d9488',
   esquinas:    '#7c3aed',
   aberturas:   '#eab308',
-  intermedios: '#0369a1',
+  intermedios: '#0f766e',
   voladizos:   '#dc2626',
 }
 
@@ -597,8 +597,8 @@ function DiagramaVivienda() {
       <text x={300} y={95} fontSize={11} fill="#fff" textAnchor="middle" fontWeight={700}>CUBIERTA</text>
 
       {/* ── Ventana en piso 1 ─────────────────────────────────────────── */}
-      <rect x={170} y={270} width={70} height={70} fill="#bae6fd" stroke="#0369a1" strokeWidth={2} />
-      <text x={205} y={310} fontSize={9} fill="#0c4a6e" textAnchor="middle" fontWeight={600}>Ventana</text>
+      <rect x={170} y={270} width={70} height={70} fill="#99f6e4" stroke="#0f766e" strokeWidth={2} />
+      <text x={205} y={310} fontSize={9} fill="#115e59" textAnchor="middle" fontWeight={600}>Ventana</text>
 
       {/* ═══ PUNTEROS DE PT (rojo = crítico, naranja = importante, otros) ═══ */}
 
