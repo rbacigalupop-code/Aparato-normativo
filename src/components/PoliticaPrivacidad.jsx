@@ -39,20 +39,20 @@ export function PoliticaPrivacidadModal({ onClose }) {
         <div style={S.head}>
           <div>
             <h1 style={S.h1}>Política de Privacidad</h1>
-            <div style={S.meta}>NormaCheck · Versión {POLITICA_VERSION} · Ley N° 21.719</div>
+            <div style={S.meta}>Talora · Versión {POLITICA_VERSION} · Ley N° 21.719</div>
           </div>
           <button style={S.close} onClick={onClose} aria-label="Cerrar">×</button>
         </div>
         <div style={S.body}>
           <p style={S.p}>
-            Esta Política describe cómo NormaCheck trata tus datos personales conforme a la
+            Esta Política describe cómo Talora trata tus datos personales conforme a la
             Ley N° 21.719 sobre protección de los datos personales. Al crear una cuenta y usar
             la plataforma, declaras haber leído y aceptado esta Política.
           </p>
 
           <h2 style={S.h2}>1. Responsable del tratamiento</h2>
           <p style={S.p}>
-            NormaCheck es operado por <b>{RESPONSABLE}</b> (persona natural).
+            Talora es operado por <b>{RESPONSABLE}</b> (persona natural).
             Contacto de privacidad: <b>{EMAIL_PRIVACIDAD}</b>.
           </p>
 

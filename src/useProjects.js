@@ -109,7 +109,7 @@ export function useProjects(userId, orgId) {
     const blob = new Blob([JSON.stringify({ version: 1, nombre, exportedAt: new Date().toISOString(), ...data }, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `${nombre.replace(/[^a-z0-9]/gi, '_')}_normacheck.json`; a.click()
+    a.href = url; a.download = `${nombre.replace(/[^a-z0-9]/gi, '_')}_talora.json`; a.click()
     URL.revokeObjectURL(url)
   }
 

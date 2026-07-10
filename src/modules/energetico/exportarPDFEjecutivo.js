@@ -170,7 +170,7 @@ function buildHtmlInforme(d) {
 <!-- ENCABEZADO -->
 <div class="header">
   <div class="header-left">Informe Ejecutivo · Análisis Energético</div>
-  <div class="header-right">${fechaTxt}<br/><b>NormaCheck</b> · Módulo Energético Pro</div>
+  <div class="header-right">${fechaTxt}<br/><b>Talora</b> · Módulo Energético Pro</div>
 </div>
 
 <h1>${d.proyecto.nombre}</h1>
@@ -329,7 +329,7 @@ ${hayLargos ? `<p style="font-size:10px;color:#64748b;font-style:italic;line-hei
 
 <!-- FOOTER -->
 <div class="footer">
-  <b>NormaCheck — Módulo Energético Pro</b><br/>
+  <b>Talora — Módulo Energético Pro</b><br/>
   Este informe es una estimación referencial basada en ISO 13790 (balance térmico), Ley 21.118 (Net-billing FV),
   Ley 20.365 (Solar Térmico SST) y datos climáticos del Explorador Solar MINENERGÍA.<br/>
   Para certificación CEV oficial requiere CCTE_CL de evaluador acreditado MINVU.<br/>

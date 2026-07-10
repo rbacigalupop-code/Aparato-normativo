@@ -639,7 +639,7 @@ export const buildCapas=(cod)=>{
 // ─── SOLUCIONES CONSTRUCTIVAS ─────────────────────────────────────────────────
 // ─── Renombres 2026-06-12: códigos que colisionaban con soluciones OFICIALES
 // distintas del LOSCAT Ed.14 (auditoría de cruce). El prefijo "NC-" marca
-// código interno del catálogo NormaCheck, NO citable como LOSCAT.
+// código interno del catálogo Talora, NO citable como LOSCAT.
 // Mapa viejo→nuevo para proyectos guardados con el código anterior.
 export const LOSCAT_RENOMBRADOS = {
   '1.2.M.A24.1':'NC-1.2.M.A24.1','1.2.M.A26.1':'NC-1.2.M.A26.1','1.2.M.A26.2':'NC-1.2.M.A26.2',

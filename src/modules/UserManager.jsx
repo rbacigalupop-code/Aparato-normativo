@@ -487,7 +487,7 @@ export default function UserManager() {
       <div style={{ ...S.card, marginTop: 16, background: '#f8fafc', borderColor: '#cbd5e1' }}>
         <h2 style={{ ...S.h2, color: '#475569' }}>🔗 Agregar usuario ya registrado</h2>
         <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>
-          Si la persona ya creó una cuenta en NormaCheck (registrándose directamente, no por tu invitación), usa este formulario para <b>moverla a tu organización</b> y poder administrar sus privilegios. No envía email — la absorción es inmediata.
+          Si la persona ya creó una cuenta en Talora (registrándose directamente, no por tu invitación), usa este formulario para <b>moverla a tu organización</b> y poder administrar sus privilegios. No envía email — la absorción es inmediata.
         </div>
         <form onSubmit={handleAbsorber}>
           <div style={S.row}>
@@ -516,7 +516,7 @@ export default function UserManager() {
           </div>
         </form>
         <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0', lineHeight: 1.5 }}>
-          ⚠ Solo funciona con usuarios que <b>ya tienen cuenta</b> en NormaCheck. Si el usuario no existe aún, usa "Invitar nuevo usuario" arriba para enviarle un email de registro. Si la persona tenía su propio workspace, este se desactivará automáticamente.
+          ⚠ Solo funciona con usuarios que <b>ya tienen cuenta</b> en Talora. Si el usuario no existe aún, usa "Invitar nuevo usuario" arriba para enviarle un email de registro. Si la persona tenía su propio workspace, este se desactivará automáticamente.
         </div>
       </div>
 
@@ -877,7 +877,7 @@ export default function UserManager() {
               <strong>💡 Próximos pasos:</strong>
               <ul style={S.infoList}>
                 <li>Comparte el link de invitación con <strong>{confirmacionInvitacion.email}</strong></li>
-                <li>El usuario debe registrarse en NormaCheck con ese email</li>
+                <li>El usuario debe registrarse en Talora con ese email</li>
                 <li>Al registrarse, su perfil se vinculará automáticamente a tu organización</li>
                 <li>Recibirá el rol <strong>{confirmacionInvitacion.rol === 'admin' ? 'Admin' : 'Viewer'}</strong> que asignaste</li>
               </ul>

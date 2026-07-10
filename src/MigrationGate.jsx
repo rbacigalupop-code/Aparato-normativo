@@ -97,7 +97,7 @@ function LoadingScreen() {
   return (
     <div style={styles.overlay}>
       <div style={styles.card}>
-        <img src="/logo.png" alt="NormaCheck" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
+        <img src="/logo.png" alt="Talora" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
         <div style={styles.tagline}>Verificación normativa OGUC</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13, marginTop: 24 }}>
           <div style={styles.spinner} />

@@ -896,7 +896,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
   function exportarFicha() {
     const allC = [...capas, ...extra]
     const lineas = [
-      'FICHA DE SOLUCIÓN CONSTRUCTIVA — NormaCheck',
+      'FICHA DE SOLUCIÓN CONSTRUCTIVA — Talora',
       `Código: ${s.cod}`,
       `Descripción: ${s.desc}`,
       `Elemento: ${elem}  |  Zonas: ${s.zonas}`,
@@ -4857,7 +4857,7 @@ ${cambios.length && solucion ? `
 
 <hr style="margin-top:30px;border:none;border-top:1px solid #e2e8f0">
 <p style="font-size:9pt;color:#94a3b8;text-align:center">
-  Generado por NormaCheck · ${fechaHoy} ·
+  Generado por Talora · ${fechaHoy} ·
   Normativa: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV
 </p>
 </body></html>`
@@ -8442,12 +8442,12 @@ ${notasEntries.map(([k, v]) => `
       correccionesHtml = `
 <h2 id="modulo-6b">Módulo 6b — Correcciones aplicadas al diseño (C1–C8)</h2>
 <div style="font-size:9pt;color:#64748b;margin-bottom:10px;line-height:1.6">
-  Esta sección documenta las <b>estrategias de corrección normativa</b> aplicadas mediante el motor de cálculo de NormaCheck para resolver incumplimientos detectados (U sobre límite, condensación intersticial, o ambos). Cada estrategia (C1 a C8) está calibrada según <b>NCh853:2021</b> e <b>ISO 6946</b>, con penalización adicional por puentes térmicos cuando aplica.
+  Esta sección documenta las <b>estrategias de corrección normativa</b> aplicadas mediante el motor de cálculo de Talora para resolver incumplimientos detectados (U sobre límite, condensación intersticial, o ambos). Cada estrategia (C1 a C8) está calibrada según <b>NCh853:2021</b> e <b>ISO 6946</b>, con penalización adicional por puentes térmicos cuando aplica.
 </div>
 ${resumenTbl}
 ${tarjetas}
 <div style="margin-top:14px;font-size:8.5pt;color:#64748b;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 14px;line-height:1.7">
-  <b>📘 Catálogo de estrategias disponibles en el motor NormaCheck:</b>
+  <b>📘 Catálogo de estrategias disponibles en el motor Talora:</b>
   <ul style="margin:4px 0 0 16px;padding:0;line-height:1.7">
     <li><b>C1</b> — Sistema EIFS/SATE: aislación exterior adherida + estuco cemento.</li>
     <li><b>C2</b> — Fachada Ventilada: aislante + barrera transpirable + cámara + fibrocemento.</li>
@@ -8639,18 +8639,18 @@ ${cards}
 <!-- ══ RUNNING HEADER (visible solo al imprimir, en cada página) ══════════ -->
 <div class="running-header">
   <div class="rh-left">
-    ${logoDataUrl ? `<img src="${logoDataUrl}" alt="NormaCheck"/>` : ''}
+    ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Talora"/>` : ''}
     <div class="rh-title">${proy.nombre || 'Memoria de Cálculo DOM'}</div>
   </div>
   <div class="rh-right">
-    NormaCheck · ${fechaHoy}
+    Talora · ${fechaHoy}
   </div>
 </div>
 
-<!-- ══ PORTADA NORMACHECK ══════════════════════════════════════════════════ -->
+<!-- ══ PORTADA TALORA ══════════════════════════════════════════════════ -->
 <div style="background:linear-gradient(135deg,#1e40af,#0369a1);color:#fff;padding:24px 32px;border-radius:10px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:20px">
   <div style="display:flex;align-items:center;gap:16px;flex:1">
-    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:80px;width:auto;border-radius:8px;flex-shrink:0" alt="NormaCheck"/>` : '<div style="font-size:24px;font-weight:900">NormaCheck</div>'}
+    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:80px;width:auto;border-radius:8px;flex-shrink:0" alt="Talora"/>` : '<div style="font-size:24px;font-weight:900">Talora</div>'}
     <div>
       <div style="font-size:11px;opacity:0.8;margin-bottom:6px">Plataforma de Verificación Normativa OGUC</div>
       <div style="font-size:20px;font-weight:800;line-height:1.2;margin-bottom:4px">${proy.nombre || 'Sin nombre de proyecto'}</div>
@@ -8721,7 +8721,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     ${mods.puertas ? `<li><a href="#modulo-5c">Módulo 5b — Puertas (4 ejes normativos)</a><span class="toc-dots"></span><span class="toc-page">DS N°15 · LOFC · NCh352 · OGUC IV</span></li>` : ''}
     ${mods.escaleras ? `<li><a href="#modulo-5d">Módulo 5c — Escaleras de evacuación</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 4.5.7 · LOFC Ed.17</span></li>` : ''}
     ${mods.notas    ? `<li><a href="#modulo-6">Módulo 6 — Notas y observaciones</a><span class="toc-dots"></span><span class="toc-page">Profesional</span></li>` : ''}
-    ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor NormaCheck</span></li>` : ''}
+    ${correccionesPorElem.length > 0 ? `<li><a href="#modulo-6b">Módulo 6b — Correcciones aplicadas (C1–C8)</a><span class="toc-dots"></span><span class="toc-page">NCh853 · Motor Talora</span></li>` : ''}
     ${(mods.escantillones && detallesInforme.length > 0) ? `<li><a href="#modulo-8">Módulo 8 — Detalles constructivos de unión</a><span class="toc-dots"></span><span class="toc-page">Escantillones · NCh853 · ISO 14683</span></li>` : ''}
     ${(detallesIlustrados?.length > 0) ? `<li><a href="#modulo-8b">Módulo 8b — Detalles arquitectónicos del proyectista</a><span class="toc-dots"></span><span class="toc-page">Dibujos + análisis</span></li>` : ''}
     <li><a href="#modulo-7">Módulo 7 — Responsabilidad profesional y firma</a><span class="toc-dots"></span><span class="toc-page">OGUC Art. 1.2.2</span></li>
@@ -8971,7 +8971,7 @@ ${(() => {
     detallesUsuario.push(`
 <h2 id="modulo-8b" style="page-break-before:always">Módulo 8b — Detalles arquitectónicos del proyectista</h2>
 <div style="font-size:9pt;color:#64748b;margin-bottom:14px;line-height:1.6">
-  Esta sección presenta los <b>detalles constructivos dibujados por el profesional proyectista</b>, complementados con la documentación técnica generada automáticamente por NormaCheck a partir de las soluciones LOSCAT aplicadas. Cada marcador sobre el dibujo identifica un elemento constructivo cuyas capas, materiales, espesores y propiedades térmicas se listan en la leyenda lateral.
+  Esta sección presenta los <b>detalles constructivos dibujados por el profesional proyectista</b>, complementados con la documentación técnica generada automáticamente por Talora a partir de las soluciones LOSCAT aplicadas. Cada marcador sobre el dibujo identifica un elemento constructivo cuyas capas, materiales, espesores y propiedades térmicas se listan en la leyenda lateral.
 </div>
 ${cards}`)
   }
@@ -9009,7 +9009,7 @@ ${cards}`)
       })()}
     </div>
     <div style="font-size:8.5pt;color:#64748b;line-height:1.5">
-      Generado por NormaCheck · ${new Date().toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' })}
+      Generado por Talora · ${new Date().toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' })}
     </div>
   </div>
 </div>
@@ -9065,9 +9065,9 @@ ${cards}`)
 <!-- ══ PIE DE PÁGINA ════════════════════════════════════════════════════════ -->
 <div style="margin-top:32px;padding:14px 20px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
   <div style="flex:1;min-width:200px">
-    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:40px;width:auto;border-radius:5px;margin-bottom:6px" alt="NormaCheck"/>` : '<b style="color:#1e40af">NormaCheck</b>'}
+    ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:40px;width:auto;border-radius:5px;margin-bottom:6px" alt="Talora"/>` : '<b style="color:#1e40af">Talora</b>'}
     <div style="font-size:8pt;color:#94a3b8;line-height:1.6">
-      Generado: ${fechaHoy} · Plataforma NormaCheck — Verificación Normativa OGUC<br>
+      Generado: ${fechaHoy} · Plataforma Talora — Verificación Normativa OGUC<br>
       Normativas: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Tít. IV · LOFC Ed.17 2025 · NCh352:2013 · EN ISO 13788
     </div>
   </div>
@@ -9977,7 +9977,7 @@ function AppInner() {
       comuna: 'Temuco', zona: 'F', uso: 'Vivienda', pisos: '2', superficie: '95',
       destinoOGUC: '', estructura: '', estructuras: [],
       profesional: 'Arq. María González (demo)', rutProfesional: '9.876.543-2', titulo: 'Arquitecta',
-      rol: '', email: 'demo@normacheck.cl', telefono: '+56 9 1234 5678', ocupantes: '4',
+      rol: '', email: 'demo@talora.cl', telefono: '+56 9 1234 5678', ocupantes: '4',
       configEnergetica: { comunaKey: 'temuco', zonaClima: 'F', tipoProyecto: 'casa' },
     })
     setTermica({})
@@ -10033,7 +10033,7 @@ function AppInner() {
           'Al finalizar, este beneficio será parte del Plan Pro:\n' +
           '$24.990/mes + IVA (precio de lanzamiento referencial).\n\n' +
           'Tu opinión sobre el precio nos ayuda a definirlo:\n' +
-          'contacto@normacheck.cl\n\n' +
+          'contacto@talora.cl\n\n' +
           'El informe se generará ahora sin costo.'
         )
       }
@@ -10042,7 +10042,7 @@ function AppInner() {
 
     // Free: mostrar bloqueo con opción de upgrade. Durante la beta el precio es
     // referencial (sondeo de valor); el cobro real se activa al cerrar la beta.
-    const upgradeUrl = 'mailto:contacto@normacheck.cl?subject=Activar Plan Pro'
+    const upgradeUrl = 'mailto:contacto@talora.cl?subject=Activar Plan Pro'
     const ir = window.confirm(
       'Generar el informe PDF completo requiere el Plan Pro.\n\n' +
       '✓ Informes ilimitados listos para expediente DOM\n' +
@@ -10232,8 +10232,8 @@ function AppInner() {
   return (
     <div style={S.app} className={`nc-app${showAyuda ? ' nc-has-sidebar' : ''}`}>
       <div style={S.header} className="nc-header">
-        {/* Logo NormaCheck */}
-        <img src="/logo.png" alt="NormaCheck" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
+        {/* Logo Talora */}
+        <img src="/logo.png" alt="Talora" style={{ height: 72, width: 'auto', flexShrink: 0, borderRadius: 8 }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
           <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build {typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''}·{typeof __BUILD_COMMIT__ !== 'undefined' ? __BUILD_COMMIT__ : 'dev'}</div>
@@ -10427,7 +10427,7 @@ function AppInner() {
             boxShadow:'0 20px 50px rgba(0,0,0,0.3)',
           }}>
             <div style={{ fontSize:14, color:'#0369a1', fontWeight:700, marginBottom:4 }}>
-              👋 Bienvenido a NormaCheck
+              👋 Bienvenido a Talora
             </div>
             <div style={{ fontSize:18, fontWeight:800, color:'#1e293b', marginBottom:8 }}>
               ¿Cómo quieres empezar?

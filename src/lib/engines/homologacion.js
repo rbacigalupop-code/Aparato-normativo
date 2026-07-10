@@ -571,7 +571,7 @@ export function homologarSolucion(loscat, requerimientos = {}) {
   // 1. Térmico: SOLO se declara LOSCAT cuando la solución cita un código
   //    LOSCAT real en desc/obs Y ese código existe en el índice oficial
   //    Ed.14 (src/data/loscat.js). Sin ambas condiciones, el U es del
-  //    catálogo NormaCheck (calculado/referencial) y se rotula como tal —
+  //    catálogo Talora (calculado/referencial) y se rotula como tal —
   //    nunca presentar un valor calculado como ítem oficial.
   const citaLOSCAT = /LOSCAT\s*[0-9]|\(LOSCAT/i.test(`${loscat.desc || ''} ${loscat.obs || ''}`)
   const enEd14 = !!LOSCAT_INDEX[loscat.cod]
@@ -588,7 +588,7 @@ export function homologarSolucion(loscat, requerimientos = {}) {
     vigencia: LOSCAT_INDEX[loscat.cod].vigencia || null,
     fuente: `LOSCAT Ed.14 2026 — verificado en índice oficial${vigTxt}`,
   } : {
-    codigo: `${loscat.cod} — catálogo NormaCheck`,
+    codigo: `${loscat.cod} — catálogo Talora`,
     codigo_base: loscat.cod,
     u: parseFloat(loscat.u) || null,
     descripcion: loscat.desc,

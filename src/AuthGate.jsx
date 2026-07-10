@@ -142,7 +142,7 @@ export default function AuthGate({ children }) {
     return (
       <div style={styles.overlay}>
         <div style={styles.card}>
-          <img src="/logo.png" alt="NormaCheck" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
+          <img src="/logo.png" alt="Talora" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
           <div style={styles.tagline}>Verificación normativa OGUC</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13, marginTop: 24 }}>
             <div style={styles.spinner} />
@@ -164,8 +164,8 @@ export default function AuthGate({ children }) {
       {showPolitica && <PoliticaPrivacidadModal onClose={() => setShowPolitica(false)} />}
       <div style={styles.bgPattern} />
       <div style={styles.card}>
-        <img src="/logo.png" alt="NormaCheck" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
-        <div style={styles.brand}>NormaCheck</div>
+        <img src="/logo.png" alt="Talora" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
+        <div style={styles.brand}>Talora</div>
         <div style={styles.tagline}>Verificación normativa OGUC · DS N°15 · LOSCAT</div>
 
         <div style={styles.divider} />
