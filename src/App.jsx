@@ -7866,16 +7866,20 @@ ${glaserHtml}`
       escaleras:  '',
     }
     const rfRows = rfElemDefsRpt.map(e => {
-      // RF requerida: Tabla 1 OGUC si hay letra; si no, fallback a RF_DEF/RF_PISOS
+      // RF requerida: 1) OGUC Tabla 1 por letra+columna (preferente).
+      // 2) Fallback a RF_DEF/RF_PISOS cuando la tabla OGUC no fija ese elemento
+      //    en esa letra (p. ej. Cubierta col (7) en Letra D queda vacía). Sin este
+      //    fallback el informe mostraba "—" mientras la pestaña Fuego y el resumen
+      //    —que sí caen a RF_DEF— mostraban el requerido y CUMPLE (inconsistencia).
       let req = null
       let fuenteReq = ''
       if (_letraRpt) {
         req = ogucDataReady.OGUC_RF_LETRAS[_letraRpt.toLowerCase()]?.[e.col] || null
-        fuenteReq = `Tabla 1 · Letra ${_letraRpt.toUpperCase()} ${e.colLabel}`
-      } else if (e.id === 'estructura') {
-        req = RF_PISOS(uso, proy.pisos); fuenteReq = 'RF_DEF approx'
-      } else {
-        req = RF_DEF[uso]?.[e.id]; fuenteReq = 'RF_DEF approx'
+        if (req) fuenteReq = `Tabla 1 · Letra ${_letraRpt.toUpperCase()} ${e.colLabel}`
+      }
+      if (!req) {
+        req = e.id === 'estructura' ? RF_PISOS(uso, proy.pisos) : (RF_DEF[uso]?.[e.id] || null)
+        if (req) fuenteReq = 'RF_DEF (referencial)'
       }
       const rfP = termica['rf_' + e.id]?.rf || rfFromSol[e.id] || ''
       const ok = !req || !rfP || rfN(rfP) >= rfN(req)
