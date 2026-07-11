@@ -142,8 +142,8 @@ export default function AuthGate({ children }) {
     return (
       <div style={styles.overlay}>
         <div style={styles.card}>
-          <img src="/logo.png" alt="Talora" style={{ width: 64, height: 'auto', marginBottom: 16 }} />
-          <div style={styles.tagline}>Verificación normativa OGUC</div>
+          <img src="/logo-lockup.svg" alt="Talora" style={{ width: 190, height: 'auto', marginBottom: 14 }} />
+          <div style={styles.tagline}>Copiloto de diseño técnico · OGUC · DS N°15</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13, marginTop: 24 }}>
             <div style={styles.spinner} />
             Iniciando sesión...
@@ -165,7 +165,7 @@ export default function AuthGate({ children }) {
       <div style={styles.bgPattern} />
       <div style={styles.card}>
         <img src="/logo-lockup.svg" alt="Talora" style={{ width: 200, height: 'auto', marginBottom: 14 }} />
-        <div style={styles.tagline}>Verificación normativa OGUC · DS N°15 · LOSCAT</div>
+        <div style={styles.tagline}>Copiloto de diseño técnico · OGUC · DS N°15 · LOSCAT</div>
 
         <div style={styles.divider} />
 
