@@ -5518,12 +5518,26 @@ ${cambios.length && solucion ? `
                               style={{ fontSize:11, fontWeight:700, background:'#dcfce7', color:'#166534', border:'1px solid #86efac', borderRadius:6, padding:'3px 8px' }}>
                               💵 CLP {econ.ahorroClp.toLocaleString('es-CL')}/año
                             </span>
-                            {econ.paybackSimpleAnios != null && (
-                              <span title={`Descontado 5%: ${econ.paybackDescAnios} años · VAN30: CLP ${econ.vanProyecto30.toLocaleString('es-CL')}`}
-                                style={{ fontSize:11, fontWeight:700, background:'#ede9fe', color:'#5b21b6', border:'1px solid #c4b5fd', borderRadius:6, padding:'3px 8px' }}>
-                                ⏳ Payback {econ.paybackSimpleAnios} años
-                              </span>
-                            )}
+                            {econ.paybackSimpleAnios != null && (() => {
+                              // Sobre ~30 años el payback deja de ser un criterio útil (excede el
+                              // horizonte razonable e incluso la vida útil probable). La solución ya
+                              // cumple; esto es optimización de desempeño, no una inversión con retorno.
+                              // Acotamos el titular a ">30 años" en tono neutro y dejamos el valor real
+                              // en el tooltip. Coherente con el tope del Informe Ejecutivo.
+                              const pb = econ.paybackSimpleAnios
+                              const noRentable = pb > 30
+                              return (
+                                <span title={noRentable
+                                  ? `Payback real ≈ ${pb} años · VAN30: CLP ${econ.vanProyecto30.toLocaleString('es-CL')} — no se recupera en un horizonte razonable; es mejora de desempeño, no de retorno.`
+                                  : `Descontado 5%: ${econ.paybackDescAnios} años · VAN30: CLP ${econ.vanProyecto30.toLocaleString('es-CL')}`}
+                                  style={{ fontSize:11, fontWeight:700, borderRadius:6, padding:'3px 8px',
+                                    background: noRentable ? '#f1f5f9' : '#ede9fe',
+                                    color:      noRentable ? '#64748b' : '#5b21b6',
+                                    border:     `1px solid ${noRentable ? '#cbd5e1' : '#c4b5fd'}` }}>
+                                  ⏳ Payback {noRentable ? '>30 años' : `${pb} años`}
+                                </span>
+                              )
+                            })()}
                             {econ.emisionesCo2Anual > 0 && (
                               <span title="Emisiones CO₂eq evitadas anualmente"
                                 style={{ fontSize:11, fontWeight:700, background:'#f0fdf4', color:'#15803d', border:'1px solid #bbf7d0', borderRadius:6, padding:'3px 8px' }}>
