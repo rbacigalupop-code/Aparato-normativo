@@ -90,3 +90,51 @@ describe('Ratchet de trazabilidad del catálogo', () => {
     }
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Coherencia de elemento en la homologación LOFC (bug 2026-07-13):
+// una techumbre (cercha madera + lana, 1.1.G.M1.2) homologaba a
+// A.2.3.60.131 "Muro perimetral o divisorio" — el RF certificado de un
+// elemento VERTICAL no acredita uno HORIZONTAL. Causa: el extractor clasificó
+// losas/techumbres/entrepisos como "otro" y el mapa de compatibilidad dejaba
+// pasar tabiques/paneles para techumbre.
+// ─────────────────────────────────────────────────────────────────────────────
+import { homologarLOFC } from '../lib/engines/homologacion.js'
+
+const ES_HORIZONTAL = /techumbre|techo|cubierta|entrepiso|losa/i
+const ES_MURO = /\bmuro\b|tabique|divisorio|perimetral/i
+
+describe('Homologación LOFC — coherencia vertical/horizontal', () => {
+  it('REGRESIÓN: la cercha de madera (techumbre) no homologa a un muro', () => {
+    const techo = {
+      cod: '1.1.G.M1.2', elem: 'techumbre',
+      desc: 'Cercha madera + lana mineral 150mm + barrera vapor sobre cielo',
+      capas: 'Yeso carton 13 | Barrera vapor | Lana mineral 150 | Tablon OSB',
+      obs: 'estructura de madera, entramado',
+    }
+    const h = homologarLOFC(techo, 'F15')
+    if (h) {
+      expect(h.codigo_base).not.toBe('A.2.3.60.131')
+      expect(ES_HORIZONTAL.test(h.descripcion), `${h.codigo_base}: ${h.descripcion}`).toBe(true)
+    }
+  })
+
+  it('INVARIANTE catálogo: ninguna techumbre/piso homologa a un ítem de muro/tabique', () => {
+    for (const s of SC.filter(x => x.elem === 'techumbre' || x.elem === 'piso')) {
+      const h = homologarSolucion(s, { rfRequerido: 'F15' })
+      if (h?.fuego) {
+        expect(
+          ES_HORIZONTAL.test(h.fuego.descripcion) || !ES_MURO.test(h.fuego.descripcion),
+          `${s.cod} (${s.elem}) homologó a ${h.fuego.codigo_base} "${h.fuego.descripcion}"`
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('los muros siguen homologando (la restricción no mató la vía de macizos)', () => {
+    const muroHA = { cod: 'T-HA', elem: 'muro', desc: 'Muro hormigón armado 150 mm', capas: 'H.A. 150', obs: '' }
+    const h = homologarLOFC(muroHA, 'F60')
+    expect(h).toBeTruthy()
+    expect(h.rf_minutos).toBeGreaterThanOrEqual(60)
+  })
+})

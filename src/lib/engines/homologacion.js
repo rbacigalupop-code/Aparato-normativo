@@ -304,13 +304,28 @@ function homologarMacizo(estructura, reqRfMin) {
   return null
 }
 
+// ─── Tipo de elemento EFECTIVO de un ítem LOFC ───────────────────────────────
+// El extractor clasificó los ítems horizontales del LOFC (losas D.2.2,
+// techumbres F.2.1, entrepisos G.2.1) como tipo_elemento "otro" — la taxonomía
+// extraída no tiene tipo techumbre/entrepiso. Derivamos el tipo real desde la
+// descripción/sección (verificado: ningún ítem vertical usa estas palabras).
+// Sin esto, techumbre/piso cruzaban con ítems de MURO (p. ej. una cercha de
+// madera homologaba a A.2.3.60.131 "Muro perimetral") — inválido: el RF
+// certificado de un elemento vertical no acredita uno horizontal.
+function tipoElementoLOFC(item) {
+  const txt = `${item.seccion_desc || ''} ${item.descripcion || ''}`.toLowerCase()
+  if (/techumbre|techo|cubierta/.test(txt)) return 'techumbre'
+  if (/entrepiso|losa/.test(txt)) return 'entrepiso'
+  return item.tipo_elemento || 'otro'
+}
+
 // ─── Tabla de compatibilidad elemento LOSCAT ↔ LOFC ──────────────────────────
-// LOSCAT.elem    →  LOFC.tipo_elemento permitidos
+// LOSCAT.elem    →  tipo efectivo LOFC permitido (ver tipoElementoLOFC)
 const ELEM_COMPATIBILIDAD_LOFC = {
   'muro':      ['muro_macizo', 'muro_albanileria', 'panel', 'tabique', 'tabique_o_panel', 'bloque'],
   'tabique':   ['tabique', 'panel', 'tabique_o_panel'],
-  'techumbre': ['muro_macizo', 'panel', 'tabique_o_panel', 'panel_madera_macizo', 'bloque'],  // techos de mismo material
-  'piso':      ['muro_macizo', 'panel_madera_macizo', 'bloque'],                              // pisos como losas/paneles
+  'techumbre': ['techumbre'],   // SOLO techumbres certificadas — nunca muros/tabiques
+  'piso':      ['entrepiso'],   // SOLO entrepisos/losas certificados
   'puerta':    ['puerta'],
   'ventana':   [],  // no aplica
 }
@@ -334,11 +349,12 @@ const ELEM_COMPATIBILIDAD_LOSCAA = {
 function scoreLOFC(item, estructura, loscat, elemSource) {
   if (!item || !estructura?.material) return 0
 
-  // ── Filtro estricto por tipo de elemento (no asociar entrepiso a muro, etc.) ──
+  // ── Filtro estricto por tipo de elemento (no asociar muro a techumbre, etc.) ──
+  // Usa el tipo EFECTIVO (tipoElementoLOFC), no el crudo del extractor.
   if (elemSource) {
     const tiposPermitidos = ELEM_COMPATIBILIDAD_LOFC[elemSource]
     if (tiposPermitidos && tiposPermitidos.length === 0) return 0  // no aplica
-    if (tiposPermitidos && !tiposPermitidos.includes(item.tipo_elemento)) return 0
+    if (tiposPermitidos && !tiposPermitidos.includes(tipoElementoLOFC(item))) return 0
   }
 
   let score = 0
@@ -432,8 +448,11 @@ export function homologarLOFC(loscat, reqRF) {
 
   const elemSource = loscat?.elem || null
 
-  // 1. Intentar primero con tabla macizos (más confiable) — solo para muros/techos/pisos macizos
-  if (elemSource === 'muro' || elemSource === 'techumbre' || elemSource === 'piso' || !elemSource) {
+  // 1. Intentar primero con tabla macizos (más confiable) — SOLO MUROS.
+  //    Las tablas A.1.x del LOFC (HA, bloques, madera maciza, ladrillo) son de
+  //    muros/elementos verticales: no acreditan techumbres ni pisos. Antes se
+  //    aplicaban también a techumbre/piso y generaban códigos de muro inválidos.
+  if (elemSource === 'muro' || !elemSource) {
     const macizo = homologarMacizo(estructura, reqRfMin)
     if (macizo) return macizo
   }
