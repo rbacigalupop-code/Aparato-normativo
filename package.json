@@ -24,6 +24,8 @@
     "test:watch": "vitest",
     "check:secretos": "node scripts/check-secretos.mjs",
     "zonas:extraer": "node scripts/extraer-zt-ditec.mjs --write",
-    "zonas:auditar": "node scripts/auditar-zt-ditec.mjs"
+    "zonas:auditar": "node scripts/auditar-zt-ditec.mjs",
+    "auditoria": "node scripts/auditoria-semanal.cjs",
+    "auditar:listados": "node scripts/auditar-cobertura-listados.cjs"
   }
 }
