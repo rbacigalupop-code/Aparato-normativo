@@ -19,14 +19,38 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { LOFC, LOFC_MACIZOS } from '../../data/lofc.js'
-import { LOSCAA as LOSCAA_BASE } from '../../data/loscaa.js'
-import { LOSCAA_ENTREPISOS } from '../../data/loscaa_entrepisos.js'
+import { LOSCAA_FULL } from '../../data/loscaa_full.js'
 
-// El extractor principal perdía la familia *.EP.* (22 entrepisos): su regex de
-// código está anclada a inicio de línea y en esas fichas el código va después
-// del título. Se extraen aparte (scripts/extraer-loscaa-entrepisos.cjs) y se
-// fusionan acá — único punto de consumo del listado acústico.
-const LOSCAA = { ...LOSCAA_BASE, ...LOSCAA_ENTREPISOS }
+// ─── Qué valor exige la OGUC para el cumplimiento acústico ───────────────────
+// El art. 4.1.6 exige 45 **dB(A)**, y la nota al pie de toda ficha LOSCAA dice:
+// "Al sumar los términos de corrección 'C' o 'Ctr' en [dB] el resultado es
+// equivalente a [dBA]". Por eso la ficha ENNEGRECE `Rw + C` (y `Ln,w`) como los
+// indicadores de cumplimiento: Rw+C es el valor en dBA.
+//
+// Consecuencia: para verificar cumplimiento se usa `rw_C`, NO el `rw` ponderado.
+// (El extractor antiguo guardaba Rw+C dentro del campo `rw`, así que acertaba
+// por accidente; los entrepisos que se agregaron después guardaban el Rw crudo
+// y sobre-declaraban hasta 3 dB. Con el dataset completo ambos campos vienen
+// rotulados y esta función elimina la ambigüedad.)
+const rwCumplimiento = (item) => (item?.rw_C ?? item?.rw ?? null)
+
+// Dataset completo extraído con `pdftotext -layout` (80 fichas, campos
+// explícitos). Reemplaza a loscaa.js + loscaa_entrepisos.js, que tenían
+// semánticas mezcladas en el campo `rw`.
+// Se normaliza `descripcion` (el nombre corto de la ficha) porque el resto del
+// motor y la UI lo consumen con ese nombre; en el dataset nuevo se llama `titulo`
+// y `detalle` guarda la memoria constructiva completa.
+const LOSCAA = Object.fromEntries(
+  Object.entries(LOSCAA_FULL)
+    .filter(([, v]) => !v.es_mejora)            // las mejoras (ΔRw/ΔLw) no son elementos
+    .map(([k, v]) => [k, { ...v, descripcion: v.titulo || v.detalle || k }])
+)
+
+// Revestimientos que APORTAN mejora (ΔRw/ΔLw) sumable a un elemento base —
+// familias RM.O (muro) y RP.O (piso). La ficha lo autoriza explícitamente.
+export const LOSCAA_MEJORAS = Object.fromEntries(
+  Object.entries(LOSCAA_FULL).filter(([, v]) => v.es_mejora)
+)
 import { LOSCAT_INDEX, vigenciaLOSCAT } from '../../data/loscat.js'
 
 // ─── Conversión RF string ↔ minutos ──────────────────────────────────────────
@@ -393,7 +417,7 @@ function homologarAberturaLOSCAA(sc, elemSource) {
   if (!perfil.marco) return null
 
   const candidatos = Object.values(LOSCAA)
-    .filter(i => i.rw && i.elemento === elemSource)
+    .filter(i => rwCumplimiento(i) != null && i.elemento === elemSource)
     .map(item => {
       const pi = perfilAbertura({ desc: item.descripcion })
       // Los ítems E.V.O.* ("Vidrio simple 4 mm", "DVH 4-12-4") son el VIDRIO
@@ -412,14 +436,16 @@ function homologarAberturaLOSCAA(sc, elemSource) {
     // no hace equivalentes una puerta maciza y una liviana con celosía). Se
     // exige material + al menos un atributo distintivo (vidrio/hoja/apertura).
     .filter(c => c.score >= 70)
-    .sort((a, b) => (b.score !== a.score) ? b.score - a.score : a.item.rw - b.item.rw)
+    .sort((a, b) => (b.score !== a.score) ? b.score - a.score : rwCumplimiento(a.item) - rwCumplimiento(b.item))
 
   if (!candidatos.length) return null
   const mejor = candidatos[0]
   return {
     codigo: `LOSCAA ${mejor.item.codigo}`,
     codigo_base: mejor.item.codigo,
-    rw: mejor.item.rw,
+    // rw = valor de CUMPLIMIENTO (dBA, Rw+C) que exige el art. 4.1.6 OGUC.
+    rw: rwCumplimiento(mejor.item),
+    rw_ponderado: mejor.item.rw ?? null,   // índice ponderado sin corrección
     rw_tipo: mejor.item.rw_tipo || 'Rw',
     // Ruido de IMPACTO (solo entrepisos lo traen certificado). MENOR = MEJOR.
     lnw: mejor.item.lnw ?? null,
@@ -737,7 +763,9 @@ export function homologarLOSCAA(loscat, reqRw) {
   return {
     codigo: `LOSCAA ${mejor.item.codigo}`,
     codigo_base: mejor.item.codigo,
-    rw: mejor.item.rw,
+    // rw = valor de CUMPLIMIENTO (dBA, Rw+C) que exige el art. 4.1.6 OGUC.
+    rw: rwCumplimiento(mejor.item),
+    rw_ponderado: mejor.item.rw ?? null,   // índice ponderado sin corrección
     rw_tipo: mejor.item.rw_tipo || 'Rw',
     // Ruido de IMPACTO (solo entrepisos lo traen certificado). MENOR = MEJOR.
     lnw: mejor.item.lnw ?? null,
