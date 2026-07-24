@@ -167,3 +167,53 @@ describe('Homologación LOFC — coherencia vertical/horizontal', () => {
     expect(h.rf_minutos).toBeGreaterThanOrEqual(60)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Aberturas (puertas/ventanas): el cruce va por marco/vidrio/hoja, no por
+// material estructural. Reglas normativas fijadas aquí:
+//  · Ventana + LOFC → nunca (el listado no certifica ventanas).
+//  · Puerta + LOFC → solo si el proyecto EXIGE RF, la puerta lo CUMPLE y es
+//    cortafuego metálica (LOFC solo certifica esas).
+//  · Nunca usar los ítems E.V.O.* (vidrio suelto) como referencia de ventana:
+//    su Rw no incluye marco ni infiltraciones y sobre-declararía.
+// ─────────────────────────────────────────────────────────────────────────────
+import { homologarLOSCAA } from '../lib/engines/homologacion.js'
+
+describe('Homologación de aberturas', () => {
+  const ventanaAlDVH = { cod: 'V-AL', elem: 'ventana', desc: 'Ventana Al sin RPT + DVH 4/12/4 aire', obs: '' }
+  const puertaAcero  = { cod: 'P-AC', elem: 'puerta', rf: 'F60', desc: 'Puerta metalica acero + lana mineral 50mm', obs: '' }
+  const puertaMadera = { cod: 'P-MA', elem: 'puerta', rf: 'F60', desc: 'Puerta madera con nucleo lana mineral 60mm', obs: '' }
+
+  it('la ventana cruza a LOSCAA por marco + vidrio', () => {
+    const a = homologarLOSCAA(ventanaAlDVH)
+    expect(a).toBeTruthy()
+    expect(a.codigo_base).toBe('E.V.Al.01.03')   // Corredera aluminio DVH
+    expect(a.rw).toBe(20)
+  })
+
+  it('la ventana NUNCA cruza a LOFC (no se certifican ventanas al fuego)', () => {
+    expect(homologarLOFC(ventanaAlDVH, 'F60')).toBeNull()
+  })
+
+  it('no usa el vidrio suelto (E.V.O.*) como referencia de ventana', () => {
+    for (const s of SC.filter(x => x.elem === 'ventana')) {
+      const a = homologarLOSCAA(s)
+      if (a) expect(a.codigo_base, `${s.cod} usó vidrio suelto`).not.toMatch(/^E\.V\.O\./)
+    }
+  })
+
+  it('la puerta solo cruza al fuego si HAY exigencia y la CUMPLE', () => {
+    expect(homologarLOFC(puertaAcero, null), 'sin exigencia no corresponde cruce').toBeNull()
+    expect(homologarLOFC(puertaAcero, 'F60').codigo_base).toBe('C.2.1.60.15')
+    expect(homologarLOFC(puertaAcero, 'F120'), 'declara F60, no puede acreditar F120').toBeNull()
+  })
+
+  it('una puerta de madera no hereda el RF de una puerta metálica cortafuego', () => {
+    expect(homologarLOFC(puertaMadera, 'F60')).toBeNull()
+  })
+
+  it('una puerta sin RF declarado nunca se acredita como cortafuego', () => {
+    const sinRf = { ...puertaAcero, cod: 'P-SINRF', rf: null }
+    expect(homologarLOFC(sinRf, 'F60')).toBeNull()
+  })
+})

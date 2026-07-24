@@ -351,6 +351,107 @@ const ELEM_COMPATIBILIDAD_LOFC = {
   'ventana':   [],  // no aplica
 }
 
+// ─── ABERTURAS (puertas y ventanas) ──────────────────────────────────────────
+// El cruce de aberturas NO va por material estructural: identificarEstructuraBase
+// devuelve null para "Ventana Al sin RPT + DVH 4/12/4" (no es hormigón, ladrillo
+// ni entramado), y por eso ambos motores puntuaban 0 y las 50 puertas/ventanas
+// del catálogo quedaban sin ningún cruce pese a existir 13 ítems LOSCAA aplicables.
+// Se homologan por: material del marco/hoja + tipo de vidrio + tipo de apertura.
+export function perfilAbertura(sc) {
+  const t = `${sc?.desc || ''} ${sc?.capas || ''} ${sc?.obs || ''}`.toLowerCase()
+  const marco =
+    /composite/.test(t)                          ? 'composite' :
+    /\bpvc\b/.test(t)                            ? 'pvc' :
+    /alumin|ventana al\b|\bal\s+(?:rpt|sin)/.test(t) ? 'aluminio' :
+    /acero|met[aá]lic/.test(t)                   ? 'acero' :
+    /madera|pino|terciado|oreg[oó]n|lvl|osb/.test(t) ? 'madera' : null
+  return {
+    marco,
+    vidrio:   /\btvh\b|triple\s*vidr/.test(t) ? 'tvh'
+            : /\bdvh\b|termopanel|doble\s*vidr/.test(t) ? 'dvh'
+            : /vidrio\s*simple|monol[ií]t/.test(t) ? 'simple' : null,
+    apertura: /corredera/.test(t) ? 'corredera' : /proyectante/.test(t) ? 'proyectante'
+            : /guillotina/.test(t) ? 'guillotina' : /abatible|batiente/.test(t) ? 'abatible' : null,
+    hoja:     /maciza|s[oó]lida/.test(t) ? 'solida' : /hueca|contraplacada/.test(t) ? 'hueca'
+            : /livian/.test(t) ? 'liviana' : /n[uú]cleo/.test(t) ? 'nucleo' : null,
+    cortafuego: /cortafuego|corta.fuego|rf-?\d+\s*homologad/.test(t),
+  }
+}
+
+// Homologación acústica de aberturas → LOSCAA (E.P.* puertas, E.V.*/I.P.* etc.)
+// Criterio conservador: ante empate se elige el Rw MENOR — nunca sobre-declarar
+// aislación acústica que el proyectista no puede respaldar.
+function homologarAberturaLOSCAA(sc, elemSource) {
+  const perfil = perfilAbertura(sc)
+  if (!perfil.marco) return null
+
+  const candidatos = Object.values(LOSCAA)
+    .filter(i => i.rw && i.elemento === elemSource)
+    .map(item => {
+      const pi = perfilAbertura({ desc: item.descripcion })
+      // Los ítems E.V.O.* ("Vidrio simple 4 mm", "DVH 4-12-4") son el VIDRIO
+      // suelto, no una ventana: su Rw es mayor que el de cualquier ventana
+      // completa porque no incluye marco ni infiltraciones. Usarlos como
+      // referencia sobre-declararía la aislación. Se excluyen.
+      const matItem = item.material === 'otros' ? null : item.material
+      if (!matItem || matItem !== perfil.marco) return { item, score: 0 }
+      let score = 50
+      if (elemSource === 'ventana' && perfil.vidrio && pi.vidrio && perfil.vidrio === pi.vidrio) score += 30
+      if (elemSource === 'puerta'  && perfil.hoja   && pi.hoja   && perfil.hoja   === pi.hoja)   score += 30
+      if (perfil.apertura && pi.apertura && perfil.apertura === pi.apertura) score += 20
+      return { item, score }
+    })
+    // Umbral 70: coincidir SOLO en material no basta ("las dos son de madera"
+    // no hace equivalentes una puerta maciza y una liviana con celosía). Se
+    // exige material + al menos un atributo distintivo (vidrio/hoja/apertura).
+    .filter(c => c.score >= 70)
+    .sort((a, b) => (b.score !== a.score) ? b.score - a.score : a.item.rw - b.item.rw)
+
+  if (!candidatos.length) return null
+  const mejor = candidatos[0]
+  return {
+    codigo: `LOSCAA ${mejor.item.codigo}`,
+    codigo_base: mejor.item.codigo,
+    rw: mejor.item.rw,
+    rw_tipo: mejor.item.rw_tipo || 'Rw',
+    masa_kg_m2: mejor.item.masa_kg_m2,
+    descripcion: mejor.item.descripcion,
+    intrinseco: true,
+    capas_extras: [],
+    fuente: `LOSCAA 2024 ED13 (${elemSource} · referencia conservadora)`,
+    score: mejor.score,
+  }
+}
+
+// Homologación al fuego de PUERTAS → LOFC C.2.1.*
+// Regla normativa: una puerta solo se cruza cuando el PROYECTO le exige RF
+// (puerta de escape, caja de escalera — OGUC). Sin exigencia no corresponde
+// cruce. Y el LOFC solo certifica puertas METÁLICAS cortafuego: una puerta de
+// madera no puede heredar el RF de una puerta de acero, así que si no es
+// cortafuego se devuelve null y la UI pide certificación/ensayo.
+function homologarPuertaLOFC(sc, reqRfMin, perfil) {
+  if (!(reqRfMin > 0)) return null                                   // sin exigencia → no aplica
+  if (!(perfil.cortafuego || perfil.marco === 'acero')) return null   // no es puerta cortafuego
+  // La puerta debe CUMPLIR la exigencia para cruzarse: no se acredita como
+  // cortafuego una puerta que declara menos RF del exigido (o que no lo declara).
+  if (rfToMinutos(sc?.rf || 'F0') < reqRfMin) return null
+  const cand = Object.values(LOFC)
+    .filter(i => tipoElementoLOFC(i) === 'puerta' && i.rf_minutos >= reqRfMin)
+    .sort((a, b) => a.rf_minutos - b.rf_minutos)   // la menor certificada que cumple
+  if (!cand.length) return null
+  const it = cand[0]
+  return {
+    codigo: `LOFC ${it.codigo}`,
+    codigo_base: it.codigo,
+    rf: it.rf,
+    rf_minutos: it.rf_minutos,
+    descripcion: it.descripcion,
+    intrinseco: rfToMinutos(sc.rf || 'F0') >= it.rf_minutos,
+    capas_extras: [],
+    fuente: `LOFC Ed.17 ${it.seccion} (puerta cortafuego certificada)`,
+  }
+}
+
 // ─── Tabla de compatibilidad elemento LOSCAT ↔ LOSCAA ────────────────────────
 const ELEM_COMPATIBILIDAD_LOSCAA = {
   'muro':      ['muro'],           // muros divisorios, exteriores, interiores
@@ -469,6 +570,12 @@ export function homologarLOFC(loscat, reqRF) {
 
   const elemSource = loscat?.elem || null
 
+  // 0. Aberturas: ruta propia (no tienen "estructura base" reconocible).
+  //    Ventanas: el LOFC no las certifica → nunca hay cruce (no es un fallo).
+  //    Puertas: solo si el proyecto exige RF y la puerta es cortafuego.
+  if (elemSource === 'ventana') return null
+  if (elemSource === 'puerta') return homologarPuertaLOFC(loscat, reqRfMin, perfilAbertura(loscat))
+
   // 1. Intentar primero con tabla macizos (más confiable) — SOLO MUROS.
   //    Las tablas A.1.x del LOFC (HA, bloques, madera maciza, ladrillo) son de
   //    muros/elementos verticales: no acreditan techumbres ni pisos. Antes se
@@ -583,11 +690,17 @@ function scoreLOSCAA(item, estructura, loscat, elemSource) {
 // FILTRA por tipo de elemento del LOSCAT (muro→muro, techumbre→techumbre, etc.)
 // Y por material — si no hay match de material, no devuelve nada.
 export function homologarLOSCAA(loscat, reqRw) {
+  const elemSource = loscat?.elem || null
+
+  // Aberturas: ruta propia por marco/vidrio/hoja (ver homologarAberturaLOSCAA).
+  if (elemSource === 'puerta' || elemSource === 'ventana') {
+    return homologarAberturaLOSCAA(loscat, elemSource)
+  }
+
   const estructura = identificarEstructuraBase(loscat)
   if (!estructura) return null
 
   const reqRwNum = parseFloat(reqRw) || 0
-  const elemSource = loscat?.elem || null
 
   // Buscar en LOSCAA por score (filtrando por elemento + material)
   // No filtramos por Rw aquí — el score se encarga, y queremos mostrar match
