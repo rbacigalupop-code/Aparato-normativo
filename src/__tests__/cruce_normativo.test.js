@@ -101,32 +101,61 @@ describe('Ratchet de trazabilidad del catálogo', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 import { homologarLOFC } from '../lib/engines/homologacion.js'
 
-const ES_HORIZONTAL = /techumbre|techo|cubierta|entrepiso|losa/i
-const ES_MURO = /\bmuro\b|tabique|divisorio|perimetral/i
+// La coherencia se valida por SECCIÓN del LOFC, no por palabras: A.* son
+// verticales (muros/tabiques); D.* losas, F.* techumbres (F.2.1 cubierta,
+// F.2.2 cielo) y G.* entrepisos son horizontales. Validar por sección evita el
+// falso negativo de anoche: "Cielo con Envigado de madera" es un elemento
+// horizontal legítimo aunque su descripción no diga "techo".
+const SECCION_HORIZONTAL = /^[DFG]\./
+const SECCION_VERTICAL = /^A\./
 
 describe('Homologación LOFC — coherencia vertical/horizontal', () => {
+  const TECHO_CERCHA = {
+    cod: '1.1.G.M1.2', elem: 'techumbre', rf: 'F30',
+    desc: 'Cercha madera + lana mineral 150mm + barrera vapor sobre cielo',
+    capas: 'Yeso carton 13 | Barrera vapor | Lana mineral 150 | Tablon OSB',
+    obs: 'estructura de madera, entramado',
+  }
+
   it('REGRESIÓN: la cercha de madera (techumbre) no homologa a un muro', () => {
-    const techo = {
-      cod: '1.1.G.M1.2', elem: 'techumbre',
-      desc: 'Cercha madera + lana mineral 150mm + barrera vapor sobre cielo',
-      capas: 'Yeso carton 13 | Barrera vapor | Lana mineral 150 | Tablon OSB',
-      obs: 'estructura de madera, entramado',
-    }
-    const h = homologarLOFC(techo, 'F15')
-    if (h) {
-      expect(h.codigo_base).not.toBe('A.2.3.60.131')
-      expect(ES_HORIZONTAL.test(h.descripcion), `${h.codigo_base}: ${h.descripcion}`).toBe(true)
-    }
+    const h = homologarLOFC(TECHO_CERCHA, 'F15')
+    expect(h).toBeTruthy()
+    expect(h.codigo_base).not.toBe('A.2.3.60.131')
+    expect(SECCION_VERTICAL.test(h.codigo_base), `${h.codigo_base} es sección vertical`).toBe(false)
+    expect(SECCION_HORIZONTAL.test(h.codigo_base), `${h.codigo_base}: ${h.descripcion}`).toBe(true)
   })
 
-  it('INVARIANTE catálogo: ninguna techumbre/piso homologa a un ítem de muro/tabique', () => {
+  it('la techumbre de entramado cruza al CIELO F.2.2 que ya cumple por espesor', () => {
+    // El RF de un entramado de madera lo aporta el cielo (yeso cartón), no la
+    // cubierta. Con placa de 13 mm debe elegir el ítem de 12,5 mm (ya cumple),
+    // no los de 15 mm que exigirían engrosar.
+    const h = homologarLOFC(TECHO_CERCHA, 'F30')
+    expect(h.codigo_base).toBe('F.2.2.30.04')
+    expect(h.rf).toBe('F30')
+    expect(h.espesor_certificado_mm).toBe(12.5)
+    expect(h.espesor_solucion_mm).toBe(13)
+    expect(h.capas_extras).toEqual([])
+    expect(h.intrinseco).toBe(true)
+  })
+
+  it('si la placa no alcanza, declara la capa a reforzar en vez de callarlo', () => {
+    const placaFina = { ...TECHO_CERCHA, cod: 'T-FINA', capas: 'Yeso carton 10 | Lana mineral 150 | Tablon OSB' }
+    const h = homologarLOFC(placaFina, 'F30')
+    expect(h).toBeTruthy()
+    expect(h.intrinseco).toBe(false)
+    expect(h.capas_extras).toHaveLength(1)
+    expect(h.capas_extras[0].a_mm).toBeGreaterThan(h.capas_extras[0].de_mm)
+    expect(h.capas_extras[0].descripcion).toMatch(/engrosar/i)
+  })
+
+  it('INVARIANTE catálogo: ninguna techumbre/piso homologa a un ítem vertical (A.*)', () => {
     for (const s of SC.filter(x => x.elem === 'techumbre' || x.elem === 'piso')) {
       const h = homologarSolucion(s, { rfRequerido: 'F15' })
       if (h?.fuego) {
         expect(
-          ES_HORIZONTAL.test(h.fuego.descripcion) || !ES_MURO.test(h.fuego.descripcion),
+          SECCION_VERTICAL.test(h.fuego.codigo_base),
           `${s.cod} (${s.elem}) homologó a ${h.fuego.codigo_base} "${h.fuego.descripcion}"`
-        ).toBe(true)
+        ).toBe(false)
       }
     }
   })

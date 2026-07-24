@@ -1201,7 +1201,7 @@ function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseRe
   const fuegoShow = baseConfiable ? fuego : null
   const acustShow = baseConfiable ? acustico : null
 
-  const Card = ({ icon, titulo, codigo, valor, fuente, intrinseco, oficial, sinMatchTexto, color, descripcion }) => (
+  const Card = ({ icon, titulo, codigo, valor, fuente, intrinseco, oficial, sinMatchTexto, color, descripcion, capasExtras }) => (
     <div style={{
       flex: 1, minWidth: 220,
       background: '#fff',
@@ -1235,6 +1235,19 @@ function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseRe
           {descripcion && (
             <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.4, marginTop: 4, fontStyle: 'italic' }}>
               {descripcion.slice(0, 80)}{descripcion.length > 80 ? '…' : ''}
+            </div>
+          )}
+          {/* Capa a reforzar para acogerse al ítem certificado (homologación condicionada) */}
+          {capasExtras?.length > 0 && (
+            <div style={{ marginTop: 6, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 5, padding: '6px 8px' }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#92400e', marginBottom: 2 }}>🔧 Para homologar, refuerza:</div>
+              {capasExtras.map((cx, i) => (
+                <div key={i} style={{ fontSize: 9.5, color: '#92400e', lineHeight: 1.4 }}>
+                  {cx.de_mm != null && cx.a_mm != null
+                    ? <>Placa protectora <b>{cx.de_mm} → {cx.a_mm} mm</b> (faltan {cx.falta_mm} mm)</>
+                    : cx.descripcion}
+                </div>
+              ))}
             </div>
           )}
           {fuente && <div style={{ fontSize: 9, color: oficial === false ? '#92400e' : '#94a3b8', marginTop: 4 }}>{fuente}</div>}
@@ -1286,6 +1299,7 @@ function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseRe
           fuente={fuegoShow?.fuente}
           descripcion={fuegoShow?.descripcion}
           intrinseco={modoBaseReferencial ? undefined : fuegoShow?.intrinseco}
+          capasExtras={fuegoShow?.capas_extras}
           sinMatchTexto={modoBaseReferencial
             ? 'Sin cruce en LOFC Ed.17: la estructura base de esta ficha PDA no es reconocible automáticamente. Aplica la guía de fuego de abajo (revestimiento RF certificado + ensayo NCh935).'
             : 'Sin cruce automático en LOFC Ed.17 — el RF declarado es referencial. Respáldalo con ensayo NCh935/1 o certificación del fabricante, o agrega capas certificadas (p. ej. placas yeso cartón RF).'}

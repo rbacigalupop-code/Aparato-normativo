@@ -305,18 +305,39 @@ function homologarMacizo(estructura, reqRfMin) {
 }
 
 // ─── Tipo de elemento EFECTIVO de un ítem LOFC ───────────────────────────────
-// El extractor clasificó los ítems horizontales del LOFC (losas D.2.2,
-// techumbres F.2.1, entrepisos G.2.1) como tipo_elemento "otro" — la taxonomía
-// extraída no tiene tipo techumbre/entrepiso. Derivamos el tipo real desde la
-// descripción/sección (verificado: ningún ítem vertical usa estas palabras).
-// Sin esto, techumbre/piso cruzaban con ítems de MURO (p. ej. una cercha de
-// madera homologaba a A.2.3.60.131 "Muro perimetral") — inválido: el RF
-// certificado de un elemento vertical no acredita uno horizontal.
+// El extractor clasificó los ítems horizontales del LOFC como tipo_elemento
+// "otro" (la taxonomía extraída no tiene techumbre/entrepiso). Derivamos el tipo
+// real desde el CÓDIGO DE SECCIÓN del LOFC, que es semánticamente estable:
+//
+//   A.*  muros, tabiques y entramados ligeros   → vertical (usa tipo_elemento crudo)
+//   B.*  pilares / estructura                    → estructura
+//   C.*  puertas                                 → puerta
+//   D.*  losas                                   → entrepiso
+//   F.*  TECHUMBRES: F.2.1 cubierta · F.2.2 cielo → techumbre
+//   G.*  entrepisos                              → entrepiso
+//
+// Clasificar por sección (y no por palabras de la descripción) es lo correcto:
+// los ítems F.2.2 se describen como "Cielo con Envigado de madera" — no dicen
+// "techumbre" ni "cubierta" — y con un regex de descripción quedaban fuera,
+// perdiendo el cruce válido de toda techumbre de entramado de madera (cuyo RF
+// lo aporta justamente el CIELO, no la cubierta).
+const SECCION_ELEM_LOFC = { B: 'estructura', C: 'puerta', D: 'entrepiso', F: 'techumbre', G: 'entrepiso' }
+
 function tipoElementoLOFC(item) {
-  const txt = `${item.seccion_desc || ''} ${item.descripcion || ''}`.toLowerCase()
-  if (/techumbre|techo|cubierta/.test(txt)) return 'techumbre'
-  if (/entrepiso|losa/.test(txt)) return 'entrepiso'
-  return item.tipo_elemento || 'otro'
+  const letra = String(item.codigo || '').charAt(0).toUpperCase()
+  if (letra === 'A') return item.tipo_elemento || 'otro'   // verticales: taxonomía cruda sirve
+  return SECCION_ELEM_LOFC[letra] || item.tipo_elemento || 'otro'
+}
+
+// ─── Espesor de la capa protectora declarada en la solución LOSCAT ───────────
+// En entramados (madera/acero) el RF lo aporta la placa protectora — yeso
+// cartón, fibrocemento, volcanita. El LOFC certifica un espesor mínimo de esa
+// placa (item.espesor_mm). Extraemos el de la solución para poder decir si
+// alcanza o cuánto falta.
+function espesorProtectorLOSCAT(loscat) {
+  const txt = `${loscat?.capas || ''} ${loscat?.desc || ''} ${loscat?.obs || ''}`
+  const m = txt.match(/(?:yeso\s*cart[oó]n?|gyplac|volcanita|volcanboard|fibrocemento|terciado)[^0-9]{0,14}(\d{1,2}(?:[.,]\d)?)\s*(?:mm)?/i)
+  return m ? parseFloat(m[1].replace(',', '.')) : null
 }
 
 // ─── Tabla de compatibilidad elemento LOSCAT ↔ LOFC ──────────────────────────
@@ -457,29 +478,54 @@ export function homologarLOFC(loscat, reqRF) {
     if (macizo) return macizo
   }
 
-  // 2. Buscar en items LOFC individuales por score (con filtro de elemento)
+  // 2. Buscar en items LOFC individuales por score (con filtro de elemento).
+  //    Para cada candidato evaluamos si la PLACA PROTECTORA de la solución
+  //    alcanza el espesor certificado del ítem. Si no alcanza, el cruce sigue
+  //    siendo válido pero condicionado: se declara la capa a reforzar en
+  //    `capas_extras` en vez de descartar el ítem (o peor, presentarlo como si
+  //    ya se cumpliera).
+  const espSol = espesorProtectorLOSCAT(loscat)
   const candidatos = Object.values(LOFC)
     .filter(item => item.rf_minutos >= reqRfMin)
-    .map(item => ({ item, score: scoreLOFC(item, estructura, loscat, elemSource) }))
+    .map(item => {
+      const score = scoreLOFC(item, estructura, loscat, elemSource)
+      // faltante > 0 → hay que engrosar la placa para acogerse a ese ítem
+      const faltante = (espSol != null && item.espesor_mm > 0 && espSol < item.espesor_mm)
+        ? Math.round((item.espesor_mm - espSol) * 10) / 10
+        : 0
+      return { item, score, faltante }
+    })
     .filter(c => c.score >= 60)  // umbral más alto = match más confiable
     .sort((a, b) => {
-      // Priorizar score (similitud constructiva)
+      // 1) Preferir el que YA se cumple sin engrosar capas
+      if ((a.faltante > 0) !== (b.faltante > 0)) return a.faltante - b.faltante
+      // 2) Score (similitud constructiva)
       if (b.score !== a.score) return b.score - a.score
-      // Empate: elegir el de mayor RF (más restrictiva)
+      // 3) Empate: mayor RF (más restrictiva)
       return b.item.rf_minutos - a.item.rf_minutos
     })
 
   if (candidatos.length === 0) return null
 
   const mejor = candidatos[0]
+  const capasExtras = mejor.faltante > 0 ? [{
+    tipo: 'refuerzo_protector',
+    descripcion: `Engrosar la placa protectora a ${mejor.item.espesor_mm} mm (la solución declara ${espSol} mm) para acogerse a ${mejor.item.codigo}`,
+    de_mm: espSol,
+    a_mm: mejor.item.espesor_mm,
+    falta_mm: mejor.faltante,
+  }] : []
   return {
     codigo: `LOFC ${mejor.item.codigo}`,
     codigo_base: mejor.item.codigo,
     rf: mejor.item.rf,
     rf_minutos: mejor.item.rf_minutos,
     descripcion: mejor.item.descripcion,
-    intrinseco: mejor.item.rf_minutos >= rfToMinutos(loscat.rf || 'F0'),
-    capas_extras: [],
+    // intrínseco solo si NO requiere engrosar capas y ya alcanza el RF declarado
+    intrinseco: capasExtras.length === 0 && mejor.item.rf_minutos >= rfToMinutos(loscat.rf || 'F0'),
+    capas_extras: capasExtras,
+    espesor_certificado_mm: mejor.item.espesor_mm || null,
+    espesor_solucion_mm: espSol,
     fuente: `LOFC Ed.17 ${mejor.item.seccion} (item)`,
     score: mejor.score,
   }
