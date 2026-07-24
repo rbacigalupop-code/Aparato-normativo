@@ -217,3 +217,62 @@ describe('Homologación de aberturas', () => {
     expect(homologarLOFC(sinRf, 'F60')).toBeNull()
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entrepisos LOSCAA (2026-07-23): el extractor principal perdía la familia
+// *.EP.* (22 fichas) porque su regex de código está anclada a inicio de línea y
+// ahí el código va tras el título. Se extraen aparte y se fusionan en el motor.
+// Aportan el ÚNICO dato certificado de ruido de IMPACTO (Ln,w) del listado.
+// ─────────────────────────────────────────────────────────────────────────────
+import { LOSCAA_ENTREPISOS } from '../data/loscaa_entrepisos.js'
+
+describe('LOSCAA — entrepisos y ruido de impacto', () => {
+  it('los 22 entrepisos están cargados con taxonomía completa', () => {
+    const items = Object.values(LOSCAA_ENTREPISOS)
+    expect(items.length).toBe(22)
+    for (const i of items) {
+      expect(i.elemento, i.codigo).toBe('entrepiso')
+      expect(i.material, i.codigo).toBeTruthy()
+      expect(i.codigo).toMatch(/^[DIE]\.EP\./)
+    }
+  })
+
+  it('D.EP.M.01.01 coincide con la ficha oficial (verificación externa)', () => {
+    // Contrastado contra la ficha del PDF: R'w 52 · +C 49 · +Ctr 45 ·
+    // Ln',w 67 · +Ci 69 · espesor 26,9 cm · vigente hasta mayo 2029.
+    const f = LOSCAA_ENTREPISOS['D.EP.M.01.01']
+    expect(f.rw).toBe(52)
+    expect(f.rw_C).toBe(49)
+    expect(f.rw_Ctr).toBe(45)
+    expect(f.lnw).toBe(67)
+    expect(f.lnw_Ci).toBe(69)
+    expect(f.espesor_mm).toBe(269)
+    expect(f.rw_tipo).toBe("R'w")      // medición en terreno, no laboratorio
+    expect(f.vigencia).toMatch(/2029/)
+  })
+
+  it('invariantes físicas en todos los entrepisos', () => {
+    for (const i of Object.values(LOSCAA_ENTREPISOS)) {
+      expect(i.rw, `${i.codigo} Rw`).toBeGreaterThanOrEqual(30)
+      expect(i.rw, `${i.codigo} Rw`).toBeLessThanOrEqual(80)
+      expect(i.rw_C, `${i.codigo} C resta`).toBeLessThanOrEqual(i.rw)
+      expect(i.rw_Ctr, `${i.codigo} Ctr ≤ C`).toBeLessThanOrEqual(i.rw_C)
+      if (i.lnw != null) {
+        expect(i.lnw, `${i.codigo} Ln,w`).toBeGreaterThanOrEqual(40)
+        expect(i.lnw, `${i.codigo} Ln,w`).toBeLessThanOrEqual(95)
+      }
+      // laboratorio → sin apóstrofo · terreno → con apóstrofo (no intercambiables)
+      expect(i.rw_tipo).toBe(i.medicion === 'terreno' ? "R'w" : 'Rw')
+    }
+  })
+
+  it('los pisos del catálogo ya cruzan y traen el Ln,w certificado', () => {
+    const pisos = SC.filter(s => s.elem === 'piso')
+    const conCruce = pisos.map(s => homologarLOSCAA(s, 45)).filter(Boolean)
+    expect(conCruce.length, 'antes eran 0').toBeGreaterThan(0)
+    for (const h of conCruce) {
+      expect(h.codigo_base).toMatch(/\.EP\./)
+      expect(typeof h.lnw, 'debe propagar el ruido de impacto').toBe('number')
+    }
+  })
+})

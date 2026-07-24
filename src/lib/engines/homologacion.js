@@ -19,7 +19,14 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { LOFC, LOFC_MACIZOS } from '../../data/lofc.js'
-import { LOSCAA } from '../../data/loscaa.js'
+import { LOSCAA as LOSCAA_BASE } from '../../data/loscaa.js'
+import { LOSCAA_ENTREPISOS } from '../../data/loscaa_entrepisos.js'
+
+// El extractor principal perdía la familia *.EP.* (22 entrepisos): su regex de
+// código está anclada a inicio de línea y en esas fichas el código va después
+// del título. Se extraen aparte (scripts/extraer-loscaa-entrepisos.cjs) y se
+// fusionan acá — único punto de consumo del listado acústico.
+const LOSCAA = { ...LOSCAA_BASE, ...LOSCAA_ENTREPISOS }
 import { LOSCAT_INDEX, vigenciaLOSCAT } from '../../data/loscat.js'
 
 // ─── Conversión RF string ↔ minutos ──────────────────────────────────────────
@@ -414,6 +421,10 @@ function homologarAberturaLOSCAA(sc, elemSource) {
     codigo_base: mejor.item.codigo,
     rw: mejor.item.rw,
     rw_tipo: mejor.item.rw_tipo || 'Rw',
+    // Ruido de IMPACTO (solo entrepisos lo traen certificado). MENOR = MEJOR.
+    lnw: mejor.item.lnw ?? null,
+    lnw_tipo: mejor.item.lnw_tipo || null,
+    medicion: mejor.item.medicion || null,
     masa_kg_m2: mejor.item.masa_kg_m2,
     descripcion: mejor.item.descripcion,
     intrinseco: true,
@@ -728,6 +739,10 @@ export function homologarLOSCAA(loscat, reqRw) {
     codigo_base: mejor.item.codigo,
     rw: mejor.item.rw,
     rw_tipo: mejor.item.rw_tipo || 'Rw',
+    // Ruido de IMPACTO (solo entrepisos lo traen certificado). MENOR = MEJOR.
+    lnw: mejor.item.lnw ?? null,
+    lnw_tipo: mejor.item.lnw_tipo || null,
+    medicion: mejor.item.medicion || null,
     masa_kg_m2: mejor.item.masa_kg_m2,
     descripcion: mejor.item.descripcion,
     intrinseco,
