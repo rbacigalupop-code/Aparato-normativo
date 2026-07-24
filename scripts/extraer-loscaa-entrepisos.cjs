@@ -130,7 +130,7 @@ if (process.argv.includes('--emit')) {
       medicion: f.medicion,
       vigencia: f.vigencia,
       detalle: f.descripcion,
-      pagina_pdf: f.pagina,
+      pagina_pdf: f.pagina + 1,   // el marcador del volcado precede al contenido: contenido tras "-- N --" = página N+1
     }
   }
   const head = `// ═══════════════════════════════════════════════════════════════════════════════
@@ -148,10 +148,11 @@ if (process.argv.includes('--emit')) {
 //   lnw_tipo → "Ln,w" laboratorio (NCh2786/ISO10140) · "Ln',w" terreno (NCh2785/NCh16283)
 // MENOR Ln,w = MEJOR aislamiento al impacto (al revés que Rw).
 //
-// Verificación: los ${fichas.length} ítems pasan invariantes físicas (rangos, C/Ctr
-// decrecientes, Ci dentro de ISO 717-2). La página 46 (D.EP.M.01.01) fue
-// contrastada contra la ficha oficial: R'w 52 · +C 49 · +Ctr 45 · Ln',w 67 ·
-// +Ci 69 · 26,9 cm — coincidencia exacta en los 6 valores.
+// VERIFICADO uno a uno contra el PDF con 'pdftotext -layout' (extracción
+// independiente que preserva la alineación etiqueta↔valor):
+//   ${fichas.length} de ${fichas.length} coinciden en Rw, Rw+C, Rw+Ctr, Ln,w y Ln,w+Ci. Cero discrepancias.
+// Además pasan invariantes físicas (rangos, C/Ctr decrecientes, Ci ISO 717-2).
+// Reproducir:  node scripts/verificar-loscaa-entrepisos.cjs
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const LOSCAA_ENTREPISOS = ${JSON.stringify(obj, null, 2)}

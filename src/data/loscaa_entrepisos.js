@@ -13,10 +13,11 @@
 //   lnw_tipo → "Ln,w" laboratorio (NCh2786/ISO10140) · "Ln',w" terreno (NCh2785/NCh16283)
 // MENOR Ln,w = MEJOR aislamiento al impacto (al revés que Rw).
 //
-// Verificación: los 22 ítems pasan invariantes físicas (rangos, C/Ctr
-// decrecientes, Ci dentro de ISO 717-2). La página 46 (D.EP.M.01.01) fue
-// contrastada contra la ficha oficial: R'w 52 · +C 49 · +Ctr 45 · Ln',w 67 ·
-// +Ci 69 · 26,9 cm — coincidencia exacta en los 6 valores.
+// VERIFICADO uno a uno contra el PDF con 'pdftotext -layout' (extracción
+// independiente que preserva la alineación etiqueta↔valor):
+//   22 de 22 coinciden en Rw, Rw+C, Rw+Ctr, Ln,w y Ln,w+Ci. Cero discrepancias.
+// Además pasan invariantes físicas (rangos, C/Ctr decrecientes, Ci ISO 717-2).
+// Reproducir:  node scripts/verificar-loscaa-entrepisos.cjs
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const LOSCAA_ENTREPISOS = {
@@ -40,7 +41,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Cubrepiso sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: cubrepiso de espesor 3 [mm] y masa superficial de 0,77 kg/m². Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 36
+    "pagina_pdf": 37
   },
   "D.EP.H.01.02": {
     "codigo": "D.EP.H.01.02",
@@ -62,7 +63,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Linóleo sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: Linóleo de espesor 2 [mm] pegado a la losa mediante capa de adhesivo de contacto universal de espesor 0,5 [mm]. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 37
+    "pagina_pdf": 38
   },
   "D.EP.H.01.03": {
     "codigo": "D.EP.H.01.03",
@@ -84,7 +85,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Parquet de madera sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: parquet de madera de espesor 25 [mm] pegado a la losa mediante una capa de adhesivo de montaje en base a resinas sintéticas sin solventes de espesor 5 [mm] aplicada con llana dentada. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 38
+    "pagina_pdf": 39
   },
   "D.EP.H.01.04": {
     "codigo": "D.EP.H.01.04",
@@ -106,7 +107,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Piso fotolaminado MDF sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: piso fotolaminado de MDF de espesor 8 [mm] y densidad 720 kg/m³, sobre espuma niveladora de espesor 3 [mm]. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 39
+    "pagina_pdf": 40
   },
   "D.EP.H.01.05": {
     "codigo": "D.EP.H.01.05",
@@ -128,7 +129,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Cielo falso de yeso cartón bajo losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: sin revestimiento. Revestimiento inferior: placa de yeso cartón ST de espesor 10 mm suspendida mediante estructura de pino conformada por vigas de 2x2'' distanciadas entre ejes cada 60 [cm]. Cavidad interior: de altura interior 45 [mm], rellena con lana de vidrio en rollo de espesor 50 [mm] y densidad 14 [kg/m³]",
-    "pagina_pdf": 40
+    "pagina_pdf": 41
   },
   "D.EP.H.01.06": {
     "codigo": "D.EP.H.01.06",
@@ -150,7 +151,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Sobrelosa de hormigón de 50 mm apoyada en EPS sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: sobrelosa de hormigón liviano de espesor 50 [mm] apoyada sobre planchas de poliestireno expandido de espesor 50 [mm] y densidad 10 [kg/m³]. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 41
+    "pagina_pdf": 42
   },
   "D.EP.H.01.07": {
     "codigo": "D.EP.H.01.07",
@@ -172,7 +173,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Sobrelosa de hormigón de 50 mm apoyada en EPS sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: sobrelosa de hormigón liviano de espesor 50 [mm] apoyada sobre planchas de poliestireno expandido de espesor 50 [mm] y densidad 30 [kg/m³] Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 42
+    "pagina_pdf": 43
   },
   "D.EP.H.01.08": {
     "codigo": "D.EP.H.01.08",
@@ -194,7 +195,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Sobrelosa de hormigón de 50 mm apoyada en lana mineral sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: sobrelosa de hormigón liviano de espesor 50 [mm] apoyada sobre planchas de lana de vidrio de densidad 80 [kg/m³] y espesor 25 [mm]. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 43
+    "pagina_pdf": 44
   },
   "D.EP.H.02.01": {
     "codigo": "D.EP.H.02.01",
@@ -216,7 +217,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Piso flotante laminado sobre poliestireno extruido resistente a altas presiones instalado sobre losa de hormigón armado. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: Piso flotante laminado espesor 8 [mm] sobre poliestireno extruido (XPS) de celda cerrada resistente a altas presiones, SELITAC, de espesor 2,2 [mm]. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 44
+    "pagina_pdf": 45
   },
   "D.EP.H.02.02": {
     "codigo": "D.EP.H.02.02",
@@ -238,7 +239,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "Piso viníclico SPC sobre poliestireno extruido resistente a altas presiones instalado sobre losa de hormigón armado. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: Piso vinílico SPC espesor 3,2 [mm] sobre poliestireno extruido (XPS) de celda cerrada resistente a altas presiones, SELITBLOC, de espesor 1 [mm]. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 45
+    "pagina_pdf": 46
   },
   "D.EP.M.01.01": {
     "codigo": "D.EP.M.01.01",
@@ -260,7 +261,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "terreno",
     "vigencia": "mayo 2029",
     "detalle": "Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 35x164 [mm] distanciadas cada 40 [cm], con distanciadores de 20x41 [mm] afianzados por la cara inferior de las vigas. Revestimiento superior: Sobrelosa de hormigón liviano de espesor 41 [mm] sobre membrana acùstica de gránulos de caucho de espesor 5 [mm], a su vez, sobre placa de madera terciada de espesor 15 [mm]. Revestimiento inferior: doble placa de yeso cartón RF de espesor 15[mm] traslapadas. Cavidad interior: de altura interior 184 [mm], rellena con lana de vidrio en rollo libre de espesor 120 [mm] y densidad 14 [kg/m³]",
-    "pagina_pdf": 46
+    "pagina_pdf": 47
   },
   "D.EP.M.01.02": {
     "codigo": "D.EP.M.01.02",
@@ -282,7 +283,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "terreno",
     "vigencia": "mayo 2029",
     "detalle": "Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 41x185 [mm] distanciadas cada 40 [cm], más distanciadores afianzados por la cara inferior de las vigas de 20x41 [mm]. Revestimiento superior: Sobrelosa de hormigón liviano de espesor 41 [mm] sobre membrana acùstica de gránulos de caucho de espesor 5 [mm], a su vez, sobre placa de madera terciada de espesor 15 [mm]. Revestimiento inferior: doble placa de yeso cartón RF de espesor 15[mm] traslapadas. Cavidad interior: de altura interior 205 [mm], rellena con lana de vidrio en rollo libre de espesor 120 [mm] y densidad 14 [kg/m³]",
-    "pagina_pdf": 47
+    "pagina_pdf": 48
   },
   "D.EP.M.01.03": {
     "codigo": "D.EP.M.01.03",
@@ -304,7 +305,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "terreno",
     "vigencia": "mayo 2029",
     "detalle": "Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 33x185 [mm] distanciadas cada 40 [cm], más distanciadores afianzados por la cara inferior de las vigas de 20x41 [mm]. Revestimiento superior: Sobrelosa de hormigón liviano de espesor 41 [mm] sobre membrana acùstica de gránulos de caucho de espesor 5 [mm], a su vez, sobre placa de madera terciada de espesor 15 [mm]. Revestimiento inferior: doble placa de yeso cartón RF de espesor 15[mm] traslapadas. Cavidad interior: de altura interior 205 [mm], rellena con lana de vidrio en rollo libre de espesor 120 [mm] y densidad 14 [kg/m³]",
-    "pagina_pdf": 48
+    "pagina_pdf": 49
   },
   "D.EP.M.01.04": {
     "codigo": "D.EP.M.01.04",
@@ -326,7 +327,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "terreno",
     "vigencia": "mayo 2029",
     "detalle": "Entrepiso de entramado ligero de madera Estructura: Estructura de pino con vigas I-Joist de 241 [mm] con alas de 38x63 [mm] distanciadas cada 60 [cm], más cadenetas fijadas perpendicularmente al ala inferior de las vigas de de 2x2''. Revestimiento superior: Sobrelosa de hormigón liviano de espesor 41 [mm] sobre membrana acùstica de gránulos de caucho de espesor 5 [mm], a su vez, sobre placa de madera terciada de espesor 15 [mm]. Revestimiento inferior: doble placa de yeso cartón RF de espesor 15[mm] traslapadas. Cavidad interior: de altura interior 241 [mm], rellena con lana de vidrio en rollo libre de espesor 120 [mm] y densidad 14 [kg/m³]",
-    "pagina_pdf": 49
+    "pagina_pdf": 50
   },
   "D.EP.O.02.01": {
     "codigo": "D.EP.O.02.01",
@@ -348,7 +349,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "terreno",
     "vigencia": "mayo 2029",
     "detalle": "Losa de hormigón armado nervada con vigas tipo T con moldajes de poliestireno expandido. Estructura: losa de hormigón de 50 mm armada apoyada sobre vigas de hormigón armado de 150 [mm] de altura y ancho 130 [mm] dispuestas cada 60 [cm]. Bajo la losa va como moldaje el sistema Panel losa aislante Deck de Syntheon, fabricado en poliestireno expandioa de densidad 20 [kg/m³] y altura 200 [mm] con perifles embebidos en la parte inferior de acero galvanizado C 130x45x5,2x0,75 distanciados cada 30 [cm]. Los paneles se unen de canto mediante machiembrado. Revestimiento superior: sin revestimiento. Revestimiento inferior: placa de yeso cartón ST de espesor 10 [mm] fijada a los montantes con tornillos cabeza de trompeta punta broca cada 30 [cm].",
-    "pagina_pdf": 50
+    "pagina_pdf": 51
   },
   "I.EP.H.01.01": {
     "codigo": "I.EP.H.01.01",
@@ -370,7 +371,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "76,1 58,6 63,0 64,5 38,9 46,1 39,3 41,3 73,8 47,9 49,5 51,9 45,9 77,0 77,1 77,7 800 200 250 315 76,4 39,3 38,7 38,5 41,3 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 72,2 72,5 76,9 76,3 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 74,4 73,0 400 500 R: Losa de hormigón armado sin revestimiento. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 110 [mm]. Revestimiento superior: sin revestimiento. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 75
+    "pagina_pdf": 76
   },
   "I.EP.H.01.02": {
     "codigo": "I.EP.H.01.02",
@@ -392,7 +393,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "72,7 61,5 62,2 64,7 37,6 42,2 38,7 39,2 75,8 46,9 48,4 49,5 43,8 75,0 74,3 73,7 800 200 250 315 72,9 38,1 41,3 41,2 42,3 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 65,9 68,1 70,6 72,6 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 68,9 65,8 400 500 R: Losa de hormigón armado sin revestimiento. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: sin revestimiento. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 76
+    "pagina_pdf": 77
   },
   "I.EP.H.01.03": {
     "codigo": "I.EP.H.01.03",
@@ -414,7 +415,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "71,0 42,9 47,7 49,4 39,9 42,9 40,6 43,6 72,6 48,8 50,9 51,8 45,6 73,4 72,9 72,6 800 200 250 315 72,3 44,6 43,5 43,5 42,8 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 54,9 58,8 65,1 69,4 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 61,6 55,7 400 500 R: Piso vinílico en tablones sobre losa de hormigón. Estructura: hormigón armado, densidad 2400 [kg/m³] y espesor 140 [mm]. Revestimiento superior: piso vinílico en tablones de espesor 3 [mm] pegado mediante una capa de adhesivo de contacto sobra la losa de hormigón. Revestimiento inferior: sin revestimiento.",
-    "pagina_pdf": 77
+    "pagina_pdf": 78
   },
   "I.EP.M.01.01": {
     "codigo": "I.EP.M.01.01",
@@ -436,7 +437,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "55,1 86,0 85,0 81,1 15,9 38,2 15,3 26,5 73,4 43,6 45,9 48,2 41,0 69,7 66,5 62,6 800 200 250 315 59,0 32,7 34,9 33,8 36,6 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 81,6 79,6 78,3 76,9 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 48,8 43,5 400 500 R: Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 45x142 [mm] distanciadas cada 40 [cm]. Revestimiento superior: placa de OSB de espesor 18 [mm]. Revestimiento inferior: placa de fibrocemento de espesor 6 [mm]. Cavidad interior: de espesor 142 [mm], rellena con lana de vidrio de densidad 14 [kg/m³] y espesor 140 [mm].",
-    "pagina_pdf": 78
+    "pagina_pdf": 79
   },
   "I.EP.M.01.02": {
     "codigo": "I.EP.M.01.02",
@@ -458,7 +459,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "58,6 80,5 84,9 84,7 23,3 37,6 16,9 17,5 74,1 40,7 44,1 45,4 38,2 73,1 70,3 63,9 800 200 250 315 62,1 30,4 35,8 33,0 33,7 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 80,2 77,8 80,9 79,1 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 50,1 43,1 400 500 R: Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 45x142 [mm] distanciadas cada 40 [cm]. Revestimiento superior: placa de OSB de espesor 18 [mm]. Revestimiento inferior: placa de yeso cartón RF de espesor 12,5 [mm]. Cavidad interior: de espesor 142 [mm], rellena con lana de vidrio de densidad 14 [kg/m³] y espesor 140 [mm].",
-    "pagina_pdf": 79
+    "pagina_pdf": 80
   },
   "I.EP.M.01.03": {
     "codigo": "I.EP.M.01.03",
@@ -480,7 +481,7 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "68,1 82,9 85,8 82,4 14,1 36,3 11,6 24,0 80,9 42,6 44,3 45,9 39,4 78,3 76,2 73,2 800 200 250 315 71,9 26,2 31,3 34,6 34,9 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 83,7 83,2 81,3 81,4 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 61,6 58,1 400 500 R: Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 45x142 [mm] distanciadas cada 40 [cm]. Revestimiento superior: placa de madera contrachapada de espesor 18 [mm]. Revestimiento inferior: placa de fibrocemento de espesor 6 [mm]. Cavidad interior: de espesor 142 [mm], rellena con lana de vidrio de densidad 14 [kg/m³] y espesor 140 [mm].",
-    "pagina_pdf": 80
+    "pagina_pdf": 81
   },
   "I.EP.M.01.04": {
     "codigo": "I.EP.M.01.04",
@@ -502,6 +503,6 @@ export const LOSCAA_ENTREPISOS = {
     "medicion": "laboratorio",
     "vigencia": "mayo 2029",
     "detalle": "67,1 78,9 86,7 89,3 19,0 36,5 15,7 14,2 80,6 41,4 42,8 44,4 37,7 78,3 76,2 73,4 800 200 250 315 70,7 26,3 30,9 33,6 33,2 630 Índice de Reducción Acústica f [Hz] R [dB] Ln [dB] 63 80 - - - - 1000 1250 82,3 81,7 82,3 82,4 2500 Ln: NPS de Impacto Normalizado 50 - - 100 125 160 4000 5000 62,1 57,1 400 500 R: Entrepiso de entramado ligero de madera. Estructura: Estructura de pino con vigas de 45x142 [mm] distanciadas cada 40 [cm]. Revestimiento superior: placa de madera contrachapada de espesor 18 [mm]. Revestimiento inferior: placa de yeso cartón RF de espesor 12,5 [mm]. Cavidad interior: de espesor 142 [mm], rellena con lana de vidrio de densidad 14 [kg/m³] y espesor 140 [mm].",
-    "pagina_pdf": 81
+    "pagina_pdf": 82
   }
 }
