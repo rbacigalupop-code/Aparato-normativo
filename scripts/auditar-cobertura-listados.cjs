@@ -42,8 +42,17 @@ const LISTADOS = [
     cargar: async () => {
       const base = Object.keys((await import('../src/data/loscaa.js')).LOSCAA)
       const ep = Object.keys((await import('../src/data/loscaa_entrepisos.js')).LOSCAA_ENTREPISOS)
-      return [...base, ...ep]
+      // loscaa_full.js trae las fichas MEJORA (ΔRw/ΔLw), incl. la familia RP.O
+      // (revestimientos de piso). Son datos presentes aunque el módulo acústico
+      // aún no las cablee en la UI (wiring pendiente).
+      const full = Object.keys((await import('../src/data/loscaa_full.js')).LOSCAA_FULL)
+      return [...base, ...ep, ...full]
     },
+    // Códigos que el PDF oficial LISTA EN SU ÍNDICE pero para los que NO incluye
+    // ficha de detalle (sin Rw/Ln,w certificable). Verificado 2026-07-24: aparecen
+    // en el índice (pág 2-3) y sus títulos no figuran en ninguna ficha con "CÓDIGO:".
+    // No se cargan porque inventar un valor certificado viola la honestidad del cruce.
+    sinFichaPDF: new Set(['D.M.A.03.06', 'D.M.A.03.07', 'I.M.M.02.01']),
   },
 ]
 
@@ -61,12 +70,17 @@ function codigosDelPdf(pdf, re) {
     catch (e) { console.log('  ⚠ no se pudo leer el PDF:', path.basename(L.pdf)); continue }
 
     const cargados = new Set(await L.cargar())
-    const faltan = [...enPdf].filter(c => !cargados.has(c)).sort()
+    const sinFicha = L.sinFichaPDF || new Set()
+    // "faltan" = en el PDF, no cargados y CON ficha extraíble (los sin-ficha no cuentan)
+    const faltan = [...enPdf].filter(c => !cargados.has(c) && !sinFicha.has(c)).sort()
+    const sinFichaPresentes = [...enPdf].filter(c => sinFicha.has(c) && !cargados.has(c)).sort()
     const sobran = [...cargados].filter(c => !enPdf.has(c)).sort()
 
     console.log(`  en el PDF : ${enPdf.size}`)
     console.log(`  cargados  : ${cargados.size}`)
     console.log(`  FALTAN    : ${faltan.length}`)
+    if (sinFichaPresentes.length)
+      console.log(`  sin ficha : ${sinFichaPresentes.length}  (en índice del PDF pero sin ficha de detalle — no extraíbles: ${sinFichaPresentes.join(', ')})`)
     console.log(`  sobran    : ${sobran.length}  (cargados que el PDF ya no lista)`)
 
     if (faltan.length) {

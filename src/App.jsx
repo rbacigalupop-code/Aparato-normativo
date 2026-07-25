@@ -5,7 +5,11 @@ import MigrationGate from './MigrationGate.jsx'
 import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
-import { rwFachadaCompuesta } from './lib/engines/acoustic.js'
+import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
+
+// L'n,w efectivo del entrepiso = base − ΔL,w del revestimiento elegido (si hay).
+// Envuelve lnwConMejora del motor para recibir el objeto de estado completo.
+const lnwEfectivo = (acImpactoPisos) => lnwConMejora(acImpactoPisos?.lnw, acImpactoPisos?.mejora)
 import { resolverAplicacionSC } from './lib/aplicarSolucion.js'
 import { analizarGlaserAnual } from './lib/engines/glaser_mensual.js'
 import { climaMensual } from './data/clima_mensual.js'
@@ -4091,13 +4095,16 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
               </td>
               <td style={S.td}>
                 {(() => {
-                  const lnw = parseFloat(termica.ac_impacto_pisos?.lnw || 0)
-                  if (!lnw || !acImpact.entre_pisos) return '—'
-                  const cumple = lnw <= acImpact.entre_pisos
+                  const { base, mejora, efectivo } = lnwEfectivo(termica.ac_impacto_pisos)
+                  if (!base || !acImpact.entre_pisos) return '—'
+                  const cumple = efectivo <= acImpact.entre_pisos
                   return (
                     <>
                       <span style={S.badge(cumple)}>{cumple?'CUMPLE':'NO CUMPLE'}</span>
-                      {!cumple && lnw - acImpact.entre_pisos <= 3 && (
+                      {mejora && (
+                        <div style={{ fontSize:10, color:'#0e6560', marginTop:2 }}>con {mejora.codigo}: {base} → {efectivo} dB</div>
+                      )}
+                      {!cumple && efectivo - acImpact.entre_pisos <= 3 && (
                         <div style={{ fontSize:10, color:'#b45309', marginTop:2 }}>⚠ Exceso ≤ 3 dB — verificar con ensayo NCh352</div>
                       )}
                     </>
@@ -4107,9 +4114,63 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
             </tr>
           </tbody>
         </table>
-        <div style={{ ...S.warn, marginTop:8 }}>
-          <b>Piso flotante:</b> agrega R≈0.10–0.15 m²K/W (térmico) y reduce L'n,w en ~15–25 dB (impacto).
-          Para cumplir impacto, considerar losa + piso flotante con material absorbente (lana mineral, EPS).
+        {/* ── Mejora certificada del impacto (LOSCAA RP.O) ──────────────── */}
+        <div style={{ marginTop:10, padding:10, background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:8 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'#0e6560', marginBottom:3 }}>
+            🔧 Mejorar el impacto con un revestimiento certificado (LOSCAA)
+          </div>
+          <div style={{ fontSize:11, color:'#64748b', marginBottom:8 }}>
+            Agrega un revestimiento de piso certificado sobre el entrepiso base. La ficha LOSCAA declara su mejora <b>ΔL,w</b> (impacto), que se resta al L'n,w base. Menor = mejor.
+          </div>
+          <select
+            value={termica.ac_impacto_pisos?.mejora || ''}
+            onChange={e => set('ac_impacto_pisos', 'mejora', e.target.value)}
+            style={{ ...ist, width:'100%', maxWidth:520 }}>
+            <option value="">— Sin revestimiento adicional —</option>
+            {MEJORAS_IMPACTO_PISO.map(m => (
+              <option key={m.codigo} value={m.codigo}>
+                {m.codigo} · {m.titulo} — ΔL,w −{m.delta_lw} dB{m.delta_rw_C != null ? ` · ΔRw+C ${m.delta_rw_C >= 0 ? '+' : ''}${m.delta_rw_C} dB` : ''}
+              </option>
+            ))}
+          </select>
+          {(() => {
+            const selCod = termica.ac_impacto_pisos?.mejora
+            if (!selCod) return null
+            const { base, mejora: mej, efectivo: mejorado } = lnwEfectivo(termica.ac_impacto_pisos)
+            if (!base || !mej) return (
+              <div style={{ fontSize:11, color:'#b45309', marginTop:8 }}>
+                Ingresa el L'n,w del entrepiso base (arriba) para ver el resultado con este revestimiento.
+              </div>
+            )
+            const req = acImpact.entre_pisos
+            const cumpleBase = req ? base <= req : null
+            const cumpleMej = req ? mejorado <= req : null
+            return (
+              <div style={{ marginTop:8, fontSize:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <span style={{ color:'#64748b' }}>Base <b>{base} dB</b></span>
+                  <span style={{ color:'#0e6560', fontWeight:700 }}>− {mej.delta_lw} (ΔL,w)</span>
+                  <span>→</span>
+                  <span style={{ fontWeight:800, color: cumpleMej === false ? '#b91c1c' : '#0e6560' }}>{mejorado} dB</span>
+                  {req && <span style={{ color:'#0f766e' }}>· máximo ≤ {req} dB</span>}
+                  {cumpleMej != null && <span style={S.badge(cumpleMej)}>{cumpleMej ? 'CUMPLE' : 'NO CUMPLE'}</span>}
+                </div>
+                {cumpleBase === false && cumpleMej === true && (
+                  <div style={{ fontSize:11, color:'#0e6560', marginTop:4 }}>
+                    ✓ Con {mej.codigo} el entrepiso pasa a cumplir el ruido de impacto.
+                  </div>
+                )}
+                {mej.delta_rw_C != null && mej.delta_rw_C < 0 && (
+                  <div style={{ fontSize:10.5, color:'#b45309', marginTop:4 }}>
+                    ⚠ Este revestimiento reduce el aislamiento aéreo en {Math.abs(mej.delta_rw_C)} dB (ΔRw+C {mej.delta_rw_C}) — verifica que el Rw+C aéreo siga cumpliendo.
+                  </div>
+                )}
+                <div style={{ fontSize:10, color:'#94a3b8', marginTop:4 }}>
+                  {mej.codigo} · mejora de laboratorio (NCh2786) — se aplica sobre el L'n,w base como aproximación conservadora. Fuente: LOSCAA ED13 2024.
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -7464,7 +7525,11 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
       { label:'Rw fachada',        val: _rwFachVal != null ? `${_rwFachVal} dB${_rwFachComp ? ' (muro+ventana)' : ''}` : null, max:`≥ ${AC_DEF[uso]?.fachada} dB`, ok: _rwFachVal == null || _rwFachVal >= _acFachReq, norma: _rwFachComp ? 'Composición muro+ventana en paralelo (ISO 12354-3)' : undefined },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
-      { label:"L'n,w impacto pisos", val: termica.ac_impacto_pisos?.lnw ? termica.ac_impacto_pisos.lnw+' dB':null, max:`≤ ${AC_IMPACT_DEF[uso]?.entre_pisos} dB`, ok: !termica.ac_impacto_pisos?.lnw || parseFloat(termica.ac_impacto_pisos.lnw) <= (AC_IMPACT_DEF[uso]?.entre_pisos||99) },
+      (() => {
+        const { base, mejora, efectivo } = lnwEfectivo(termica.ac_impacto_pisos)
+        const lim = AC_IMPACT_DEF[uso]?.entre_pisos
+        return { label:"L'n,w impacto pisos", val: base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null, max:`≤ ${lim} dB`, ok: !base || efectivo <= (lim||99) }
+      })(),
     ]
     // Cruce acústico ESTIMADO de una solución PDA de muro (Rw ley de masa vs
     // fachada NCh352). No certificado → informativo: se muestra pero NO gatea el
@@ -7943,12 +8008,12 @@ ${glaserHtml}`
         <td>${rw && e.req ? `<span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span>` : '—'}</td>
       </tr>`
     }).join('')
-    const lnwImpact = parseFloat(termica.ac_impacto_pisos?.lnw || 0)
+    const { base: lnwImpact, mejora: lnwMejora, efectivo: lnwEfec } = lnwEfectivo(termica.ac_impacto_pisos)
     const lnwReq = AC_IMPACT_DEF[uso]?.entre_pisos
-    const lnwCumple = !lnwImpact || !lnwReq || lnwImpact <= lnwReq
+    const lnwCumple = !lnwImpact || !lnwReq || lnwEfec <= lnwReq
     const lnwRow = lnwImpact ? `<tr>
-      <td>Entre pisos — ruido de impacto L'n,w</td>
-      <td><b>${lnwImpact} dB</b></td>
+      <td>Entre pisos — ruido de impacto L'n,w${lnwMejora ? ` <span style="font-size:9pt;color:#64748b">+ ${lnwMejora.codigo} ${lnwMejora.titulo} (ΔL,w −${lnwMejora.delta_lw})</span>` : ''}</td>
+      <td><b>${lnwEfec} dB</b>${lnwMejora ? ` <span style="font-size:9pt;color:#64748b">(base ${lnwImpact})</span>` : ''}</td>
       <td style="color:#0f766e;font-weight:700">${lnwReq ? '≤ '+lnwReq+' dB' : '—'}</td>
       <td>${lnwReq ? `<span class="${lnwCumple?'badge-ok':'badge-no'}">${lnwCumple?'CUMPLE':'NO CUMPLE'}</span>` : '—'}</td>
     </tr>` : ''

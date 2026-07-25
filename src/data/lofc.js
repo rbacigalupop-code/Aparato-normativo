@@ -6,7 +6,7 @@
 // Auto-generado por scripts/extraer-lofc.js
 // NO EDITAR A MANO. Si necesitas modificar, edita el script y re-ejecuta.
 //
-// Total items LOFC: 275
+// Total items LOFC: 303
 // Tablas macizos: 4
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -4587,6 +4587,442 @@ export const LOFC = {
     ],
     "tipo_elemento": "otro",
     "edicion": "anterior"
+  },
+  "A.2.3.120.107": {
+    "codigo": "A.2.3.120.107",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F120",
+    "rf_minutos": 120,
+    "item": 107,
+    "descripcion": "Tabique Perimetral, Doble placa Knauf RF 15 mm, Doble placa de cemento Aquapanel Outdoor 12.5 mm, e= 144 mm",
+    "espesor_mm": 144,
+    "materiales": [
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "ED17-2025"
+  },
+  "A.2.3.120.61": {
+    "codigo": "A.2.3.120.61",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F120",
+    "rf_minutos": 120,
+    "item": 61,
+    "descripcion": "Tabique Divisorio Estructura de acero galvanizado con revestimiento de 2 yeso carton RF por ambas caras, con aislacion",
+    "espesor_mm": null,
+    "materiales": [
+      "acero",
+      "yeso_carton"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.120.85": {
+    "codigo": "A.2.3.120.85",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F120",
+    "rf_minutos": 120,
+    "item": 85,
+    "descripcion": "Tabique Interior con 4 placas de yeso carton Knauf Impact de 15 mm y marco de madera 32x32 mm e=60 mm",
+    "espesor_mm": 60,
+    "materiales": [
+      "madera",
+      "yeso_carton"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.15.110": {
+    "codigo": "A.2.3.15.110",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 110,
+    "descripcion": "Muro de estructura madera con revestimiento interior de yeso carton 10 mm y exterior de fibrocemento 6 mm, con aislacion",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique_o_panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.15.112": {
+    "codigo": "A.2.3.15.112",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 112,
+    "descripcion": "Muro estructurado en MGP10, 35 x 70 mm revestimiento interior de yeso – carton 10 mm y exterior Smart Panel con aislacion de celulosa",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton"
+    ],
+    "tipo_elemento": "panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.15.113": {
+    "codigo": "A.2.3.15.113",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 113,
+    "descripcion": "Muro perimetral estructurado con madera impregnada de 2 x 3, revestimiento exterior madera machihembrada ¾ x 5 e interior yeso carton ST 10 mm, con aislacion",
+    "espesor_mm": null,
+    "materiales": [
+      "madera"
+    ],
+    "tipo_elemento": "tabique_o_panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.15.114": {
+    "codigo": "A.2.3.15.114",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 114,
+    "descripcion": "Muro perimetral estructurado con madera impregnada de 2 x 3, revestimiento exterior madera machihembrada ¾ x 5 e interior fibrocemento de 6 mm, con aislacion",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique_o_panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.15.134": {
+    "codigo": "A.2.3.15.134",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 134,
+    "descripcion": "Tabique placas de terciado marino estructural de 18 [mm], Placas de OSB con terminacion exterior de 11,1 [mm] e=98,2 mm",
+    "espesor_mm": 98.2,
+    "materiales": [
+      "madera"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.150.15": {
+    "codigo": "A.2.3.150.15",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F150",
+    "rf_minutos": 150,
+    "item": 15,
+    "descripcion": "Tabique Perimetral, Doble placa de yeso-carton Volcan® RH de 12,5 [mm] mas Ceramica pulida de 9 [mm] de espesor, Doble placa de yeso- carton Volcan® RF de 12,5 [mm], e=149 mm",
+    "espesor_mm": 149,
+    "materiales": [
+      "yeso_carton"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.30.150": {
+    "codigo": "A.2.3.30.150",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F30",
+    "rf_minutos": 30,
+    "item": 150,
+    "descripcion": "Muro estructurado en MGP10, 35 x 70 mm revestimiento interior de fibrocemento 6 mm y exterior Smart Panel con aislacion de celulosa",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.30.172": {
+    "codigo": "A.2.3.30.172",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F30",
+    "rf_minutos": 30,
+    "item": 172,
+    "descripcion": "Tabique Divisorio, doble placa yeso-carton “Volcan® ST” de 10 [mm] de espesor, Doble placa de yeso-carton “Volcan® ST” de 10 [mm] de espesor e=130 mm",
+    "espesor_mm": 130,
+    "materiales": [
+      "yeso_carton"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.30.178": {
+    "codigo": "A.2.3.30.178",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F30",
+    "rf_minutos": 30,
+    "item": 178,
+    "descripcion": "Tabique Interior con placa Knauf ST de 10 mm, placa SPGlass Knauf de 12,5 mm y acabado EIFS de 30 mm e=112,5 mm",
+    "espesor_mm": 112.5,
+    "materiales": [],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.30.179": {
+    "codigo": "A.2.3.30.179",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F30",
+    "rf_minutos": 30,
+    "item": 179,
+    "descripcion": "Tabique Perimetral con placas Knauf ST 10 mm, Aquapanel Residential 8 mm y estructura de madera pino radiata 2x3” e=94 mm",
+    "espesor_mm": 94,
+    "materiales": [
+      "madera",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.30.180": {
+    "codigo": "A.2.3.30.180",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F30",
+    "rf_minutos": 30,
+    "item": 180,
+    "descripcion": "Tabique Perimetral, con placas de cemento Aquapanel Outdoor de 12,5 mm, Poliestireno expandido de 90 mm, Panel SIP AQUAPANEL, e=117 mm",
+    "espesor_mm": 117,
+    "materiales": [
+      "sip",
+      "fibrocemento",
+      "eps"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.60.100": {
+    "codigo": "A.2.3.60.100",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F60",
+    "rf_minutos": 60,
+    "item": 100,
+    "descripcion": "Muro divisorio compuesto por dos paneles estructurados en madera graduada revestidos con Aislanforte 12 mm mas fibra de vidrio y aislacion de lana mineral",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "lana_mineral"
+    ],
+    "tipo_elemento": "panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.60.101": {
+    "codigo": "A.2.3.60.101",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F60",
+    "rf_minutos": 60,
+    "item": 101,
+    "descripcion": "Muro estructurado en MGP10, 35 x 70 mm revestimiento interior de yeso – carton XR 15 mm mas fibrocemento 8 mm y exterior Smart Panel con aislacion de celulosa",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.60.142": {
+    "codigo": "A.2.3.60.142",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F60",
+    "rf_minutos": 60,
+    "item": 142,
+    "descripcion": "Tabique Perimetral con placa Knauf Impact RH 15mm, Knauf SPGLASS 12,5 mm + EIFS 30 mm e=147,5 mm",
+    "espesor_mm": 147.5,
+    "materiales": [],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.60.99": {
+    "codigo": "A.2.3.60.99",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F60",
+    "rf_minutos": 60,
+    "item": 99,
+    "descripcion": "Muro divisorio compuesto por dos paneles estructurados en madera graduada con revestimiento de yeso carton XR 15mm y Fibrocemento 8 mm, con aislacion de celulosa",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "panel",
+    "edicion": "anterior"
+  },
+  "A.2.3.90.54": {
+    "codigo": "A.2.3.90.54",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F90",
+    "rf_minutos": 90,
+    "item": 54,
+    "descripcion": "Tabique Exterior, Sistema Promatect H/Permanit, FS Fibrocilicato 10 mm + FC Permanit 10 mm",
+    "espesor_mm": null,
+    "materiales": [
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.90.55": {
+    "codigo": "A.2.3.90.55",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F90",
+    "rf_minutos": 90,
+    "item": 55,
+    "descripcion": "Tabique Perimetral con placa cemento Aquapanel Outdoor de Knauf 12,5mm, placa cemento Aquapanel Residential Knauf 8 mm, placa cemento Aquapanel Outdoor de Knauf 12,5 mm e=33 mm",
+    "espesor_mm": 33,
+    "materiales": [
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "A.2.3.90.58": {
+    "codigo": "A.2.3.90.58",
+    "seccion": "A.2.3",
+    "seccion_desc": "Paneles, tabiques y entramados ligeros",
+    "rf": "F90",
+    "rf_minutos": 90,
+    "item": 58,
+    "descripcion": "Tabique Perimetral con doble placa yeso carton Knauf Diamant de 15 mm, placa de cemento Aquapanel Outdoor de 12,5 mm e=133 mm",
+    "espesor_mm": 133,
+    "materiales": [
+      "yeso_carton",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "tabique",
+    "edicion": "anterior"
+  },
+  "B.2.1.30.01": {
+    "codigo": "B.2.1.30.01",
+    "seccion": "B.2.1",
+    "seccion_desc": "",
+    "rf": "F30",
+    "rf_minutos": 30,
+    "item": 1,
+    "descripcion": "Pilar de acero tipo cajon plegado mas mortero Igniver espesor 12 mm mas base hormigon armado en ambos extremos del pilar",
+    "espesor_mm": 12,
+    "materiales": [
+      "acero"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
+  },
+  "B.2.1.60.03": {
+    "codigo": "B.2.1.60.03",
+    "seccion": "B.2.1",
+    "seccion_desc": "",
+    "rf": "F60",
+    "rf_minutos": 60,
+    "item": 3,
+    "descripcion": "Pilar de acero tipo cajon plegado mas mortero Igniver espesor 23 mm mas base hormigon armado en ambos extremos del pilar",
+    "espesor_mm": 23,
+    "materiales": [
+      "acero"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
+  },
+  "B.2.1.90.03": {
+    "codigo": "B.2.1.90.03",
+    "seccion": "B.2.1",
+    "seccion_desc": "",
+    "rf": "F90",
+    "rf_minutos": 90,
+    "item": 3,
+    "descripcion": "Pilar de acero tipo cajon plegado mas mortero Igniver espesor 26 mm mas base hormigon armado en ambos extremos del pilar",
+    "espesor_mm": 26,
+    "materiales": [
+      "acero"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
+  },
+  "F.2.1.15.57": {
+    "codigo": "F.2.1.15.57",
+    "seccion": "F.2.1",
+    "seccion_desc": "",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 57,
+    "descripcion": "Techumbre tipo caseton de un agua, estructurada en madera cubierta de zincalum y revesitimiento interior de yeso carton de 10 mm, con aislacion",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
+  },
+  "F.2.1.15.58": {
+    "codigo": "F.2.1.15.58",
+    "seccion": "F.2.1",
+    "seccion_desc": "",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 58,
+    "descripcion": "Techumbre con cerchas de madera MGP10, 35 x 70 mm revestimiento superior zincalum 0,35 mm e inferior yeso carton 10 mm, con aislacion de celulosa",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
+  },
+  "G.2.1.15.10": {
+    "codigo": "G.2.1.15.10",
+    "seccion": "G.2.1",
+    "seccion_desc": "",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 10,
+    "descripcion": "Entrepiso estructurado en MGP10, 35 x 138 mm revestimiento superior Araucoply 15 mm e inferior yeso carton 10 mm",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "yeso_carton"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
+  },
+  "G.2.1.15.11": {
+    "codigo": "G.2.1.15.11",
+    "seccion": "G.2.1",
+    "seccion_desc": "",
+    "rf": "F15",
+    "rf_minutos": 15,
+    "item": 11,
+    "descripcion": "Entrepiso estructurado en MGP10, 35 x 138 mm revestimiento superior Araucoply 15 mm e inferior fibrocemento 6 mm",
+    "espesor_mm": null,
+    "materiales": [
+      "madera",
+      "fibrocemento"
+    ],
+    "tipo_elemento": "otro",
+    "edicion": "anterior"
   }
 }
 
@@ -4690,4 +5126,4 @@ export const LOFC_MACIZOS = {
   }
 }
 
-export const LOFC_TOTAL_ITEMS = 275
+export const LOFC_TOTAL_ITEMS = 303

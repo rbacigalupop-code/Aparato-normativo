@@ -14,6 +14,8 @@ import {
   calcularMejoraAcustica,
   validarRwCumplimiento,
   rwFachadaCompuesta,
+  MEJORAS_IMPACTO_PISO,
+  lnwConMejora,
 } from '../lib/engines/acoustic.js'
 
 describe('estimarRwComposicion — paralelo (ISO 12354-3)', () => {
@@ -97,5 +99,45 @@ describe('rwFachadaCompuesta — muro + ventana en paralelo', () => {
     expect(rwFachadaCompuesta({ rwMuro: 0, rwVentana: 30, pctVidriado: 30 })).toBeNull()
     expect(rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 0 })).toBeNull()
     expect(rwFachadaCompuesta({ rwMuro: 50, rwVentana: 30, pctVidriado: 120 })).toBeNull()
+  })
+})
+
+describe('MEJORAS_IMPACTO_PISO — revestimientos certificados de impacto (LOSCAA RP.O)', () => {
+  it('carga la familia RP.O con ΔL,w positivo, ordenada desc', () => {
+    expect(MEJORAS_IMPACTO_PISO.length).toBeGreaterThanOrEqual(9)
+    for (const m of MEJORAS_IMPACTO_PISO) {
+      expect(m.es_mejora).toBe(true)
+      expect(m.delta_lw).toBeGreaterThan(0)
+    }
+    // orden descendente por ΔL,w
+    for (let i = 1; i < MEJORAS_IMPACTO_PISO.length; i++)
+      expect(MEJORAS_IMPACTO_PISO[i - 1].delta_lw).toBeGreaterThanOrEqual(MEJORAS_IMPACTO_PISO[i].delta_lw)
+  })
+
+  it('RP.O.01.05 tiene título real (no el glitch "INSTITUCIÓN: MINVU…")', () => {
+    const m = MEJORAS_IMPACTO_PISO.find(x => x.codigo === 'RP.O.01.05')
+    expect(m).toBeTruthy()
+    expect(m.titulo).not.toMatch(/INSTITUCI[ÓO]N/i)
+    expect(m.titulo).toMatch(/cielo falso/i)
+  })
+})
+
+describe("lnwConMejora — L'n,w efectivo = base − ΔL,w", () => {
+  it('resta el ΔL,w del revestimiento elegido (menor = mejor)', () => {
+    // RP.O.01.04 Piso fotolaminado: ΔL,w 20 → 78 pasa a 58 (cumple ≤ 75)
+    const r = lnwConMejora(78, 'RP.O.01.04')
+    expect(r.base).toBe(78)
+    expect(r.mejora.codigo).toBe('RP.O.01.04')
+    expect(r.efectivo).toBe(58)
+  })
+
+  it('sin código o sin base no altera nada', () => {
+    expect(lnwConMejora(78, '')).toEqual({ base: 78, mejora: null, efectivo: 78 })
+    expect(lnwConMejora(0, 'RP.O.01.04')).toEqual({ base: 0, mejora: null, efectivo: 0 })
+    expect(lnwConMejora('', 'RP.O.01.04').efectivo).toBe(0)
+  })
+
+  it('código inexistente se ignora (no rompe)', () => {
+    expect(lnwConMejora(70, 'NO.EXISTE')).toEqual({ base: 70, mejora: null, efectivo: 70 })
   })
 })

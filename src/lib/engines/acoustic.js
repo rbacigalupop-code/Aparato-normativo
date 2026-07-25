@@ -9,6 +9,29 @@
  * Todas cubiertas por tests (acoustic_engine.test.js).
  */
 
+import { LOSCAA_FULL } from '../../data/loscaa_full.js'
+
+// ─── Mejora de ruido de impacto con revestimiento de piso certificado ────────
+// LOSCAA familia RP.O: revestimientos que declaran una mejora ΔL,w (impacto),
+// sumable a un entrepiso base. Menor L'n,w = mejor. Ordenados por ΔL,w desc.
+export const MEJORAS_IMPACTO_PISO = Object.values(LOSCAA_FULL)
+  .filter(m => m.es_mejora && m.delta_lw != null && m.delta_lw > 0)
+  .sort((a, b) => b.delta_lw - a.delta_lw)
+
+const MEJORAS_IMPACTO_MAP = Object.fromEntries(MEJORAS_IMPACTO_PISO.map(m => [m.codigo, m]))
+
+/**
+ * L'n,w efectivo de un entrepiso = base − ΔL,w del revestimiento elegido.
+ * @param {number|string} lnwBase  L'n,w del entrepiso base (dB)
+ * @param {string} codigo          código LOSCAA del revestimiento (o vacío)
+ * @returns {{ base:number, mejora:object|null, efectivo:number }}
+ */
+export function lnwConMejora(lnwBase, codigo) {
+  const base = parseFloat(lnwBase) || 0
+  const mejora = base ? (MEJORAS_IMPACTO_MAP[codigo] || null) : null
+  return { base, mejora, efectivo: mejora ? base - mejora.delta_lw : base }
+}
+
 // ─── Validación de cumplimiento Rw (índice de reducción acústica) ────────────
 export function validarRwCumplimiento(rwActual, rwRequerida) {
   if (!rwRequerida) return { cumple: true, motivo: 'Sin requisito' }

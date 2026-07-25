@@ -1658,7 +1658,7 @@ export const LOSCAA_FULL = {
   "RP.O.01.05": {
     "pagina_pdf": 93,
     "codigo": "RP.O.01.05",
-    "titulo": "INSTITUCIÓN: MINVU                           ACREDITACIÓN                    VIGENTE HASTA: mayo 2029",
+    "titulo": "Cielo falso con estructura de pino de 2x2'' + yeso cartón ST e = 10 mm, relleno con lana de vidrio",
     "categoria": "revestimiento_piso",
     "elemento": "otros",
     "material": "otros",
