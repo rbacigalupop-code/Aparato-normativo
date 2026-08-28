@@ -7,6 +7,7 @@ import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, re
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
 import { corteSVG } from './lib/engines/capas.js'
+import Modelo3D from './components/Modelo3D.jsx'
 
 // L'n,w efectivo del entrepiso = base − ΔL,w del revestimiento elegido (si hay).
 // Envuelve lnwConMejora del motor para recibir el objeto de estado completo.
@@ -4413,6 +4414,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   const [pisoTipo, setPisoTipo] = useState('ventilado') // 'ventilado'|'terreno'|'no_calef'
   const [corteInvert, setCorteInvert] = useState(false)   // voltear orden del corte de capas
   const [cortePisoModo, setCortePisoModo] = useState(null) // null=auto · 'radier'|'entrepiso'
+  const [show3D, setShow3D] = useState(false)             // modal del modelo 3D
   const [pisoAg,   setPisoAg]   = useState('')           // área piso Ag (m²)
   const [pisoPg,   setPisoPg]   = useState('')           // perímetro expuesto Pg (m)
   const [pisoLg,   setPisoLg]   = useState('2.0')        // λ suelo (W/mK)
@@ -5242,10 +5244,30 @@ ${cambios.length && solucion ? `
               <button onClick={() => setCorteInvert(v => !v)} title="Invertir el orden mostrado (por si el guardado viene al revés)"
                 style={{ fontSize:11, padding:'3px 9px', border:'1px solid #e2e8f0', borderRadius:6,
                   background: corteInvert ? '#0f766e' : '#fff', color: corteInvert ? '#fff' : '#64748b', cursor:'pointer' }}>⇅ Invertir</button>
+              <button onClick={() => setShow3D(true)} title="Ver el elemento en 3D"
+                style={{ fontSize:11, padding:'3px 10px', border:'1px solid #0f766e', borderRadius:6,
+                  background:'#0f766e', color:'#fff', cursor:'pointer', fontWeight:600 }}>◱ Ver en 3D</button>
             </div>
           </div>
           <div style={{ color:'#334155', overflowX:'auto' }}
                dangerouslySetInnerHTML={{ __html: corteSVG(capas, { elemTipo, invert: corteInvert, pisoSubtipo }) }} />
+
+          {show3D && (
+            <div onClick={() => setShow3D(false)}
+              style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(15,23,42,0.55)',
+                display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+              <div onClick={e => e.stopPropagation()}
+                style={{ background:'#fff', borderRadius:14, padding:'16px 18px', width:'min(680px,96vw)', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+                <div style={{ display:'flex', alignItems:'center', marginBottom:10 }}>
+                  <span style={{ fontWeight:700, fontSize:14, color:'#0f172a' }}>Modelo 3D del elemento</span>
+                  <span style={{ marginLeft:10, fontSize:11, color:'#94a3b8' }}>{solucion?.cod || ''} · {elemTipo}</span>
+                  <button onClick={() => setShow3D(false)} aria-label="Cerrar"
+                    style={{ marginLeft:'auto', width:30, height:30, borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontSize:16 }}>✕</button>
+                </div>
+                <Modelo3D capas={capas} elemTipo={elemTipo} invert={corteInvert} pisoSubtipo={pisoSubtipo} />
+              </div>
+            </div>
+          )}
         </div>
         )
       })()}

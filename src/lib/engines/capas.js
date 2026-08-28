@@ -85,6 +85,25 @@ export function layersForCorte(capas, elemTipo, opt = {}) {
   return { layers, orient: orientacion(elemTipo, opt.pisoSubtipo) }
 }
 
+/**
+ * Capas listas para el modelo 3D: color resuelto + rol + datos de montante.
+ * Reusa el orden/orientación del corte 2D.
+ */
+export function layers3D(capas, elemTipo, opt = {}) {
+  const { layers, orient } = layersForCorte(capas, elemTipo, opt)
+  return {
+    orient,
+    layers: layers.map(L => ({
+      name: L.name,
+      mm: L.mm || 2,
+      color: MATERIAL_COLORS[L.matKey] || MATERIAL_COLORS.otro,
+      role: L.estructura ? 'cavity' : (L.esCamara ? 'camara' : 'solid'),
+      studColor: L.estructura ? (STRUCT_MATS[L.estructura.tipo]?.color || '#334155') : null,
+      studDist: L.estructura ? (parseFloat(L.estructura.distancia_mm) || 600) : null,
+    })),
+  }
+}
+
 const escSVG = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 /**
