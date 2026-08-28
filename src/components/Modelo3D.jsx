@@ -17,11 +17,13 @@ function shade(s, f) {
 }
 const truncar = (s, max = 15) => (s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s)
 
-// Orientación base del elemento: muro/tabique vertical (0), piso horizontal (−90°),
-// cubierta inclinada (−60° ≈ pendiente de techo). Se aplica antes del giro del usuario.
+// Orientación base del elemento: muro/tabique vertical (0), piso horizontal (+90°),
+// cubierta inclinada (+60° ≈ pendiente de techo). Se aplica antes del giro del usuario.
+// Signo POSITIVO: deja la capa 0 (terminación/exterior, la "de arriba" en el corte)
+// en la cara SUPERIOR — así el 3D coincide con el orden del corte 2D.
 function baseTiltDe(elemTipo) {
-  if (elemTipo === 'piso') return -Math.PI / 2
-  if (elemTipo === 'techumbre') return -Math.PI / 3
+  if (elemTipo === 'piso') return Math.PI / 2
+  if (elemTipo === 'techumbre') return Math.PI / 3
   return 0
 }
 
