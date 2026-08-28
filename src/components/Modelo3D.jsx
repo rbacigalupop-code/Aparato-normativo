@@ -15,6 +15,15 @@ function shade(s, f) {
   const c = toRGB(s)
   return `rgb(${Math.min(255, c[0] * f | 0)},${Math.min(255, c[1] * f | 0)},${Math.min(255, c[2] * f | 0)})`
 }
+const truncar = (s, max = 15) => (s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s)
+
+// Orientación base del elemento: muro/tabique vertical (0), piso horizontal (−90°),
+// cubierta inclinada (−60° ≈ pendiente de techo). Se aplica antes del giro del usuario.
+function baseTiltDe(elemTipo) {
+  if (elemTipo === 'piso') return -Math.PI / 2
+  if (elemTipo === 'techumbre') return -Math.PI / 3
+  return 0
+}
 
 /**
  * Modelo 3D del elemento (Canvas, sin dependencias). Bloques por capa apiladas
@@ -23,7 +32,7 @@ function shade(s, f) {
  */
 export default function Modelo3D({ capas, elemTipo, invert, pisoSubtipo, height = 340 }) {
   const canvasRef = useRef(null)
-  const view = useRef({ yaw: -0.62, pitch: 0.40, zoom: 1.5, explode: 0.3 })
+  const view = useRef({ yaw: -0.62, pitch: 0.40, zoom: 1.3, explode: 0.3 })
   const dims = useRef({ W: 0, H: 0 })
   const layersRef = useRef([])
   const drawRef = useRef(() => {})
@@ -31,6 +40,8 @@ export default function Modelo3D({ capas, elemTipo, invert, pisoSubtipo, height 
 
   const { layers } = layers3D(capas, elemTipo, { invert, pisoSubtipo })
   layersRef.current = layers
+  const baseTilt = useRef(0)
+  baseTilt.current = baseTiltDe(elemTipo)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -46,8 +57,12 @@ export default function Modelo3D({ capas, elemTipo, invert, pisoSubtipo, height 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); dims.current = { W, H }
     }
     function rot(p) {
+      // 1) inclinación base (orienta el elemento según su tipo)
+      const bt = baseTilt.current, cb = Math.cos(bt), sb = Math.sin(bt)
+      const x0 = p[0], y0 = p[1] * cb - p[2] * sb, z0 = p[1] * sb + p[2] * cb
+      // 2) giro del usuario: yaw (Y) luego pitch (X)
       const { yaw, pitch } = view.current
-      const cy = Math.cos(yaw), sy = Math.sin(yaw), x = p[0] * cy + p[2] * sy, z = -p[0] * sy + p[2] * cy, y = p[1]
+      const cy = Math.cos(yaw), sy = Math.sin(yaw), x = x0 * cy + z0 * sy, z = -x0 * sy + z0 * cy, y = y0
       const cx = Math.cos(pitch), sx = Math.sin(pitch)
       return [x, y * cx - z * sx, y * sx + z * cx]
     }
@@ -72,9 +87,10 @@ export default function Modelo3D({ capas, elemTipo, invert, pisoSubtipo, height 
       const D = Math.max(24, Math.min(80, T * 0.34))
       const g = view.current.explode * 16, n = ls.length, totalD = D + (n - 1) * g
       let z = -totalD / 2
-      const faces = []
+      const faces = [], labelData = []
       ls.forEach(lay => {
         const t = (lay.mm || 2) / T * D, za = z, zb = z + t
+        labelData.push({ name: lay.name, zc: (za + zb) / 2 })
         if (lay.role === 'cavity') {
           const mY = 8, mX = 4, y0 = -hh + mY, y1 = hh - mY, x0 = -hw + mX, x1 = hw - mX
           const ncols = Math.max(2, Math.min(6, Math.round(900 / (lay.studDist || 600))))
@@ -93,12 +109,25 @@ export default function Modelo3D({ capas, elemTipo, invert, pisoSubtipo, height 
         z = zb + g
       })
       faces.sort((a, b) => a.dep - b.dep)
-      const cx = W / 2, cy = H / 2, zoom = view.current.zoom
+      const LABEL_W = 98, cx = (W - LABEL_W) / 2, cy = H / 2, zoom = view.current.zoom
       faces.forEach(f => {
         ctx.beginPath()
         for (let i = 0; i < 4; i++) { const p = f.pts[i], sx = cx + p[0] * zoom, sy = cy - p[1] * zoom; if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy) }
         ctx.closePath(); ctx.fillStyle = f.fill; ctx.fill()
         ctx.strokeStyle = '#64748b'; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.35; ctx.stroke(); ctx.globalAlpha = 1
+      })
+      // ── etiquetas de material con línea guía a cada capa ──────────────────
+      const LABEL_X = W - LABEL_W + 4, nL = labelData.length
+      ctx.font = '11px system-ui, sans-serif'; ctx.textBaseline = 'middle'
+      labelData.forEach((ld, i) => {
+        const a = rot([hw * 0.55, hh * 0.55, ld.zc])
+        const ax = cx + a[0] * zoom, ay = cy - a[1] * zoom
+        const ly = 22 + (nL > 1 ? i * (H - 70) / (nL - 1) : (H - 70) / 2)
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.globalAlpha = 0.8
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(LABEL_X - 5, ly); ctx.stroke(); ctx.globalAlpha = 1
+        ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(ax, ay, 1.8, 0, 6.29); ctx.fill()
+        ctx.fillStyle = '#334155'; ctx.textAlign = 'left'
+        ctx.fillText(truncar(ld.name), LABEL_X, ly)
       })
     }
     drawRef.current = draw
@@ -147,7 +176,7 @@ export default function Modelo3D({ capas, elemTipo, invert, pisoSubtipo, height 
   useEffect(() => { drawRef.current() }, [layers, invert, pisoSubtipo, elemTipo])
 
   const zoomBy = f => { view.current.zoom = Math.max(0.6, Math.min(4, view.current.zoom * f)); drawRef.current() }
-  const reset = () => { view.current = { yaw: -0.62, pitch: 0.40, zoom: 1.5, explode }; drawRef.current() }
+  const reset = () => { view.current = { yaw: -0.62, pitch: 0.40, zoom: 1.3, explode }; drawRef.current() }
   const onExplode = e => { const v = parseFloat(e.target.value); view.current.explode = v; setExplode(v); drawRef.current() }
 
   const btn = { width: 30, height: 30, borderRadius: 7, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', cursor: 'pointer', fontSize: 15, lineHeight: 1 }
