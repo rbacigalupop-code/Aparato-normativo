@@ -53,10 +53,26 @@ export function classifyMaterial(mat, flags = {}) {
 }
 
 /**
+ * Rótulos de orientación según el tipo de elemento y, en pisos, el subtipo.
+ * pisoSubtipo: 'radier' (a suelo → Terreno abajo) | 'entrepiso' (Cielo abajo).
+ */
+export function orientacion(elemTipo, pisoSubtipo) {
+  if (elemTipo === 'piso') {
+    return pisoSubtipo === 'entrepiso'
+      ? { top: 'Piso · unidad superior', bottom: 'Cielo · unidad inferior' }
+      : { top: 'Interior · terminación', bottom: 'Terreno' }   // radier a suelo (default)
+  }
+  return { top: 'Exterior', bottom: 'Interior' }   // muro / tabique / techumbre
+}
+
+/**
  * Normaliza el array de capas de la app a capas de dibujo, en orden físico.
+ * La app almacena interior→exterior; por defecto se muestra el lado exterior /
+ * la terminación ARRIBA (invierte). Como el orden guardado en pisos no está
+ * normalizado, `invert` permite voltearlo a mano desde la UI.
  * @returns {{ layers: Array, orient: {top, bottom} }}
  */
-export function layersForCorte(capas, elemTipo) {
+export function layersForCorte(capas, elemTipo, opt = {}) {
   const arr = (capas || []).map(c => ({
     name: c.esCamara ? 'Cámara de aire' : (c.mat || '—'),
     mm: c.esCamara ? (parseFloat(c.esp) || 20) : (parseFloat(c.esp) || 0),
@@ -64,12 +80,9 @@ export function layersForCorte(capas, elemTipo) {
     esCamara: !!c.esCamara,
     estructura: c.estructura_integrada || null,
   }))
-  const reverse = elemTipo !== 'piso'   // piso: interior(sup) arriba = orden original
+  const reverse = !opt.invert       // default: exterior/terminación arriba
   const layers = reverse ? arr.slice().reverse() : arr
-  const orient = elemTipo === 'piso'
-    ? { top: 'Interior (sup.)', bottom: 'Exterior (inf.)' }
-    : { top: 'Exterior', bottom: 'Interior' }
-  return { layers, orient }
+  return { layers, orient: orientacion(elemTipo, opt.pisoSubtipo) }
 }
 
 const escSVG = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -78,8 +91,10 @@ const escSVG = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').rep
  * Corte a escala en SVG (string). Bandas ∝ espesor, rótulos, cotas, orientación,
  * cámara de aire y montantes de la estructura integrada con su modulación real.
  */
+const truncar = (s, max = 20) => (s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s)
+
 export function corteSVG(capas, opt = {}) {
-  const { layers, orient } = layersForCorte(capas, opt.elemTipo)
+  const { layers, orient } = layersForCorte(capas, opt.elemTipo, opt)
   if (!layers.length) return ''
   const scale = opt.scale || 0.92, MINH = 11, Wb = 170, bx = 148, padT = 40, padB = 44
   const rows = layers.map(L => {
@@ -89,7 +104,7 @@ export function corteSVG(capas, opt = {}) {
   const H = rows.reduce((a, r) => a + r.vH, 0)
   const W = 462, VBH = H + padT + padB, dimX = bx + Wb + 22
   const o = []
-  o.push(`<svg viewBox="0 0 ${W} ${VBH.toFixed(1)}" role="img" aria-label="Corte a escala de las capas del elemento" style="max-width:100%;height:auto;font-family:inherit">`)
+  o.push(`<svg viewBox="0 0 ${W} ${VBH.toFixed(1)}" role="img" aria-label="Corte a escala de las capas del elemento" style="display:block;width:100%;min-width:420px;max-width:540px;height:auto;font-family:inherit">`)
   o.push(`<defs>
     <pattern id="cc-lana" width="20" height="8" patternUnits="userSpaceOnUse"><path d="M0 4 Q5 -1 10 4 T20 4" fill="none" stroke="#8a7320" stroke-width="0.7" opacity="0.5"/></pattern>
     <pattern id="cc-cam" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" stroke="currentColor" stroke-width="0.6" opacity="0.3"/></pattern>
@@ -114,7 +129,7 @@ export function corteSVG(capas, opt = {}) {
     }
     const cy = y + r.vH / 2
     o.push(`<line x1="${bx - 6}" y1="${cy.toFixed(1)}" x2="${bx}" y2="${cy.toFixed(1)}" stroke="currentColor" stroke-opacity="0.5" stroke-width="0.8"/>`)
-    o.push(`<text x="${bx - 10}" y="${(cy + 3.5).toFixed(1)}" text-anchor="end" font-size="11" fill="currentColor">${escSVG(L.name)}${L.estructura ? ' <tspan opacity="0.6" font-size="9">+ estructura</tspan>' : ''}</text>`)
+    o.push(`<text x="${bx - 10}" y="${(cy + 3.5).toFixed(1)}" text-anchor="end" font-size="11" fill="currentColor"><title>${escSVG(L.name)}${L.estructura ? ' (con estructura integrada)' : ''}</title>${escSVG(truncar(L.name))}${L.estructura ? ' <tspan opacity="0.6" font-size="9">+est</tspan>' : ''}</text>`)
     const lbl = L.mm ? `${L.mm} mm` : '—'
     o.push(`<line x1="${dimX}" y1="${y.toFixed(1)}" x2="${dimX + 5}" y2="${y.toFixed(1)}" stroke="currentColor" stroke-opacity="0.5" stroke-width="0.8"/>`)
     o.push(`<text x="${dimX + 10}" y="${(cy + 3.5).toFixed(1)}" font-size="11" fill="currentColor" opacity="0.9">${escSVG(lbl)}${r.exagg ? ' <tspan font-size="9" opacity="0.55">*</tspan>' : ''}</text>`)

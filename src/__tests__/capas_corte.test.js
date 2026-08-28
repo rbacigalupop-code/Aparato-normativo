@@ -4,7 +4,7 @@
 // y generación del SVG (bandas, cámara, montantes de estructura integrada).
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, it, expect } from 'vitest'
-import { classifyMaterial, layersForCorte, corteSVG } from '../lib/engines/capas.js'
+import { classifyMaterial, layersForCorte, orientacion, corteSVG } from '../lib/engines/capas.js'
 
 describe('classifyMaterial', () => {
   it('reconoce materiales comunes', () => {
@@ -29,16 +29,27 @@ describe('layersForCorte — orden físico y orientación', () => {
     { mat: 'Lana mineral', esp: 90 },
     { mat: 'Fibrocemento', esp: 8 },      // exterior
   ]
-  it('muro: exterior arriba (invierte), interior abajo', () => {
+  it('muro: exterior arriba (invierte por defecto), interior abajo', () => {
     const { layers, orient } = layersForCorte(capas, 'muro')
     expect(orient).toEqual({ top: 'Exterior', bottom: 'Interior' })
     expect(layers[0].name).toBe('Fibrocemento')     // exterior arriba
     expect(layers[2].name).toBe('Yeso carton')      // interior abajo
   })
-  it('piso: mantiene orden (interior/superior arriba)', () => {
-    const { layers, orient } = layersForCorte(capas, 'piso')
-    expect(orient.top).toMatch(/Interior/)
-    expect(layers[0].name).toBe('Yeso carton')      // sin invertir
+  // caso del usuario: radier [hormigón(interior) ... porcelanato(exterior)] salía
+  // con hormigón arriba (mal). Ahora la terminación queda arriba.
+  it('piso radier: terminación arriba, Terreno abajo', () => {
+    const radier = [{ mat: 'Hormigon armado', esp: 100 }, { mat: 'Porcelanato', esp: 10 }]
+    const { layers, orient } = layersForCorte(radier, 'piso', { pisoSubtipo: 'radier' })
+    expect(layers[0].name).toBe('Porcelanato')      // terminación arriba
+    expect(orient).toEqual({ top: 'Interior · terminación', bottom: 'Terreno' })
+  })
+  it('piso entrepiso: rótulos piso/cielo', () => {
+    expect(orientacion('piso', 'entrepiso')).toEqual({ top: 'Piso · unidad superior', bottom: 'Cielo · unidad inferior' })
+  })
+  it('invert voltea el orden mostrado', () => {
+    const a = layersForCorte(capas, 'muro').layers.map(l => l.name)
+    const b = layersForCorte(capas, 'muro', { invert: true }).layers.map(l => l.name)
+    expect(b).toEqual(a.slice().reverse())
   })
 })
 
@@ -63,7 +74,7 @@ describe('corteSVG', () => {
     const svg = corteSVG(capas, { elemTipo: 'tabique' })
     // color del acero (STRUCT_MATS.acero.color = #334155) aparece → hay montantes
     expect(svg).toContain('#334155')
-    expect(svg).toContain('+ estructura')
+    expect(svg).toContain('estructura integrada')
   })
   it('marca la cámara de aire', () => {
     const capas = [{ mat: 'Ladrillo', esp: 140 }, { esCamara: true, esp: 30 }, { mat: 'Yeso', esp: 10 }]

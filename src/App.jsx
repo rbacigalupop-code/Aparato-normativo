@@ -4411,6 +4411,8 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   // ── Estado para opciones normativas avanzadas ──────────────────────────────
   // Piso: tipo de apoyo (ventilado / sobre terreno / sobre espacio no calef.)
   const [pisoTipo, setPisoTipo] = useState('ventilado') // 'ventilado'|'terreno'|'no_calef'
+  const [corteInvert, setCorteInvert] = useState(false)   // voltear orden del corte de capas
+  const [cortePisoModo, setCortePisoModo] = useState(null) // null=auto · 'radier'|'entrepiso'
   const [pisoAg,   setPisoAg]   = useState('')           // área piso Ag (m²)
   const [pisoPg,   setPisoPg]   = useState('')           // perímetro expuesto Pg (m)
   const [pisoLg,   setPisoLg]   = useState('2.0')        // λ suelo (W/mK)
@@ -5215,16 +5217,38 @@ ${cambios.length && solucion ? `
       </div>
 
       {/* ── Corte de capas (en vivo, se actualiza al reordenar/editar) ────────── */}
-      {capas.length > 0 && (
+      {capas.length > 0 && (() => {
+        const pisoSubtipo = elemTipo === 'piso'
+          ? (cortePisoModo || (pisoTipo === 'terreno' ? 'radier' : 'entrepiso'))
+          : undefined
+        return (
         <div style={{ ...S.card }}>
-          <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
             <p style={{ ...S.h2, margin:0, fontSize:13 }}>Corte de capas</p>
-            <span style={{ fontSize:11, color:'#94a3b8' }}>· se actualiza al reordenar o cambiar espesores · montantes según estructura integrada</span>
+            <span style={{ fontSize:11, color:'#94a3b8' }}>· en vivo al reordenar/editar</span>
+            <div style={{ marginLeft:'auto', display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+              {elemTipo === 'piso' && (
+                <div style={{ display:'flex', border:'1px solid #e2e8f0', borderRadius:6, overflow:'hidden' }}>
+                  {[['radier','Radier (a suelo)'],['entrepiso','Entrepiso']].map(([v,l]) => {
+                    const activo = pisoSubtipo === v
+                    return (
+                      <button key={v} onClick={() => setCortePisoModo(v)}
+                        style={{ fontSize:11, padding:'3px 9px', border:'none', cursor:'pointer',
+                          background: activo ? '#0f766e' : '#fff', color: activo ? '#fff' : '#64748b' }}>{l}</button>
+                    )
+                  })}
+                </div>
+              )}
+              <button onClick={() => setCorteInvert(v => !v)} title="Invertir el orden mostrado (por si el guardado viene al revés)"
+                style={{ fontSize:11, padding:'3px 9px', border:'1px solid #e2e8f0', borderRadius:6,
+                  background: corteInvert ? '#0f766e' : '#fff', color: corteInvert ? '#fff' : '#64748b', cursor:'pointer' }}>⇅ Invertir</button>
+            </div>
           </div>
           <div style={{ color:'#334155', overflowX:'auto' }}
-               dangerouslySetInnerHTML={{ __html: corteSVG(capas, { elemTipo }) }} />
+               dangerouslySetInnerHTML={{ __html: corteSVG(capas, { elemTipo, invert: corteInvert, pisoSubtipo }) }} />
         </div>
-      )}
+        )
+      })()}
 
       {res && res.temps && res.temps.length > 0 && (()=>{
         // ΔU corrección puentes térmicos (ISO 6946 §6.9.3)
