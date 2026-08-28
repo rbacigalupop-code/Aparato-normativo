@@ -59,9 +59,13 @@ export const USO_TO_OGUC = {
 // App.jsx uses memoized wrappers that pass Supabase-loaded data: getLetraOGUC_loaded, etc.
 export const AC_DEF={Vivienda:{entre_unidades:45,fachada:30,entre_pisos:45},Educacion:{entre_unidades:40,fachada:35,entre_pisos:40},Salud:{entre_unidades:50,fachada:40,entre_pisos:50},Oficina:{entre_unidades:40,fachada:30,entre_pisos:40},Comercio:{entre_unidades:40,fachada:30,entre_pisos:40},Industrial:{entre_unidades:50,fachada:35,entre_pisos:45}};
 // Nivel máximo de ruido de impacto normalizado L'n,w (dB) — MENOR valor = MEJOR aislación
-// NCh352:2013 / DS N°594 — entre_pisos para uso habitable
+// Vivienda: OGUC Art. 4.1.6 → L'nT,w ≤ 75 dB, exigencia OBLIGATORIA entre unidades de
+//   vivienda (colectivas, continuas, pareadas o contiguas a recintos no habitables).
+//   El aéreo asociado es ≥ 45 dB(A). El 65 anterior salía de NCh352 (confort), no de la
+//   OGUC, y rechazaba entrepisos que sí cumplen la norma obligatoria.
+// Otros usos: referencia de confort NCh352:2013 (la exigencia OGUC 4.1.6 es para viviendas).
 export const AC_IMPACT_DEF={
-  Vivienda:   { entre_pisos: 65 },
+  Vivienda:   { entre_pisos: 75 },
   Educacion:  { entre_pisos: 60 },
   Salud:      { entre_pisos: 55 },
   Oficina:    { entre_pisos: 65 },

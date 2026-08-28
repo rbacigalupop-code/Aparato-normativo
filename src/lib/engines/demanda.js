@@ -370,8 +370,11 @@ export function envolventeFromCalcUInit(calcUInit = {}, areasOverride = null) {
     const elemKey = key.includes('::') ? key.split('::').pop() : key
     const u = parseFloat(data.res.U)
     if (isNaN(u) || u <= 0) continue
-    const areaOverride = areasOverride?.[key] || areasOverride?.[elemKey]
-    const area = areaOverride || AREAS_DEF[elemKey] || 40
+    // Área expuesta al exterior. Respeta un override explícito INCLUIDO el 0
+    // (un entrepiso entre recintos calefaccionados no es envolvente → 0 pérdidas;
+    // un piso parcialmente en voladizo cuenta solo el área del voladizo).
+    const ov = areasOverride?.[key] ?? areasOverride?.[elemKey]
+    const area = (ov !== undefined && ov !== null && ov !== '') ? Number(ov) : (AREAS_DEF[elemKey] || 40)
     elementos.push({ U: u, area, elemKey, key })
   }
   return elementos

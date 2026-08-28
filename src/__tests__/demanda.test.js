@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
-import { etaUtilizacion13790, balanceTermicoAnual, CM_POR_MASA, perdidasPuentesTermicos } from '../lib/engines/demanda.js'
+import { etaUtilizacion13790, balanceTermicoAnual, CM_POR_MASA, perdidasPuentesTermicos, envolventeFromCalcUInit } from '../lib/engines/demanda.js'
 
 const cerca = (a, b, tol = 0.01) => Math.abs(a - b) <= tol
 
@@ -147,5 +147,37 @@ describe('integración de puentes térmicos (Ψ·L) en balance', () => {
   it('psiLTotal se reporta en iso13790', () => {
     const b = balanceTermicoAnual({ ...base, psiLTotal: 12.5 })
     expect(b.iso13790.psiLTotal).toBe(12.5)
+  })
+})
+
+describe('envolventeFromCalcUInit — área expuesta y override interior', () => {
+  const calcU = {
+    muro: { res: { U: '0.4' } },
+    piso: { res: { U: '0.19' } },
+    techo: { res: { U: '0.3' } },
+  }
+
+  it('sin override usa áreas default', () => {
+    const els = envolventeFromCalcUInit(calcU)
+    expect(els.find(e => e.elemKey === 'piso').area).toBe(70)
+    expect(els.find(e => e.elemKey === 'muro').area).toBe(80)
+  })
+
+  it('un override de 0 se RESPETA (entrepiso interior → no cuenta como envolvente)', () => {
+    const els = envolventeFromCalcUInit(calcU, { piso: 0 })
+    // antes el `0 || default` lo revertía a 70; ahora debe quedar en 0
+    expect(els.find(e => e.elemKey === 'piso').area).toBe(0)
+    // los demás intactos
+    expect(els.find(e => e.elemKey === 'muro').area).toBe(80)
+  })
+
+  it('un override parcial (voladizo) cuenta solo esa área', () => {
+    const els = envolventeFromCalcUInit(calcU, { piso: 12 })
+    expect(els.find(e => e.elemKey === 'piso').area).toBe(12)
+  })
+
+  it('override vacío ("") cae al default', () => {
+    const els = envolventeFromCalcUInit(calcU, { piso: '' })
+    expect(els.find(e => e.elemKey === 'piso').area).toBe(70)
   })
 })

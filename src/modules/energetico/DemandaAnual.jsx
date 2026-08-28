@@ -49,9 +49,12 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
   const [masaTermica, setMasaTermica] = useState('media')
   const [ventNocturna, setVentNocturna] = useState(false)
   const [gananciasInt, setGananciasInt] = useState(4.5)  // W/m² internas (según ocupación)
+  // Área de envolvente por elemento en contacto real con el exterior. Vacío = usa
+  // el área default. 0 = elemento interior (p.ej. entrepiso entre recintos calef.).
+  const [areasOverride, setAreasOverride] = useState({})
 
   // Auto-derivar del proyecto
-  const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit), [calcUInit])
+  const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit, areasOverride), [calcUInit, areasOverride])
   const ventanas  = useMemo(() => ventanasFromFachadas(fachadas), [fachadas])
   const factorSolar = FACTOR_SOLAR_VIDRIOS[vidrioTipo] ?? 0.70
   const psiLTotal = useMemo(() => calcularSumaPsiL(inventarioPT), [inventarioPT])
@@ -122,6 +125,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
       <SeccionInvierno
         balance={balance}
         elementos={elementos}
+        areasOverride={areasOverride} setAreasOverride={setAreasOverride}
         ventanas={ventanas}
         psiLTotal={psiLTotal}
         inventarioPT={inventarioPT}
@@ -198,7 +202,7 @@ function Hero({ balance }) {
 }
 
 // ─── SECCIÓN INVIERNO ────────────────────────────────────────────────────────
-function SeccionInvierno({ balance, elementos, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
+function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
   const tienePT = psiLTotal > 0
   return (
     <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Clima ${zonaEf} · ${ZONA_CLIMA_LABELS[zonaEf] || ''}`}>
@@ -245,6 +249,36 @@ function SeccionInvierno({ balance, elementos, ventanas, psiLTotal, inventarioPT
           </select>
         </Field>
       </div>
+
+      {/* Áreas de envolvente — editable (solo el área en contacto real con el exterior) */}
+      {elementos.length > 0 && (
+        <div style={{ marginBottom: 18, padding: 12, background: 'var(--surface-2, #f8fafc)', border: '1px solid var(--line, #e2e8f0)', borderRadius: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Áreas de envolvente en contacto con el exterior (m²)</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-3, #64748b)', marginBottom: 10 }}>
+            Solo cuenta el área que da al <b>exterior</b> o a un <b>recinto no calefaccionado</b>. Un <b>entrepiso entre recintos calefaccionados</b> no es envolvente → ponlo en <b>0</b>. Un piso parcialmente <b>en voladizo</b> → solo el área del voladizo.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+            {elementos.map(el => {
+              const LBL = { muro: 'Muro', piso: 'Piso / Entrepiso', techo: 'Techumbre', tabique: 'Tabique' }
+              const interior = Number(el.area) === 0
+              return (
+                <div key={el.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, flex: 1, minWidth: 0 }}>
+                    {LBL[el.elemKey] || el.elemKey} <span style={{ color: 'var(--ink-3, #94a3b8)' }}>· U={el.U}</span>
+                  </span>
+                  <input
+                    type="number" min={0} step={1}
+                    value={el.area}
+                    onChange={e => setAreasOverride(prev => ({ ...prev, [el.key]: e.target.value }))}
+                    style={{ ...inputStyle, width: 84, ...(interior ? { borderColor: 'var(--ok, #0d9488)', color: 'var(--ink-3, #64748b)' } : {}) }}
+                  />
+                  {interior && <span style={{ fontSize: 10, color: 'var(--ok, #0d9488)', whiteSpace: 'nowrap' }}>interior</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Resultados */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 14 }}>

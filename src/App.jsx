@@ -4064,15 +4064,15 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
         <p style={S.h2}>Aislamiento acústico — ruido de impacto L'n,w (dB) · {uso || '—'}</p>
         <div style={{ fontSize:11, color:'#64748b', marginBottom:8 }}>
           L'n,w = nivel de ruido de impacto normalizado. <b>MENOR valor = MEJOR aislación.</b>
-          Aplica principalmente a pisos/losas entre unidades habitables.
-          Fuente: NCh352:2013 / DS N°594.
+          Aplica a pisos/entrepisos entre <b>unidades de vivienda</b>.
+          Exigencia: <b>Vivienda → OGUC Art. 4.1.6 (L'nT,w ≤ 75 dB)</b>. Otros usos: referencia NCh352:2013.
         </div>
         {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
         <table style={S.table}>
           <thead><tr>
             <th style={S.th}>Elemento</th>
             <th style={S.th}>L'n,w medido (dB)</th>
-            <th style={S.th}>L'n,w máximo NCh352</th>
+            <th style={S.th}>L'n,w máximo{uso==='Vivienda' ? ' (OGUC 4.1.6)' : ' (NCh352)'}</th>
             <th style={S.th}>Estado</th>
           </tr></thead>
           <tbody>
@@ -4080,7 +4080,7 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
               <td style={S.td}>
                 <b>Entre pisos — ruido de impacto</b>
                 <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
-                  Pasos, caída de objetos. Incluye losa, piso flotante y terminación. Menor valor = mejor. NCh352 / DS N°594.
+                  Pasos, caída de objetos. Incluye losa, piso flotante y terminación. Menor valor = mejor. OGUC Art. 4.1.6 (vivienda) / NCh352.
                 </div>
               </td>
               <td style={S.td}>
@@ -7528,7 +7528,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       (() => {
         const { base, mejora, efectivo } = lnwEfectivo(termica.ac_impacto_pisos)
         const lim = AC_IMPACT_DEF[uso]?.entre_pisos
-        return { label:"L'n,w impacto pisos", val: base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null, max:`≤ ${lim} dB`, ok: !base || efectivo <= (lim||99) }
+        return { label:"L'n,w impacto pisos", val: base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null, max:`≤ ${lim} dB`, ok: !base || efectivo <= (lim||99), norma: uso==='Vivienda' ? 'OGUC Art. 4.1.6 (L\'nT,w ≤ 75 dB)' : 'NCh352:2013 (referencia)' }
       })(),
     ]
     // Cruce acústico ESTIMADO de una solución PDA de muro (Rw ley de masa vs
