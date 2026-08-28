@@ -1,0 +1,74 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// capas_corte.test.js — Visor de Capas (corte a escala en SVG).
+// Cubre el motor puro: clasificación de material, orden/orientación físicos
+// y generación del SVG (bandas, cámara, montantes de estructura integrada).
+// ─────────────────────────────────────────────────────────────────────────────
+import { describe, it, expect } from 'vitest'
+import { classifyMaterial, layersForCorte, corteSVG } from '../lib/engines/capas.js'
+
+describe('classifyMaterial', () => {
+  it('reconoce materiales comunes', () => {
+    expect(classifyMaterial('Hormigon armado')).toBe('hormigon')
+    expect(classifyMaterial('Lana de Vidrio 11 kg/m³')).toBe('lana')
+    expect(classifyMaterial('Yeso Cartón ST 10mm')).toBe('yeso')
+    expect(classifyMaterial('Fibrocemento')).toBe('fibro')
+    expect(classifyMaterial('EPS 15kg/m3')).toBe('eps')
+    expect(classifyMaterial('OSB/MDF')).toBe('madera')
+  })
+  it('cámara y aislante por flag', () => {
+    expect(classifyMaterial('lo que sea', { esCamara: true })).toBe('camara')
+    expect(classifyMaterial('material raro', { esAislante: true })).toBe('lana')
+    expect(classifyMaterial('material raro')).toBe('otro')
+  })
+})
+
+describe('layersForCorte — orden físico y orientación', () => {
+  // la app almacena INTERIOR → EXTERIOR
+  const capas = [
+    { mat: 'Yeso carton', esp: 10 },      // interior
+    { mat: 'Lana mineral', esp: 90 },
+    { mat: 'Fibrocemento', esp: 8 },      // exterior
+  ]
+  it('muro: exterior arriba (invierte), interior abajo', () => {
+    const { layers, orient } = layersForCorte(capas, 'muro')
+    expect(orient).toEqual({ top: 'Exterior', bottom: 'Interior' })
+    expect(layers[0].name).toBe('Fibrocemento')     // exterior arriba
+    expect(layers[2].name).toBe('Yeso carton')      // interior abajo
+  })
+  it('piso: mantiene orden (interior/superior arriba)', () => {
+    const { layers, orient } = layersForCorte(capas, 'piso')
+    expect(orient.top).toMatch(/Interior/)
+    expect(layers[0].name).toBe('Yeso carton')      // sin invertir
+  })
+})
+
+describe('corteSVG', () => {
+  it('vacío → string vacío', () => {
+    expect(corteSVG([], { elemTipo: 'muro' })).toBe('')
+  })
+  it('genera un <svg> con una banda por capa y el espesor total', () => {
+    const capas = [{ mat: 'Hormigon armado', esp: 150 }, { mat: 'EPS', esp: 80 }, { mat: 'Mortero', esp: 6 }]
+    const svg = corteSVG(capas, { elemTipo: 'muro' })
+    expect(svg.startsWith('<svg')).toBe(true)
+    expect((svg.match(/<rect /g) || []).length).toBeGreaterThanOrEqual(3)
+    expect(svg).toContain('Espesor 236 mm')
+    expect(svg).toContain('Exterior')
+  })
+  it('dibuja montantes cuando la capa trae estructura_integrada', () => {
+    const capas = [
+      { mat: 'Fibrocemento', esp: 8 },
+      { mat: 'Lana de Vidrio', esp: 90, estructura_integrada: { tipo: 'acero', ancho_mm: 38, distancia_mm: 600 } },
+      { mat: 'Yeso Cartón', esp: 10 },
+    ]
+    const svg = corteSVG(capas, { elemTipo: 'tabique' })
+    // color del acero (STRUCT_MATS.acero.color = #334155) aparece → hay montantes
+    expect(svg).toContain('#334155')
+    expect(svg).toContain('+ estructura')
+  })
+  it('marca la cámara de aire', () => {
+    const capas = [{ mat: 'Ladrillo', esp: 140 }, { esCamara: true, esp: 30 }, { mat: 'Yeso', esp: 10 }]
+    const svg = corteSVG(capas, { elemTipo: 'muro' })
+    expect(svg).toContain('Cámara de aire')
+    expect(svg).toContain('url(#cc-cam)')
+  })
+})

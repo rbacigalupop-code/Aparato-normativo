@@ -6,6 +6,7 @@ import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validar
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
+import { corteSVG } from './lib/engines/capas.js'
 
 // L'n,w efectivo del entrepiso = base − ΔL,w del revestimiento elegido (si hay).
 // Envuelve lnwConMejora del motor para recibir el objeto de estado completo.
@@ -5212,6 +5213,18 @@ ${cambios.length && solucion ? `
           {capas.length>0 && <span style={{ fontSize:11, color:'#94a3b8', alignSelf:'center' }}>↑↓ Mueve capas y recalcula para homologar</span>}
         </div>
       </div>
+
+      {/* ── Corte de capas (en vivo, se actualiza al reordenar/editar) ────────── */}
+      {capas.length > 0 && (
+        <div style={{ ...S.card }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8, flexWrap:'wrap' }}>
+            <p style={{ ...S.h2, margin:0, fontSize:13 }}>Corte de capas</p>
+            <span style={{ fontSize:11, color:'#94a3b8' }}>· se actualiza al reordenar o cambiar espesores · montantes según estructura integrada</span>
+          </div>
+          <div style={{ color:'#334155', overflowX:'auto' }}
+               dangerouslySetInnerHTML={{ __html: corteSVG(capas, { elemTipo }) }} />
+        </div>
+      )}
 
       {res && res.temps && res.temps.length > 0 && (()=>{
         // ΔU corrección puentes térmicos (ISO 6946 §6.9.3)
