@@ -5093,7 +5093,18 @@ ${cambios.length && solucion ? `
                   {c.esCamara ? (
                     <tr style={{ background:'#f0fdfa' }}>
                       <td style={{ ...S.td, color:'#94a3b8', fontSize:10, textAlign:'center' }}>{idx+1}</td>
-                      <td style={S.td}><i>Cámara de aire</i></td>
+                      <td style={S.td}>
+                        <i>Cámara de aire</i>
+                        <button
+                          onClick={()=>updEstructura(c.id,null,!tieneEB)}
+                          title="Definir los rastreles/perfiles que forman la cámara (solo representación en el corte/3D — no altera el U)"
+                          style={{ display:'block', marginTop:3, fontSize:10, padding:'1px 7px', borderRadius:3,
+                            border:`1px solid ${tieneEB?(esAcero?'#fca5a5':'#fbbf24'):'#99f6e4'}`,
+                            background: tieneEB?(esAcero?'#fee2e2':'#fef3c7'):'#f0fdfa',
+                            color: tieneEB?(esAcero?'#991b1b':'#92400e'):'#0f766e', cursor:'pointer' }}>
+                          {tieneEB ? (esAcero ? '⚡ Perfiles de acero' : '🪵 Rastreles de madera') : '⊕ Estructura de la cámara'}
+                        </button>
+                      </td>
                       {/* λ col: R según espesor (ISO 6946) */}
                       <td style={{ ...S.td, fontSize:11, color:'#0f766e' }}>
                         R={resistenciaCamara((parseFloat(c.esp)||0)/1000).toFixed(2)}
@@ -5146,14 +5157,16 @@ ${cambios.length && solucion ? `
                       <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
                     </tr>
                   )}
-                  {/* ── Panel de estructura integrada (ISO 6946) ─────────────── */}
-                  {tieneEB && !c.esCamara && (
+                  {/* ── Panel de estructura integrada (ISO 6946) / rastreles de cámara ─ */}
+                  {tieneEB && (
                     <tr style={{ background: esAcero ? '#fff1f2' : '#fffbeb' }}>
                       <td />
                       <td colSpan={6} style={{ padding:'6px 14px 10px' }}>
                         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', fontSize:11 }}>
                           <span style={{ fontWeight:700, color: esAcero?'#dc2626':'#92400e', fontSize:11, whiteSpace:'nowrap' }}>
-                            ⚙ Estructura integrada · ISO 6946:2017 método combinado
+                            {c.esCamara
+                              ? '⚙ Rastreles/perfiles de la cámara · representación (no altera el U)'
+                              : '⚙ Estructura integrada · ISO 6946:2017 método combinado'}
                           </span>
                           <select
                             value={c.estructura_integrada.tipo}
@@ -5184,8 +5197,9 @@ ${cambios.length && solucion ? `
                           </label>
                           {c.estructura_integrada.distancia_mm > 0 && (
                             <span style={{ fontSize:10, color:'#64748b', fontStyle:'italic', whiteSpace:'nowrap' }}>
-                              f_a={((c.estructura_integrada.ancho_mm/c.estructura_integrada.distancia_mm)*100).toFixed(1)}% estr.
-                              · f_b={((1-c.estructura_integrada.ancho_mm/c.estructura_integrada.distancia_mm)*100).toFixed(1)}% ais.
+                              {c.esCamara
+                                ? `modulación cada ${c.estructura_integrada.distancia_mm} mm`
+                                : `f_a=${((c.estructura_integrada.ancho_mm/c.estructura_integrada.distancia_mm)*100).toFixed(1)}% estr. · f_b=${((1-c.estructura_integrada.ancho_mm/c.estructura_integrada.distancia_mm)*100).toFixed(1)}% ais.`}
                             </span>
                           )}
                           <button

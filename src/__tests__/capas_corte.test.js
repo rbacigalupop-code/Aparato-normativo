@@ -4,7 +4,7 @@
 // y generación del SVG (bandas, cámara, montantes de estructura integrada).
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, it, expect } from 'vitest'
-import { classifyMaterial, layersForCorte, orientacion, corteSVG } from '../lib/engines/capas.js'
+import { classifyMaterial, layersForCorte, orientacion, corteSVG, layers3D } from '../lib/engines/capas.js'
 
 describe('classifyMaterial', () => {
   it('reconoce materiales comunes', () => {
@@ -81,5 +81,19 @@ describe('corteSVG', () => {
     const svg = corteSVG(capas, { elemTipo: 'muro' })
     expect(svg).toContain('Cámara de aire')
     expect(svg).toContain('url(#cc-cam)')
+  })
+  // una cámara con estructura declara sus rastreles/perfiles → montantes en corte y 3D
+  it('cámara con estructura_integrada dibuja rastreles (madera) en corte y 3D', () => {
+    const capas = [
+      { mat: 'Fibrocemento', esp: 8 },
+      { esCamara: true, esp: 30, estructura_integrada: { tipo: 'madera', ancho_mm: 38, distancia_mm: 400 } },
+      { mat: 'Lana mineral', esp: 80 },
+      { mat: 'Yeso carton', esp: 10 },
+    ]
+    expect(corteSVG(capas, { elemTipo: 'muro' })).toContain('#92400e')   // color madera del rastrel
+    const cam = layers3D(capas, 'muro').layers.find(l => l.name === 'Cámara de aire')
+    expect(cam.role).toBe('cavity')
+    expect(cam.studColor).toBe('#92400e')
+    expect(cam.studDist).toBe(400)
   })
 })
