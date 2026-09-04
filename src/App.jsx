@@ -8059,7 +8059,7 @@ ${selloHtml}
 ${sc ? `<div class="data-row">
   <div class="data-item"><label>Código LOSCAT</label><span>${sc.cod}</span></div>
   <div class="data-item"><label>Descripción</label><span>${sc.desc}</span></div>
-  ${sc.obs ? `<div class="data-item" style="flex-basis:100%"><label>Observaciones técnicas</label><span style="font-weight:normal;font-size:10pt">${sc.obs}</span></div>` : ''}
+  ${sc.obs ? `<div class="data-item" style="flex-basis:100%"><label>Nota de la ficha (catálogo LOSCAT)</label><span style="font-weight:normal;font-size:10pt;color:#64748b">${sc.obs} <span style="font-size:8pt">— texto de la ficha de catálogo, no específico de este proyecto</span></span></div>` : ''}
 </div>` : ''}
 ${homologHtml}
 ${memoriaDescriptiva}
