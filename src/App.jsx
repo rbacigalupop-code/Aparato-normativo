@@ -4356,12 +4356,17 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
 // solo considera las capas BAJO la cámara (las superiores están a condiciones
 // exteriores y no contribuyen). La cara que da a la cámara venteada usa
 // Rse = Rsi del flujo (aire quieto, §6.9.4). Devuelve { cv truncado, rseVent }.
-function aplicarCubiertaVentilada(cvFull, cubiertaVent, elemTipo) {
-  const esTecho = elemTipo === 'techumbre' || elemTipo === 'techo'
-  if (!cubiertaVent || !esTecho) return { cv: cvFull, rseVent: undefined }
+function aplicarCubiertaVentilada(cvFull, camaraVentilada, elemTipo) {
+  // ISO 6946 §6.9.3: en una cámara MUY ventilada se desprecia la R de la cámara y
+  // la de todas las capas entre ella y el exterior, y se reemplaza Rse por Rsi
+  // (aire quieto) en la cara que da a la cámara. Aplica a cubierta Y a muro
+  // (fachada ventilada) y piso. B4: antes solo se aplicaba a techo.
+  if (!camaraVentilada) return { cv: cvFull, rseVent: undefined }
   const idxCam = cvFull.findIndex(c => c.esCamara || c.camara)
   if (idxCam <= 0) return { cv: cvFull, rseVent: undefined }  // sin cámara (o es la 1ª) → no truncar
-  return { cv: cvFull.slice(0, idxCam), rseVent: RSI_MAP['techo'] || 0.10 }
+  const rsiKey = (elemTipo === 'techumbre' || elemTipo === 'techo') ? 'techo'
+    : elemTipo === 'piso' ? 'piso' : 'muro'
+  return { cv: cvFull.slice(0, idxCam), rseVent: RSI_MAP[rsiKey] || 0.13 }
 }
 
 // ─── PANEL CÁLCULO U (componente por elemento) ────────────────────────────────
@@ -5032,22 +5037,22 @@ ${cambios.length && solucion ? `
               </div>
             )}
 
-            {/* ── Cubierta ventilada (solo techo) ────────────────────────────── */}
-            {elemId === 'techo' && (
+            {/* ── Cámara ventilada (techo / muro fachada ventilada / piso) ─────── */}
+            {(elemId === 'techo' || elemId === 'muro' || elemId === 'piso') && (
               <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6, padding:'8px 12px', marginBottom:8 }}>
                 <label style={{ fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
                   <input type="checkbox" checked={cubiertaVent} onChange={e=>setCubiertaVent(e.target.checked)} style={{ cursor:'pointer' }} />
-                  <b style={{ color:'#0e6560' }}>Cubierta ventilada</b>
-                  <span style={{ fontSize:11, color:'#64748b' }}>(cámara de aire ventilada sobre el aislante)</span>
+                  <b style={{ color:'#0e6560' }}>{elemId === 'techo' ? 'Cubierta ventilada' : 'Cámara ventilada'}</b>
+                  <span style={{ fontSize:11, color:'#64748b' }}>{elemId === 'techo' ? '(cámara de aire ventilada sobre el aislante)' : elemId === 'muro' ? '(fachada ventilada — cámara tras el revestimiento exterior)' : '(cámara ventilada bajo el piso)'}</span>
                 </label>
                 {cubiertaVent && !capas.some(c => c.esCamara) && (
                   <div style={{ marginTop:6, fontSize:11, color:'#92400e', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
-                    ⚠ <b>Falta la capa de cámara de aire.</b> Esta opción <b>no agrega</b> la cámara: aplica el método de cubierta ventilada sobre una cámara que ya exista en las capas. Agrega una capa <b>"Cámara de aire"</b> (botón <b>+ Cámara</b> abajo) sobre el aislante y vuelve a activar. Sin cámara, el cálculo no cambia.
+                    ⚠ <b>Falta la capa de cámara de aire.</b> Esta opción <b>no agrega</b> la cámara: aplica el método de cámara ventilada sobre una cámara que ya exista en las capas. Agrega una capa <b>"Cámara de aire"</b> (botón <b>+ Cámara</b> abajo) del lado exterior del aislante y vuelve a activar. Sin cámara, el cálculo no cambia.
                   </div>
                 )}
                 {cubiertaVent && capas.some(c => c.esCamara) && (
                   <div style={{ marginTop:6, fontSize:11, color:'#0e6560', background:'#ccfbf1', borderRadius:4, padding:'6px 10px', lineHeight:1.6 }}>
-                    <b>ISO 6946 §6.9.2:</b> el cálculo considera <b>sólo las capas bajo la cámara</b> (las superiores —teja, tablero, OSB— están a condiciones exteriores y no contribuyen). La cara que da a la cámara venteada usa <b>RSe = 0.10 m²K/W</b> (aire quieto, §6.9.4). Recalcula automáticamente.
+                    <b>ISO 6946 §6.9.3:</b> el cálculo considera <b>sólo las capas hacia el interior de la cámara</b> (las que quedan hacia el exterior están a condiciones exteriores y no contribuyen). La cara que da a la cámara ventilada usa <b>RSe = aire quieto ({(RSI_MAP[elemId === 'techo' ? 'techo' : elemId === 'piso' ? 'piso' : 'muro'] || 0.13).toFixed(2)} m²K/W)</b> (§6.9.4). Recalcula automáticamente.
                   </div>
                 )}
               </div>
@@ -8593,9 +8598,24 @@ ${notasEntries.map(([k, v]) => `
       return { code: 'C' + n, nombre: nombres[n] || 'Estrategia C' + n }
     }
 
-    const correccionesPorElem = Object.entries(calcUInit || {})
-      .filter(([, v]) => v?.correccionAplicada)
-      .map(([k, v]) => ({ elemKey: k, label: labelElemRpt(k), data: v, corr: v.correccionAplicada }))
+    // B6: una sola corrección VIGENTE por elemento base — la más reciente. Al cambiar
+    // de solución quedan elemKeys compuestos (sol::muro) con correcciones superadas;
+    // no deben listarse como activas. Se colapsa por elemento base tomando aplicada_en.
+    const correccionesPorElem = (() => {
+      const raw = Object.entries(calcUInit || {})
+        .filter(([, v]) => v?.correccionAplicada)
+        .map(([k, v]) => ({ elemKey: k, label: labelElemRpt(k), data: v, corr: v.correccionAplicada }))
+      const base = (k) => (k.includes('::') ? k.split('::').pop() : k)
+      const porBase = new Map()
+      for (const item of raw) {
+        const b = base(item.elemKey)
+        const prev = porBase.get(b)
+        const t = new Date(item.corr?.aplicada_en || 0).getTime()
+        const tp = prev ? new Date(prev.corr?.aplicada_en || 0).getTime() : -1
+        if (!prev || t >= tp) porBase.set(b, item)
+      }
+      return [...porBase.values()]
+    })()
 
     let correccionesHtml = ''
     if (correccionesPorElem.length > 0) {
