@@ -7845,15 +7845,23 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
             <td style="font-size:8.5pt;color:#64748b">${fuenteLam}</td>
           </tr>`
         }).join('')
-        const Rtot = RSi + Racum + RSe
+        // B1 · Fuente única: el R total / U impresos provienen de `res` (el mismo
+        // cálculo que alimenta el criterio y el Glaser), NO de un recómputo local.
+        // Así los cinco lugares del informe muestran el mismo valor. El recómputo
+        // local (RtotLocal, suma directa de todas las capas) solo es fallback y
+        // sirve para explicar la cámara ventilada (donde R total < suma directa).
+        const RtotLocal = RSi + Racum + RSe
+        const RtotFinal = (res && res.Rtot != null) ? parseFloat(res.Rtot) : RtotLocal
+        const Ufinal    = (res && res.U != null) ? parseFloat(res.U) : (1 / RtotLocal)
+        const ventTrunc = res && res.Rtot != null && Math.abs(parseFloat(res.Rtot) - RtotLocal) > 0.005
         tablaCapa = `<table>
           <tr><th>#</th><th>Material</th><th>λ (W/mK)</th><th>e (mm)</th><th>μ</th><th>R (m²K/W)</th><th>Fuente dato λ</th></tr>
           ${rows}
           <tr class="subtotal"><td colspan="2"><b>RSi — Resistencia sup. interior</b></td><td colspan="3">${rsiKey} (NCh853 Tabla)</td><td><b>${RSi}</b></td><td style="font-size:8.5pt;color:#64748b">NCh853:2021 Tabla E.1</td></tr>
           <tr class="subtotal"><td colspan="2"><b>RSe — Resistencia sup. exterior</b></td><td colspan="3"></td><td><b>${RSe}</b></td><td style="font-size:8.5pt;color:#64748b">NCh853:2021 Tabla E.1</td></tr>
-          <tr class="total"><td colspan="2"><b>R<sub>total</sub> = RSi + ΣR<sub>i</sub> + RSe</b></td><td colspan="3"></td><td><b>${Rtot.toFixed(4)} m²K/W</b></td><td></td></tr>
-          <tr class="total"><td colspan="2"><b>U = 1 / R<sub>total</sub></b></td><td colspan="3"></td><td><b>${(1 / Rtot).toFixed(4)} W/m²K</b></td><td></td></tr>
-        </table>`
+          <tr class="total"><td colspan="2"><b>R<sub>total</sub></b></td><td colspan="3"></td><td><b>${RtotFinal.toFixed(4)} m²K/W</b></td><td></td></tr>
+          <tr class="total"><td colspan="2"><b>U = 1 / R<sub>total</sub></b></td><td colspan="3"></td><td><b>${Ufinal.toFixed(4)} W/m²K</b></td><td></td></tr>
+        </table>${ventTrunc ? `<div style="font-size:8.5pt;color:#475569;margin-top:4px">Cámara ventilada (ISO 6946 §6.9.3): las capas hacia el exterior de la cámara no contribuyen al R total, por lo que R<sub>total</sub> = <b>${RtotFinal.toFixed(4)}</b> es menor que la suma directa de todas las capas (${RtotLocal.toFixed(4)}). El U impreso proviene del mismo cálculo del criterio y del gráfico de Glaser.</div>` : ''}`
       } else if (data?.u) {
         tablaCapa = `<div class="aviso">Valor U ingresado manualmente: <b>${data.u} W/m²K</b> (sin detalle de capas disponible)</div>`
       }
@@ -9054,10 +9062,10 @@ ${mods.sistemas ? (() => {
     <th>Sector / Pisos</th>
     <th>Elemento</th>
     <th>Solución (LOSCAT)</th>
-    <th>U propuesta (W/m²K)</th>
+    <th>U catálogo LOSCAT (W/m²K)</th>
     <th>U máx DS N°15</th>
     <th>RF</th>
-    <th>Estado</th>
+    <th>Estado (catálogo)</th>
   </tr>
   ${ests.flatMap(est =>
     ELEMS_RPT.filter(k => est.soluciones[k]).map(k => {
@@ -9081,7 +9089,8 @@ ${mods.sistemas ? (() => {
       </tr>`
     })
   ).join('')}
-</table>`
+</table>
+<div style="font-size:8.5pt;color:#64748b;margin-top:6px;line-height:1.5">B5 · La columna <b>U catálogo LOSCAT</b> es el valor certificado de la ficha, informativo. La <b>verificación definitiva</b> usa el <b>U del proyecto calculado</b> a partir de las capas reales (incluidas correcciones) — ver <b>Módulo 2</b> y el <b>Resumen ejecutivo</b>. Ante diferencia entre ambos, manda el U calculado.</div>`
 })() : ''}
 
 ${mods.fuego ? `<h2 id="modulo-3">Módulo 3 — Resistencia al Fuego (OGUC Tít. 4 Cap. 3 · Art. 4.5.4 / LOFC Ed.17 2025)</h2>
@@ -9245,7 +9254,8 @@ ${cards}`)
       ${allOkLocal ? '✓ CUMPLE NORMATIVA' : '✗ CON OBSERVACIONES'}
     </div>
     <div style="font-size:9pt;color:#475569;line-height:1.5">
-      ${checksExtendido.length} parámetros verificados · ${checksExtendido.filter(c => c.ok).length} conformes · ${checksExtendido.filter(c => !c.ok).length} no conformes
+      ${checksExtendido.length} parámetros · ${checksExtendido.filter(c => !c.informativo && c.ok).length} conformes · ${checksExtendido.filter(c => !c.informativo && !c.ok).length} no conformes · ${checksExtendido.filter(c => c.informativo).length} informativos/no aplica
+      <div style="font-size:8pt;color:#94a3b8;margin-top:4px;font-weight:400">Se cuentan solo los parámetros con dato ingresado. Los que quedan sin dato deben completarse en sus módulos. La escalera (Módulo 5c), si aplica, se verifica en su propio módulo.</div>
     </div>
   </div>
   <div style="flex:1;min-width:240px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:14px 16px">
