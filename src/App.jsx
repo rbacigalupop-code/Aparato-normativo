@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
 import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
-import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera } from './lib/engines/fire.js'
+import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
 import { corteSVG } from './lib/engines/capas.js'
@@ -4270,9 +4270,12 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
   const yTd = yPx(Tdew)
 
   // Etiquetas de capas (centradas en cada segmento) — filtra inválidos
+  // Nota: se mapea sobre el índice ORIGINAL (rsAcum/Rs incluyen la cámara); filtrar
+  // antes del map desalinea la etiqueta cuando hay cámara. Ver B11.
   const capaLabels = capas
-    .filter(c => !c.esCamara)
-    .map((c, i) => {
+    .map((c, i) => ({ c, i }))
+    .filter(x => !x.c.esCamara)
+    .map(({ c, i }) => {
       const rNext = rsAcum[i + 1]
       if (typeof rNext !== 'number' || isNaN(rNext)) return null
       const rCur = rNext - (Rs[i + 1] || 0) / Rtot
@@ -6742,7 +6745,7 @@ function glaserSvgStr(res, capas) {
     const iface = res.ifaces[i - 1]
     return `<circle cx="${xPx(r)}" cy="${yPx(temps[i])}" r="${(i === 0 || i === rsAcum.length - 1) ? 3 : 4}" fill="${iface?.riesgo ? '#dc2626' : '#0e6560'}" stroke="#fff" stroke-width="1.5"/>`
   }).join('')
-  const capaLabels = (capas || []).filter(c => !c.esCamara).map((c, i) => {
+  const capaLabels = (capas || []).map((c, i) => ({ c, i })).filter(x => !x.c.esCamara).map(({ c, i }) => {
     const x0 = parseFloat(xPx(rsAcum[i + 1] - (Rs[i + 1] || 0) / Rtot))
     const x1 = parseFloat(xPx(rsAcum[i + 1]))
     const cx = ((x0 + x1) / 2).toFixed(1)
@@ -8439,23 +8442,31 @@ ${glaserHtml}`
         if (mat.id === 'madera' || mat.id === 'clt') {
           // Velocidad de carbonización para madera maciza/CLT
           const beta = mat.id === 'clt' ? 0.65 : 0.7  // mm/min (LOFC Ed.17 Tabla A6 / Eurocódigo 5)
-          const seccionInicial = 90  // mm
-          const carbonTotal = beta * tiempoBaseMin
-          const seccionRes = seccionInicial - 2 * carbonTotal
+          const seccionInicial = 90  // mm — sección de REFERENCIA (informativa)
+          const sr = evaluarSeccionResidual(seccionInicial, beta, tiempoBaseMin)
+          const carbonTotal = sr.carbon, seccionRes = sr.residual
+          // La acreditación de RF es por CLASIFICACIÓN TABULADA (Tabla A6), no por
+          // la sección residual (que requiere las solicitaciones del calculista). Ver B2.
+          const residualNota = seccionRes <= 0
+            ? 'La sección de referencia se carboniza por completo en el tiempo de exposición: el método de sección residual <b>no acredita por sí solo</b>; la verificación estructural del núcleo con las solicitaciones queda a cargo del calculista.'
+            : sr.aplicable
+              ? 'Informativo — la verificación estructural del núcleo con las solicitaciones queda a cargo del calculista.'
+              : `Sección residual insuficiente (${(sr.ratio * 100).toFixed(0)}% de la sección de referencia): el método <b>no acredita por sí solo</b>; la RF se acredita por clasificación tabulada y la verificación estructural del núcleo con las solicitaciones queda a cargo del calculista.`
           return `
 <table>
   <tr><th colspan="2" style="background:#f0fdfa;color:#0f766e">Cálculo de RF — ${mat.id === 'clt' ? 'CLT (madera contralaminada)' : 'Madera maciza estructural'} (LOFC Ed.17 Tabla A6)</th></tr>
-  <tr><td><b>Sección mínima inicial (b)</b></td><td>≥ <b>${seccionInicial} mm</b></td></tr>
+  <tr><td><b>Sección de referencia (b)</b></td><td>${seccionInicial} mm <span style="font-size:8.5pt;color:#64748b">(referencial)</span></td></tr>
   <tr><td><b>Velocidad de carbonización (β₀)</b></td><td><b>${beta} mm/min</b> ${mat.id === 'clt' ? '(CLT — capas adhesivadas reducen avance)' : '(madera maciza coníferas)'}</td></tr>
   <tr><td><b>Tiempo de exposición al fuego</b></td><td>${tiempoBaseMin} min (= RF base ${mat.rfBase})</td></tr>
   <tr><td><b>Profundidad carbonizada total (d<sub>char</sub>)</b></td><td>β₀ × t = ${beta} × ${tiempoBaseMin} = <b>${carbonTotal.toFixed(1)} mm por cara</b></td></tr>
-  <tr><td><b>Sección residual portante</b></td><td>b − 2·d<sub>char</sub> = ${seccionInicial} − 2×${carbonTotal.toFixed(1)} = <b>${seccionRes.toFixed(1)} mm</b></td></tr>
-  <tr><td><b>RF resultante por cálculo</b></td><td><b>${mat.rfBase}</b></td></tr>
+  <tr><td><b>Sección residual (b − 2·d<sub>char</sub>)</b></td><td>${seccionInicial} − 2×${carbonTotal.toFixed(1)} = <b>${seccionRes.toFixed(1)} mm</b> ${seccionRes <= 0 ? '<span style="color:#b91c1c">(totalmente carbonizada)</span>' : `<span style="font-size:8.5pt;color:#64748b">(${(sr.ratio * 100).toFixed(0)}% de la referencia)</span>`}</td></tr>
+  <tr><td><b>RF por clasificación tabulada</b></td><td><b>${mat.rfBase}</b> — LOFC Ed.17 Tabla A6</td></tr>
   <tr><td><b>RF mínimo requerido</b></td><td><b>${rfReqEsc || '—'}</b></td></tr>
-  <tr style="background:${cumpleEsc ? '#f0fdf4' : '#fef9c3'}"><td><b>Justificación normativa</b></td><td><b>${mat.rfBase} ${cumpleEsc ? '≥' : '<'} ${rfReqEsc || '—'}</b> ⇒ ${cumpleEsc ? '<span class="badge-ok">CUMPLE</span> por sección residual portante' : 'Verificar aumento de sección o protección adicional'}</td></tr>
+  <tr style="background:${cumpleEsc ? '#f0fdf4' : '#fef9c3'}"><td><b>Acreditación</b></td><td><b>${mat.rfBase} ${cumpleEsc ? '≥' : '<'} ${rfReqEsc || '—'}</b> ⇒ ${cumpleEsc ? '<span class="badge-ok">CUMPLE</span> por clasificación tabulada (LOFC Ed.17 Tabla A6)' : 'No alcanza la RF requerida — aumentar sección o aplicar protección certificada'}</td></tr>
+  <tr><td><b>Método de sección residual</b></td><td style="font-size:9pt;color:#475569">${residualNota}</td></tr>
 </table>
 <div style="font-size:9pt;color:#475569;margin-top:6px;line-height:1.5">
-  El cálculo se basa en el <b>método de la sección residual</b> (Eurocódigo 5 · LOFC Ed.17 Tabla A6). Durante el fuego, la madera carboniza desde la superficie hacia el interior a velocidad β₀ constante. El núcleo no carbonizado mantiene sus propiedades estructurales y debe ser suficiente para soportar las cargas remanentes. ${mat.id === 'clt' ? 'En CLT la velocidad de avance se ralentiza por la transición entre capas adhesivadas.' : 'Para vigas y pilares de madera maciza coníferas en Chile (Pino radiata).'}
+  La <b>acreditación de RF se realiza por clasificación tabulada</b> (LOFC Ed.17 Tabla A6). El <b>método de la sección residual</b> (Eurocódigo 5) se muestra a título informativo: la madera carboniza a velocidad β₀ constante y el núcleo no carbonizado debe soportar las cargas remanentes — su verificación estructural, con las solicitaciones reales, es responsabilidad del calculista. ${mat.id === 'clt' ? 'En CLT la velocidad de avance se ralentiza por la transición entre capas adhesivadas.' : 'Para elementos de madera maciza coníferas en Chile (Pino radiata).'}
 </div>`
         }
         if (mat.id === 'mamp') {

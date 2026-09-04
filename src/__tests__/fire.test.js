@@ -10,7 +10,27 @@
 import { describe, it, expect } from 'vitest'
 import {
   obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, rfStringToNumber,
+  evaluarSeccionResidual,
 } from '../lib/engines/fire.js'
+
+// ── B2 · método de sección residual (madera/CLT) — no acredita solo ──────────
+describe('evaluarSeccionResidual — no acredita con sección insuficiente (B2)', () => {
+  it('90mm, β₀=0.65, t=60 → residual 12mm, NO aplicable', () => {
+    const r = evaluarSeccionResidual(90, 0.65, 60)
+    expect(r.carbon).toBeCloseTo(39, 5)
+    expect(r.residual).toBeCloseTo(12, 5)   // 90 − 2×39
+    expect(r.aplicable).toBe(false)          // 13% de la sección → no acredita por sí solo
+  })
+  it('sección amplia con residual ≥ 50% → aplicable', () => {
+    const r = evaluarSeccionResidual(200, 0.7, 30)  // carbon 21, residual 158 = 79%
+    expect(r.aplicable).toBe(true)
+  })
+  it('sección totalmente carbonizada → residual ≤ 0, NO aplicable', () => {
+    const r = evaluarSeccionResidual(60, 0.7, 60)   // carbon 42, residual −24
+    expect(r.residual).toBeLessThan(0)
+    expect(r.aplicable).toBe(false)
+  })
+})
 
 // ── Fixture mínimo OGUC Tabla 1 (Habitacional, simplificado) ─────────────────
 // Letra según pisos: 1p→a, 2p→b, 3p→c, 4p+→d

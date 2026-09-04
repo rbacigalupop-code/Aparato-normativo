@@ -74,3 +74,17 @@ export function obtenerRFOGUC(destino, superficie, pisos, elemento, OGUC_TABLA1 
   if (!letra) return null
   return obtenerRFdeLetra(letra, elemento, OGUC_RF_LETRAS, OGUC_ELEM_COL)
 }
+
+// ─── Método de la sección residual (madera/CLT · Eurocódigo 5) ────────────────
+// Sección residual = b − 2·(β₀·t). El método acredita RF estructural SOLO si la
+// sección residual es suficiente Y se verifican las solicitaciones sobre el
+// núcleo. Sin cargas, o con residual insuficiente, NO acredita por sí solo: la
+// RF se toma de la clasificación tabulada (LOFC Ed.17 Tabla A6). Ver B2.
+export function evaluarSeccionResidual(seccionInicial_mm, beta_mm_min, t_min, minRatio = 0.5) {
+  const b = parseFloat(seccionInicial_mm) || 0
+  const carbon = (parseFloat(beta_mm_min) || 0) * (parseFloat(t_min) || 0)
+  const residual = b - 2 * carbon
+  const ratio = b > 0 ? residual / b : 0
+  const aplicable = residual > 0 && ratio >= minRatio  // acreditación autónoma
+  return { carbon, residual, ratio, aplicable }
+}
