@@ -4070,6 +4070,14 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
           Exigencia: <b>Vivienda → OGUC Art. 4.1.6 (L'nT,w ≤ 75 dB)</b>. Otros usos: referencia NCh352:2013.
         </div>
         {!uso && <div style={S.warn}>Selecciona uso en Diagnóstico.</div>}
+        {/* B7 · Aplicabilidad: el Art. 4.1.6 solo exige impacto entre unidades distintas */}
+        <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, marginBottom:8, cursor:'pointer', background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:6, padding:'6px 10px' }}>
+          <input type="checkbox"
+            checked={termica.ac_impacto_pisos?.entreUnidades !== false}
+            onChange={e => set('ac_impacto_pisos', 'entreUnidades', e.target.checked)}
+            style={{ cursor:'pointer' }} />
+          <span>El entrepiso <b>separa unidades de vivienda distintas</b> <span style={{ color:'#64748b' }}>— el Art. 4.1.6 solo exige aislación de impacto entre unidades distintas; en una vivienda unifamiliar (mismo hogar arriba y abajo), desmárcalo y la verificación queda como <b>no aplica</b>.</span></span>
+        </label>
         <table style={S.table}>
           <thead><tr>
             <th style={S.th}>Elemento</th>
@@ -4097,6 +4105,9 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
               </td>
               <td style={S.td}>
                 {(() => {
+                  if (termica.ac_impacto_pisos?.entreUnidades === false) return (
+                    <span style={{ color:'#64748b', fontSize:11 }}>NO APLICA<div style={{ fontSize:9 }}>misma unidad · Art. 4.1.6 exige entre unidades distintas</div></span>
+                  )
                   const { base, mejora, efectivo } = lnwEfectivo(termica.ac_impacto_pisos)
                   if (!base || !acImpact.entre_pisos) return '—'
                   const cumple = efectivo <= acImpact.entre_pisos
@@ -7653,9 +7664,16 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       { label:'Rw fachada',        val: _rwFachVal != null ? `${_rwFachVal} dB${_rwFachComp ? ' (muro+ventana)' : ''}` : null, max:`≥ ${AC_DEF[uso]?.fachada} dB`, ok: _rwFachVal == null || _rwFachVal >= _acFachReq, norma: _rwFachComp ? 'Composición muro+ventana en paralelo (ISO 12354-3)' : undefined },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
       (() => {
+        // B7 · no aplica si el entrepiso no separa unidades distintas (Art. 4.1.6)
+        const noAplicaImp = termica.ac_impacto_pisos?.entreUnidades === false
         const { base, mejora, efectivo } = lnwEfectivo(termica.ac_impacto_pisos)
         const lim = AC_IMPACT_DEF[uso]?.entre_pisos
-        return { label:"L'n,w impacto pisos", val: base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null, max:`≤ ${lim} dB`, ok: !base || efectivo <= (lim||99), norma: uso==='Vivienda' ? 'OGUC Art. 4.1.6 (L\'nT,w ≤ 75 dB)' : 'NCh352:2013 (referencia)' }
+        return { label:"L'n,w impacto pisos",
+          val: noAplicaImp ? 'No aplica — misma unidad' : (base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null),
+          max: noAplicaImp ? '—' : `≤ ${lim} dB`,
+          ok: noAplicaImp || !base || efectivo <= (lim||99),
+          informativo: noAplicaImp || undefined,
+          norma: uso==='Vivienda' ? 'OGUC Art. 4.1.6 (L\'nT,w ≤ 75 dB)' : 'NCh352:2013 (referencia)' }
       })(),
     ]
     // Cruce acústico ESTIMADO de una solución PDA de muro (Rw ley de masa vs
@@ -8146,7 +8164,15 @@ ${glaserHtml}`
     const { base: lnwImpact, mejora: lnwMejora, efectivo: lnwEfec } = lnwEfectivo(termica.ac_impacto_pisos)
     const lnwReq = AC_IMPACT_DEF[uso]?.entre_pisos
     const lnwCumple = !lnwImpact || !lnwReq || lnwEfec <= lnwReq
-    const lnwRow = lnwImpact ? `<tr>
+    const lnwNoAplica = termica.ac_impacto_pisos?.entreUnidades === false  // B7
+    const lnwRow = lnwNoAplica
+      ? `<tr>
+      <td>Entre pisos — ruido de impacto L'n,w</td>
+      <td>—</td>
+      <td style="color:#0f766e;font-weight:700">—</td>
+      <td><span style="color:#64748b">NO APLICA</span> <span style="font-size:8.5pt;color:#64748b">— el entrepiso no separa unidades distintas (OGUC Art. 4.1.6 exige impacto entre unidades de vivienda distintas)</span></td>
+    </tr>`
+      : lnwImpact ? `<tr>
       <td>Entre pisos — ruido de impacto L'n,w${lnwMejora ? ` <span style="font-size:9pt;color:#64748b">+ ${lnwMejora.codigo} ${lnwMejora.titulo} (ΔL,w −${lnwMejora.delta_lw})</span>` : ''}</td>
       <td><b>${lnwEfec} dB</b>${lnwMejora ? ` <span style="font-size:9pt;color:#64748b">(base ${lnwImpact})</span>` : ''}</td>
       <td style="color:#0f766e;font-weight:700">${lnwReq ? '≤ '+lnwReq+' dB' : '—'}</td>
