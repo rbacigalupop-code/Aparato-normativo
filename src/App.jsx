@@ -5953,6 +5953,30 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
   function removeFachada(id) { setFachadas(prev => prev.filter(f => f.id !== id)) }
   function updF(id, field, val) { setFachadas(prev => prev.map(f => f.id === id ? { ...f, [field]: val } : f)) }
 
+  // ── Detalle de ventanas por fachada (alto × ancho → área, auto-suma a vanos) ──
+  const sumVanos = (vs) => (vs || []).reduce((s, v) => s + (parseFloat(v.alto) || 0) * (parseFloat(v.ancho) || 0), 0)
+  function addVentana(fid) {
+    setFachadas(prev => prev.map(f => {
+      if (f.id !== fid) return f
+      const ventanas = [...(f.ventanas || []), { id: Date.now() + Math.floor(Math.random() * 1000), alto: '', ancho: '' }]
+      return { ...f, ventanas, vanos: sumVanos(ventanas).toFixed(2) }
+    }))
+  }
+  function updVentana(fid, vid, field, val) {
+    setFachadas(prev => prev.map(f => {
+      if (f.id !== fid) return f
+      const ventanas = (f.ventanas || []).map(v => v.id === vid ? { ...v, [field]: val } : v)
+      return { ...f, ventanas, vanos: sumVanos(ventanas).toFixed(2) }
+    }))
+  }
+  function removeVentana(fid, vid) {
+    setFachadas(prev => prev.map(f => {
+      if (f.id !== fid) return f
+      const ventanas = (f.ventanas || []).filter(v => v.id !== vid)
+      return { ...f, ventanas, ...(ventanas.length ? { vanos: sumVanos(ventanas).toFixed(2) } : {}) }
+    }))
+  }
+
   // Resultados por fachada
   const fachadasCalc = fachadas.map(f => {
     const area = parseFloat(f.areaFachada), vanos = parseFloat(f.vanos)
@@ -6108,7 +6132,8 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
                 {fachs.map((f, idx) => {
                   const fc = fachadasCalc.find(x => x.id === f.id)
                   return (
-                    <div key={f.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 8, padding: '8px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+                    <div key={f.id} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', padding: '8px 10px', background: '#f8fafc', borderRadius: f.ventanas?.length ? '8px 8px 0 0' : 8, border: '1px solid #e2e8f0', borderBottom: f.ventanas?.length ? 'none' : undefined, flexWrap: 'wrap' }}>
                       <div style={{ minWidth: 20, fontSize: 12, fontWeight: 700, color: color, paddingBottom: 3 }}>{idx + 1}</div>
                       <div style={S.col}>
                         <span style={S.label}>Nombre / tramo</span>
@@ -6120,7 +6145,14 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
                       </div>
                       <div style={S.col}>
                         <span style={S.label}>Área vanos (m²)</span>
-                        <input style={{ ...S.input, width: 90 }} value={f.vanos} onChange={e => updF(f.id, 'vanos', e.target.value)} placeholder="36.0" />
+                        {f.ventanas?.length > 0 ? (
+                          <div title="Suma automática del detalle de ventanas"
+                            style={{ ...S.input, width: 90, background: '#f0fdfa', color: '#0f766e', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            {sumVanos(f.ventanas).toFixed(2)}<span style={{ fontSize: 9, color: '#94a3b8' }}>auto</span>
+                          </div>
+                        ) : (
+                          <input style={{ ...S.input, width: 90 }} value={f.vanos} onChange={e => updF(f.id, 'vanos', e.target.value)} placeholder="36.0" />
+                        )}
                       </div>
                       <div style={S.col}>
                         <span style={S.label}>Uw ventanas (W/m²K)</span>
@@ -6147,6 +6179,32 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
                         style={{ marginBottom: 2, background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, fontWeight: 700, alignSelf: 'flex-end' }}
                         onClick={() => removeFachada(f.id)}
                       >✕</button>
+                    </div>
+                    {/* ── Detalle de ventanas (alto × ancho → área, suma a vanos) ── */}
+                    <div style={{ padding: '7px 12px 9px 34px', background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: f.ventanas?.length ? 7 : 0, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Detalle de ventanas</span>
+                        <button onClick={() => addVentana(f.id)}
+                          style={{ fontSize: 11, padding: '2px 10px', border: '1px solid #99f6e4', borderRadius: 5, background: '#f0fdfa', color: '#0f766e', cursor: 'pointer', fontWeight: 600 }}>+ Ventana</button>
+                        {f.ventanas?.length > 0 && (
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{f.ventanas.length} ventana(s) · Σ {sumVanos(f.ventanas).toFixed(2)} m²</span>
+                        )}
+                      </div>
+                      {(f.ventanas || []).map((v, vi) => {
+                        const av = (parseFloat(v.alto) || 0) * (parseFloat(v.ancho) || 0)
+                        return (
+                          <div key={v.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, color: '#94a3b8', width: 16 }}>{vi + 1}</span>
+                            <input style={{ ...S.input, width: 78 }} value={v.alto} onChange={e => updVentana(f.id, v.id, 'alto', e.target.value)} placeholder="alto (m)" />
+                            <span style={{ color: '#94a3b8' }}>×</span>
+                            <input style={{ ...S.input, width: 78 }} value={v.ancho} onChange={e => updVentana(f.id, v.id, 'ancho', e.target.value)} placeholder="ancho (m)" />
+                            <span style={{ fontSize: 12.5, color: '#0f766e', fontWeight: 600, minWidth: 80 }}>= {av.toFixed(2)} m²</span>
+                            <button onClick={() => removeVentana(f.id, v.id)} title="Quitar ventana"
+                              style={{ background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}>✕</button>
+                          </div>
+                        )
+                      })}
+                    </div>
                     </div>
                   )
                 })}
@@ -8187,6 +8245,11 @@ ${glaserHtml}`
         const pct = (vanos / area * 100).toFixed(1)
         const limite = maxVidriadoVentana(proy.zona, f.uw, f.orient)
         const cumple = limite !== null ? parseFloat(pct) <= limite : true
+        const detalle = (f.ventanas && f.ventanas.length)
+          ? `<tr><td colspan="8" style="padding:2px 8px 7px 22px;font-size:8.5pt;color:#475569">
+              <b>Ventanas:</b> ${f.ventanas.map((v, i) => { const al = parseFloat(v.alto) || 0, an = parseFloat(v.ancho) || 0; return `V${i + 1} ${al.toFixed(2)}×${an.toFixed(2)} = ${(al * an).toFixed(2)} m²` }).join(' &nbsp;·&nbsp; ')}
+              &nbsp;→ <b>Σ ${vanos.toFixed(2)} m²</b></td></tr>`
+          : ''
         return `<tr>
           <td>${f.nombre || '—'}</td>
           <td>${ORIENT_NAME[f.orient] || f.orient}</td>
@@ -8196,7 +8259,7 @@ ${glaserHtml}`
           <td>${f.uw ? f.uw + ' W/m²K' : '—'}<br><span style="font-size:8.5pt;color:#64748b">${bracketLabelExp(f.uw)}</span></td>
           <td>${limite !== null ? limite + '%' : '—'}</td>
           <td><span class="${cumple ? 'badge-ok' : 'badge-no'}">${cumple ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
-        </tr>`
+        </tr>${detalle}`
       }).join('')
       const orientKeys = [...new Set(fachadasValidas.map(f => f.orient))]
       const summaryRows = orientKeys.map(orient => {
