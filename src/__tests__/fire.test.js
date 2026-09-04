@@ -10,8 +10,25 @@
 import { describe, it, expect } from 'vitest'
 import {
   obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, rfStringToNumber,
-  evaluarSeccionResidual,
+  evaluarSeccionResidual, requiereCajaEscalera,
 } from '../lib/engines/fire.js'
+
+// ── B3 · escalera de evacuación exigible por uso/pisos (unifamiliar exenta) ───
+describe('requiereCajaEscalera — vivienda unifamiliar de 2 pisos EXENTA (B3)', () => {
+  it('vivienda 2 pisos → NO exige (no impone F60 a la escalera)', () => {
+    expect(requiereCajaEscalera('Vivienda', 2)).toBe(false)
+  })
+  it('vivienda 4+ pisos → exige', () => {
+    expect(requiereCajaEscalera('Vivienda', 4)).toBe(true)
+  })
+  it('educación/salud 2 pisos → exige (Art. 4.5.7 aplica a estos usos)', () => {
+    expect(requiereCajaEscalera('Educacion', 2)).toBe(true)
+    expect(requiereCajaEscalera('Salud', 2)).toBe(true)
+  })
+  it('1 piso → nunca exige', () => {
+    expect(requiereCajaEscalera('Educacion', 1)).toBe(false)
+  })
+})
 
 // ── B2 · método de sección residual (madera/CLT) — no acredita solo ──────────
 describe('evaluarSeccionResidual — no acredita con sección insuficiente (B2)', () => {

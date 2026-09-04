@@ -3391,11 +3391,14 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
 
   // ── Lógica de escaleras / cajas de escalera ──────────────────────────────────
-  // OGUC Art. 4.5.7: las escaleras de evacuación son exigibles cuando hay más
-  // de un piso. Para edificaciones de 1 piso se mantienen como OPCIONAL —
-  // el usuario puede habilitarlas manualmente si su proyecto las incluye.
+  // OGUC Art. 4.5.7: la escalera de evacuación es EXIGIBLE según uso y número de
+  // pisos (mismo umbral que la caja): educación/salud/industrial 2+, comercio/
+  // oficina 3+, vivienda 4+. Las VIVIENDAS UNIFAMILIARES y las escaleras interiores
+  // de una unidad están EXENTAS (excepción OGUC) — antes se exigía a todo proyecto
+  // de 2 pisos, imponiendo F60 a la escalera de una casa de 2 pisos. Bajo el umbral
+  // queda OPCIONAL: el usuario puede habilitarla si su proyecto la incluye.
   const pisosNum = Number(proy.pisos) || 0
-  const escalerasObligatorias = pisosNum >= 2
+  const escalerasObligatorias = requiereCajaEscalera(uso, pisosNum)
   // El estado vive en App.jsx (lifted) — TabFuego y el Informe lo comparten.
   const incluirEscaleras = !!escaleras?.incluido
   const setIncluirEscaleras = (v) => setEscaleras(prev => ({ ...prev, incluido: typeof v === 'function' ? v(prev?.incluido) : v }))
@@ -7649,8 +7652,14 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       // RF Escaleras: prioridad val → 1) input manual del dropdown · 2) material
       // elegido en CalcRFEscalera (escaleras.matId → MAT_ESCAL[].rfBase).
       (() => {
+        // Escalera de evacuación exigible según uso/pisos (vivienda unifamiliar exenta)
+        const _escReq = requiereCajaEscalera(uso, proy.pisos)
         const _matEscSel = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha'))
         const _valEsc = termica.rf_escaleras?.rf || _matEscSel?.rfBase || null
+        if (!_escReq) return {
+          label:'RF Escaleras', val:'No aplica — no exigible (uso/pisos)', max:'—', ok:true,
+          informativo:true, norma:'OGUC Art. 4.5.7 Col.(9)',
+        }
         return {
           label:'RF Escaleras',
           val:   _valEsc,
@@ -8416,7 +8425,10 @@ ${glaserHtml}`
     let escalerasHtml = ''
     if (mods.escaleras) {
       const pisosE = Number(proy.pisos) || 0
-      const escObligatorias = pisosE >= 2
+      // Art. 4.5.7: la escalera de evacuación es exigible según uso y pisos (vivienda
+      // unifamiliar EXENTA). Antes se exigía a todo proyecto de 2 pisos → imponía F60
+      // a la escalera de una casa de 2 pisos.
+      const escObligatorias = requiereCajaEscalera(uso, pisosE)
       // Cargar requisitos RF directo del OGUC (igual que TabFuego)
       const usoR = proy.uso || ''
       let rfReqEsc = null
@@ -8435,6 +8447,9 @@ ${glaserHtml}`
       if (!rfReqCajaEsc && usoR && requiereCajaEscalera(usoR, pisosE) && RF_DEF[usoR]?.cajas_esc) {
         rfReqCajaEsc = RF_DEF[usoR].cajas_esc
       }
+      // Si la escalera de evacuación no es exigible para este uso/pisos (p.ej. vivienda
+      // unifamiliar de 2 pisos), no se impone RF: se informa como "sin exigencia".
+      if (!escObligatorias) { rfReqEsc = null; rfReqCajaEsc = null }
       // Material seleccionado por el usuario
       const mat = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha')) || MAT_ESCAL[0]
       const rfBaseN = mat.rfBase ? rfStringToNumber(mat.rfBase) : 0
