@@ -939,7 +939,7 @@ export const colSem=v=>v<=1.5?"#16a34a":v<=2.8?"#d97706":"#dc2626";
 //   · U final = 1/R_T con R_T = (R_upper + R_lower)/2 — valores reales para DOM
 //   · Perfil de temperatura usa R_isotermico (planos isotérmicos) — Glaser
 //   · Se añade `aviso_puente` y `iso6946` al resultado cuando hay puente térmico
-// rseOverride (opcional): para cubierta ventilada (ISO 6946 §6.9.2/6.9.4) — la
+// rseOverride (opcional): para cubierta ventilada (ISO 6946 §6.9.3/6.9.4) — la
 // cara que da a la cámara venteada usa Rse = Rsi del flujo (aire quieto). El
 // caller debe truncar cv hasta la cámara (excluida) antes de llamar.
 // hrExt (opcional): humedad relativa EXTERIOR de diseño (%). Default 80. Los PDA
@@ -1608,7 +1608,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   // grueso, etc.) que bloquea la salida del vapor restante incluso con BV en
   // cara caliente → vapor se acumula en la interfaz aislante-revestimiento.
   //
-  // Solución constructiva (ISO 6946 §6.9.2 + NCh853:2021):
+  // Solución constructiva (ISO 6946 §6.9.3 + NCh853:2021):
   //   1) BV en cara caliente del aislante
   //   2) Cámara ventilada (>=30mm) entre aislante y revestimiento exterior
   //      con aberturas en alero y coronamiento.
@@ -1617,7 +1617,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   // en cubiertas (rain screen, espacios bajo teja, etc.). En muros existe pero
   // ya está cubierta por C2 (Fachada Ventilada).
   //
-  // Modelo Glaser (ISO 6946 §6.9.2): en cubierta con cámara ventilada las
+  // Modelo Glaser (ISO 6946 §6.9.3): en cubierta con cámara ventilada las
   // capas SOBRE la cámara están a condiciones exteriores y NO contribuyen al
   // cálculo higrotérmico. Por eso truncamos cv hasta el aislante inclusive
   // para la simulación, mientras que capasCorregidas (lo que se aplica al UI)
@@ -1646,7 +1646,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           );
       // Stack para Glaser (truncado): solo capas hasta el aislante inclusive,
       // simulando que la cámara venteada deja las capas posteriores a condiciones
-      // exteriores (ISO 6946 §6.9.2). No usamos validarCierre acá porque en una
+      // exteriores (ISO 6946 §6.9.3). No usamos validarCierre acá porque en una
       // cubierta ventilada el aislante es la última capa térmicamente significativa
       // — la cámara venteada actúa de "exterior" y no necesita un cierre adicional
       // que falsearía Pvsat en la interfaz con la cámara.
@@ -1660,13 +1660,13 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           sistema: 'BV + Cámara ventilada',
           color: '#0f766e',
           compatible_loscat: false,
-          descripcion: 'Solución combinada para cubiertas con condensación intersticial donde la barrera de vapor sola no basta (típicamente por revestimiento exterior de alto μ como OSB o fibrocemento grueso que bloquea la salida del vapor restante). Combina: 1) Barrera de vapor de polietileno (μ=9999, 0.2mm) en cara caliente, antes del aislante. 2) Cámara ventilada (≥30mm) tras el aislante con aberturas continuas en alero y coronamiento. Según ISO 6946 §6.9.2, en cubierta ventilada las capas sobre la cámara no contribuyen al cálculo higrotérmico.',
+          descripcion: 'Solución combinada para cubiertas con condensación intersticial donde la barrera de vapor sola no basta (típicamente por revestimiento exterior de alto μ como OSB o fibrocemento grueso que bloquea la salida del vapor restante). Combina: 1) Barrera de vapor de polietileno (μ=9999, 0.2mm) en cara caliente, antes del aislante. 2) Cámara ventilada (≥30mm) tras el aislante con aberturas continuas en alero y coronamiento. Según ISO 6946 §6.9.3, en cubierta ventilada las capas sobre la cámara no contribuyen al cálculo higrotérmico.',
           cambio: '+ Barrera vapor PE (cara caliente) + Cámara ventilada 30mm tras aislante',
           capasCorregidas: cvVisual,
           resultado: rN,
           impactoU: 'U ' + rN.U + ' W/m²K' + (umaxTarget && parseFloat(rN.U) <= umaxTarget ? ' ✓' : ''),
           advertencias: withPenaltyAviso([
-            '⚠ IMPORTANTE: tras aplicar, marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.2).',
+            '⚠ IMPORTANTE: tras aplicar, marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.3).',
             'La cámara debe tener aberturas continuas en alero y coronamiento (entrada y salida de aire por convección).',
             'El sellado perimetral de la barrera de vapor en penetraciones es obligatorio (OGUC Art. 4.1.10).',
             'NCh853:2021 §6.9.2 / ASHRAE 160',
@@ -1749,7 +1749,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       }
       if(extAltoMu){
         const visual=validarCierre([...baseInt,...capasBV,ais,camaraVent,...exteriores],elemTipo);
-        return {visual,evalT:[...baseInt,...capasBV,ais]};   // truncado en el aislante (ISO 6946 §6.9.2)
+        return {visual,evalT:[...baseInt,...capasBV,ais]};   // truncado en el aislante (ISO 6946 §6.9.3)
       }
       const v=validarCierre([...baseInt,...capasBV,ais,...exteriores],elemTipo);
       return {visual:v,evalT:v};
@@ -1771,12 +1771,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         id:'ca_aislacion_'+elegido.cand.n.replace(/\s/g,'_'),
         titulo:'Ca — Aislación '+espMm+'mm '+elegido.cand.n+(extAltoMu?' + cámara ventilada':'')+(idxA<0?'':' (redimensionada)'),
         etiqueta:'+Aislación',sistema:'Aislación',color:'#166534',compatible_loscat:false,
-        descripcion:'Para cumplir '+motivoStr+', se incorpora '+espMm+'mm de '+elegido.cand.n+' (λ='+elegido.cand.lam+' W/mK) '+dondeTxt+(capasBV.length?', con barrera de vapor en la cara caliente para el control higrotérmico':'')+'.'+(extAltoMu?' La cámara ventilada deja las capas exteriores a condiciones exteriores (ISO 6946 §6.9.2), evitando la trampa de vapor de la capa de alto μ.':''),
+        descripcion:'Para cumplir '+motivoStr+', se incorpora '+espMm+'mm de '+elegido.cand.n+' (λ='+elegido.cand.lam+' W/mK) '+dondeTxt+(capasBV.length?', con barrera de vapor en la cara caliente para el control higrotérmico':'')+'.'+(extAltoMu?' La cámara ventilada deja las capas exteriores a condiciones exteriores (ISO 6946 §6.9.3), evitando la trampa de vapor de la capa de alto μ.':''),
         cambio:'+ '+espMm+'mm '+elegido.cand.n+(capasBV.length?' + barrera de vapor':'')+(extAltoMu?' + cámara ventilada':''),
         capasCorregidas:visual,resultado:rN,
         impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
         advertencias:withPenaltyAviso([
-          extAltoMu?'⚠ Marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.2).':(elemTipo==='piso'?'Verificar la altura libre y el encuentro con puertas tras incorporar el aislante.':'Verificar la ventilación del entretecho y el encuentro con elementos contiguos.'),
+          extAltoMu?'⚠ Marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.3).':(elemTipo==='piso'?'Verificar la altura libre y el encuentro con puertas tras incorporar el aislante.':'Verificar la ventilación del entretecho y el encuentro con elementos contiguos.'),
           ...(capasBV.length?['El sellado perimetral de la barrera de vapor es obligatorio (OGUC Art. 4.1.10).']:[])])});
     }
   }

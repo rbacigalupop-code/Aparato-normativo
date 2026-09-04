@@ -4365,7 +4365,7 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
   )
 })
 
-// ─── Cubierta ventilada (ISO 6946 §6.9.2) ────────────────────────────────────
+// ─── Cubierta ventilada (ISO 6946 §6.9.3) ────────────────────────────────────
 // Si la cubierta es ventilada y hay una cámara de aire, el cálculo higrotérmico
 // solo considera las capas BAJO la cámara (las superiores están a condiciones
 // exteriores y no contribuyen). La cara que da a la cámara venteada usa
@@ -4439,7 +4439,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   const [pisoAg,   setPisoAg]   = useState('')           // área piso Ag (m²)
   const [pisoPg,   setPisoPg]   = useState('')           // perímetro expuesto Pg (m)
   const [pisoLg,   setPisoLg]   = useState('2.0')        // λ suelo (W/mK)
-  // Techo: cubierta ventilada → calcular solo capas bajo cámara (ISO 6946 §6.9.2)
+  // Techo: cubierta ventilada → calcular solo capas bajo cámara (ISO 6946 §6.9.3)
   const [cubiertaVent, setCubiertaVent] = useState(false)
   // Corrección puentes térmicos ΔU (ISO 6946 §6.9.3) — suma al U calculado
   const [deltaU, setDeltaU] = useState('')
@@ -4583,7 +4583,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       }).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0))
       if (!cvFull.length) return
 
-      // ── Cubierta ventilada (ISO 6946 §6.9.2): si está activa y hay cámara,
+      // ── Cubierta ventilada (ISO 6946 §6.9.3): si está activa y hay cámara,
       // truncar el stack en la cámara (las capas sobre ella no contribuyen) y
       // usar Rse = Rsi del flujo (aire quieto, §6.9.4) en la cara a la cámara. ──
       const { cv, rseVent } = aplicarCubiertaVentilada(cvFull, cubiertaVent, elemTipo)
@@ -7657,8 +7657,8 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         const _matEscSel = MAT_ESCAL.find(m => m.id === (escaleras?.matId || 'ha'))
         const _valEsc = termica.rf_escaleras?.rf || _matEscSel?.rfBase || null
         if (!_escReq) return {
-          label:'RF Escaleras', val:'No aplica — no exigible (uso/pisos)', max:'—', ok:true,
-          informativo:true, norma:'OGUC Art. 4.5.7 Col.(9)',
+          label:'RF Escaleras', val:'No exigible (uso/pisos)', max:'—', ok:true,
+          informativo:true, noAplica:true, norma:'OGUC Art. 4.5.7 Col.(9)',
         }
         return {
           label:'RF Escaleras',
@@ -7678,10 +7678,11 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         const { base, mejora, efectivo } = lnwEfectivo(termica.ac_impacto_pisos)
         const lim = AC_IMPACT_DEF[uso]?.entre_pisos
         return { label:"L'n,w impacto pisos",
-          val: noAplicaImp ? 'No aplica — misma unidad' : (base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null),
+          val: noAplicaImp ? 'Misma unidad' : (base ? (mejora ? `${efectivo} dB (con ${mejora.codigo})` : `${base} dB`) : null),
           max: noAplicaImp ? '—' : `≤ ${lim} dB`,
           ok: noAplicaImp || !base || efectivo <= (lim||99),
           informativo: noAplicaImp || undefined,
+          noAplica: noAplicaImp || undefined,
           norma: uso==='Vivienda' ? 'OGUC Art. 4.1.6 (L\'nT,w ≤ 75 dB)' : 'NCh352:2013 (referencia)' }
       })(),
     ]
@@ -7885,7 +7886,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
           <tr><th>#</th><th>Material</th><th>λ (W/mK)</th><th>e (mm)</th><th>μ</th><th>R (m²K/W)</th><th>Fuente dato λ</th></tr>
           ${rows}
           <tr class="subtotal"><td colspan="2"><b>RSi — Resistencia sup. interior</b></td><td colspan="3">${rsiKey} (NCh853 Tabla)</td><td><b>${RSi}</b></td><td style="font-size:8.5pt;color:#64748b">NCh853:2021 Tabla E.1</td></tr>
-          <tr class="subtotal"><td colspan="2"><b>RSe — Resistencia sup. exterior</b></td><td colspan="3"></td><td><b>${RSe}</b></td><td style="font-size:8.5pt;color:#64748b">NCh853:2021 Tabla E.1</td></tr>
+          <tr class="subtotal"><td colspan="2"><b>RSe — Resistencia sup. exterior</b></td><td colspan="3">${ventTrunc ? 'Rse = Rsi por cámara ventilada (ISO 6946 §6.9.3)' : ''}</td><td><b>${ventTrunc ? (RSI_MAP[rsiKey] || 0.10).toFixed(2) : RSe}</b></td><td style="font-size:8.5pt;color:#64748b">${ventTrunc ? 'ISO 6946 §6.9.3 (aire quieto)' : 'NCh853:2021 Tabla E.1'}</td></tr>
           <tr class="total"><td colspan="2"><b>R<sub>total</sub></b></td><td colspan="3"></td><td><b>${RtotFinal.toFixed(4)} m²K/W</b></td><td></td></tr>
           <tr class="total"><td colspan="2"><b>U = 1 / R<sub>total</sub></b></td><td colspan="3"></td><td><b>${Ufinal.toFixed(4)} W/m²K</b></td><td></td></tr>
         </table>${ventTrunc ? `<div style="font-size:8.5pt;color:#475569;margin-top:4px">Cámara ventilada (ISO 6946 §6.9.3): las capas hacia el exterior de la cámara no contribuyen al R total, por lo que R<sub>total</sub> = <b>${RtotFinal.toFixed(4)}</b> es menor que la suma directa de todas las capas (${RtotLocal.toFixed(4)}). El U impreso proviene del mismo cálculo del criterio y del gráfico de Glaser.</div>` : ''}`
@@ -8128,6 +8129,18 @@ ${glaserHtml}`
       //    en esa letra (p. ej. Cubierta col (7) en Letra D queda vacía). Sin este
       //    fallback el informe mostraba "—" mientras la pestaña Fuego y el resumen
       //    —que sí caen a RF_DEF— mostraban el requerido y CUMPLE (inconsistencia).
+      // Escalera / caja de escalera: si la evacuación no es exigible para este uso/
+      // pisos (vivienda unifamiliar exenta, Art. 4.5.7), la fila es NO APLICA — no se
+      // impone RF ni se declara CUMPLE (consistente con Módulo 5c y el resumen).
+      if ((e.id === 'escaleras' || e.id === 'cajas_esc') && !requiereCajaEscalera(uso, proy.pisos)) {
+        return `<tr>
+          <td>${e.label}</td>
+          <td>—</td>
+          <td style="color:#64748b">— <span style="font-size:8pt">no exigible (uso/pisos)</span></td>
+          <td style="color:#64748b;font-size:9pt">${e.colLabel}</td>
+          <td><span style="color:#64748b">NO APLICA</span></td>
+        </tr>`
+      }
       let req = null
       let fuenteReq = ''
       if (_letraRpt) {
@@ -8280,9 +8293,11 @@ ${glaserHtml}`
         <td>${c.val || '—'}</td>
         <td>${c.max || '—'}</td>
         <td>${c.norma ? `<span style="font-size:8pt;color:#64748b">${c.norma}</span>` : ''}</td>
-        <td>${c.val ? (c.informativo
-          ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">${c.ok ? 'CUMPLE (est.)' : 'REVISAR (est.)'}</span>`
-          : `<span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>`) : '<span style="color:#94a3b8;font-size:9pt">Sin datos</span>'}</td>
+        <td>${c.val ? (c.noAplica
+          ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO APLICA</span>`
+          : c.informativo
+            ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">${c.ok ? 'CUMPLE (est.)' : 'REVISAR (est.)'}</span>`
+            : `<span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>`) : '<span style="color:#94a3b8;font-size:9pt">Sin datos</span>'}</td>
       </tr>`
     }).join('')
 
@@ -9597,9 +9612,11 @@ ${cards}`)
                     <td style={S.td}><b>{c.label}</b></td>
                     <td style={S.td}>{c.val}</td>
                     <td style={S.td}>{c.max}</td>
-                    <td style={S.td}>{c.informativo
-                      ? <span title="Estimado por ley de masa — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
-                      : <span style={S.badge(c.ok)}>{c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>}</td>
+                    <td style={S.td}>{c.noAplica
+                      ? <span style={{ background:'#f1f5f9', color:'#64748b', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }}>NO APLICA</span>
+                      : c.informativo
+                        ? <span title="Estimado por ley de masa — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
+                        : <span style={S.badge(c.ok)}>{c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>}</td>
                   </tr>
                 ))}
               </tbody>

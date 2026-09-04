@@ -105,7 +105,7 @@ describe('calcGlaser — transmitancia U (resistencias en serie)', () => {
   })
 })
 
-describe('Cubierta ventilada — truncar stack + Rse aire quieto (ISO 6946 §6.9.2)', () => {
+describe('Cubierta ventilada — truncar stack + Rse aire quieto (ISO 6946 §6.9.3)', () => {
   // Caso reportado: cubierta cercha madera + lana 150 + cámara + OSB en zona F.
   const stackCompleto = [
     { lam: 0.26, esp: 0.013, mu: 8 },     // Yeso cartón
