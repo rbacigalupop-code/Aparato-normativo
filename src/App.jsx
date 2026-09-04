@@ -7958,7 +7958,9 @@ ${res.condInter
 
       // ── Memoria descriptiva automática ────────────────────────────────────
       const tipoSistema = sc ? sc.desc : (capas?.length ? 'sistema constructivo personalizado' : 'solución ingresada manualmente')
-      const capasDescr = capas?.filter(c => !c.esCamara).map(c => `${c.mat} (${Math.round(parseFloat(c.esp||0))} mm)`).join(', ')
+      // B10 · sin redondear: Math.round(0.5)=1 hacía que el zincalum (0.5 mm) saliera
+      // como "1 mm" en la memoria descriptiva mientras la tabla mostraba 0.5 mm.
+      const capasDescr = capas?.filter(c => !c.esCamara).map(c => `${c.mat} (${parseFloat(c.esp||0)} mm)`).join(', ')
       const espTotal = capas ? capas.filter(c=>!c.esCamara).reduce((a,c)=>a+parseFloat(c.esp||0),0).toFixed(0) : null
       const uValDescr = uCalcCorr != null ? parseFloat(uCalcCorr).toFixed(4) : (data?.u ? parseFloat(data.u).toFixed(4) : null)
       const funciones = { muro:'aislación térmica de la envolvente exterior, control higrotérmico y soporte de cargas laterales', techo:'protección frente a precipitaciones, aislación térmica superior y control de condensación', piso:'aislación térmica del piso ventilado respecto al subsuelo o exterior', tabique:'separación interior entre recintos con control acústico y eventual RF', ventana:'transmisión de luz natural con control de pérdidas térmicas y ganancias solares' }
