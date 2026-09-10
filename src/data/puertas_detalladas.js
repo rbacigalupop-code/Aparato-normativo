@@ -191,10 +191,15 @@ export const SELLOS = [
 export const DIMENSIONES_OGUC = {
   acceso_principal: {
     label: 'Acceso principal vivienda',
-    ancho_libre_min_m: 0.90,
+    ancho_libre_min_m: 0.80,
     alto_libre_min_m: 2.00,
     abre_hacia: 'interior',
-    nota: 'OGUC Art. 4.1.7. El ancho mide entre marcos.',
+    // El ancho libre de paso funcional para el acceso de una vivienda es ≥ 0,80 m
+    // (vano ≥ 0,90 m). El ancho libre de 0,90 m corresponde a la RUTA ACCESIBLE
+    // (OGUC Art. 4.1.7 / DS N°50), exigible en edificios públicos y colectivos —
+    // NO en vivienda unifamiliar individual. Para accesibilidad, usar el uso
+    // "accesible" (0,90 m). El ancho mide entre marcos.
+    nota: 'OGUC: ancho libre ≥ 0,80 m (vano ≥ 0,90 m). El ancho libre de 0,90 m es ruta accesible (Art. 4.1.7), exigible en edificios públicos/colectivos, no en vivienda unifamiliar.',
   },
   acceso_evacuacion: {
     label: 'Salida de evacuación',
