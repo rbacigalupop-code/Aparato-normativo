@@ -8373,7 +8373,21 @@ ${glaserHtml}`
     }
 
     // ── Puertas — registro del proyecto (4 ejes normativos) ───────────────────
-    const puertasValidas = (puertas || []).filter(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
+    // Aplicar los MISMOS defaults de zona que el registro de puertas (pestaña Puerta):
+    // las puertas que dependen del default de zona traen hojaId/marcoId/selloId vacíos,
+    // y el filtro estricto las descartaba en silencio del informe (p.ej. 3 puertas → 2).
+    const _sugP = PUERTA_SUG_ZONA[proy.zona] || PUERTA_SUG_ZONA.D
+    const puertasConDef = (puertas || []).map(p => ({
+      ...p,
+      hojaId:  p.hojaId  || _sugP.hoja,
+      marcoId: p.marcoId || _sugP.marco,
+      selloId: p.selloId || _sugP.sello,
+    }))
+    const puertasValidas = puertasConDef.filter(p => parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0 && p.hojaId && p.marcoId && p.selloId)
+    // Puertas registradas que aún quedan fuera (sin dimensiones): no se descartan en
+    // silencio — se avisa para que el proyectista las complete (el plano no debe tener
+    // más puertas que la memoria).
+    const puertasIncompletas = puertasConDef.filter(p => (p.nombre || p.uso) && !(parseFloat(p.ancho) > 0 && parseFloat(p.alto) > 0))
     let puertasHtml = ''
     if (puertasValidas.length > 0) {
       const puertasRows = puertasValidas.map((p, idx) => {
@@ -8423,10 +8437,11 @@ ${glaserHtml}`
   </tr>
   ${puertasRows}
   <tr style="font-weight:700;background:#f1f5f9">
-    <td colspan="8">Resumen: ${cumpleNum} de ${total} puertas cumplen los 4 ejes normativos</td>
+    <td colspan="8">Resumen: ${cumpleNum} de ${total} puertas cumplen los 4 ejes normativos${puertasIncompletas.length ? ` · ${puertasIncompletas.length} sin dimensiones (no verificada${puertasIncompletas.length > 1 ? 's' : ''})` : ''}</td>
     <td><span class="${cumpleNum === total ? 'badge-ok' : 'badge-no'}">${cumpleNum === total ? 'OK' : 'REVISAR'}</span></td>
   </tr>
 </table>
+${puertasIncompletas.length ? `<div style="font-size:9pt;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:8px 12px;margin-top:6px">⚠ <b>${puertasIncompletas.length} puerta(s) registrada(s) sin dimensiones completas</b> — no se verificaron y no aparecen en la tabla: ${puertasIncompletas.map(p => p.nombre || (p.uso || '').replace(/_/g, ' ')).join(', ')}. Complétalas (ancho y alto) en la pestaña Puerta para que la memoria coincida con el plano.</div>` : ''}
 <div style="font-size:8.5pt;color:#64748b;margin-top:4px">
   Cálculo U combinado según <b>NCh3079 / ISO 10077-1</b> (U_hoja·A_hoja + U_marco·A_marco + Ψ_sello·L_sello) / A_total.
   RF del conjunto = mínimo entre hoja y marco (<b>LOFC Ed.17 §7</b>).
