@@ -7,6 +7,7 @@ import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, re
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
 import { corteSVG } from './lib/engines/capas.js'
+import { exportarSistemasRevit } from './lib/engines/revit-export.js'
 import Modelo3D from './components/Modelo3D.jsx'
 
 // L'n,w efectivo del entrepiso = base − ΔL,w del revestimiento elegido (si hay).
@@ -7710,6 +7711,22 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   // getCapasParaSC ahora es una utilidad de nivel de módulo (definida arriba en App.jsx)
   // — se usa por closure tanto aquí como en TabDetalles.
 
+  // ── Exportar soluciones constructivas aplicadas → JSON para RevitMind ────────
+  const revitPayload = exportarSistemasRevit(proy, termica, calcUInit)
+  function exportarRevitJSON() {
+    if (!revitPayload.sistemas.length) {
+      alert('No hay soluciones constructivas aplicadas para exportar. Aplica una solución a muro, techo, piso o tabique primero.')
+      return
+    }
+    const blob = new Blob([JSON.stringify(revitPayload, null, 2)], { type: 'application/json;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    const slug = (proy.nombre || 'proyecto').toString().trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'proyecto'
+    a.download = `talora-revit-${slug}.json`
+    a.click()
+  }
+
   async function exportarInforme(modo = 'export') {
     // modo === 'preview' → solo abrir vista previa (no consume token ni descarga)
     // modo === 'export'  → flujo normal (consume token + descarga/imprime)
@@ -9678,6 +9695,21 @@ ${cards}`)
                 : formatoExport === 'html' ? '⬇ Descargar HTML'
                 :                            '⬇ Descargar Word'}
               </button>
+
+              {/* Exportar soluciones aplicadas → RevitMind (JSON) */}
+              <button
+                style={{ ...S.btn('#1e40af'), ...(revitPayload.sistemas.length ? {} : { opacity: 0.5, cursor: 'not-allowed' }) }}
+                onClick={exportarRevitJSON}
+                disabled={!revitPayload.sistemas.length}
+                title="Descarga las soluciones constructivas aplicadas (capas, U, RF, Rw) como JSON para crear los tipos multicapa en Revit vía RevitMind"
+              >
+                ⬇ Exportar a Revit (JSON)
+              </button>
+              <span style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
+                {revitPayload.sistemas.length
+                  ? `${revitPayload.sistemas.length} sistema(s) constructivo(s) — tipos de muro/losa/cubierta multicapa para RevitMind`
+                  : 'Aplica una solución a muro/techo/piso/tabique para habilitar la exportación'}
+              </span>
 
               {/* Descripción breve del formato */}
               <span style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
