@@ -4103,6 +4103,33 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
                   onChange={e => set('ac_impacto_pisos', 'lnw', e.target.value)}
                   placeholder="ej. 58"/>
                 <div style={{ fontSize:9, color:'#94a3b8', marginTop:2 }}>dB (medido)</div>
+                {/* Auto-traer el L'n,w CERTIFICADO del entrepiso LOSCAA homologado
+                    a la solución de piso (el motor ya conoce su Ln,w). Opt-in:
+                    el proyectista puede preferir un valor medido. */}
+                {(() => {
+                  const pisoSC = termica?.piso?.solucion
+                  if (!pisoSC) return null
+                  let h = null
+                  try { h = homologarSolucion(pisoSC) } catch { /* sin cruce */ }
+                  const cert = h?.acustico
+                  if (!cert || cert.lnw == null) return null
+                  const yaEsEste = String(termica.ac_impacto_pisos?.lnw || '') === String(cert.lnw)
+                  return (
+                    <div style={{ marginTop:5 }}>
+                      <button type="button"
+                        onClick={() => set('ac_impacto_pisos', 'lnw', String(cert.lnw))}
+                        title={`Entrepiso homologado ${cert.codigo_base} — ${cert.descripcion || ''}. ${cert.lnw_tipo || 'Ln,w'} certificado = ${cert.lnw} dB (${cert.medicion || 'ensayo'}). Fuente: LOSCAA ED13 2024.`}
+                        style={{ fontSize:10, fontWeight:700, color: yaEsEste ? '#166534' : '#0e6560',
+                          background: yaEsEste ? '#dcfce7' : '#f0fdfa', border:`1px solid ${yaEsEste ? '#86efac' : '#99f6e4'}`,
+                          borderRadius:5, padding:'2px 7px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                        {yaEsEste ? '✓ certificado' : `↧ usar certificado ${cert.lnw} dB`}
+                      </button>
+                      <div style={{ fontSize:9, color:'#94a3b8', marginTop:2 }}>
+                        {cert.codigo_base} · {cert.lnw_tipo || 'Ln,w'} LOSCAA ED13
+                      </div>
+                    </div>
+                  )
+                })()}
               </td>
               <td style={{ ...S.td, color:'#0f766e', fontWeight:700 }}>
                 {acImpact.entre_pisos ? `≤ ${acImpact.entre_pisos} dB` : '—'}

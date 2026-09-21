@@ -275,4 +275,16 @@ describe('LOSCAA — entrepisos y ruido de impacto', () => {
       expect(typeof h.lnw, 'debe propagar el ruido de impacto').toBe('number')
     }
   })
+
+  it('homologarSolucion expone el Ln,w certificado en .acustico (ruta del auto-fill de impacto)', () => {
+    // El botón "usar certificado" del módulo de impacto acústico lee
+    // homologarSolucion(pisoSC).acustico.lnw. Este test bloquea esa ruta exacta.
+    const pisoConCruce = SC.filter(s => s.elem === 'piso')
+      .map(s => homologarSolucion(s))
+      .find(h => h?.acustico?.codigo_base && /\.EP\./.test(h.acustico.codigo_base) && h.acustico.lnw != null)
+    expect(pisoConCruce, 'al menos un piso homologa a entrepiso con Ln,w').toBeTruthy()
+    expect(typeof pisoConCruce.acustico.lnw).toBe('number')
+    expect(pisoConCruce.acustico.lnw).toBeGreaterThanOrEqual(40)
+    expect(pisoConCruce.acustico.lnw_tipo).toMatch(/Ln'?,w/)
+  })
 })
