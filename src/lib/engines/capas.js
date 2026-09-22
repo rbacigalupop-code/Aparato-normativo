@@ -182,14 +182,20 @@ export function corteSVG(capas, opt = {}) {
 const SD_BARRERA_MIN = 1     // m · una membrana con al menos este sd cuenta como barrera
 const SD_BARRERA_SOLO = 5    // m · cualquier capa con este sd es barrera aunque no sea membrana
 const SD_TRANSPIRABLE_MAX = 0.5  // m · membrana con sd bajo = transpirable (deja pasar el vapor)
+// Zonas térmicas frías donde un entramado ligero suele requerir barrera de vapor
+// (el catálogo MINVU la exige entre ~C–I; umbral D–I, inclusivo por ser advisory;
+// el Glaser es el juez final).
+const ZONAS_FRIAS = new Set(['D', 'E', 'F', 'G', 'H', 'I'])
 
 /**
  * Avisos de SENTIDO CONSTRUCTIVO a partir de las capas (interior→exterior).
  * Solo muro/techumbre. Devuelve un array de { tipo, capa, mensaje, sd? }.
  * Chequeos: barrera de vapor en la cara fría · aislante entre dos barreras ·
- * membrana transpirable en la cara caliente. Todos advisory (complementan el Glaser).
+ * membrana transpirable en la cara caliente · entramado ligero sin barrera en
+ * zona fría (requiere opts.zona). Todos advisory (complementan el Glaser).
+ * @param {object} opts - { zona: 'A'..'I' } letra de zona térmica del proyecto.
  */
-export function alertasSentidoConstructivo(capas, elemTipo) {
+export function alertasSentidoConstructivo(capas, elemTipo, opts = {}) {
   const el = elemTipo === 'techumbre' ? 'techo' : elemTipo
   if (el !== 'muro' && el !== 'techo') return []
   const arr = (capas || []).map(c => {
@@ -250,6 +256,21 @@ export function alertasSentidoConstructivo(capas, elemTipo) {
         mensaje: `La membrana transpirable «${arr[i].mat}» (sd bajo) está en la cara interior/caliente. Va en la cara exterior/fría: ahí frena agua y viento y deja salir el vapor. Al interior, en cambio, conviene una barrera de vapor (sd alto).`,
       })
       break
+    }
+  }
+
+  // 4. Entramado ligero (sin capa másica: hormigón/ladrillo/bloque) en zona fría
+  //    y sin control de vapor por la cara interior → suele requerir barrera.
+  const zona = String(opts.zona || '').toUpperCase()
+  if (ZONAS_FRIAS.has(zona) && !barreraExterior) {
+    const hayMasico = arr.some(c => !c.esCamara && ['hormigon', 'ladrillo'].includes(classifyMaterial(c.mat)))
+    let sdInterior = 0
+    for (let i = 0; i < idxAisl; i++) { if (!arr[i].esCamara) sdInterior += arr[i].sd }  // control por el interior
+    if (!hayMasico && sdInterior < 1) {
+      avisos.push({
+        tipo: 'entramado_sin_barrera_zona_fria', capa: null,
+        mensaje: `Entramado ligero en zona ${zona} (fría) sin barrera ni freno de vapor por la cara interior/caliente. En estas zonas suele requerirse una barrera de vapor en la cara interior para evitar condensación dentro del aislante. Agrégala (o confírmalo con el análisis de Glaser).`,
+      })
     }
   }
 

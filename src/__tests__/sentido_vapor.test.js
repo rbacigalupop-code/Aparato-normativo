@@ -18,6 +18,8 @@ const eifs    = { mat: 'EIFS (Sistema ETICS)',     lam: 0.87,  esp: 40,  mu: 25 
 const zinc    = { mat: 'PV-4 / PV-5 Zincalum',     lam: 50,    esp: 0.5, mu: 100000 }  // sd≈50 · barrera por sd
 const camara  = { esCamara: true, esp: 30 }
 const tyvek   = { mat: 'Membrana transpirable agua-viento (tipo Tyvek HomeWrap)', lam: 0.20, esp: 0.5, mu: 50 } // sd≈0,025 · transpirable
+const fibro   = { mat: 'Fibrocemento',             lam: 0.23,  esp: 8,   mu: 50 }
+const ha      = { mat: 'Hormigon armado',          lam: 2.50,  esp: 150, mu: 130 }   // capa másica
 
 describe('alertaSentidoVapor', () => {
   it('barrera de vapor en la cara EXTERIOR del aislante → avisa', () => {
@@ -70,5 +72,31 @@ describe('alertasSentidoConstructivo — avisos adicionales', () => {
   it('devuelve un array (agregador) y el wrapper puntual sigue funcionando', () => {
     expect(Array.isArray(alertasSentidoConstructivo([yeso, lana, barrera], 'muro'))).toBe(true)
     expect(alertaSentidoVapor([yeso, lana, barrera], 'muro').tipo).toBe('barrera_vapor_cara_fria')
+  })
+})
+
+describe('alertasSentidoConstructivo — entramado ligero sin barrera en zona fría', () => {
+  const tipos = (capas, zona) => alertasSentidoConstructivo(capas, 'muro', { zona }).map(a => a.tipo)
+
+  it('entramado ligero sin barrera en zona D (fría, umbral) → avisa', () => {
+    expect(tipos([yeso, lana, osb, fibro], 'D')).toContain('entramado_sin_barrera_zona_fria')
+  })
+
+  it('mismo entramado en zona B/C (templada, bajo el umbral) → no avisa', () => {
+    expect(tipos([yeso, lana, osb, fibro], 'B')).not.toContain('entramado_sin_barrera_zona_fria')
+    expect(tipos([yeso, lana, osb, fibro], 'C')).not.toContain('entramado_sin_barrera_zona_fria')
+  })
+
+  it('muro MÁSICO (hormigón) en zona F → no avisa (no es entramado ligero)', () => {
+    expect(tipos([yeso, ha, lana, fibro], 'F')).not.toContain('entramado_sin_barrera_zona_fria')
+  })
+
+  it('entramado CON barrera de vapor al interior en zona F → no avisa', () => {
+    expect(tipos([yeso, barrera, lana, osb, fibro], 'F')).toEqual([])
+  })
+
+  it('sin zona (opts vacío) → no evalúa esta regla', () => {
+    expect(alertasSentidoConstructivo([yeso, lana, osb, fibro], 'muro'))
+      .not.toContainEqual(expect.objectContaining({ tipo: 'entramado_sin_barrera_zona_fria' }))
   })
 })

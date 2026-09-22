@@ -5304,7 +5304,7 @@ ${cambios.length && solucion ? `
         // barrera, transpirable en la cara caliente). El motor asume capas
         // interior→exterior; si el usuario invirtió el corte, reordenar para que
         // el lado evaluado sea el que ve. Solo muro/techumbre.
-        const avisosSentido = alertasSentidoConstructivo(corteInvert ? [...capas].reverse() : capas, elemTipo)
+        const avisosSentido = alertasSentidoConstructivo(corteInvert ? [...capas].reverse() : capas, elemTipo, { zona: proy?.zona })
         return (
         <div style={{ ...S.card }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
