@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { MATS, ALL_MATS, filterMatsByElem } from '../data.js'
 import { classifyMaterial } from '../lib/engines/capas.js'
+import { capasDeSC } from '../lib/engines/revit-export.js'
 
 const grupo = MATS.find(g => g.g === 'Barreras y membranas')
 const sd = (m) => m.mu * m.esp   // sd = μ · espesor [m]  (mismo cálculo que el Glaser)
@@ -56,5 +57,23 @@ describe('Barreras y membranas — catálogo', () => {
   it('están en ALL_MATS para autocompletar λ/μ/espesor al elegirlos', () => {
     expect(ALL_MATS.find(x => x.n === 'Barrera de vapor foil aluminio')).toBeTruthy()
     expect(ALL_MATS.find(x => x.n === 'Fieltro asfáltico 15 lb (tipo Wichi/Chova)')).toBeTruthy()
+  })
+})
+
+describe('Fix "Barrera vapor" — token sin espesor ya no se descarta del Glaser', () => {
+  it('una capa "Barrera vapor" (sin espesor en la cadena) resuelve a μ=100000, esp≈0,2mm', () => {
+    // Antes: el parser exigía "nombre + número"; "Barrera vapor" (sin número) se
+    // descartaba → el Glaser ignoraba la barrera. Ahora, al ser material conocido
+    // con espesor por defecto, se resuelve.
+    const capas = capasDeSC({ cod: '__test_bv__', capas: 'Yeso carton 13 | Barrera vapor | Lana mineral 30kg 100' })
+    const bv = capas.find(c => /barrera vapor/i.test(c.mat))
+    expect(bv, 'la barrera de vapor no debe desaparecer').toBeTruthy()
+    expect(Number(bv.mu)).toBe(100000)
+    expect(Number(bv.esp)).toBeCloseTo(0.2, 5)
+  })
+
+  it('un token sin espesor que NO es material conocido se sigue descartando (sin inventar)', () => {
+    const capas = capasDeSC({ cod: '__test_malla__', capas: 'Yeso carton 13 | Malla | Lana mineral 30kg 100' })
+    expect(capas.some(c => /malla/i.test(c.mat))).toBe(false)
   })
 })

@@ -338,6 +338,7 @@ export const MATS=[
   // esp en METROS (setMat lo autocompleta a mm ×1000).
   {g:"Barreras y membranas",items:[
     // Frenos y barreras de vapor — cara interior (caliente). sd alto.
+    {n:"Barrera vapor",                                     lam:0.50, mu:100000,  esp:0.0002},  // alias corto (usado en cadenas del catálogo) · sd≈20 m
     {n:"Barrera de vapor (polietileno 0,2mm)",              lam:0.50, mu:100000,  esp:0.0002},  // sd≈20 m
     {n:"Barrera de vapor PE 0,1mm",                         lam:0.50, mu:100000,  esp:0.0001},  // sd≈10 m
     {n:"Barrera de vapor foil aluminio",                    lam:200,  mu:1000000, esp:0.00005}, // sd≈50 m · reflectante

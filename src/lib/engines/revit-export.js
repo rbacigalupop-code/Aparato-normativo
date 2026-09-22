@@ -46,8 +46,18 @@ export function capasDeSC(sc) {
     return bh.capas.map(c => ({ mat: c.n, lam: c.lam, esp: c.esp, mu: c.mu, esCamara: c.esCamara }))
   }
   return (sc.capas || '').split(' | ').map(part => {
-    const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
-    if (!m) return null
+    const t = part.trim()
+    const m = t.match(/^(.*?)\s+([\d.]+)$/)
+    if (!m) {
+      // Token sin espesor que es un material conocido con espesor por defecto
+      // (ej. "Barrera vapor") → resolverlo; si no, descartar. Espejo de App.jsx.
+      const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
+      if (mb && mb.esp) {
+        const cam = /camara|aire/i.test(t)
+        return { mat: mb.n, lam: cam ? '' : (mb.lam ?? ''), esp: String(mb.esp * 1000), mu: cam ? '' : (mb.mu ?? '1'), esCamara: cam }
+      }
+      return null
+    }
     const nombre = m[1].trim()
     const isCamara = /camara|aire/i.test(nombre)
     const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}

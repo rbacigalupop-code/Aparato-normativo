@@ -135,10 +135,13 @@ function capasParaSC(s) {
   const sc = SC_CAPAS[s.cod]
   if (sc?.length) return sc.map(c => ({ n: c.mat, esp: c.esp || 0, lam: c.lam, mu: c.mu, esCamara: !!(c.camara || c.esCamara), esAislante: false }))
   return (s.capas || '').split(' | ').map(part => {
-    const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
-    return m
-      ? { n: m[1].trim(), esp: parseFloat(m[2]), lam: null, mu: null, esCamara: part.toLowerCase().includes('camara'), esAislante: false }
-      : { n: part.trim(), esp: 50, lam: null, mu: null, esCamara: false, esAislante: false }
+    const t = part.trim()
+    const m = t.match(/^(.*?)\s+([\d.]+)$/)
+    if (m) return { n: m[1].trim(), esp: parseFloat(m[2]), lam: null, mu: null, esCamara: t.toLowerCase().includes('camara'), esAislante: false }
+    // Token sin espesor: si es un material conocido con espesor por defecto, usar sus λ/μ/esp.
+    const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
+    if (mb && mb.esp) return { n: mb.n, esp: mb.esp * 1000, lam: mb.lam ?? null, mu: mb.mu ?? null, esCamara: false, esAislante: false }
+    return { n: t, esp: 50, lam: null, mu: null, esCamara: false, esAislante: false }
   })
 }
 
@@ -306,8 +309,19 @@ function getCapasParaSC(sc) {
   const bh = BH.find(b => b.cod === sc.cod)
   if (bh?.capas?.length) return bh.capas.map(c => ({ mat: c.n, lam: c.lam, esp: c.esp, mu: c.mu, esCamara: c.esCamara }))
   return (sc.capas || '').split(' | ').map(part => {
-    const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
-    if (!m) return null
+    const t = part.trim()
+    const m = t.match(/^(.*?)\s+([\d.]+)$/)
+    if (!m) {
+      // Token sin espesor (ej. "Barrera vapor"): si coincide con un material
+      // conocido que trae espesor por defecto, resolverlo con sus λ/μ/esp; si no,
+      // descartar. Evita que una barrera de vapor sin espesor desaparezca del Glaser.
+      const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
+      if (mb && mb.esp) {
+        const cam = /camara|aire/i.test(t)
+        return { mat: mb.n, lam: cam ? '' : (mb.lam ?? ''), esp: String(mb.esp * 1000), mu: cam ? '' : (mb.mu ?? '1'), esCamara: cam }
+      }
+      return null
+    }
     const nombre = m[1].trim()
     const isCamara = /camara|aire/i.test(nombre)
     const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}
@@ -10528,8 +10542,18 @@ function AppInner() {
       }
       // Fallback: parsear cadena "H.A. 150 | EPS 60 | ..."
       const parsed = (sc.capas || '').split(' | ').map(part => {
-        const m = part.trim().match(/^(.*?)\s+([\d.]+)$/)
-        if (!m) return null
+        const t = part.trim()
+        const m = t.match(/^(.*?)\s+([\d.]+)$/)
+        if (!m) {
+          // Token sin espesor que sí es un material conocido con espesor por
+          // defecto (ej. "Barrera vapor") → resolverlo; si no, descartar.
+          const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
+          if (mb && mb.esp) {
+            const cam = /camara|aire/i.test(t)
+            return { id: Date.now() + Math.random(), mat: mb.n, lam: cam ? '' : String(mb.lam ?? ''), esp: String(mb.esp * 1000), mu: cam ? '' : String(mb.mu ?? '1'), esCamara: cam }
+          }
+          return null
+        }
         const nombre = m[1].trim()
         const isCamara = /camara|aire/i.test(nombre)
         const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}
