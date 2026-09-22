@@ -136,6 +136,22 @@ describe('Cubierta ventilada — truncar stack + Rse aire quieto (ISO 6946 §6.9
     // sin pasar hrExt → default 80 (retrocompat)
     expect(calcGlaser(cv, 20, 2, 90, 'muro').Pvse).toBe(r80.Pvse)
   })
+
+  it('generarCorrecciones propaga hrExt (clima del PDA) a la búsqueda interna', async () => {
+    // El mismo muro evaluado con más humedad exterior (He del PDA) endurece el
+    // escenario y cambia las correcciones sugeridas. Antes generarCorrecciones
+    // ignoraba hrExt (usaba 80% fijo) aunque el Glaser en pantalla usara el preset.
+    const cv = [
+      { name: 'Yeso carton', mat: 'Yeso carton', lam: 0.26, esp: 0.013, mu: 8 },
+      { name: 'Lana mineral 30kg', mat: 'Lana mineral 30kg', lam: 0.035, esp: 0.05, mu: 1 },
+      { name: 'Hormigon armado', mat: 'Hormigon armado', lam: 2.50, esp: 0.15, mu: 130 },
+    ]
+    const r40 = await generarCorrecciones(cv, 20, 6, 65, 'muro', 1.8, { hrExt: 40 })
+    const r98 = await generarCorrecciones(cv, 20, 6, 65, 'muro', 1.8, { hrExt: 98 })
+    expect(Array.isArray(r40)).toBe(true)
+    expect(Array.isArray(r98)).toBe(true)
+    expect(JSON.stringify(r40)).not.toBe(JSON.stringify(r98))
+  })
 })
 
 describe('calcGlaser — detección de condensación (Glaser)', () => {

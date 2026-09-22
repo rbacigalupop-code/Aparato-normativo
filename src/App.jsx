@@ -4549,7 +4549,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
           const targetParaSugerir = esOptimizOnly ? umax * 0.90 : umax
           ;(async () => {
             try {
-              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, targetParaSugerir, { arbitroMensual: arbitroMensualRef.current })
+              const cr = await generarCorrecciones(cv, tiZ, teZ, hrZ, elemTipo, targetParaSugerir, { arbitroMensual: arbitroMensualRef.current, hrExt: hrExtZ })
               // Solo aplicar si esta sigue siendo la operación activa
               if (myToken !== opToken.current) return
               setCorrec(cr)
@@ -4661,7 +4661,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
             const targetParaSugerir = esOptimizOnly
               ? umax * 0.90    // sugiere mejoras para llegar al 90% del límite
               : umax
-            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir, { arbitroMensual: arbitroMensualRef.current })
+            const nuevasCorrec = await generarCorrecciones(cv, ti, te, hr, elemTipo, targetParaSugerir, { arbitroMensual: arbitroMensualRef.current, hrExt })
             // Descartar resultado si otra operación más reciente está en curso
             if (myToken !== opToken.current) return
             setCorrec(nuevasCorrec)
@@ -4847,7 +4847,7 @@ ${'='.repeat(60)}`
       const cvCorr = corr.capasCorregidas
       setCalcuando(true)
       try {
-        const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax, { arbitroMensual: arbitroMensualRef.current })
+        const nuevasCorrec = await generarCorrecciones(cvCorr, ti, te, hr, elemTipo, umax, { arbitroMensual: arbitroMensualRef.current, hrExt })
         if (myToken !== opToken.current) return
         setCorrec(nuevasCorrec)
       } catch (e) {

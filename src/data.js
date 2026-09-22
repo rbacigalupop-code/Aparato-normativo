@@ -1426,6 +1426,11 @@ async function _findMinEsp(minEsp, maxEsp, tryFn) {
 //   original; solo la búsqueda interna usa el penalizado.
 export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget=null,opts={}){
   if(!cv||!cv.length)return[];
+  // hrExt: humedad relativa EXTERIOR de diseño (%). Con PDA, el caller pasa
+  // opts.hrExt = He del preset climático del plan; sin PDA queda en 80 (default).
+  // Se propaga a TODAS las evaluaciones internas de _calcGlaserSimple para que las
+  // correcciones sugeridas usen el mismo clima que el Glaser en pantalla.
+  const hrExt = opts.hrExt ?? 80;
 
   // ── Detectar puente térmico integrado ────────────────────────────────────────
   // acero  → ×0.80 (castigo 20 %)   ·   madera → ×0.90 (castigo 10 %)
@@ -1441,7 +1446,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     ? 'Nota: Se incrementó la exigencia de cálculo para compensar el puente térmico del entramado (ISO 6946).'
     : null;
 
-  const r0=_calcGlaserSimple(cv,ti,te,hr,elemTipo);
+  const r0=_calcGlaserSimple(cv,ti,te,hr,elemTipo,hrExt);
   const U0=r0?parseFloat(r0.U):null;
   // Trigger de necesidad: se compara con umaxTarget LEGAL (no el penalizado),
   // para no crear correcciones donde la norma no las exige.
@@ -1450,7 +1455,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(!necesitaU&&!necesitaCond)return[];
 
   // ── Verificar caché (la key incluye penalty para no colisionar) ─────────────
-  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget)+'|f='+factor;
+  const ck=_cacheKey(cv,ti,te,hr,elemTipo,umaxTarget)+'|f='+factor+'|h='+hrExt;
   if(_corrCache.has(ck))return _corrCache.get(ck);
 
   const correcciones=[];
@@ -1483,13 +1488,13 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const cvBase=cv.filter(c=>clasificarCapa(c)!=='rev_ext');
       let esp=await _findMinEsp(30,180,e=>{
         const cvN=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},{n:'Estuco cemento',lam:0.87,esp:0.015,mu:15}],elemTipo);
-        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
+        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo,hrExt));
       });
       if(esp!==null){
         esp=espesorComercial(esp);
         const ais={n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu};
         const cvNuevo=validarCierre([...cvBase,ais,{n:'Estuco cemento',lam:0.87,esp:0.015,mu:15}],elemTipo);
-        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
+        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo,hrExt);
         const cierresAgg=cvNuevo.filter(c=>c._rol).map(c=>c.n);
         correcciones.push({
           id:'c1_eifs_'+alt.n.replace(/\s/g,'_'),
@@ -1517,12 +1522,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const tyvek={..._BHum},camara={esCamara:true},fib={n:'Fibrocemento',lam:0.23,esp:0.006,mu:50};
       let esp=await _findMinEsp(40,180,e=>{
         const cvN=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},tyvek,camara,fib],elemTipo);
-        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
+        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo,hrExt));
       });
       if(esp!==null){
         esp=espesorComercial(esp);
         const cvNuevo=validarCierre([...cvBase,{n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu},tyvek,camara,fib],elemTipo);
-        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
+        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo,hrExt);
         correcciones.push({
           id:'c2_ventilada_'+alt.n.replace(/\s/g,'_'),
           titulo:'C2 — Fachada Ventilada: '+esp+'mm '+alt.n+' + Tyvek + cámara + Fibrocemento',
@@ -1551,12 +1556,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const yc={...CAPAS_CIERRE_INT[0]},bv={..._BVap};
       let esp=await _findMinEsp(30,100,e=>{
         const cvN=validarCierre([yc,bv,{n:alt.n,lam:alt.lam,esp:e/1000,mu:alt.mu},...cvBase],elemTipo);
-        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo));
+        return pasa(_calcGlaserSimple(cvN,ti,te,hr,elemTipo,hrExt));
       });
       if(esp!==null){
         esp=espesorComercial(esp);
         const cvNuevo=validarCierre([yc,bv,{n:alt.n,lam:alt.lam,esp:esp/1000,mu:alt.mu},...cvBase],elemTipo);
-        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo);
+        const rN=_calcGlaserSimple(cvNuevo,ti,te,hr,elemTipo,hrExt);
         correcciones.push({
           id:'c3_trasdosado_'+alt.n.replace(/\s/g,'_'),
           titulo:'C3 — Trasdosado Interior: Yeso cartón + Barrera vapor + '+esp+'mm '+alt.n,
@@ -1578,7 +1583,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   if(idxA>=0){
     let extra=await _findMinEsp(10,500,e=>{
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+e/1000}:c);
-      const rN=_calcGlaserSimple(validarCierre(cvN,elemTipo),ti,te,hr,elemTipo);
+      const rN=_calcGlaserSimple(validarCierre(cvN,elemTipo),ti,te,hr,elemTipo,hrExt);
       return rN&&!rN.condInter&&(!targetAjustado||parseFloat(rN.U||99)<=targetAjustado);
     });
     if(extra!==null){
@@ -1586,7 +1591,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       extra=espesorComercial(_espOrigMm+extra)-_espOrigMm;   // espesor final → comercial
       const cvN=cv.map((c,i)=>i===idxA?{...c,esp:c.esp+extra/1000}:c);
       const cvCerrado=validarCierre(cvN,elemTipo);
-      const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
+      const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo,hrExt);
       const espOrig=Math.round(cv[idxA].esp*1000);
       const nomAis=cv[idxA].n||cv[idxA].mat||'aislante';
       const cierresAgg=cvCerrado.filter(c=>c._rol);
@@ -1614,7 +1619,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
   await _YIELD();
   if(necesitaCond&&!yaTieneBVInterior(cv)){
     const cvCerrado=validarCierre(insertarBVAntesAislante(cv,{..._BVap}),elemTipo);
-    const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
+    const rN=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo,hrExt);
     if(pasaCond(rN)){
       correcciones.push({
         id:'c5_barrera_vapor',
@@ -1678,7 +1683,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       // — la cámara venteada actúa de "exterior" y no necesita un cierre adicional
       // que falsearía Pvsat en la interfaz con la cámara.
       const cvTruncado = [...cvConBV.slice(0, idxAisBV + 1)];
-      const rN = _calcGlaserSimple(cvTruncado, ti, te, hr, elemTipo);
+      const rN = _calcGlaserSimple(cvTruncado, ti, te, hr, elemTipo, hrExt);
       if (pasaCond(rN)) {
         correcciones.push({
           id: 'c5b_bv_camara_ventilada',
@@ -1721,7 +1726,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       const revExt = cv.filter(c=>clasificarCapa(c)==='rev_ext');
       const baseInt = revInt.length ? revInt : [{...CAPAS_CIERRE_INT[0]}];
       const cvCc = validarCierre([...baseInt,{..._BVap},...tableros,...aislantes,...revExt],elemTipo);
-      const rCc = _calcGlaserSimple(cvCc,ti,te,hr,elemTipo);
+      const rCc = _calcGlaserSimple(cvCc,ti,te,hr,elemTipo,hrExt);
       // Solo proponer si elimina la condensación y el orden quedó distinto al original.
       const ordenOrig = cv.filter(c=>!c.esCamara).map(c=>c.n||c.mat).join('|');
       const ordenNuevo = cvCc.filter(c=>!c.esCamara).map(c=>c.n||c.mat).join('|');
@@ -1784,12 +1789,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
     let elegido=null;
     for(const cand of candidatos){
       await _YIELD();
-      const espM=await _findMinEsp(40,300,e=>pasa(_calcGlaserSimple(construir(cand,e).evalT,ti,te,hr,elemTipo)));
+      const espM=await _findMinEsp(40,300,e=>pasa(_calcGlaserSimple(construir(cand,e).evalT,ti,te,hr,elemTipo,hrExt)));
       if(espM!==null){ elegido={cand,esp:espesorComercial(espM)}; break; }
     }
     if(elegido){
       const {visual,evalT}=construir(elegido.cand,elegido.esp);
-      const rN=_calcGlaserSimple(evalT,ti,te,hr,elemTipo);
+      const rN=_calcGlaserSimple(evalT,ti,te,hr,elemTipo,hrExt);
       const espMm=elegido.esp;
       const dondeTxt = elemTipo==='piso'
         ? 'en la cara inferior, bajo el radier/contrapiso'
@@ -1817,7 +1822,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       await _YIELD();
       const cvA=cv.map((c,i)=>i===idxA?{...c,n:alt.n,lam:alt.lam,mu:alt.mu}:c);
       const cvCerrado=validarCierre(cvA,elemTipo);
-      const rA=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo);
+      const rA=_calcGlaserSimple(cvCerrado,ti,te,hr,elemTipo,hrExt);
       if(rA&&!rA.condInter&&(!targetAjustado||parseFloat(rA.U)<=targetAjustado)){
         correcciones.push({
           id:'c6_sustituir_'+alt.n.replace(/\s/g,'_'),
@@ -1869,7 +1874,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         cvReord = [...otrosOrdenados, ...aislantes];
       }
       const cvCerrado = validarCierre(cvReord, elemTipo);
-      const rR = _calcGlaserSimple(cvCerrado, ti, te, hr, elemTipo);
+      const rR = _calcGlaserSimple(cvCerrado, ti, te, hr, elemTipo, hrExt);
       if (pasaCond(rR)) {
         const orden = cvCerrado.filter(c => !c.esCamara && !c.camara)
           .map(c => (c.n || c.mat || '')).join(' → ');
