@@ -329,6 +329,19 @@ function getCapasParaSC(sc) {
   }).filter(Boolean)
 }
 
+// Clima exterior para el Glaser DEL INFORME. Si la comuna tiene PDA, usa Te/He del
+// preset del plan (julio) — igual que el panel Cálculo U; si no, las condiciones de
+// zona DS N°15 (HR ext 80% por defecto). Mantiene el informe coherente con la app.
+function climaGlaserInforme(comuna, zonaData) {
+  const c = climaPDA(comuna)
+  return {
+    ti: zonaData?.Ti, hr: zonaData?.HR,
+    te: c ? c.te : zonaData?.Te,
+    hrExt: c ? c.he : 80,
+    esPDA: !!c,
+  }
+}
+
 // ── Detector de aislación: identifica capas de aislación térmica ───────────────
 // Devuelve el ÍNDICE de la primera capa aislante encontrada en la lista, o -1.
 function findAislacionIdx(capas) {
@@ -7925,8 +7938,10 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         : { mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu || 1) }
       ).filter(c => c.esCamara || (!isNaN(c.lam) && c.lam > 0 && !isNaN(c.esp) && c.esp > 0)) : null
 
-      // Preferir resultado ya calculado sobre recalcular desde cero
-      const res = resModif || ((cv?.length && zonaData) ? calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo) : null)
+      // Preferir resultado ya calculado sobre recalcular desde cero. Clima del
+      // Glaser = preset del PDA (Te/He) si la comuna lo tiene, igual que Cálculo U.
+      const gi = climaGlaserInforme(proy.comuna, zonaData)
+      const res = resModif || ((cv?.length && zonaData) ? calcGlaser(cv, gi.ti, gi.te, gi.hr, el.tipo, undefined, gi.hrExt) : null)
       const uCalc = res ? parseFloat(res.U) : (data?.u ? parseFloat(data.u) : null)
       const tbPct = parseFloat(data?.tb || 0)
       const uCalcCorr = (uCalc != null && tbPct > 0) ? uCalc * (1 + tbPct/100) : uCalc
@@ -8004,12 +8019,12 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
 <h3>${el.label} — Verificación higrotérmica (Método de Glaser, NCh1973:2014)</h3>
 ${svgStr ? `<div class="fig">${svgStr}
   <div class="fig-cap">Figura: Perfil de temperatura (azul continuo) y punto de rocío (naranja discontinuo) — <b>${el.label}</b>.<br>
-  Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Zona ${proy.zona}. Puntos rojos indican condensación.</div>
+  Ti = ${gi.ti}°C · Te = ${gi.te}°C · HR = ${gi.hr}%${gi.esPDA ? ` · HR ext ${gi.hrExt}% · clima PDA (julio)` : ''} · Zona ${proy.zona}. Puntos rojos indican condensación.</div>
 </div>` : ''}
 <div class="data-row">
   <div class="data-item"><label>Temperatura de rocío interior</label><span>${res.Tdew} °C</span></div>
-  <div class="data-item"><label>Pvap interior (Ti, HR=${zonaData.HR}%)</label><span>${res.Pvsi} Pa</span></div>
-  <div class="data-item"><label>Pvap exterior (Te, HR=80%)</label><span>${res.Pvse} Pa</span></div>
+  <div class="data-item"><label>Pvap interior (Ti, HR=${gi.hr}%)</label><span>${res.Pvsi} Pa</span></div>
+  <div class="data-item"><label>Pvap exterior (Te, HR=${gi.hrExt}%)</label><span>${res.Pvse} Pa</span></div>
   <div class="data-item"><label>R<sub>total</sub></label><span>${res.Rtot?.toFixed(4)} m²K/W</span></div>
 </div>
 <table>
@@ -8039,7 +8054,7 @@ ${res.condInter
           const uOrigCalc = (() => {
             const cvO = capasOriginal.map(c => c.esCamara ? { esCamara:true } : { mat:c.mat, lam:parseFloat(c.lam), esp:parseFloat(c.esp)/1000, mu:parseFloat(c.mu||1) }).filter(c => c.esCamara||(c.lam>0&&c.esp>0))
             if (!cvO.length || !zonaData) return null
-            const rO = calcGlaser(cvO, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo)
+            const rO = calcGlaser(cvO, gi.ti, gi.te, gi.hr, el.tipo, undefined, gi.hrExt)
             return rO ? parseFloat(rO.U) : null
           })()
           const svgOrig  = capasSeccionSvgStr(capasOriginal, { titulo:`Configuración original LOSCAT ${sc?.cod} (int → ext)`, uCalc: uOrigCalc, uMax: el.umax, label: el.label })
@@ -8327,7 +8342,8 @@ ${glaserHtml}`
       if (!capas?.length || !zonaData) return
       const cv = capas.map(c => c.esCamara ? { esCamara:true } : { mat:c.mat, lam:parseFloat(c.lam), esp:parseFloat(c.esp)/1000, mu:parseFloat(c.mu||1) }).filter(c => c.esCamara||(c.lam>0&&c.esp>0))
       if (!cv.length) return
-      const res = resModif || calcGlaser(cv, zonaData.Ti, zonaData.Te, zonaData.HR, el.tipo)
+      const gi = climaGlaserInforme(proy.comuna, zonaData)
+      const res = resModif || calcGlaser(cv, gi.ti, gi.te, gi.hr, el.tipo, undefined, gi.hrExt)
       if (!res) return
       const uReal = parseFloat(res.U)
       _uRecalc[el.label] = { uReal, res, capas }
