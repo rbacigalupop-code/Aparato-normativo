@@ -328,6 +328,32 @@ export const MATS=[
     {n:"Baldosa ceramica interior",    lam:1.30, mu:200, usos:['muro','piso']},
     {n:"Tablero DM pintado",           lam:0.21, mu:150, usos:['muro']},
   ]},
+  // ── Barreras y membranas de control (vapor / agua-viento) ─────────────────────
+  // λ/μ por CLASE de producto (EN ISO 10456:2007 §B + fichas de fabricante). La
+  // marca es una referencia comercial reconocible ("tipo X"), NO un dato certificado
+  // de esa marca: verifica la ficha técnica del producto específico si el valor es
+  // crítico. Clave física: sd = μ·espesor [m]. Una BARRERA DE VAPOR (sd alto) va en la
+  // cara CALIENTE/interior; una BARRERA DE AGUA-VIENTO transpirable (sd bajo) va en la
+  // cara FRÍA/exterior — invertirlas hace condensar el elemento (revisar Glaser).
+  // esp en METROS (setMat lo autocompleta a mm ×1000).
+  {g:"Barreras y membranas",items:[
+    // Frenos y barreras de vapor — cara interior (caliente). sd alto.
+    {n:"Barrera de vapor (polietileno 0,2mm)",              lam:0.50, mu:100000,  esp:0.0002},  // sd≈20 m
+    {n:"Barrera de vapor PE 0,1mm",                         lam:0.50, mu:100000,  esp:0.0001},  // sd≈10 m
+    {n:"Barrera de vapor foil aluminio",                    lam:200,  mu:1000000, esp:0.00005}, // sd≈50 m · reflectante
+    {n:"Freno de vapor higrovariable (tipo Isover Vario)",  lam:0.50, mu:10000,   esp:0.0002},  // sd≈2 m
+    {n:"Membrana control de vapor reforzada (tipo Volcán/Wichi)", lam:0.33, mu:50000, esp:0.0003}, // sd≈15 m
+    // Barreras de agua-viento transpirables — cara exterior (fría). sd bajo (deja salir vapor).
+    {n:"Membrana transpirable agua-viento (tipo Tyvek HomeWrap)", lam:0.20, mu:50, esp:0.0005, usos:['muro','techo']}, // sd≈0,025 m
+    {n:"Membrana transpirable para estuco (tipo Tyvek StuccoWrap)", lam:0.20, mu:50, esp:0.0006, usos:['muro']},        // sd≈0,03 m
+    {n:"Membrana hidrófuga transpirable (tipo Volcán)",     lam:0.20, mu:80,  esp:0.0005, usos:['muro','techo']},       // sd≈0,04 m
+    {n:"Lámina de subcubierta transpirable (tipo Tyvek Supro)", lam:0.20, mu:60, esp:0.0006, usos:['techo','muro']},    // sd≈0,036 m
+    // Fieltros / subcubierta bituminosa (semi-permeables).
+    {n:"Fieltro asfáltico 15 lb (tipo Wichi/Chova)",        lam:0.19, mu:1500, esp:0.001},  // sd≈1,5 m
+    {n:"Fieltro asfáltico 40 lb",                           lam:0.19, mu:2000, esp:0.002},  // sd≈4 m
+    // Reflectante multicapa (aporte reflectante NO modelado por λ — requiere cámara de aire adyacente).
+    {n:"Barrera reflectante foil-burbuja (tipo Prodex/Aislan)", lam:0.040, mu:100000, esp:0.005}, // barrera de vapor + reflectante
+  ]},
 ];
 // ALL_MATS se exporta después de CUBIERTAS_TECHUMBRE (línea ~352) para que
 // las cubiertas también se encuentren al buscar materiales por nombre.
