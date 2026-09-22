@@ -179,12 +179,19 @@ export function corteSVG(capas, opt = {}) {
 // sd≥5 m. Una cámara de aire hacia el exterior corta el conteo: lo que está más
 // afuera de una cámara ventilada ya no atrapa humedad contra el aislante.
 // ─────────────────────────────────────────────────────────────────────────────
-const SD_BARRERA_MIN = 1   // m · una membrana con al menos este sd cuenta como barrera
-const SD_BARRERA_SOLO = 5  // m · cualquier capa con este sd es barrera aunque no sea membrana
+const SD_BARRERA_MIN = 1     // m · una membrana con al menos este sd cuenta como barrera
+const SD_BARRERA_SOLO = 5    // m · cualquier capa con este sd es barrera aunque no sea membrana
+const SD_TRANSPIRABLE_MAX = 0.5  // m · membrana con sd bajo = transpirable (deja pasar el vapor)
 
-export function alertaSentidoVapor(capas, elemTipo) {
+/**
+ * Avisos de SENTIDO CONSTRUCTIVO a partir de las capas (interior→exterior).
+ * Solo muro/techumbre. Devuelve un array de { tipo, capa, mensaje, sd? }.
+ * Chequeos: barrera de vapor en la cara fría · aislante entre dos barreras ·
+ * membrana transpirable en la cara caliente. Todos advisory (complementan el Glaser).
+ */
+export function alertasSentidoConstructivo(capas, elemTipo) {
   const el = elemTipo === 'techumbre' ? 'techo' : elemTipo
-  if (el !== 'muro' && el !== 'techo') return null
+  if (el !== 'muro' && el !== 'techo') return []
   const arr = (capas || []).map(c => {
     const esp = parseFloat(c.esp) || 0
     const mu = parseFloat(c.mu) || 0
@@ -192,39 +199,64 @@ export function alertaSentidoVapor(capas, elemTipo) {
     return {
       mat: c.mat || '',
       esCamara: !!c.esCamara,
+      esMembrana: !c.esCamara && classifyMaterial(c.mat) === 'membrana',
       sd: (mu * esp) / 1000,                        // m
       R: lam > 0 ? (esp / 1000) / lam : 0,          // m²K/W
       esAislante: !c.esCamara && lam > 0 && lam <= 0.06,
     }
   })
-  if (arr.length < 2) return null
-  const esBarrera = (c) => !c.esCamara &&
-    ((classifyMaterial(c.mat) === 'membrana' && c.sd >= SD_BARRERA_MIN) || c.sd >= SD_BARRERA_SOLO)
+  if (arr.length < 2) return []
+  const esBarrera = (c) => !c.esCamara && ((c.esMembrana && c.sd >= SD_BARRERA_MIN) || c.sd >= SD_BARRERA_SOLO)
+  const esTranspirable = (c) => c.esMembrana && c.sd < SD_TRANSPIRABLE_MAX
 
   // Aislante principal = mayor R entre las capas aislantes.
   let idxAisl = -1, bestR = 0
   arr.forEach((c, i) => { if (c.esAislante && c.R > bestR) { bestR = c.R; idxAisl = i } })
-  if (idxAisl < 0) return null   // sin aislante identificable → la regla no aplica
+  if (idxAisl < 0) return []   // sin aislante identificable → las reglas no aplican
 
-  // ¿Barrera en la cara interior (0..idxAisl-1)?
-  let barreraInterior = false
-  for (let i = idxAisl - 1; i >= 0; i--) { if (esBarrera(arr[i])) { barreraInterior = true; break } }
-
-  // ¿Barrera en la cara exterior (idxAisl+1..fin), cortando en cámara ventilada?
+  // Barrera en cada cara (la exterior corta en cámara ventilada: lo de más afuera
+  // de una cámara no atrapa humedad contra el aislante).
+  let barreraInterior = null
+  for (let i = idxAisl - 1; i >= 0; i--) { if (esBarrera(arr[i])) { barreraInterior = arr[i]; break } }
   let barreraExterior = null
   for (let i = idxAisl + 1; i < arr.length; i++) {
     if (arr[i].esCamara) break
     if (esBarrera(arr[i])) { barreraExterior = arr[i]; break }
   }
 
+  const avisos = []
+
+  // 1. Barrera de vapor en la cara fría (exterior) sin equivalente al interior.
   if (barreraExterior && !barreraInterior) {
-    const sdR = Math.round(barreraExterior.sd)
-    return {
-      tipo: 'barrera_vapor_cara_fria',
-      capa: barreraExterior.mat,
-      sd: Math.round(barreraExterior.sd * 10) / 10,
-      mensaje: `La barrera de vapor «${barreraExterior.mat}» (sd≈${sdR} m) está en la cara fría/exterior del aislante. En clima de calefacción la barrera de vapor va en la cara interior/caliente; en esta posición puede condensar dentro del aislante. Revisa el orden de las capas, o si esta capa va al exterior usa una membrana transpirable (sd bajo).`,
+    avisos.push({
+      tipo: 'barrera_vapor_cara_fria', capa: barreraExterior.mat, sd: Math.round(barreraExterior.sd * 10) / 10,
+      mensaje: `La barrera de vapor «${barreraExterior.mat}» (sd≈${Math.round(barreraExterior.sd)} m) está en la cara fría/exterior del aislante. En clima de calefacción la barrera de vapor va en la cara interior/caliente; en esta posición puede condensar dentro del aislante. Revisa el orden de las capas, o si esta capa va al exterior usa una membrana transpirable (sd bajo).`,
+    })
+  }
+
+  // 2. Aislante entre DOS barreras de vapor: no puede secar hacia ningún lado.
+  if (barreraExterior && barreraInterior) {
+    avisos.push({
+      tipo: 'doble_barrera_vapor', capa: `${barreraInterior.mat} / ${barreraExterior.mat}`,
+      mensaje: `El aislante queda entre dos capas de alto control de vapor («${barreraInterior.mat}» al interior y «${barreraExterior.mat}» al exterior): no puede secar hacia ningún lado. Deja una sola barrera (en la cara interior/caliente) y una cara exterior más abierta (membrana transpirable) o una cámara ventilada.`,
+    })
+  }
+
+  // 3. Membrana TRANSPIRABLE en la cara interior/caliente (va en la exterior).
+  for (let i = idxAisl - 1; i >= 0; i--) {
+    if (esTranspirable(arr[i])) {
+      avisos.push({
+        tipo: 'transpirable_cara_caliente', capa: arr[i].mat,
+        mensaje: `La membrana transpirable «${arr[i].mat}» (sd bajo) está en la cara interior/caliente. Va en la cara exterior/fría: ahí frena agua y viento y deja salir el vapor. Al interior, en cambio, conviene una barrera de vapor (sd alto).`,
+      })
+      break
     }
   }
-  return null
+
+  return avisos
+}
+
+// Compat: el aviso puntual de barrera de vapor en la cara fría (o null).
+export function alertaSentidoVapor(capas, elemTipo) {
+  return alertasSentidoConstructivo(capas, elemTipo).find(a => a.tipo === 'barrera_vapor_cara_fria') || null
 }

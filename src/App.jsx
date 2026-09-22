@@ -6,7 +6,7 @@ import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validar
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
-import { corteSVG, alertaSentidoVapor } from './lib/engines/capas.js'
+import { corteSVG, alertasSentidoConstructivo } from './lib/engines/capas.js'
 import { exportarSistemasRevit } from './lib/engines/revit-export.js'
 import Modelo3D from './components/Modelo3D.jsx'
 
@@ -5300,10 +5300,11 @@ ${cambios.length && solucion ? `
         const pisoSubtipo = elemTipo === 'piso'
           ? (cortePisoModo || (pisoTipo === 'terreno' ? 'radier' : 'entrepiso'))
           : undefined
-        // Alerta de sentido constructivo (barrera de vapor en la cara fría). El
-        // motor asume capas interior→exterior; si el usuario invirtió el corte,
-        // reordenar para que el lado evaluado sea el que ve. Solo muro/techumbre.
-        const alertaVapor = alertaSentidoVapor(corteInvert ? [...capas].reverse() : capas, elemTipo)
+        // Avisos de sentido constructivo (barrera de vapor en la cara fría, doble
+        // barrera, transpirable en la cara caliente). El motor asume capas
+        // interior→exterior; si el usuario invirtió el corte, reordenar para que
+        // el lado evaluado sea el que ve. Solo muro/techumbre.
+        const avisosSentido = alertasSentidoConstructivo(corteInvert ? [...capas].reverse() : capas, elemTipo)
         return (
         <div style={{ ...S.card }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
@@ -5338,13 +5339,19 @@ ${cambios.length && solucion ? `
               <Modelo3D capas={capas} elemTipo={elemTipo} invert={corteInvert} pisoSubtipo={pisoSubtipo} height={300} />
             </div>
           </div>
-          {alertaVapor && (
-            <div style={{ marginTop:12, background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 11px', display:'flex', gap:8, alignItems:'flex-start' }}>
-              <span style={{ fontSize:15, lineHeight:1.2 }}>⚠</span>
-              <div style={{ fontSize:11.5, color:'#92400e', lineHeight:1.45 }}>
-                <b>Sentido constructivo:</b> {alertaVapor.mensaje}
-                <div style={{ fontSize:10, color:'#b45309', marginTop:3, fontStyle:'italic' }}>Aviso de buenas prácticas — complementa el análisis de Glaser, no lo reemplaza.</div>
-              </div>
+          {avisosSentido.length > 0 && (
+            <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:8 }}>
+              {avisosSentido.map((av, i) => (
+                <div key={av.tipo + i} style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:8, padding:'8px 11px', display:'flex', gap:8, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:15, lineHeight:1.2 }}>⚠</span>
+                  <div style={{ fontSize:11.5, color:'#92400e', lineHeight:1.45 }}>
+                    <b>Sentido constructivo:</b> {av.mensaje}
+                    {i === avisosSentido.length - 1 && (
+                      <div style={{ fontSize:10, color:'#b45309', marginTop:3, fontStyle:'italic' }}>Avisos de buenas prácticas — complementan el análisis de Glaser, no lo reemplazan.</div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
