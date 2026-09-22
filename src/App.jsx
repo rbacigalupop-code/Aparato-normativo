@@ -35,7 +35,7 @@ import {
   getUIdx, MATS
 } from './data.js'
 import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
-import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxEfectiva, climaPDA } from './data/pda.js'
+import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxEfectiva, climaPDA, evaluarDVH_PDA } from './data/pda.js'
 import TabDiag from './modules/TabDiag.jsx'
 import AdminZonas from './modules/AdminZonas.jsx'
 import UserManager from './modules/UserManager.jsx'
@@ -6100,6 +6100,27 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
         normativa="DS N°15 MINVU Tabla 3 (VPCT) · EN 10077 (Uw) · NCh-EN 12207 (permeabilidad) · OGUC Art. 4.1.10"
       />
 
+      {/* ── Chequeo DVH obligatorio por PDA (si la comuna está bajo un plan) ────── */}
+      {(() => {
+        const pk = resolvePDA(proy.comuna)
+        if (!pk) return null
+        const p = PDA[pk]
+        const dvh = evaluarDVH_PDA(fachadas, p)
+        const umbral = p.ventana_dvh_pct ?? 20
+        let color = '#0e6560', bg = '#f0fdfa', bd = '#99f6e4', txt
+        if (!dvh) txt = <>Ingresa las fachadas abajo para verificar. El PDA exige <b>termopanel (DVH) en el 100%</b> de las ventanas si el vidrio supera <b>{umbral}%</b> de la fachada.</>
+        else if (!dvh.aplica) txt = <>Vidrio <b>{dvh.pct}%</b> ≤ {umbral}% → el termopanel (DVH) no es exigido por este criterio del PDA.</>
+        else if (dvh.cumple === null) { color = '#b45309'; bg = '#fffbeb'; bd = '#fde68a'; txt = <>Vidrio <b>{dvh.pct}%</b> &gt; {umbral}% → <b>DVH obligatorio</b> en el 100%. Falta el <b>Uw</b> de las ventanas para verificarlo.</> }
+        else if (dvh.cumple) txt = <>Vidrio <b>{dvh.pct}%</b> &gt; {umbral}% → DVH obligatorio. <b>✓ Todas las ventanas son termopanel (DVH).</b></>
+        else { color = '#991b1b'; bg = '#fef2f2'; bd = '#fecaca'; txt = <>Vidrio <b>{dvh.pct}%</b> &gt; {umbral}% → DVH obligatorio. <b>✗ Hay ventanas sin DVH:</b> {dvh.sinDVH.join(', ')}. Cámbialas a termopanel.</> }
+        return (
+          <div style={{ ...S.card, background: bg, border: `1px solid ${bd}` }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 3 }}>📋 {p.nombre} — Termopanel (DVH) obligatorio por PDA</div>
+            <div style={{ fontSize: 11.5, color }}>{txt}</div>
+          </div>
+        )
+      })()}
+
       {/* ── Calculadora Uw ─────────────────────────────────────────────────────── */}
       <div style={S.card}>
         <p style={S.h2}>Calculadora U ventana (EN 10077)</p>
@@ -9094,6 +9115,44 @@ ${cards}
   <div class="data-item"><label>Fecha emisión</label><span>${fechaHoy}</span></div>
 </div>
 ${zonaData ? `<div class="aviso">Condiciones de diseño Zona ${proy.zona}: Ti = ${zonaData.Ti}°C · Te = ${zonaData.Te}°C · HR = ${zonaData.HR}% · Exigencias DS N°15: U<sub>muro</sub> ≤ ${zonaData.muro} · U<sub>techo</sub> ≤ ${zonaData.techo} · U<sub>piso</sub> ≤ ${zonaData.piso} W/m²K</div>` : ''}
+${(() => {
+  const pk = resolvePDA(proy.comuna)
+  if (!pk) return ''
+  const p = PDA[pk]
+  const esReacond = proy.tipoObra === 'reacondicionamiento'
+  const req = esReacond && p.reacond ? p.reacond : p.requisitos
+  const tipoTxt = esReacond && p.reacond ? 'Reacondicionamiento de vivienda existente' : 'Obra nueva'
+  const filas = [['muro','Muro'],['techo','Techumbre'],['piso','Piso']].map(([k,label]) => {
+    const uProj = parseFloat(termica?.[k]?.u)
+    const uMax = req[k]
+    const tiene = Number.isFinite(uProj)
+    const estado = !tiene ? '<span style="color:#94a3b8">sin dato</span>'
+      : (uProj <= uMax + 1e-9) ? '<span style="color:#166534;font-weight:700">CUMPLE</span>'
+      : '<span style="color:#dc2626;font-weight:700">NO CUMPLE</span>'
+    return `<tr><td style="padding:3px 8px">${label}</td><td style="padding:3px 8px;text-align:center">${tiene ? uProj.toFixed(2) : '—'}</td><td style="padding:3px 8px;text-align:center">≤ ${uMax}</td><td style="padding:3px 8px;text-align:center">${estado}</td></tr>`
+  }).join('')
+  const dvh = evaluarDVH_PDA(fachadas, p)
+  let dvhTxt
+  if (!dvh) dvhTxt = `sin datos de ventanas cargados. El PDA exige termopanel (DVH) en el 100% de las ventanas si el vidrio supera ${p.ventana_dvh_pct ?? 20}% de la fachada.`
+  else if (!dvh.aplica) dvhTxt = `vidrio ${dvh.pct}% ≤ ${dvh.umbral}% → el termopanel (DVH) no es exigido por este criterio del PDA.`
+  else if (dvh.cumple === null) dvhTxt = `vidrio ${dvh.pct}% > ${dvh.umbral}% → DVH obligatorio en el 100% de las ventanas; falta el U de ventana (Uw) para verificarlo.`
+  else if (dvh.cumple) dvhTxt = `vidrio ${dvh.pct}% > ${dvh.umbral}% → DVH obligatorio. ✓ Todas las ventanas son termopanel (DVH).`
+  else dvhTxt = `vidrio ${dvh.pct}% > ${dvh.umbral}% → DVH obligatorio. ✗ Hay ventanas sin DVH: ${dvh.sinDVH.join(', ')}.`
+  return `
+<div style="margin-top:14px;padding:14px 16px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px">
+  <div style="font-weight:800;color:#9a3412;font-size:13px;margin-bottom:4px">📋 Plan de Descontaminación Atmosférica</div>
+  <div style="font-size:11.5px;color:#7c2d12;margin-bottom:8px">El proyecto en <b>${proy.comuna}</b> está bajo el <b>${p.nombre}</b> (${p.decreto}) — ${tipoTxt}. Exigencias térmicas adicionales a la zona DS N°15:</div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;border:1px solid #fed7aa">
+    <thead><tr style="background:#ffedd5"><th style="text-align:left;padding:4px 8px">Elemento</th><th style="padding:4px 8px">U proyecto (W/m²K)</th><th style="padding:4px 8px">U-máx PDA</th><th style="padding:4px 8px">Estado</th></tr></thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <div style="font-size:11px;color:#7c2d12;font-weight:700">Verificaciones adicionales para el Informe Favorable PDA (DOM):</div>
+  <ul style="font-size:11px;color:#7c2d12;margin:4px 0 0 0;padding-left:18px">
+    <li><b>Hermeticidad:</b> ensayo Blower Door obligatorio ≤ ${p.infiltracion_ach ?? 5} ren/h a 50 Pa (declaración/ensayo del proyectista).</li>
+    <li><b>Ventanas (DVH):</b> ${dvhTxt}</li>
+  </ul>
+</div>`
+})()}
 ${(proy.profesional || proy.arq || proy.propietario) ? `
 <div style="margin-top:12px;padding:12px 16px;background:#f0fdfa;border-radius:8px;border-left:4px solid #0e6560;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
   ${proy.propietario ? `

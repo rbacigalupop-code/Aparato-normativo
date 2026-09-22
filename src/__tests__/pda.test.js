@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PDA, PDA_SOLUCIONES, PDA_DETALLES, resolvePDA, pdaDeComuna, solucionesPDA, uMaxObraNueva } from '../data/pda.js'
+import { PDA, PDA_SOLUCIONES, PDA_DETALLES, resolvePDA, pdaDeComuna, solucionesPDA, uMaxObraNueva, evaluarDVH_PDA } from '../data/pda.js'
 import { homologarSolucion, identificarEstructuraBase } from '../lib/engines/homologacion.js'
 
 const ELEMS = ['muro', 'techumbre', 'piso']
@@ -157,5 +157,41 @@ describe('PDA — homologación LOFC/LOSCAA por estructura base', () => {
   it('una fracción razonable de soluciones PDA obtiene base identificada', () => {
     const conBase = PDA_SOLUCIONES.filter(s => identificarEstructuraBase(asSC(s))?.material).length
     expect(conBase).toBeGreaterThanOrEqual(10)  // hoy 15; guarda contra regresión que las mate
+  })
+})
+
+describe('PDA — exigencia de termopanel (DVH) por % vidriado', () => {
+  const pda = { ventana_dvh_pct: 20 }
+
+  it('vidrio ≤ umbral → no aplica la exigencia de DVH', () => {
+    const r = evaluarDVH_PDA([{ areaFachada: '20', vanos: '2', uw: '5.7' }], pda) // 10%
+    expect(r.aplica).toBe(false)
+    expect(r.cumple).toBe(true)
+  })
+
+  it('vidrio > umbral y todas DVH (Uw≤4) → aplica y CUMPLE', () => {
+    const r = evaluarDVH_PDA([{ areaFachada: '10', vanos: '3', uw: '2.8' }], pda) // 30%
+    expect(r.aplica).toBe(true)
+    expect(r.cumple).toBe(true)
+    expect(r.sinDVH).toEqual([])
+  })
+
+  it('vidrio > umbral con una ventana monolítica (Uw>4) → NO CUMPLE y la lista', () => {
+    const r = evaluarDVH_PDA([{ areaFachada: '10', vanos: '3', uw: '5.7', nombre: 'Norte' }], pda)
+    expect(r.aplica).toBe(true)
+    expect(r.cumple).toBe(false)
+    expect(r.sinDVH).toContain('Norte')
+  })
+
+  it('vidrio > umbral sin Uw ingresado → indeterminado (cumple = null)', () => {
+    const r = evaluarDVH_PDA([{ areaFachada: '10', vanos: '3', uw: '' }], pda)
+    expect(r.aplica).toBe(true)
+    expect(r.indeterminado).toBe(true)
+    expect(r.cumple).toBeNull()
+  })
+
+  it('sin PDA o sin fachadas → null', () => {
+    expect(evaluarDVH_PDA([{ areaFachada: '10', vanos: '3', uw: '2.8' }], null)).toBeNull()
+    expect(evaluarDVH_PDA([], pda)).toBeNull()
   })
 })

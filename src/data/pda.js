@@ -2621,3 +2621,32 @@ export function uMaxEfectiva(comuna, elem, uZona, tipoObra = 'nueva') {
 }
 // Alias retrocompatible (obra nueva).
 export const uMaxObraNueva = (comuna, elem, uZona) => uMaxEfectiva(comuna, elem, uZona, 'nueva')
+
+/**
+ * Evalúa la exigencia de termopanel (DVH) del PDA sobre las ventanas del proyecto.
+ * El PDA exige DVH en el 100% de las ventanas cuando la superficie vidriada supera
+ * `ventana_dvh_pct` de la fachada. Se infiere que una ventana es DVH cuando su U de
+ * conjunto Uw ≤ UW_DVH_MAX (un vidrio monolítico/simple ronda 5,7; un DVH ≤ ~3,5).
+ * @param {Array<{areaFachada,vanos,uw,nombre?,orient?}>} fachadas
+ * @param {object|null} pdaInfo  objeto PDA (PDA[key]) o null
+ * @returns {null | { umbral, pct, aplica, cumple:(true|false|null), indeterminado, sinDVH:string[] }}
+ */
+const UW_DVH_MAX = 4.0   // Uw ≤ 4,0 ⇒ termopanel (DVH) o mejor; > 4,0 ⇒ vidrio simple
+export function evaluarDVH_PDA(fachadas, pdaInfo) {
+  if (!pdaInfo || !Array.isArray(fachadas)) return null
+  const validas = fachadas.filter(f => parseFloat(f.areaFachada) > 0 && parseFloat(f.vanos) >= 0)
+  if (!validas.length) return null
+  const umbral = pdaInfo.ventana_dvh_pct ?? 20
+  const totalArea = validas.reduce((s, f) => s + parseFloat(f.areaFachada), 0)
+  const totalVanos = validas.reduce((s, f) => s + parseFloat(f.vanos), 0)
+  const pct = totalArea > 0 ? (totalVanos / totalArea) * 100 : 0
+  const aplica = pct > umbral
+  const conUw = validas.filter(f => parseFloat(f.uw) > 0)
+  const sinDVH = conUw.filter(f => parseFloat(f.uw) > UW_DVH_MAX)
+  const indeterminado = aplica && conUw.length === 0
+  const cumple = !aplica ? true : (indeterminado ? null : sinDVH.length === 0)
+  return {
+    umbral, pct: Math.round(pct * 10) / 10, aplica, cumple, indeterminado,
+    sinDVH: sinDVH.map(f => f.nombre || f.orient || 'fachada'),
+  }
+}
