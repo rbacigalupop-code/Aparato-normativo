@@ -100,3 +100,34 @@ describe('alertasSentidoConstructivo — entramado ligero sin barrera en zona fr
       .not.toContainEqual(expect.objectContaining({ tipo: 'entramado_sin_barrera_zona_fria' }))
   })
 })
+
+describe('regresión: barrera de vapor SIN espesor se clasifica por μ, no por sd', () => {
+  // Caso real (imagen): muro metalcon zona F bien resuelto —
+  // yeso | BARRERA DE VAPOR (sin espesor cargado, sd=0) | lana | cámara | OSB |
+  // membrana transpirable | zincalum. Antes: la BV (sd=0) se confundía con
+  // "transpirable" y además no se reconocía como barrera → 2 falsos positivos.
+  const bvSinEsp = { mat: 'Barrera de vapor (polietileno 0,2mm)', lam: 0.50, esp: 0, mu: 100000 } // sd=0
+  const zinc2    = { mat: 'PV-4 / PV-5 Zincalum', lam: 50, esp: 0.5, mu: 100000 }
+  const muroReal = [yeso, bvSinEsp, lana, camara, osb, tyvek, zinc2]
+
+  it('la BV sin espesor NO se marca como transpirable en la cara caliente', () => {
+    const tipos = alertasSentidoConstructivo(muroReal, 'muro', { zona: 'F' }).map(a => a.tipo)
+    expect(tipos).not.toContain('transpirable_cara_caliente')
+  })
+
+  it('la BV sin espesor SÍ cuenta como barrera al interior (no dispara "entramado sin barrera")', () => {
+    const tipos = alertasSentidoConstructivo(muroReal, 'muro', { zona: 'F' }).map(a => a.tipo)
+    expect(tipos).not.toContain('entramado_sin_barrera_zona_fria')
+  })
+
+  it('el único aviso correcto es que la BV no tiene espesor cargado (dato faltante)', () => {
+    const tipos = alertasSentidoConstructivo(muroReal, 'muro', { zona: 'F' }).map(a => a.tipo)
+    expect(tipos).toEqual(['barrera_sin_espesor'])
+  })
+
+  it('con el espesor de la BV cargado (0,2 mm) el muro no genera ningún aviso', () => {
+    const bvConEsp = { mat: 'Barrera de vapor (polietileno 0,2mm)', lam: 0.50, esp: 0.2, mu: 100000 }
+    const muroOk = [yeso, bvConEsp, lana, camara, osb, tyvek, zinc2]
+    expect(alertasSentidoConstructivo(muroOk, 'muro', { zona: 'F' })).toEqual([])
+  })
+})

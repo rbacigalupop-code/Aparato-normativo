@@ -175,13 +175,15 @@ export function corteSVG(capas, opt = {}) {
 // Aviso de buenas prácticas (advisory) — complementa el Glaser, no lo reemplaza.
 //
 // `capas` en orden INTERIOR → EXTERIOR. Solo muro/techumbre (en piso el orden no
-// está normalizado). Un layer es "barrera" si su rol es membrana con sd≥1 m, o su
-// sd≥5 m. Una cámara de aire hacia el exterior corta el conteo: lo que está más
-// afuera de una cámara ventilada ya no atrapa humedad contra el aislante.
+// está normalizado). Barrera vs transpirable se distingue por μ (resistencia
+// INTRÍNSECA del material, independiente del espesor) — no por sd, porque una
+// barrera de vapor puede venir sin espesor cargado (film de 0,2 mm) y su sd daría
+// 0. Una cámara de aire hacia el exterior corta el conteo: lo que está más afuera
+// de una cámara ventilada ya no atrapa humedad contra el aislante.
 // ─────────────────────────────────────────────────────────────────────────────
-const SD_BARRERA_MIN = 1     // m · una membrana con al menos este sd cuenta como barrera
-const SD_BARRERA_SOLO = 5    // m · cualquier capa con este sd es barrera aunque no sea membrana
-const SD_TRANSPIRABLE_MAX = 0.5  // m · membrana con sd bajo = transpirable (deja pasar el vapor)
+const MU_BARRERA = 1000      // μ · membrana con esta resistencia intrínseca = barrera de vapor (PE, foil, fieltro)
+const MU_TRANSPIRABLE = 150  // μ · membrana con μ bajo = transpirable (barrera de agua-viento tipo Tyvek)
+const SD_BARRERA_SOLO = 5    // m · cualquier capa (aunque no sea membrana) con este sd es barrera (ej. lámina metálica)
 // Zonas térmicas frías donde un entramado ligero suele requerir barrera de vapor
 // (el catálogo MINVU la exige entre ~C–I; umbral D–I, inclusivo por ser advisory;
 // el Glaser es el juez final).
@@ -206,14 +208,17 @@ export function alertasSentidoConstructivo(capas, elemTipo, opts = {}) {
       mat: c.mat || '',
       esCamara: !!c.esCamara,
       esMembrana: !c.esCamara && classifyMaterial(c.mat) === 'membrana',
+      mu,                                           // resistencia intrínseca al vapor
       sd: (mu * esp) / 1000,                        // m
       R: lam > 0 ? (esp / 1000) / lam : 0,          // m²K/W
       esAislante: !c.esCamara && lam > 0 && lam <= 0.06,
     }
   })
   if (arr.length < 2) return []
-  const esBarrera = (c) => !c.esCamara && ((c.esMembrana && c.sd >= SD_BARRERA_MIN) || c.sd >= SD_BARRERA_SOLO)
-  const esTranspirable = (c) => c.esMembrana && c.sd < SD_TRANSPIRABLE_MAX
+  // Barrera/transpirable por μ (intrínseco), robusto ante espesor 0. Una capa
+  // no-membrana con sd≥5 (ej. lámina metálica) también cuenta como barrera.
+  const esBarrera = (c) => !c.esCamara && ((c.esMembrana && c.mu >= MU_BARRERA) || c.sd >= SD_BARRERA_SOLO)
+  const esTranspirable = (c) => c.esMembrana && c.mu > 0 && c.mu <= MU_TRANSPIRABLE
 
   // Aislante principal = mayor R entre las capas aislantes.
   let idxAisl = -1, bestR = 0
@@ -266,12 +271,24 @@ export function alertasSentidoConstructivo(capas, elemTipo, opts = {}) {
     const hayMasico = arr.some(c => !c.esCamara && ['hormigon', 'ladrillo'].includes(classifyMaterial(c.mat)))
     let sdInterior = 0
     for (let i = 0; i < idxAisl; i++) { if (!arr[i].esCamara) sdInterior += arr[i].sd }  // control por el interior
-    if (!hayMasico && sdInterior < 1) {
+    // No avisar si hay barrera detectada al interior (por μ, aunque su sd sea 0 por
+    // falta de espesor) ni si algún retardador aporta sd suficiente por el interior.
+    if (!hayMasico && !barreraInterior && sdInterior < 1) {
       avisos.push({
         tipo: 'entramado_sin_barrera_zona_fria', capa: null,
         mensaje: `Entramado ligero en zona ${zona} (fría) sin barrera ni freno de vapor por la cara interior/caliente. En estas zonas suele requerirse una barrera de vapor en la cara interior para evitar condensación dentro del aislante. Agrégala (o confírmalo con el análisis de Glaser).`,
       })
     }
+  }
+
+  // 5. Barrera de vapor presente pero SIN espesor efectivo → el Glaser no la ve.
+  //    Detecta el material por μ (barrera) pero su sd≈0 (falta cargar el espesor).
+  const bvSinEsp = arr.find(c => !c.esCamara && c.esMembrana && c.mu >= MU_BARRERA && c.sd < 0.1)
+  if (bvSinEsp) {
+    avisos.push({
+      tipo: 'barrera_sin_espesor', capa: bvSinEsp.mat,
+      mensaje: `La barrera de vapor «${bvSinEsp.mat}» no tiene espesor cargado (sd ≈ 0): el análisis de Glaser no la está considerando. Ingresa su espesor real (un film de polietileno ≈ 0,2 mm) para que la verificación de condensación sea válida.`,
+    })
   }
 
   return avisos
