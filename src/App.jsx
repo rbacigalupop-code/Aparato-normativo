@@ -9291,7 +9291,8 @@ ${mods.sistemas ? (() => {
 <h2 id="modulo-2b">Módulo 2b — Soluciones constructivas por sistema estructural</h2>
 <p style="font-size:9.5pt;color:#64748b;margin-bottom:10px">
   El proyecto define <b>${proy.estructuras.length} sistemas estructurales</b> con soluciones asignadas individualmente.
-  La siguiente tabla resume las propiedades térmicas y de resistencia al fuego por sistema y elemento constructivo.
+  La tabla resume las propiedades térmicas y de resistencia al fuego por solución; cuando una misma solución cubre
+  varios sistemas, se lista una vez indicando los sistemas que la aplican.
 </p>
 <table>
   <tr>
@@ -9304,9 +9305,19 @@ ${mods.sistemas ? (() => {
     <th>RF</th>
     <th>Estado (catálogo)</th>
   </tr>
-  ${ests.flatMap(est =>
-    ELEMS_RPT.filter(k => est.soluciones[k]).map(k => {
-      const d = est.soluciones[k]
+  ${(() => {
+    // Agrupar por (elemento + código de solución): una misma solución en varios
+    // sistemas se muestra UNA vez, listando los sistemas que la aplican.
+    const grupos = new Map()
+    for (const est of ests) {
+      for (const k of ELEMS_RPT) {
+        const d = est.soluciones[k]; if (!d) continue
+        const gk = `${k}::${d.solucion?.cod || est.id + '-' + k}`
+        if (!grupos.has(gk)) grupos.set(gk, { k, d, sistemas: [] })
+        grupos.get(gk).sistemas.push(est)
+      }
+    }
+    return [...grupos.values()].map(({ k, d, sistemas }) => {
       const umax = umaxMap[k]
       const uV = parseFloat(d.u || 0)
       const okU = !umax || uV <= umax
@@ -9314,9 +9325,12 @@ ${mods.sistemas ? (() => {
       const rfReqK = rfReqMap[k] || ''
       const okRF = !rfReqK || !d.rf || rfN(d.rf) >= rfN(rfReqK)
       const ok = okU && okRF
+      const tiposU = [...new Set(sistemas.map(s => s.tipo))]
+      const sistemasTxt = tiposU.length >= 4 ? `${tiposU.length} sistemas` : tiposU.join('<br/>')
+      const sectoresTxt = sistemas.map(s => `${s.sector || ''}${s.desde ? ` P${s.desde}${s.hasta !== s.desde ? `–${s.hasta}` : ''}` : ''}`).filter(Boolean).join('<br/>')
       return `<tr style="background:${ok ? '#f0fdf4' : '#fff5f5'}">
-        <td><b>${est.tipo}</b></td>
-        <td>${est.sector || ''}${est.desde ? ` P${est.desde}${est.hasta !== est.desde ? `–${est.hasta}` : ''}` : ''}</td>
+        <td><b>${sistemasTxt}</b></td>
+        <td>${sectoresTxt}</td>
         <td>${k.charAt(0).toUpperCase() + k.slice(1)}</td>
         <td>${d.solucion ? `<b>${d.solucion.cod}</b><br/><span style="font-size:8.5pt">${d.solucion.desc || ''}</span>` : '—'}</td>
         <td style="font-weight:700;color:${okU ? '#166534' : '#dc2626'}">${d.u || '—'}</td>
@@ -9324,8 +9338,8 @@ ${mods.sistemas ? (() => {
         <td>${d.rf || '—'}</td>
         <td><span class="${ok ? 'badge-ok' : 'badge-no'}">${ok ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
       </tr>`
-    })
-  ).join('')}
+    }).join('')
+  })()}
 </table>
 <div style="font-size:8.5pt;color:#64748b;margin-top:6px;line-height:1.5">B5 · La columna <b>U catálogo LOSCAT</b> es el valor certificado de la ficha, informativo. La <b>verificación definitiva</b> usa el <b>U del proyecto calculado</b> a partir de las capas reales (incluidas correcciones) — ver <b>Módulo 2</b> y el <b>Resumen ejecutivo</b>. Ante diferencia entre ambos, manda el U calculado.</div>`
 })() : ''}
