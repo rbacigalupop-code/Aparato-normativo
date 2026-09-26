@@ -231,3 +231,38 @@ export function validarCumplimientoTermico(solucion, uMax, soluciones, filtros =
     recomendacion: mejoras?.recomendacion || null,
   }
 }
+
+// ─── Peor U por elemento (para el resumen ejecutivo) ─────────────────────────
+// Devuelve el U MÁXIMO (más exigente) de un elemento (muro/techo/piso)
+// combinando DOS fuentes, para que el veredicto no oculte una solución no
+// conforme cuando el proyecto tiene varios sistemas estructurales:
+//   1) U CALCULADOS en Cálculo U (res.U) — claves 'elem' y 'estId::elem'.
+//   2) U de CATÁLOGO de cada solución ASIGNADA por sistema (est.soluciones)
+//      que NO tenga un U calculado propio. Una solución asignada pero nunca
+//      recalculada conserva su U de ficha y no puede desaparecer del veredicto:
+//      sin esto, un techo de 0,38 (p.ej. lana 80 mm, no conforme) queda oculto
+//      tras otro techo de 0,23 sí calculado → el Resumen dice CUMPLE mientras el
+//      Módulo 2b marca NO CUMPLE. Cuando existe, MANDA el U calculado (coincide
+//      con la nota B5 del informe). Retorna string (compat. con toFixed) o
+//      undefined si no hay ningún dato.
+export function peorUPorElemento(calcUInit, estructuras, elemKey) {
+  const cu = calcUInit || {}
+  const vals = []
+  // 1) U calculados (res.U) — clave simple o compuesta 'estId::elem'
+  for (const [k, v] of Object.entries(cu)) {
+    if ((k === elemKey || k.endsWith('::' + elemKey)) && v?.res?.U) {
+      const u = parseFloat(v.res.U)
+      if (Number.isFinite(u) && u > 0) vals.push(u)
+    }
+  }
+  // 2) U de catálogo de soluciones asignadas por sistema sin cálculo propio
+  for (const est of (estructuras || [])) {
+    const d = est?.soluciones?.[elemKey]
+    if (!d) continue
+    if (cu[`${est.id}::${elemKey}`]?.res?.U) continue  // ya entró como calculado (manda)
+    const uCat = parseFloat(d.u)
+    if (Number.isFinite(uCat) && uCat > 0) vals.push(uCat)
+  }
+  if (vals.length === 0) return undefined
+  return String(Math.max(...vals))
+}

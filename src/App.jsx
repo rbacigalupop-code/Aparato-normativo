@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
-import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico } from './lib/engines/thermal.js'
+import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico, peorUPorElemento } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -7677,19 +7677,15 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
   const checks = useMemo(() => {
     if (!zona || !uso) return []
     const rfReqEstr = RF_PISOS(uso, proy.pisos)
-    // Usar U calculado desde PanelCalcU si está disponible.
-    // Busca tanto claves simples ('muro') como compuestas ('estId::muro').
-    // Si hay varios sistemas devuelve el peor caso (U máximo = más exigente).
-    function getCalcUForElem(elemKey) {
-      const vals = Object.entries(calcUInit || {})
-        .filter(([k, v]) => (k === elemKey || k.endsWith('::' + elemKey)) && v?.res?.U)
-        .map(([, v]) => parseFloat(v.res.U))
-      if (vals.length === 0) return undefined
-      return String(Math.max(...vals))
-    }
-    const uMuro  = getCalcUForElem('muro')  ?? termica.muro?.u
-    const uTecho = getCalcUForElem('techo') ?? termica.techo?.u
-    const uPiso  = getCalcUForElem('piso')  ?? termica.piso?.u
+    // Peor U por elemento (U máximo = más exigente). Combina los U CALCULADOS
+    // en Cálculo U (claves 'elem' y 'estId::elem') con el U de CATÁLOGO de las
+    // soluciones asignadas por sistema que aún no se recalcularon — así una
+    // solución no conforme (p.ej. un techo de otra estructura con U de ficha
+    // > U-máx) no desaparece del resumen mientras el Módulo 2b la marca NO
+    // CUMPLE. Ver peorUPorElemento() en thermal.js.
+    const uMuro  = peorUPorElemento(calcUInit, proy.estructuras, 'muro')  ?? termica.muro?.u
+    const uTecho = peorUPorElemento(calcUInit, proy.estructuras, 'techo') ?? termica.techo?.u
+    const uPiso  = peorUPorElemento(calcUInit, proy.estructuras, 'piso')  ?? termica.piso?.u
     const uPuerta = termica.puerta?.u
     // RF dinámicos desde OGUC Tabla 1 (letra a/b/c/d según superficie + pisos).
     // Si no hay datos OGUC, fallback al estático RF_DEF. CRÍTICO: los checks
@@ -8360,17 +8356,26 @@ ${glaserHtml}`
       _uRecalc[el.label] = { uReal, res, capas }
 
       // ── Override en checksExtendido para que el resumen use el U REAL ─────
+      // uReal recalcula la solución de `termica[el]` desde sus capas (capta
+      // correcciones y RSi/RSe reales). Pero NO puede BAJAR por debajo del peor
+      // U ya establecido en `checks` (peorUPorElemento), que incluye soluciones
+      // asignadas por sistema no recalculadas (p.ej. un techo de otra estructura
+      // con U de catálogo no conforme). Se toma el máximo para no ocultar el peor
+      // caso — de lo contrario el resumen diría CUMPLE mientras el Módulo 2b
+      // marca NO CUMPLE (contradicción reportada en «vivienda Liucura»).
       const labelMap = { muro: 'Muro U', techo: 'Techo U', piso: 'Piso U' }
       const targetLabel = labelMap[el.key]
       if (targetLabel) {
         const idx = checksExtendido.findIndex(c => c.label === targetLabel)
         if (idx >= 0) {
           const umaxEl = el.umax
+          const uPrev = parseFloat(checksExtendido[idx].val) || 0
+          const uPeor = Math.max(uReal, uPrev)
           checksExtendido[idx] = {
             ...checksExtendido[idx],
-            val: uReal.toFixed(4),
+            val: uPeor.toFixed(4),
             max: umaxEl ? `≤ ${umaxEl} W/m²K` : checksExtendido[idx].max,
-            ok: !umaxEl || uCumpleMax(uReal, umaxEl),
+            ok: !umaxEl || uCumpleMax(uPeor, umaxEl),
           }
         }
       }
