@@ -514,6 +514,12 @@ export const SC_CAPAS={
   "1.1.M.B4.1.2":[{mat:"EPS 10kg/m3",lam:0.041,esp:130,mu:40},{mat:"Hormigon simple",lam:1.63,esp:140,mu:130},{mat:"Yeso carton",lam:0.26,esp:10,mu:8}],
   "1.4.M.A1.1":[{mat:"Hormigon armado",lam:2.50,esp:120,mu:130},{mat:"EPS 20kg/m3",lam:0.040,esp:60,mu:60}],
   "1.4.M.A1.2":[{mat:"Hormigon armado",lam:2.50,esp:120,mu:130},{mat:"EPS 20kg/m3",lam:0.040,esp:80,mu:60}],
+  // Radier sobre terreno: capas térmicas = radier + aislante continuo bajo radier.
+  // (El PE y el ripio son membrana de humedad + base, bajo la envolvente térmica.)
+  "1.4.M.B1.1":[{mat:"Radier HA alisado",lam:2.00,esp:100,mu:130},{mat:"EPS 20kg/m3",lam:0.040,esp:40,mu:60}],
+  "1.4.M.B1.2":[{mat:"Radier HA alisado",lam:2.00,esp:100,mu:130},{mat:"EPS 20kg/m3",lam:0.040,esp:60,mu:60}],
+  "1.4.M.B1.3":[{mat:"Radier HA alisado",lam:2.00,esp:100,mu:130},{mat:"XPS extruido",lam:0.036,esp:80,mu:100}],
+  "1.4.M.B2.1":[{mat:"Radier HA alisado",lam:2.00,esp:100,mu:130}],
   // ── Muros H.A. variantes ─────────────────────────────────────────────────
   "NC-1.2.M.A24.1":[{mat:"Hormigon armado",lam:2.50,esp:200,mu:130},{mat:"Lana mineral 30kg",lam:0.035,esp:80,mu:1},{mat:"Mortero cemento",lam:1.40,esp:10,mu:25}],
   // ── Muros Albañilería variantes ───────────────────────────────────────────
