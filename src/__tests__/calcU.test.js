@@ -522,13 +522,14 @@ describe('SC_CAPAS — pisos Radier sobre terreno cargan capas correctas (regres
   // Ripio compactado") no la parsea bien el fallback (nombres abreviados, "continuo",
   // sufijo mm, token sin número) → cargaba UNA capa con λ errado. Se resuelven con
   // entrada estructurada en SC_CAPAS.
-  it('1.4.M.B1.2 → radier (λ≈2) + EPS (λ=0,04), no una sola capa con λ errado', () => {
+  it('1.4.M.B1.2 → radier (λ≈2) + EPS (λ=0,04) + membrana de humedad al terreno', () => {
     const c = buildCapas('1.4.M.B1.2')
-    expect(c).toHaveLength(2)
+    expect(c).toHaveLength(3)
     expect(parseFloat(c[0].lam)).toBeGreaterThan(1)      // radier: hormigón, no EPS
     expect(parseFloat(c[1].lam)).toBeCloseTo(0.040, 3)   // EPS 20kg
     expect(parseFloat(c[0].esp)).toBe(100)
     expect(parseFloat(c[1].esp)).toBe(60)
+    expect(parseFloat(c[2].mu)).toBe(100000)             // membrana PE contra el terreno (barrera de humedad)
   })
   it('las 4 soluciones Radier tienen radier con λ de hormigón como primera capa', () => {
     for (const cod of ['1.4.M.B1.1', '1.4.M.B1.2', '1.4.M.B1.3', '1.4.M.B2.1']) {
