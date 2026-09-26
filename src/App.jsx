@@ -5891,21 +5891,37 @@ function TabCalcU({ proy, initData, onLimpiarCalcU, onCalcUChange, notas, setNot
   // · En todos los casos se añade "Tabique" si no está ya cubierto
   // · Si no hay sistemas con soluciones → 4 paneles fijos globales
   const panelesSistema = []
+  // Deduplicar: si la MISMA solución (mismo código) se aplicó a varias estructuras
+  // para el mismo elemento (típico de "Aplicar a TODOS"), se muestra UN solo panel
+  // y se listan las estructuras que cubre — no tiene sentido repetir la información.
+  const vistosPanel = new Map()   // `${elemKey}::${cod}` → panel ya creado
   for (const est of estructuras) {
     const soles = est.soluciones || {}
     for (const elemKey of Object.keys(soles)) {
       const cfg = CALC_U_ELEM_CFG[elemKey]
       if (!cfg) continue
-      const sector   = est.sector ? ` · ${est.sector}` : ''
+      const sector    = est.sector ? ` · ${est.sector}` : ''
       const tipoCorto = (est.tipo || '').replace('Metalframe (acero liviano)', 'Metalframe')
-      panelesSistema.push({
+      const etiqEst   = `${tipoCorto}${sector}`
+      const cod       = soles[elemKey]?.solucion?.cod
+      const dk        = cod ? `${elemKey}::${cod}` : null
+      if (dk && vistosPanel.has(dk)) {
+        const p = vistosPanel.get(dk)
+        p.aplicaA.push(etiqEst)
+        p.label = `${cfg.label} — ${p.aplicaA.length >= 4 ? `${p.aplicaA.length} sistemas` : p.aplicaA.join(' + ')}`
+        continue
+      }
+      const panel = {
         key:         `${est.id}::${elemKey}`,
         elemKey,
         elemTipo:    cfg.elemTipo,
-        label:       `${cfg.label} — ${tipoCorto}${sector}`,
+        aplicaA:     [etiqEst],
+        label:       `${cfg.label} — ${etiqEst}`,
         umax:        cfg.umaxKey ? uMaxEfectiva(proy.comuna, cfg.umaxKey, zona?.[cfg.umaxKey], proy.tipoObra) : null,
         headerColor: cfg.color,
-      })
+      }
+      panelesSistema.push(panel)
+      if (dk) vistosPanel.set(dk, panel)
     }
   }
 
