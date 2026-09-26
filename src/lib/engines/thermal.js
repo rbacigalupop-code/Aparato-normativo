@@ -266,3 +266,21 @@ export function peorUPorElemento(calcUInit, estructuras, elemKey) {
   if (vals.length === 0) return undefined
   return String(Math.max(...vals))
 }
+
+// ─── U efectivo de UNA solución puntual ──────────────────────────────────────
+// Para las vistas por-sistema (Módulo 2b), donde se muestra el U de CADA
+// solución, no el peor del elemento. Aplica la MISMA precedencia que
+// peorUPorElemento / la nota B5 del informe: el U calculado en Cálculo U MANDA
+// sobre el U de catálogo cuando existe. Así el Módulo 2b muestra el mismo número
+// que el Resumen ejecutivo y que la Calculadora U (antes divergían: catálogo
+// 0,38 en el Módulo 2b vs calculado 0,296 en el Resumen para el mismo techo).
+//   estId=null → solución global (clave simple 'elem'); estId → 'estId::elem'.
+// Devuelve { u: string, calc: boolean } o null si no hay ningún dato.
+export function uEfectivo(calcUInit, estId, elemKey, uCatalogo) {
+  const key = estId ? `${estId}::${elemKey}` : elemKey
+  const uCalc = parseFloat(calcUInit?.[key]?.res?.U)
+  if (Number.isFinite(uCalc) && uCalc > 0) return { u: String(uCalc), calc: true }
+  const uCat = parseFloat(uCatalogo)
+  if (Number.isFinite(uCat) && uCat > 0) return { u: String(uCatalogo), calc: false }
+  return null
+}

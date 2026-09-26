@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
-import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico, peorUPorElemento } from './lib/engines/thermal.js'
+import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico, peorUPorElemento, uEfectivo } from './lib/engines/thermal.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -2394,7 +2394,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 }
 
 // ─── PESTAÑA TÉRMICA ───────────────────────────────────────────────────────────
-function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
+function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas, calcUInit }) {
   const zona = proy.zona ? ZONAS[proy.zona] : null
   const uso = proy.uso || 'Vivienda'
   const set = (id, field, val) => setTermica(t => ({ ...t, [id]: { ...(t[id] || {}), [field]: val } }))
@@ -2556,16 +2556,26 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
             {ELEMS.map(({ id, label, umax }) => {
               const sol = termica[id]?.solucion
               const uRaw = termica[id]?.u || ''
-              const up = parseFloat(uRaw)
+              const uManual = parseFloat(uRaw)
               const tbPct = parseFloat(termica[id]?.tb || 0)
-              const uCorr = (!isNaN(up) && up > 0 && tbPct > 0) ? (up * (1 + tbPct/100)) : up
-              const uDisplay = (!isNaN(uCorr) && uCorr > 0) ? uCorr.toFixed(3) : ''
-              const cumpleU = !umax || !uDisplay || uCumpleMax(uDisplay, umax)
-              const uInvalid = uRaw !== '' && (isNaN(up) || up <= 0)
               // Sub-filas por sistema estructural
               const sistemasSolElem = (proy.estructuras?.length > 1)
                 ? proy.estructuras.filter(e => e.soluciones?.[id])
                 : []
+              // U que GOBIERNA el veredicto del elemento, coherente con el Resumen
+              // ejecutivo: el U calculado en Cálculo U manda sobre el de catálogo
+              // (nota B5). Multi-sistema → peor U entre sistemas; sistema único →
+              // U calculado de la solución global si existe, si no el manual/catálogo.
+              const uGobStr = sistemasSolElem.length > 0
+                ? (peorUPorElemento(calcUInit, proy.estructuras, id) ?? '')
+                : (uEfectivo(calcUInit, null, id, uRaw)?.u ?? '')
+              const up = parseFloat(uGobStr)
+              const uCorr = (!isNaN(up) && up > 0 && tbPct > 0) ? (up * (1 + tbPct/100)) : up
+              const uDisplay = (!isNaN(uCorr) && uCorr > 0) ? uCorr.toFixed(3) : ''
+              const cumpleU = !umax || !uDisplay || uCumpleMax(uDisplay, umax)
+              const uInvalid = uRaw !== '' && (isNaN(uManual) || uManual <= 0)
+              // El gobernante proviene de un cálculo / peor-sistema distinto al tecleado
+              const uEsGob = !isNaN(up) && up > 0 && (isNaN(uManual) || Math.abs(up - uManual) > 5e-4)
               return (
                 <React.Fragment key={id}>
                 <tr style={{ background: uDisplay&&!cumpleU?'#fff5f5':'transparent' }}>
@@ -2587,6 +2597,7 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                   <td style={{ ...S.td, fontWeight: tbPct>0?700:'normal', color: tbPct>0?'#b45309':'inherit' }}>
                     {uDisplay || '—'}
                     {tbPct>0 && uDisplay && <div style={{ fontSize:9, color:'#b45309' }}>+{tbPct}% TB</div>}
+                    {uEsGob && <div style={{ fontSize:9, color:'#0e6560' }}>{sistemasSolElem.length>0 ? '≈ peor U entre sistemas' : '≈ U calculado'}</div>}
                   </td>
                   <td style={{ ...S.td, color:'#dc2626', fontWeight:700 }}>
                     {umax ? `≤ ${umax}` : <span style={{ color:'#94a3b8' }}>—</span>}
@@ -2599,8 +2610,13 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                 {/* Sub-filas por sistema estructural */}
                 {sistemasSolElem.map(est => {
                   const d = est.soluciones[id]
-                  const uS = parseFloat(d.u || 0)
+                  // U efectivo: el calculado en Cálculo U manda sobre el catálogo (nota B5),
+                  // así la subfila coincide con el Resumen y con la Calculadora U.
+                  const ef = uEfectivo(calcUInit, est.id, id, d.u)
+                  const uSStr = ef ? ef.u : (d.u || '')
+                  const uS = parseFloat(uSStr || 0)
                   const okU = !umax || uS <= umax
+                  const esCalc = !!ef?.calc
                   return (
                     <tr key={est.id} style={{ background: okU ? '#f0fdf4' : '#fff5f5' }}>
                       <td style={{ ...S.td, paddingLeft:24, fontSize:11 }}>
@@ -2609,9 +2625,12 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas }) {
                         {est.desde && <span style={{ marginLeft:4, color:'#94a3b8', fontSize:10 }}>P{est.desde}{est.hasta !== est.desde ? `–${est.hasta}` : ''}</span>}
                         {d.solucion && <div style={{ fontSize:10, color:'#0e6560' }}>📋 {d.solucion.cod} — {d.solucion.desc}</div>}
                       </td>
-                      <td style={{ ...S.td, fontWeight:700 }}>{d.u}</td>
+                      <td style={{ ...S.td, fontWeight:700 }}>
+                        {uSStr || '—'}
+                        {esCalc && <span title="U calculado en Cálculo U (manda sobre el de catálogo)" style={{ marginLeft:4, fontSize:9, color:'#0e6560', fontWeight:700 }}>calc</span>}
+                      </td>
                       <td style={S.td}><span style={{ color:'#94a3b8', fontSize:10 }}>—</span></td>
-                      <td style={{ ...S.td, fontWeight:700, color: okU ? '#166534' : '#dc2626' }}>{d.u || '—'}</td>
+                      <td style={{ ...S.td, fontWeight:700, color: okU ? '#166534' : '#dc2626' }}>{uSStr || '—'}</td>
                       <td style={{ ...S.td, color:'#dc2626', fontWeight:700 }}>{umax ? `≤ ${umax}` : <span style={{ color:'#94a3b8' }}>—</span>}</td>
                       <td style={S.td}><span style={S.badge(okU)}>{okU ? 'CUMPLE' : 'NO CUMPLE'}</span></td>
                     </tr>
@@ -10917,7 +10936,7 @@ function AppInner() {
                 </div>
               )}
               {tab === 1 && <TabSoluciones proy={proy} setProy={setProy} onAplicar={onAplicar} onEnviarCalcU={onEnviarCalcU} notas={notas} setNotas={setNotas} />}
-              {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} />}
+              {tab === 2 && <TabTermica proy={proy} termica={termica} setTermica={setTermica} setTab={setTab} notas={notas} setNotas={setNotas} calcUInit={calcUInit} />}
               {tab === 3 && <TabFuego proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} escaleras={escaleras} setEscaleras={setEscaleras} />}
               {tab === 4 && <TabAcustica proy={proy} termica={termica} setTermica={setTermica} notas={notas} setNotas={setNotas} />}
               {tab === 5 && <TabCalcU proy={proy} initData={calcUInit} onLimpiarCalcU={onLimpiarCalcU} onCalcUChange={onCalcUChange} notas={notas} setNotas={setNotas} perfil={perfil} />}
