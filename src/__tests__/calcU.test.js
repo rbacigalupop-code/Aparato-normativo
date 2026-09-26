@@ -152,6 +152,29 @@ describe('Cubierta ventilada — truncar stack + Rse aire quieto (ISO 6946 §6.9
     expect(Array.isArray(r98)).toBe(true)
     expect(JSON.stringify(r40)).not.toBe(JSON.stringify(r98))
   })
+
+  it('condensación por revestimiento impermeable exterior: sugiere VENTILAR, no aumentar aislante', async () => {
+    // Muro metalcon zona F: Zincalum (μ=100000) al exterior sin ventilar = trampa de
+    // vapor. La U cumple (≈0,26 ≤ 0,45) → el problema es SOLO condensación; más
+    // aislante la empeora. Con la barrera sin espesor efectivo (caso real) las
+    // estrategias automáticas no resuelven y cae al fallback C8: debe diagnosticar
+    // el revestimiento y sugerir ventilar detrás de él, no engrosar el aislante.
+    const wall = [
+      { mat: 'Yeso carton', lam: 0.26, esp: 0.013, mu: 8 },
+      { mat: 'Barrera de vapor', lam: 0.50, esp: 0, mu: 100000 },
+      { mat: 'Lana mineral 30kg', lam: 0.035, esp: 0.120, mu: 1 },
+      { esCamara: true, esp: 0.020 },
+      { mat: 'OSB/MDF', lam: 0.23, esp: 0.015, mu: 200 },
+      { mat: 'Membrana transpirable', lam: 0.20, esp: 0.0005, mu: 50 },
+      { mat: 'PV-4 / PV-5 Zincalum', lam: 50, esp: 0.0005, mu: 100000 },
+    ]
+    const corr = await generarCorrecciones(wall, 20, -1, 80, 'muro', 0.45)
+    const ids = corr.map(c => c.id)
+    expect(ids).toContain('c8_manual_camara_ventilada')      // ventilar = la solución real
+    expect(ids).not.toContain('c8_manual_aumentar_aislante') // U cumple → más aislante empeora
+    const vent = corr.find(c => c.id === 'c8_manual_camara_ventilada')
+    expect(vent.titulo).toMatch(/Zincalum|Ventilar detrás/)  // diagnostica el revestimiento impermeable
+  })
 })
 
 describe('calcGlaser — detección de condensación (Glaser)', () => {

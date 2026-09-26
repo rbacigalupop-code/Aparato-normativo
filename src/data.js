@@ -1949,8 +1949,12 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       }
     }
 
-    // Sugerencia 2: si hay aislante pero poco espesor (<150mm)
-    if (aislantes.length > 0 && espesorAislante < 150 && (necesitaU || necesitaCond)) {
+    // Sugerencia 2: aumentar aislante — SOLO si el problema es U. NO para una
+    // condensación pura: un muro que ya cumple U y sólo condensa NO mejora con más
+    // aislante; al contrario, enfría la cara fría (baja Pvsat) y puede EMPEORAR la
+    // condensación intersticial. (Caso real: muro metalcon zona F con revestimiento
+    // impermeable exterior — la solución es ventilar, no engrosar el aislante.)
+    if (aislantes.length > 0 && espesorAislante < 150 && necesitaU) {
       correcciones.push({
         id: 'c8_manual_aumentar_aislante',
         titulo: `C8 — Aumentar espesor de aislante (actual: ${espesorAislante.toFixed(0)}mm)`,
@@ -1971,16 +1975,28 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
       });
     }
 
-    // Sugerencia 3: cámara ventilada (rain screen) — clima frío/húmedo extremo
-    if (necesitaCond && parseFloat(te) <= 5) {
+    // Sugerencia 3: cámara ventilada (rain screen). Es LA solución cuando hay un
+    // revestimiento impermeable (μ alto) en la cara fría atrapando el vapor: ahí ni
+    // reordenar capas ni aumentar aislante sirven. Se detecta la capa impermeable
+    // por fuera del aislante para diagnosticar la causa explícitamente.
+    const _idxAislC8 = cv.findIndex(c => !c.esCamara && (parseFloat(c.lam) || 1) <= 0.06);
+    const _capaImperm = _idxAislC8 >= 0
+      ? cv.slice(_idxAislC8 + 1).find(c => !c.esCamara && (parseFloat(c.mu) || 1) >= 1000)
+      : null;
+    if (necesitaCond && (parseFloat(te) <= 5 || _capaImperm)) {
+      const _impNom = _capaImperm ? (_capaImperm.n || _capaImperm.mat || 'revestimiento') : null;
       correcciones.push({
         id: 'c8_manual_camara_ventilada',
-        titulo: 'C8 — Agregar cámara ventilada exterior (rain screen)',
+        titulo: _capaImperm
+          ? `C8 — Ventilar detrás del revestimiento «${_impNom}» (cámara ventilada)`
+          : 'C8 — Agregar cámara ventilada exterior (rain screen)',
         etiqueta: 'Manual',
         sistema: 'Cámara ventilada',
         color: '#0f766e',
         compatible_loscat: false,
-        descripcion: `Las condiciones climáticas son extremas (Te=${te}°C, HR=${hr}%). Para evitar condensación, se recomienda una cámara ventilada (rain screen) entre el aislante y el revestimiento exterior. Esta cámara permite que la humedad que migra desde el interior se evapore al exterior sin acumularse. NCh853:2021 §6.9.2.`,
+        descripcion: _capaImperm
+          ? `El revestimiento «${_impNom}» (μ=${parseFloat(_capaImperm.mu)}) es prácticamente impermeable al vapor y está en la cara fría sin ventilar: atrapa el vapor que migra desde el interior y por eso el muro condensa. Reordenar las capas o aumentar el aislante NO lo resuelve. La solución es una CÁMARA VENTILADA (rain screen) DETRÁS de ese revestimiento: al ventilarla, el revestimiento queda fuera de la envolvente de vapor (el análisis se trunca en la cámara, Rse=Rsi) y la humedad escapa al exterior. NCh853:2021 §6.9.2 / ISO 6946 §6.9.3.`
+          : `Las condiciones climáticas son extremas (Te=${te}°C, HR=${hr}%). Para evitar condensación, se recomienda una cámara ventilada (rain screen) entre el aislante y el revestimiento exterior. Esta cámara permite que la humedad que migra desde el interior se evapore al exterior sin acumularse. NCh853:2021 §6.9.2.`,
         cambio: 'Agregar cámara de aire ventilada (>=20mm) tras el aislante',
         capasCorregidas: null,
         resultado: null,
