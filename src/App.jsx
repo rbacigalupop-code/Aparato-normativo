@@ -1418,18 +1418,13 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
 
   // Aplica la misma solución a TODOS los sistemas (útil para techo/piso de obra única)
   function onAplicarTodos(sc, mod = null) {
-    const e = sc.elem === 'techumbre' ? 'techo' : sc.elem
-    const { ev: _ev, ...scClean } = sc
-    const { isMod, u: uApplied } = resolverAplicacionSC(sc, mod)
-    const solucion = isMod ? { ...scClean, u: uApplied, modificada: true, uOriginal: sc.u } : scClean
-    const solData  = { u: String(uApplied), rf: sc.rf || '', rw: sc.ac_rw ? String(sc.ac_rw) : '', solucion }
-    setProy(p => ({
-      ...p,
-      estructuras: (p.estructuras || []).map(est => ({
-        ...est,
-        soluciones: { ...(est.soluciones || {}), [e]: solData },
-      }))
-    }))
+    // Aplica la MISMA solución a cada estructura reusando onAplicar, que además de
+    // est.soluciones puebla calcUInit['estId::elem'] (para la Calculadora U) y termica
+    // (Fuego/Acústica/informe). ANTES solo seteaba est.soluciones → los paneles
+    // aparecían vacíos ("Sin datos") y la solución no llegaba al resto de la app.
+    for (const est of (proy.estructuras || [])) {
+      onAplicar(sc, est.id, mod)
+    }
     setTargetSistema(null)
   }
 
