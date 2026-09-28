@@ -4,6 +4,7 @@ import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
 import { sugerirMejorasTermicas, peorUPorElemento, uEfectivo, uCumpleMax } from './lib/engines/thermal.js'
 import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado } from './lib/compliance/status.js'
+import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/capas.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -134,15 +135,18 @@ function capasParaSC(s) {
   if (bh?.capas?.length) return bh.capas.map(c => ({ n: c.n, esp: c.esp || 0, lam: c.lam, mu: c.mu, esCamara: !!c.esCamara, esAislante: !!c.esAislante }))
   const sc = SC_CAPAS[s.cod]
   if (sc?.length) return sc.map(c => ({ n: c.mat, esp: c.esp || 0, lam: c.lam, mu: c.mu, esCamara: !!(c.camara || c.esCamara), esAislante: false }))
-  return (s.capas || '').split(' | ').map(part => {
-    const t = part.trim()
-    const m = t.match(/^(.*?)\s+([\d.]+)$/)
-    if (m) return { n: m[1].trim(), esp: parseFloat(m[2]), lam: null, mu: null, esCamara: t.toLowerCase().includes('camara'), esAislante: false }
-    // Token sin espesor: si es un material conocido con espesor por defecto, usar sus λ/μ/esp.
-    const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
-    if (mb && mb.esp) return { n: mb.n, esp: mb.esp * 1000, lam: mb.lam ?? null, mu: mb.mu ?? null, esCamara: false, esAislante: false }
-    return { n: t, esp: 50, lam: null, mu: null, esCamara: false, esAislante: false }
-  })
+  // Parser único (capas.js). Una capa no resuelta NO se dibuja con 50 mm
+  // inventados (bug D): se marca `unresolved` con espesor 0 para que el visor la
+  // muestre como pendiente en vez de fabricar geometría falsa.
+  return parsearCapasString(s.capas, ALL_MATS).map(c => ({
+    n: c.mat,
+    esp: c.unresolved ? 0 : (parseFloat(c.esp) || 0),
+    lam: c.lam === '' ? null : (c.lam != null ? parseFloat(c.lam) : null),
+    mu: c.mu === '' ? null : (c.mu != null ? parseFloat(c.mu) : null),
+    esCamara: !!c.esCamara,
+    esAislante: !c.esCamara && c.lam !== '' && c.lam != null && parseFloat(c.lam) <= 0.06,
+    unresolved: !!c.unresolved,
+  }))
 }
 
 function fichaLayerColor(nombre) {
@@ -308,25 +312,11 @@ function getCapasParaSC(sc) {
   if (raw?.length) return raw
   const bh = BH.find(b => b.cod === sc.cod)
   if (bh?.capas?.length) return bh.capas.map(c => ({ mat: c.n, lam: c.lam, esp: c.esp, mu: c.mu, esCamara: c.esCamara }))
-  return (sc.capas || '').split(' | ').map(part => {
-    const t = part.trim()
-    const m = t.match(/^(.*?)\s+([\d.]+)$/)
-    if (!m) {
-      // Token sin espesor (ej. "Barrera vapor"): si coincide con un material
-      // conocido que trae espesor por defecto, resolverlo con sus λ/μ/esp; si no,
-      // descartar. Evita que una barrera de vapor sin espesor desaparezca del Glaser.
-      const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
-      if (mb && mb.esp) {
-        const cam = /camara|aire/i.test(t)
-        return { mat: mb.n, lam: cam ? '' : (mb.lam ?? ''), esp: String(mb.esp * 1000), mu: cam ? '' : (mb.mu ?? '1'), esCamara: cam }
-      }
-      return null
-    }
-    const nombre = m[1].trim()
-    const isCamara = /camara|aire/i.test(nombre)
-    const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}
-    return { mat: nombre, lam: isCamara ? '' : (matDat.lam || ''), esp: m[2], mu: isCamara ? '' : (matDat.mu || '1'), esCamara: isCamara }
-  }).filter(Boolean)
+  // Fallback: parsear la cadena "Material esp | ...". Parser ÚNICO en capas.js
+  // (bug D): las capas no resueltas se marcan `unresolved` en vez de emitir λ=''
+  // (que el motor descartaba en silencio) o inventar espesores. El consumidor
+  // valida con validarCapasParaCalculo() antes de calcular.
+  return parsearCapasString(sc.capas, ALL_MATS)
 }
 
 // Clima exterior para el Glaser DEL INFORME. Si la comuna tiene PDA, usa Te/He del
@@ -7969,6 +7959,10 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       const capasOriginal = sc ? getCapasParaSC(sc) : null
       const capas = capasModif?.length ? capasModif : capasOriginal
 
+      // Bug D: no calcular Glaser/U con capas no resueltas (material sin λ). Si el
+      // usuario recalculó en Cálculo U (resModif) las capas ya están resueltas.
+      const capasIncompletas = !resModif && !validarCapasParaCalculo(capas || []).ok
+
       const cv = capas ? capas.map(c => c.esCamara
         ? { esCamara: true }
         : { mat: c.mat, lam: parseFloat(c.lam), esp: parseFloat(c.esp) / 1000, mu: parseFloat(c.mu || 1) }
@@ -7977,7 +7971,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       // Preferir resultado ya calculado sobre recalcular desde cero. Clima del
       // Glaser = preset del PDA (Te/He) si la comuna lo tiene, igual que Cálculo U.
       const gi = climaGlaserInforme(proy.comuna, zonaData)
-      const res = resModif || ((cv?.length && zonaData) ? calcGlaser(cv, gi.ti, gi.te, gi.hr, el.tipo, undefined, gi.hrExt) : null)
+      const res = resModif || ((!capasIncompletas && cv?.length && zonaData) ? calcGlaser(cv, gi.ti, gi.te, gi.hr, el.tipo, undefined, gi.hrExt) : null)
       const uCalc = res ? parseFloat(res.U) : (data?.u ? parseFloat(data.u) : null)
       const tbPct = parseFloat(data?.tb || 0)
       const uCalcCorr = (uCalc != null && tbPct > 0) ? uCalc * (1 + tbPct/100) : uCalc
@@ -8376,6 +8370,19 @@ ${glaserHtml}`
       const capas = capasModif?.length ? capasModif : capasOriginal
       const resModif = calcUData?.res
       if (!capas?.length || !zonaData) return
+      // Bug D: capas no resueltas (material sin λ) → NO recalcular con datos
+      // parciales. La condensación de este elemento queda NO_VERIFICADO (la U de
+      // cabecera conserva el valor de catálogo, que sí es un dato declarado).
+      if (!resModif && !validarCapasParaCalculo(capas).ok) {
+        checksExtendido.push({
+          label: `Cond. intersticial — ${el.label}`,
+          val: null,
+          max: 'Sin condensación (NCh853)',
+          obligatorio: true,
+          norma: 'NCh853:2021 / EN ISO 13788 — capa no reconocida (complete λ/espesor)',
+        })
+        return
+      }
       const cv = capas.map(c => c.esCamara ? { esCamara:true } : { mat:c.mat, lam:parseFloat(c.lam), esp:parseFloat(c.esp)/1000, mu:parseFloat(c.mu||1) }).filter(c => c.esCamara||(c.lam>0&&c.esp>0))
       if (!cv.length) return
       const gi = climaGlaserInforme(proy.comuna, zonaData)
@@ -10720,32 +10727,19 @@ function AppInner() {
           mat: c.n || '', lam: String(c.lam || ''), esp: String(c.esp || ''), mu: String(c.mu || '1'), esCamara: !!c.esCamara,
         }))
       }
-      // Fallback: parsear cadena "H.A. 150 | EPS 60 | ..."
-      const parsed = (sc.capas || '').split(' | ').map(part => {
-        const t = part.trim()
-        const m = t.match(/^(.*?)\s+([\d.]+)$/)
-        if (!m) {
-          // Token sin espesor que sí es un material conocido con espesor por
-          // defecto (ej. "Barrera vapor") → resolverlo; si no, descartar.
-          const mb = ALL_MATS.find(x => x.n.toLowerCase() === t.toLowerCase())
-          if (mb && mb.esp) {
-            const cam = /camara|aire/i.test(t)
-            return { id: Date.now() + Math.random(), mat: mb.n, lam: cam ? '' : String(mb.lam ?? ''), esp: String(mb.esp * 1000), mu: cam ? '' : String(mb.mu ?? '1'), esCamara: cam }
-          }
-          return null
-        }
-        const nombre = m[1].trim()
-        const isCamara = /camara|aire/i.test(nombre)
-        const matDat = ALL_MATS.find(x => x.n.toLowerCase() === nombre.toLowerCase()) || {}
-        return {
-          id: Date.now() + Math.random(),
-          mat: nombre,
-          lam: isCamara ? '' : String(matDat.lam || ''),
-          esp: m[2],
-          mu: isCamara ? '' : String(matDat.mu || '1'),
-          esCamara: isCamara,
-        }
-      }).filter(Boolean)
+      // Fallback: parsear cadena "H.A. 150 | EPS 60 | ..." con el parser único
+      // (capas.js). Las capas no resueltas (material sin λ) se conservan con
+      // λ vacío y bandera `unresolved` para que el usuario las vea y complete en
+      // Cálculo U — antes se descartaban o se cargaban con λ='' silencioso.
+      const parsed = parsearCapasString(sc.capas, ALL_MATS).map(c => ({
+        id: Date.now() + Math.random(),
+        mat: c.mat,
+        lam: c.lam === '' || c.lam == null ? '' : String(c.lam),
+        esp: c.esp === '' || c.esp == null ? '' : String(c.esp),
+        mu: c.mu === '' || c.mu == null ? '' : String(c.mu),
+        esCamara: !!c.esCamara,
+        ...(c.unresolved ? { unresolved: true } : {}),
+      }))
       return parsed.length ? parsed : null
     }
 
