@@ -334,7 +334,7 @@ export default function AuthGate({ children }) {
 
         {/* Footer */}
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f1f5f9', width: '100%', display: 'flex', justifyContent: 'center', gap: 16 }}>
-          {['DS N°15', 'NCh853', 'LOSCAT Ed.13', 'NCh352'].map(n => (
+          {['DS N°15', 'NCh853', 'LOSCAT Ed.14', 'NCh352'].map(n => (
             <span key={n} style={{ fontSize: 10, color: '#cbd5e1', fontWeight: 600 }}>
               {n}
             </span>

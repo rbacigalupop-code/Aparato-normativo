@@ -5,6 +5,7 @@ import MigrationGate from './MigrationGate.jsx'
 import { sugerirMejorasTermicas, peorUPorElemento, uEfectivo, uCumpleMax } from './lib/engines/thermal.js'
 import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado } from './lib/compliance/status.js'
 import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/capas.js'
+import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -925,7 +926,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
       `Descripción: ${s.desc}`,
       `Elemento: ${elem}  |  Zonas: ${s.zonas}`,
       '',
-      'VALORES CERTIFICADOS (LOSCAT Ed.13 2025):',
+      'VALORES CERTIFICADOS (LOSCAT Ed.14 2026):',
       `  U: ${s.u} W/m²K  |  RF: ${s.rf||'—'}  |  Rw: ${s.ac_rw||'—'} dB`,
       '',
       'SIMULACIÓN MODIFICADA:',
@@ -944,7 +945,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
       '  · Rw estimado por ley de masa (ISO 15712 simplificado) — requiere ensayo NCh352.',
       '  · Responsabilidad técnica del proyectista (OGUC Art. 1.2.2).',
       '',
-      'Normativa: LOSCAT Ed.13 2025 | LOFC Ed.17 2025 | DS N°15 MINVU | NCh853:2021',
+      'Normativa: LOSCAT Ed.14 2026 | LOFC Ed.17 2025 | DS N°15 MINVU | NCh853:2021',
       `Generado: ${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL')}`,
     ].filter(l => l !== null)
     const blob = new Blob([lineas.join('\n')], { type: 'text/plain;charset=utf-8' })
@@ -1584,7 +1585,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
           'El <b>simulador de capas</b> recalcula U en tiempo real (NCh853). RF es estática (requiere ensayo NCh850). Rw es estimativo por ley de masa (ISO 15712).',
           'Presiona <b>"Aplicar al proyecto"</b> para traspasar los valores a la pestaña Térmica.',
         ]}
-        normativa="LOSCAT Ed.13 2025 (DITEC-MINVU) · LOFC Ed.17 2025 · DS N°15 Tabla 1 y 3 · OGUC Art. 4.5.4 · NCh352 · NCh853:2021"
+        normativa="LOSCAT Ed.14 2026 (DITEC-MINVU) · LOFC Ed.17 2025 · DS N°15 Tabla 1 y 3 · OGUC Art. 4.5.4 · NCh352 · NCh853:2021"
       />
       {/* ── Panel de sistemas estructurales ─────────────────────────────────── */}
       {(proy.estructuras?.length > 0) && (() => {
@@ -1734,7 +1735,7 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
         <p style={S.h2}>
           {targetSistema
             ? `Catálogo — asignando a: ${proy.estructuras?.find(e=>e.id===targetSistema)?.tipo?.replace('Metalframe (acero liviano)','Metalframe') || ''}`
-            : 'Soluciones constructivas — LOSCAT Ed.13 2025 · LOFC Ed.17 2025'
+            : 'Soluciones constructivas — LOSCAT Ed.14 2026 · LOFC Ed.17 2025'
           }
         </p>
         {targetSistema && (
@@ -4808,7 +4809,7 @@ ${res.ifaces.map(f=>`      Int. ${f.i}: T=${f.T}°C | Pvsat=${f.pvSat}Pa | Pvrea
    La solución modificada ${cumpleU && !res.condInter ? 'cumple íntegramente' : 'no cumple aún'} con las
    exigencias del DS N°15 del MINVU para ${zona_nombre} y no presenta riesgo de
    condensación intersticial según el Método de Glaser (NCh1973:2014).
-   ${cumpleU && !res.condInter ? 'Se solicita su aceptación como homologación de la solución ' + solucion.cod + ' del LOSCAT Ed.13 2025.' : 'Se requieren ajustes adicionales antes de solicitar homologación.'}
+   ${cumpleU && !res.condInter ? 'Se solicita su aceptación como homologación de la solución ' + solucion.cod + ' del LOSCAT Ed.14 2026.' : 'Se requieren ajustes adicionales antes de solicitar homologación.'}
 
    La responsabilidad técnica de la presente homologación recae en el profesional
    competente suscrito, conforme al OGUC Art. 1.2.2.
@@ -4947,7 +4948,7 @@ ${'='.repeat(60)}`
 </div>
 
 ${solucion ? `
-<h2>1. Solución Constructiva Base (LOSCAT Ed.13 2025)</h2>
+<h2>1. Solución Constructiva Base (LOSCAT Ed.14 2026)</h2>
 <div class="data-row">
   <div class="data-item"><label>Código</label><span>${solucion.cod}</span></div>
   <div class="data-item"><label>Descripción</label><span>${solucion.desc}</span></div>
@@ -5019,7 +5020,7 @@ ${cambios.length && solucion ? `
 <hr style="margin-top:30px;border:none;border-top:1px solid #e2e8f0">
 <p style="font-size:9pt;color:#94a3b8;text-align:center">
   Generado por Talora · ${fechaHoy} ·
-  Normativa: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV
+  Normativa: LOSCAT Ed.14 2026 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Título IV
 </p>
 </body></html>`
 
@@ -5054,7 +5055,7 @@ ${cambios.length && solucion ? `
                     <b>Ficha oficial PDA.</b> La <b>U oficial de cumplimiento es {solucion.uOficial} W/m²K</b> (NCh853, según la ficha MINVU). La U y la condensación que calcula esta pestaña son <b>referenciales</b> — sirven para analizar el sándwich (Glaser), usan λ estándar NCh853 y pueden diferir levemente del valor oficial.
                   </div>
                 ) : (
-                  <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>LOSCAT Ed.13 2025 · Capas cargadas automáticamente · Resultado calculado según NCh853:2021 + ISO 6946</div>
+                  <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>LOSCAT Ed.14 2026 · Capas cargadas automáticamente · Resultado calculado según NCh853:2021 + ISO 6946</div>
                 )}
               </div>
               <button onClick={() => { setSolucion(null); setCapas([]); setRes(null); setCorrec([]); if (onLimpiarCalcU) onLimpiarCalcU(elemKey) }}
@@ -7815,6 +7816,22 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         informativo: true,
       })
     }
+    // Vigencia de fichas LOSCAT (regla 1.6 del Listado E14): una ficha cuya
+    // vigencia esté vencida NO acredita el cumplimiento del Art. 4.1.10 OGUC.
+    const _codigosAsignados = new Set()
+    ;['muro','techo','piso','tabique'].forEach(el => { const c = termica[el]?.solucion?.cod; if (c) _codigosAsignados.add(c) })
+    ;(proy.estructuras || []).forEach(est => Object.values(est.soluciones || {}).forEach(d => { if (d?.solucion?.cod) _codigosAsignados.add(d.solucion.cod) }))
+    if (_codigosAsignados.size > 0) {
+      const _vencidas = [..._codigosAsignados].map(cod => ({ cod, v: validarVigenciaFicha(cod) })).filter(x => !x.v.vigente)
+      _rows.push({
+        label: 'Vigencia fichas LOSCAT',
+        val: _vencidas.length ? `${_vencidas.length} ficha(s) vencida(s): ${_vencidas.map(x => x.cod).join(', ')}` : `Vigentes · ${LISTADO_LOSCAT}`,
+        max: 'Ficha vigente (regla 1.6)',
+        ok: _vencidas.length === 0,
+        obligatorio: true,
+        norma: 'LOSCAT E14 · Art. 4.1.10 OGUC',
+      })
+    }
     // Los checks OBLIGATORIOS sin dato NO se descartan: quedan como
     // NO_VERIFICADO (ver status.js) y bloquean el CUMPLE global. Los opcionales
     // sin dato sí se ocultan. Esto elimina el fail-open (proyecto vacío = CUMPLE).
@@ -8006,7 +8023,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
           const rC = c.esCamara ? rCam : (parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0 ? (parseFloat(c.esp) / 1000) / parseFloat(c.lam) : 0)
           Racum += rC
           const matNorm = c.esCamara ? null : ALL_MATS.find(m => m.n?.toLowerCase() === (c.mat||'').toLowerCase())
-          const fuenteLam = c.esCamara ? 'ISO 6946:2017 (R según espesor)' : (matNorm ? 'NCh853:2021 Anexo / LOSCAT Ed.13' : (c.lam ? 'Dato fabricante / LOSCAT' : '—'))
+          const fuenteLam = c.esCamara ? 'ISO 6946:2017 (R según espesor)' : (matNorm ? 'NCh853:2021 Anexo / LOSCAT Ed.14' : (c.lam ? 'Dato fabricante / LOSCAT' : '—'))
           return `<tr>
             <td>${i + 1}</td>
             <td>${c.esCamara ? '<i>Cámara de aire</i>' : (c.mat || '—')}</td>
@@ -9268,7 +9285,7 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
     <li><a href="#resumen">Resumen ejecutivo — Estado de cumplimiento</a><span class="toc-dots"></span><span class="toc-page">Módulo de síntesis</span></li>
     <li><a href="#modulo-1">Módulo 1 — Diagnóstico del proyecto</a><span class="toc-dots"></span><span class="toc-page">Datos generales</span></li>
     ${mods.termica  ? `<li><a href="#modulo-2">Módulo 2 — Verificación Térmica</a><span class="toc-dots"></span><span class="toc-page">DS N°15 / NCh853</span></li>` : ''}
-    ${mods.sistemas ? `<li><a href="#modulo-2b">Módulo 2b — Sistemas constructivos</a><span class="toc-dots"></span><span class="toc-page">LOSCAT Ed.13</span></li>` : ''}
+    ${mods.sistemas ? `<li><a href="#modulo-2b">Módulo 2b — Sistemas constructivos</a><span class="toc-dots"></span><span class="toc-page">LOSCAT Ed.14</span></li>` : ''}
     ${mods.fuego    ? `<li><a href="#modulo-3">Módulo 3 — Resistencia al Fuego</a><span class="toc-dots"></span><span class="toc-page">OGUC · LOFC Ed.17</span></li>` : ''}
     ${mods.acustica ? `<li><a href="#modulo-4">Módulo 4 — Aislamiento Acústico</a><span class="toc-dots"></span><span class="toc-page">OGUC · NCh352</span></li>` : ''}
     ${mods.ventanas ? `<li><a href="#modulo-5">Módulo 5 — Ventanas y Vanos (VPCT)</a><span class="toc-dots"></span><span class="toc-page">DS N°15</span></li>` : ''}
@@ -9642,7 +9659,7 @@ ${cards}`)
     ${logoDataUrl ? `<img src="${logoDataUrl}" style="height:40px;width:auto;border-radius:5px;margin-bottom:6px" alt="Talora"/>` : '<b style="color:#0e6560">Talora</b>'}
     <div style="font-size:8pt;color:#94a3b8;line-height:1.6">
       Generado: ${fechaHoy} · Plataforma Talora — Verificación Normativa OGUC<br>
-      Normativas: LOSCAT Ed.13 2025 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Tít. IV · LOFC Ed.17 2025 · NCh352:2013 · EN ISO 13788
+      Normativas: LOSCAT Ed.14 2026 · DS N°15 MINVU · NCh853:2021 · ISO 6946:2017 · OGUC Tít. IV · LOFC Ed.17 2025 · NCh352:2013 · EN ISO 13788
     </div>
   </div>
   <div style="font-size:7.5pt;color:#94a3b8;text-align:right;flex-shrink:0">
@@ -9737,7 +9754,7 @@ ${cards}`)
           'Presiona <b>"Exportar Informe DOM"</b> para generar un informe HTML completo con tablas de capas, cálculos U, gráficos Glaser y verificación RF/acústica por elemento.',
           '<b>Nota legal:</b> Esta verificación es preliminar. El profesional competente es responsable de la firma del expediente DOM (OGUC Art. 1.2.2).',
         ]}
-        normativa="DS N°15 MINVU · OGUC Título 4 · NCh853:2021 · NCh352 · LOSCAT Ed.13 2025 · LOFC Ed.17 2025"
+        normativa="DS N°15 MINVU · OGUC Título 4 · NCh853:2021 · NCh352 · LOSCAT Ed.14 2026 · LOFC Ed.17 2025"
       />
 
       {/* ── Panel de configuración del informe ──────────────────────────────── */}
@@ -9775,7 +9792,7 @@ ${cards}`)
             },
             {
               key: 'sistemas', icon: '🏗', label: 'Soluciones por sistema estructural',
-              norma: 'LOSCAT Ed.13 / LOFC Ed.17',
+              norma: 'LOSCAT Ed.14 / LOFC Ed.17',
               req: false, reqMsg: haySistemas ? `${proy.estructuras.length} sistemas definidos` : 'Sin múltiples sistemas',
             },
             {
@@ -9950,7 +9967,7 @@ ${cards}`)
         )}
       </div>
       <div style={{ ...S.card, fontSize: 11, color: '#64748b' }}>
-        <b>Normativa:</b> DS N°15 MINVU | OGUC Título 4 | NCh853:2021 | NCh1973 | NCh352 | LOSCAT Ed.13 | LOCF Ed.17 2025<br />
+        <b>Normativa:</b> DS N°15 MINVU | OGUC Título 4 | NCh853:2021 | NCh1973 | NCh352 | {LISTADO_LOSCAT} | LOCF Ed.17 2025<br />
         Esta verificación es preliminar. El arquitecto responsable debe firmar el expediente DOM.
       </div>
       <NotasPanel tabKey="resultados" notas={notas} setNotas={setNotas} />
@@ -10258,7 +10275,7 @@ function AppInner() {
         'Expande una solución para ver sus capas. Las marcadas <b>"Homologable"</b> permiten editar espesores.',
         'Presiona <b>"Aplicar al proyecto"</b> para traspasar valores a la pestaña Térmica.',
       ],
-      normativa: 'LOSCAT Ed.13 2025 · LOFC Ed.17 2025 · DS N°15 Tabla 1 y 3 · OGUC Art. 4.5.4 · NCh352 · NCh853:2021',
+      normativa: 'LOSCAT Ed.14 2026 · LOFC Ed.17 2025 · DS N°15 Tabla 1 y 3 · OGUC Art. 4.5.4 · NCh352 · NCh853:2021',
     },
     2: {
       titulo: 'Verificación Térmica',
@@ -10339,7 +10356,7 @@ function AppInner() {
         'Presiona <b>"Exportar Informe DOM"</b> para generar un informe HTML completo.',
         '<b>Nota legal:</b> Verificación preliminar. El profesional es responsable de la firma (OGUC Art. 1.2.2).',
       ],
-      normativa: 'DS N°15 MINVU · OGUC Título 4 · NCh853:2021 · NCh352 · LOSCAT Ed.13 2025 · LOFC Ed.17 2025',
+      normativa: 'DS N°15 MINVU · OGUC Título 4 · NCh853:2021 · NCh352 · LOSCAT Ed.14 2026 · LOFC Ed.17 2025',
     },
   }), [proy.zona])
 
@@ -10829,7 +10846,7 @@ function AppInner() {
         {/* Logo Talora */}
         <img src="/logo-lockup-light.svg" alt="Talora" style={{ height: 40, width: 'auto', flexShrink: 0 }} />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.13 2025</div>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2 }} className="nc-header-subtitle">DS N°15 · OGUC Título 4 · NCh853 · NCh1973 · NCh352 · LOSCAT Ed.14 2026</div>
           <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2, fontFamily: 'monospace' }} title="Versión del build">build {typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''}·{typeof __BUILD_COMMIT__ !== 'undefined' ? __BUILD_COMMIT__ : 'dev'}</div>
         </div>
         <div style={{ marginLeft: 'auto' }}>

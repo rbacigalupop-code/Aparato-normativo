@@ -151,7 +151,7 @@ export function exportarSistemasRevit(proy, termica, calcUInit) {
         Rw: numOrNull(sc.ac_rw),
       },
       fuente: 'Talora',
-      norma: 'LOSCAT Ed.13 / DS N°15',
+      norma: 'LOSCAT Ed.14 / DS N°15',
     })
   }
   return {
