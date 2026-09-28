@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
 import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico, peorUPorElemento, uEfectivo } from './lib/engines/thermal.js'
+import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado } from './lib/compliance/status.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -7747,11 +7748,11 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       : null
     const _rwFachVal = _rwFachManual != null ? _rwFachManual : (_rwFachComp ? _rwFachComp.combinado : null)
     const _rows = [
-      { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro) },
-      { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho) },
-      { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${_umPiso} W/m²K`,  ok: !uPiso  || uCumpleMax(uPiso,  _umPiso) },
+      { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro),  obligatorio: !!_umMuro },
+      { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho), obligatorio: !!_umTecho },
+      { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${_umPiso} W/m²K`,  ok: !uPiso  || uCumpleMax(uPiso,  _umPiso),  obligatorio: !!_umPiso },
       { label:'Puerta U',          val: uPuerta,                    max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !uPuerta || !PUERTA_U[proy.zona] || parseFloat(uPuerta) <= PUERTA_U[proy.zona] },
-      { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr) },
+      { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr), obligatorio: rfN(rfReqEstr) > 0 },
       { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
       // RF Caja escalera: solo se evalúa si la caja está en uso (OGUC obliga
       // o el usuario opt-in vía escaleras.tieneCaja). El val viene del state
@@ -7769,6 +7770,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
           max:   _rfReqCaja ? `≥ ${_rfReqCaja}` : '—',
           ok:    !_rfCajaSel || !_rfReqCaja || rfN(_rfCajaSel) >= rfN(_rfReqCaja),
           norma: 'OGUC Art. 4.5.7 Col.(4)',
+          obligatorio: rfN(_rfReqCaja) > 0,
         }]
       })(),
       // RF Escaleras: prioridad val → 1) input manual del dropdown · 2) material
@@ -7788,9 +7790,10 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
           max:   `≥ ${_rfReqEsc}`,
           ok:    !_valEsc || rfN(_valEsc) >= rfN(_rfReqEsc),
           norma: 'OGUC Art. 4.5.7 Col.(9)',
+          obligatorio: rfN(_rfReqEsc) > 0,
         }
       })(),
-      { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${_rfReqCub}`,             ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(_rfReqCub), norma:'OGUC Art. 4.5.7 Col.(7)' },
+      { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${_rfReqCub}`,             ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(_rfReqCub), norma:'OGUC Art. 4.5.7 Col.(7)', obligatorio: rfN(_rfReqCub) > 0 },
       { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
       { label:'Rw fachada',        val: _rwFachVal != null ? `${_rwFachVal} dB${_rwFachComp ? ' (muro+ventana)' : ''}` : null, max:`≥ ${AC_DEF[uso]?.fachada} dB`, ok: _rwFachVal == null || _rwFachVal >= _acFachReq, norma: _rwFachComp ? 'Composición muro+ventana en paralelo (ISO 12354-3)' : undefined },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
@@ -7822,12 +7825,19 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
         informativo: true,
       })
     }
-    return _rows.filter(c => c.val)
-  }, [proy, termica, calcUInit, zona, uso])
+    // Los checks OBLIGATORIOS sin dato NO se descartan: quedan como
+    // NO_VERIFICADO (ver status.js) y bloquean el CUMPLE global. Los opcionales
+    // sin dato sí se ocultan. Esto elimina el fail-open (proyecto vacío = CUMPLE).
+    return _rows.filter(c => c.val || c.obligatorio)
+  }, [proy, termica, calcUInit, zona, uso, escaleras])
 
-  // allOk excluye los checks informativos (Rw estimado PDA) — no gatean el
-  // cumplimiento certificado; el proyectista los verifica/certifica aparte.
-  const allOk = checks.filter(c => !c.informativo).every(c => c.ok)
+  // Consolidación central de cumplimiento (motor único de estados).
+  //   estadoGlobal ∈ CUMPLE / NO_CUMPLE / NO_VERIFICADO
+  // allOk se mantiene por compatibilidad con la UI existente, pero ahora
+  // significa estrictamente "estado global = CUMPLE" (no un every() fail-open).
+  const cumplimiento = consolidar(checks)
+  const estadoGlobal = cumplimiento.estado
+  const allOk = estadoGlobal === ESTADO.CUMPLE
 
   // getCapasParaSC ahora es una utilidad de nivel de módulo (definida arriba en App.jsx)
   // — se usa por closure tanto aquí como en TabDetalles.
@@ -8428,9 +8438,22 @@ ${glaserHtml}`
       })
     }
 
-    // allOkLocal = cumple TODOS los chequeos incluidos condensación + VPCT
-    // (excluye los informativos, p.ej. Rw estimado PDA — no gatean el cumplimiento)
-    const allOkLocal = checksExtendido.filter(c => !c.informativo).every(c => c.ok)
+    // Consolidación central (incluye condensación + VPCT). estadoGlobalLocal ∈
+    // CUMPLE / NO_CUMPLE / NO_VERIFICADO. Un obligatorio sin dato ya NO permite
+    // declarar cumplimiento (antes desaparecía y daba CUMPLE por vacío).
+    const cumplLocal = consolidar(checksExtendido)
+    const estadoGlobalLocal = cumplLocal.estado
+    const contadoresLocal = cumplLocal.contadores
+    const bloqueadoresLocal = cumplLocal.bloqueadores
+    const allOkLocal = estadoGlobalLocal === ESTADO.CUMPLE
+    // Presentación 3-estados para sellos/banners del informe.
+    const _selloColor = estadoGlobalLocal === ESTADO.CUMPLE ? '#22c55e' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#f59e0b' : '#ef4444'
+    const _selloTexto = estadoGlobalLocal === ESTADO.CUMPLE ? '✓ CUMPLE' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '⚠ NO VERIFICADO' : '✗ OBSERVACIONES'
+    const _bloqLista = bloqueadoresLocal.map(c => `${c.label}${c.val ? ` (${c.val})` : ' (sin dato)'}`)
+    const _cardBg     = estadoGlobalLocal === ESTADO.CUMPLE ? '#f0fdf4' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#fffbeb' : '#fef2f2'
+    const _cardBorder = estadoGlobalLocal === ESTADO.CUMPLE ? '#86efac' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#fcd34d' : '#fca5a5'
+    const _cardText   = estadoGlobalLocal === ESTADO.CUMPLE ? '#15803d' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#92400e' : '#991b1b'
+    const _cardTitulo = estadoGlobalLocal === ESTADO.CUMPLE ? '✓ CUMPLE NORMATIVA' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '⚠ NO VERIFICADO' : '✗ CON OBSERVACIONES'
 
     const resumenRows = checksExtendido.map(c => {
       const categoria = c.label.startsWith('Muro') || c.label.startsWith('Techo') || c.label.startsWith('Piso') || c.label.startsWith('Puerta') ? 'Térmico' :
@@ -8443,11 +8466,14 @@ ${glaserHtml}`
         <td>${c.val || '—'}</td>
         <td>${c.max || '—'}</td>
         <td>${c.norma ? `<span style="font-size:8pt;color:#64748b">${c.norma}</span>` : ''}</td>
-        <td>${c.val ? (c.noAplica
-          ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO APLICA</span>`
-          : c.informativo
-            ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">${c.ok ? 'CUMPLE (est.)' : 'REVISAR (est.)'}</span>`
-            : `<span class="${c.ok ? 'badge-ok' : 'badge-no'}">${c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>`) : '<span style="color:#94a3b8;font-size:9pt">Sin datos</span>'}</td>
+        <td>${(() => {
+          const est = estadoDeCheck(c)
+          if (est === ESTADO.NO_APLICA)     return '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO APLICA</span>'
+          if (est === ESTADO.INFORMATIVO)   return `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">${c.ok ? 'CUMPLE (est.)' : 'REVISAR (est.)'}</span>`
+          if (est === ESTADO.NO_VERIFICADO) return '<span style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO VERIFICADO</span>'
+          if (est === ESTADO.CUMPLE)        return '<span class="badge-ok">CUMPLE</span>'
+          return '<span class="badge-no">NO CUMPLE</span>'
+        })()}</td>
       </tr>`
     }).join('')
 
@@ -9144,8 +9170,8 @@ ${cards}
   <div style="text-align:right;flex-shrink:0">
     <div style="font-size:12px;font-weight:700;margin-bottom:4px;opacity:0.9">Memoria de Cálculo DOM</div>
     <div style="font-size:11px;opacity:0.75;margin-bottom:10px">Fecha: ${fechaHoy}</div>
-    <div style="padding:6px 16px;background:${allOkLocal ? '#22c55e' : '#ef4444'};border-radius:20px;font-weight:800;font-size:13px;display:inline-block;letter-spacing:0.5px">
-      ${allOkLocal ? '✓ CUMPLE' : '✗ OBSERVACIONES'}
+    <div style="padding:6px 16px;background:${_selloColor};border-radius:20px;font-weight:800;font-size:13px;display:inline-block;letter-spacing:0.5px">
+      ${_selloTexto}
     </div>
   </div>
 </div>
@@ -9251,10 +9277,14 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
 
 <h2 id="resumen">Resumen ejecutivo — Estado de cumplimiento</h2>
 <div style="font-size:8.5pt;color:#64748b;margin-bottom:8px">
-  Consolidación automática de todas las verificaciones normativas realizadas. Los elementos sin datos ingresados se muestran como "Sin datos" y no afectan el estado general.
+  Consolidación automática de las verificaciones normativas. Las verificaciones aplicables sin información suficiente se consideran <b>NO VERIFICADAS</b> y no permiten declarar cumplimiento global mientras no se completen.
 </div>
 ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complete los módulos Térmica, Fuego y Acústica.</div>' : `
-<div class="${allOkLocal ? 'resumen-ok' : 'resumen-no'}">${allOkLocal ? '✅ El proyecto CUMPLE con todos los parámetros verificados.' : '❌ El proyecto NO CUMPLE con uno o más requisitos — ver detalle a continuación.'}</div>
+${estadoGlobalLocal === ESTADO.CUMPLE
+  ? '<div class="resumen-ok">✅ El proyecto CUMPLE los parámetros normativos verificados.</div>'
+  : estadoGlobalLocal === ESTADO.NO_VERIFICADO
+    ? `<div style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;padding:10px 14px;border-radius:6px;font-weight:700">⚠️ NO VERIFICADO — Faltan datos obligatorios; no es posible declarar cumplimiento global.<div style="font-weight:400;font-size:9pt;margin-top:4px">Bloquean el cumplimiento: ${_bloqLista.join(' · ')}</div></div>`
+    : `<div class="resumen-no">❌ El proyecto NO CUMPLE con uno o más requisitos — ver detalle.<div style="font-weight:400;font-size:9pt;margin-top:4px">Bloquean el cumplimiento: ${_bloqLista.join(' · ')}</div></div>`}
 <table>
   <tr><th>Módulo / Elemento</th><th>Valor calculado</th><th>Exigencia normativa</th><th>Norma / Tabla</th><th>Estado</th></tr>
   ${resumenRows}
@@ -9523,14 +9553,14 @@ ${cards}`)
 
 <!-- Mini-card de cumplimiento + ID documento -->
 <div style="display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap">
-  <div style="flex:1;min-width:240px;background:${allOkLocal ? '#f0fdf4' : '#fef2f2'};border:2px solid ${allOkLocal ? '#86efac' : '#fca5a5'};border-radius:8px;padding:14px 16px">
-    <div style="font-size:8.5pt;color:${allOkLocal ? '#16a34a' : '#dc2626'};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Estado consolidado de cumplimiento</div>
-    <div style="font-size:14pt;font-weight:800;color:${allOkLocal ? '#15803d' : '#991b1b'};margin-bottom:4px">
-      ${allOkLocal ? '✓ CUMPLE NORMATIVA' : '✗ CON OBSERVACIONES'}
+  <div style="flex:1;min-width:240px;background:${_cardBg};border:2px solid ${_cardBorder};border-radius:8px;padding:14px 16px">
+    <div style="font-size:8.5pt;color:${_cardText};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Estado consolidado de cumplimiento</div>
+    <div style="font-size:14pt;font-weight:800;color:${_cardText};margin-bottom:4px">
+      ${_cardTitulo}
     </div>
     <div style="font-size:9pt;color:#475569;line-height:1.5">
-      ${checksExtendido.length} parámetros · ${checksExtendido.filter(c => !c.informativo && c.ok).length} conformes · ${checksExtendido.filter(c => !c.informativo && !c.ok).length} no conformes · ${checksExtendido.filter(c => c.informativo).length} informativos/no aplica
-      <div style="font-size:8pt;color:#94a3b8;margin-top:4px;font-weight:400">Se cuentan solo los parámetros con dato ingresado. Los que quedan sin dato deben completarse en sus módulos. La escalera (Módulo 5c), si aplica, se verifica en su propio módulo.</div>
+      ${contadoresLocal.CUMPLE} cumple · ${contadoresLocal.NO_CUMPLE} no cumple · ${contadoresLocal.NO_VERIFICADO} no verificado · ${contadoresLocal.NO_APLICA} no aplica · ${contadoresLocal.INFORMATIVO} informativo
+      <div style="font-size:8pt;color:#94a3b8;margin-top:4px;font-weight:400">Las verificaciones aplicables sin información suficiente cuentan como NO VERIFICADO y bloquean el cumplimiento global hasta completarse. La escalera (Módulo 5c), si aplica, se verifica en su propio módulo.</div>
     </div>
   </div>
   <div style="flex:1;min-width:240px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:14px 16px">
@@ -9813,8 +9843,12 @@ ${cards}`)
         {checks.length === 0 && zona && uso && <div style={S.warn}>Ingresa datos en Térmica, Fuego y Acústica para ver resultados.</div>}
         {checks.length > 0 && (
           <>
-            <div style={{ ...allOk ? S.ok : S.err, marginBottom: 12, fontSize: 14, fontWeight: 700 }}>
-              {allOk ? '✅ El proyecto CUMPLE con todos los parámetros verificados.' : '❌ El proyecto NO CUMPLE con uno o más requisitos normativos.'}
+            <div style={{ ...(estadoGlobal === ESTADO.CUMPLE ? S.ok : estadoGlobal === ESTADO.NO_VERIFICADO ? { background:'#fffbeb', border:'1px solid #fcd34d', color:'#92400e', borderRadius:8, padding:'10px 14px' } : S.err), marginBottom: 12, fontSize: 14, fontWeight: 700 }}>
+              {estadoGlobal === ESTADO.CUMPLE
+                ? '✅ El proyecto CUMPLE los parámetros normativos verificados.'
+                : estadoGlobal === ESTADO.NO_VERIFICADO
+                  ? '⚠️ NO VERIFICADO: faltan datos obligatorios. No es posible declarar cumplimiento hasta completarlos (ver filas “NO VERIFICADO”).'
+                  : '❌ El proyecto NO CUMPLE con uno o más requisitos normativos.'}
             </div>
             <table style={S.table}>
               <thead><tr>
@@ -9827,13 +9861,15 @@ ${cards}`)
                 {checks.map(c => (
                   <tr key={c.label}>
                     <td style={S.td}><b>{c.label}</b></td>
-                    <td style={S.td}>{c.val}</td>
+                    <td style={S.td}>{c.val || '—'}</td>
                     <td style={S.td}>{c.max}</td>
-                    <td style={S.td}>{c.noAplica
-                      ? <span style={{ background:'#f1f5f9', color:'#64748b', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }}>NO APLICA</span>
-                      : c.informativo
-                        ? <span title="Estimado por ley de masa — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
-                        : <span style={S.badge(c.ok)}>{c.ok ? 'CUMPLE' : 'NO CUMPLE'}</span>}</td>
+                    <td style={S.td}>{(() => {
+                      const est = estadoDeCheck(c)
+                      if (est === ESTADO.NO_APLICA)   return <span style={{ background:'#f1f5f9', color:'#64748b', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }}>NO APLICA</span>
+                      if (est === ESTADO.INFORMATIVO) return <span title="Estimado — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
+                      if (est === ESTADO.NO_VERIFICADO) return <span title="Exigencia obligatoria sin datos suficientes. Debe completarse en su módulo — no permite declarar cumplimiento." style={{ background:'#fffbeb', color:'#92400e', border:'1px solid #fcd34d', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>NO VERIFICADO</span>
+                      return <span style={S.badge(est === ESTADO.CUMPLE)}>{est === ESTADO.CUMPLE ? 'CUMPLE' : 'NO CUMPLE'}</span>
+                    })()}</td>
                   </tr>
                 ))}
               </tbody>
