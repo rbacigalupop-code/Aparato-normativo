@@ -3,6 +3,7 @@
 //            NCh352, NCh353, NCh1079:2019, LOCF Ed.17 2025
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { AyudaPanel } from '../components/Ayuda.jsx'
+import { TIPO_PISO, TIPO_PISO_LABEL } from '../lib/compliance/piso.js'
 import {
   ZONAS, COMUNAS_ZONA, TIPOS, ESTRUCTURAS,
   RF_DEF, AC_DEF, RIESGO_INC, RF_PISOS, OBS_EST, RF_EST, CATEG_FUEGO,
@@ -1042,6 +1043,21 @@ export default function TabDiag({ proy, setProy, getLetraOGUC, termica = {}, set
               onChange={e => setPr('pisos', e.target.value)}
             />
             <span style={S.norm}>Determina RF estructura — OGUC Art. 4.5.4</span>
+          </div>
+
+          {/* Tipo de piso — clasificación normativa: define qué Umáx aplica */}
+          <div style={S.col}>
+            <label style={S.label(!proy.tipoPiso)}>
+              {!proy.tipoPiso && <span style={{ color: '#d97706' }}>* </span>}
+              Tipo de piso
+            </label>
+            <select style={S.sel(!proy.tipoPiso)} value={proy.tipoPiso || ''} onChange={e => setPr('tipoPiso', e.target.value)}>
+              <option value="">Sin clasificar…</option>
+              <option value={TIPO_PISO.VENTILADO}>{TIPO_PISO_LABEL.VENTILADO}</option>
+              <option value={TIPO_PISO.SOBRE_TERRENO}>{TIPO_PISO_LABEL.SOBRE_TERRENO}</option>
+              <option value={TIPO_PISO.NO_CALEF}>{TIPO_PISO_LABEL.NO_CALEF}</option>
+            </select>
+            <span style={S.norm}>Sin clasificar, el piso queda NO VERIFICADO — no se asume ventilado (DS N°15 / ISO 13370).</span>
           </div>
 
           {/* Superficie edificada */}

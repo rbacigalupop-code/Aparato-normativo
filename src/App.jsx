@@ -6,6 +6,7 @@ import { sugerirMejorasTermicas, peorUPorElemento, uEfectivo, uCumpleMax } from 
 import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado } from './lib/compliance/status.js'
 import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/capas.js'
 import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
+import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso } from './lib/compliance/piso.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -4494,7 +4495,12 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
 
   // ── Estado para opciones normativas avanzadas ──────────────────────────────
   // Piso: tipo de apoyo (ventilado / sobre terreno / sobre espacio no calef.)
-  const [pisoTipo, setPisoTipo] = useState('ventilado') // 'ventilado'|'terreno'|'no_calef'
+  // Inicializa desde la clasificación del proyecto (proy.tipoPiso). El panel usa
+  // claves legacy 'ventilado'|'terreno'|'no_calef'; sin clasificar, cae a 'ventilado'
+  // solo para el cálculo (el cumplimiento del piso lo gobierna proy.tipoPiso).
+  const _pisoTipoInit = proy.tipoPiso === TIPO_PISO.SOBRE_TERRENO ? 'terreno'
+    : proy.tipoPiso === TIPO_PISO.NO_CALEF ? 'no_calef' : 'ventilado'
+  const [pisoTipo, setPisoTipo] = useState(_pisoTipoInit)
   const [corteInvert, setCorteInvert] = useState(false)   // voltear orden del corte de capas
   const [cortePisoModo, setCortePisoModo] = useState(null) // null=auto · 'radier'|'entrepiso'
   const [pisoAg,   setPisoAg]   = useState('')           // área piso Ag (m²)
@@ -7741,7 +7747,16 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     const _rows = [
       { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro),  obligatorio: !!_umMuro },
       { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho), obligatorio: !!_umTecho },
-      { label:'Piso U',            val: uPiso  ? String(parseFloat(uPiso).toFixed(4))  : null, max:`≤ ${_umPiso} W/m²K`,  ok: !uPiso  || uCumpleMax(uPiso,  _umPiso),  obligatorio: !!_umPiso },
+      (() => {
+        // Piso: no se asume "ventilado". La exigencia depende de la clasificación
+        // (proy.tipoPiso). Sin clasificar y con U ingresado → NO_VERIFICADO.
+        const _rp = reglaPiso(proy.tipoPiso)
+        const _base = { label:'Piso U', val: uPiso ? String(parseFloat(uPiso).toFixed(4)) : null, max:`≤ ${_umPiso} W/m²K`, ok: !uPiso || uCumpleMax(uPiso, _umPiso), obligatorio: !!_umPiso, norma:`DS N°15 · ${_rp.label}` }
+        if (uPiso && _rp.requiereClasificar) {
+          return { ..._base, estado: ESTADO.NO_VERIFICADO, max: 'Clasifique el piso (ventilado / sobre terreno)' }
+        }
+        return _base
+      })(),
       { label:'Puerta U',          val: uPuerta,                    max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !uPuerta || !PUERTA_U[proy.zona] || parseFloat(uPuerta) <= PUERTA_U[proy.zona] },
       { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr), obligatorio: rfN(rfReqEstr) > 0 },
       { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
