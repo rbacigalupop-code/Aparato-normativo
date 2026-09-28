@@ -3,7 +3,19 @@
  * No contiene React, solo lógica de negocio
  */
 
-// ─── Cálculo de Transmitancia U según ISO 6946 ───────────────────────────────
+// ─── Motor de U/Glaser de la app: FUENTE ÚNICA en data.js ────────────────────
+// El cálculo que consume la app —U con temperaturas e interfaces + Glaser/
+// condensación (calcGlaser) y el método combinado ISO 6946 (calcU_ISO6946)—
+// vive en src/data.js y lo cubren los tests de calcU.test.js. Las versiones
+// simplificadas que existían aquí (calcularUSC, calcularGlaser) y la muerta
+// validarCumplimientoTermico se eliminaron: estaban sin usar y duplicaban ese
+// motor (bug A). Antes App.jsx las importaba y luego las tapaba con
+// `const calcGlaser = calcGlaserCompleto`.
+
+// calcularU: helper básico de R en serie (Σ e/λ + Rsi+Rse). NO es el motor
+// ISO 6946 combinado (ese es calcU_ISO6946 en data.js); es una utilidad de
+// bajo nivel con test propio (engines_bordes.test.js): sin capas con aporte
+// real devuelve null, no el U engañoso 1/(Rsi+Rse) ≈ 5,88.
 export function calcularU(capas, lam, esp, rsiRse) {
   if (!capas || !capas.length || !lam || !esp || !rsiRse) return null
   let Rtot = rsiRse.rsi + rsiRse.rse
@@ -16,87 +28,7 @@ export function calcularU(capas, lam, esp, rsiRse) {
       aporto = true
     }
   }
-  // Sin capas con aporte real, las resistencias superficiales solas darían un U
-  // engañoso (~5.88). Devolver null para que la UI lo trate como "sin dato".
   return (aporto && Rtot > 0) ? 1 / Rtot : null
-}
-
-// ─── Cálculo de Transmitancia U de secciones constructivas (SC) ──────────────
-export function calcularUSC(sc, RSI_MAP, RSE_MAP) {
-  if (!sc) return null
-  const rsi = RSI_MAP[sc.int] || 0.13
-  const rse = RSE_MAP[sc.ext] || 0.04
-  const rsc = parseFloat(sc.r) || 0
-  const rtot = rsi + rsc + rse
-  return rtot > 0 ? 1 / rtot : null
-}
-
-// ─── Método de Glaser — Validación de condensación ──────────────────────────
-export function calcularGlaser(capas, Ti, Te, HR, tipoElem) {
-  if (!capas || !Ti || !Te || !HR) return null
-
-  const P_sat = (t) => {
-    const a = t >= 0 ? 6.112 : 6.112
-    const b = t >= 0 ? 17.62 : 22.46
-    const c = t >= 0 ? 243.12 : 272.62
-    return 6.112 * Math.exp((b * t) / (c + t))
-  }
-
-  const psat_i = P_sat(Ti)
-  const psat_e = P_sat(Te)
-  const pv_i = (HR / 100) * P_sat(Ti)
-  const delta_p = pv_i - (P_sat(Te) * Math.max(50, HR)) / 100
-
-  let Sd_total = 0
-  for (const c of capas) {
-    if (c.esCamara) continue
-    const mu = parseFloat(c.mu) || 0
-    const esp = parseFloat(c.esp) || 0
-    if (mu > 0 && esp > 0) {
-      Sd_total += (mu * esp) / 1000
-    }
-  }
-
-  let Rv_max = 0
-  let Rv_acum = 0
-  let tieneCondensacion = false
-  let posCondensacion = null
-
-  for (let i = 0; i < capas.length; i++) {
-    const c = capas[i]
-    if (c.esCamara) {
-      Rv_acum += 0.1
-      continue
-    }
-
-    const mu = parseFloat(c.mu) || 0
-    const esp = parseFloat(c.esp) || 0
-    if (mu > 0 && esp > 0) {
-      const dv = (mu * esp) / 1000
-      Rv_max = Math.max(Rv_max, dv)
-      Rv_acum += dv
-
-      const pv_capa = pv_i - (delta_p * Rv_acum) / Sd_total
-      const psat_capa = P_sat(Ti - ((Ti - Te) * Rv_acum) / (Sd_total || 1))
-
-      if (pv_capa > psat_capa && !tieneCondensacion) {
-        tieneCondensacion = true
-        posCondensacion = i
-      }
-    }
-  }
-
-  return {
-    tieneCondensacion,
-    posCondensacion,
-    pvInterno: pv_i,
-    psatInterno: psat_i,
-    pvExterno: (HR / 100) * P_sat(Te),
-    psatExterno: P_sat(Te),
-    sd_total: Sd_total,
-    rv_max: Rv_max,
-    tipo: tipoElem,
-  }
 }
 
 // ─── Cálculo de Rw modificado (índice de reducción acústica) ──────────────────
@@ -212,25 +144,8 @@ function generarMedidasAislacion(solucion, mejoraRequerida) {
   ]
 }
 
-// ─── Validar compliance térmico con sugerencias ────────────────────────
-export function validarCumplimientoTermico(solucion, uMax, soluciones, filtros = {}) {
-  if (!solucion || !uMax) return null
-
-  const uActual = parseFloat(solucion.u) || null
-  if (!uActual) return { ok: false, error: 'U no calculada' }
-
-  const cumple = Math.round(uActual * 100) / 100 <= uMax + 1e-9  // 2 decimales (DS N°15)
-  const mejoras = sugerirMejorasTermicas(solucion, soluciones, uMax, filtros)
-
-  return {
-    cumple,
-    uActual,
-    uMax,
-    diferencia: uActual - uMax,
-    mejoras: mejoras?.sugerencias || [],
-    recomendacion: mejoras?.recomendacion || null,
-  }
-}
+// (validarCumplimientoTermico eliminada — estaba muerta y comparaba con U
+//  redondeado a 2 decimales, el mismo bug C corregido en uCumpleMax.)
 
 // ─── Peor U por elemento (para el resumen ejecutivo) ─────────────────────────
 // Devuelve el U MÁXIMO (más exigente) de un elemento (muro/techo/piso)
@@ -283,4 +198,18 @@ export function uEfectivo(calcUInit, estId, elemKey, uCatalogo) {
   const uCat = parseFloat(uCatalogo)
   if (Number.isFinite(uCat) && uCat > 0) return { u: String(uCatalogo), calc: false }
   return null
+}
+
+// ─── Comparación de cumplimiento de U ────────────────────────────────────────
+// ¿El U propuesto cumple el máximo normativo?  U ≤ Umáx.
+// CRÍTICO (bug C): compara el VALOR REAL, no un U redondeado a 2 decimales.
+// Antes: Math.round(u*100)/100 <= umax → U=0,454 se redondeaba a 0,45 y "cumplía"
+// pese a superar el límite 0,45. El redondeo es solo de PRESENTACIÓN, nunca de
+// evaluación. `tol` es una tolerancia numérica anti-error de punto flotante
+// (1e-9), NO un margen normativo: 0,4501 NO cumple ≤ 0,45.
+export function uCumpleMax(u, umax, tol = 1e-9) {
+  const v = parseFloat(u)
+  const m = parseFloat(umax)
+  if (!Number.isFinite(v) || !Number.isFinite(m)) return false
+  return v <= m + tol
 }

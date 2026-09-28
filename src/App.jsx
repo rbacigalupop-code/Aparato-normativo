@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
-import { calcularU, calcularGlaser, calcularUSC, sugerirMejorasTermicas, validarCumplimientoTermico, peorUPorElemento, uEfectivo } from './lib/engines/thermal.js'
+import { sugerirMejorasTermicas, peorUPorElemento, uEfectivo, uCumpleMax } from './lib/engines/thermal.js'
 import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado } from './lib/compliance/status.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
@@ -30,7 +30,7 @@ import {
   PERM_V, PUERTA_U, PUERTA_P, PUERTA_RF, SOBR_R, INFILT,
   REC_USO, ELEM_NORM, SUBGRUPOS_PUERTA,
   calcU_SC, buildCapas, colSem, ist,
-  calcGlaser as calcGlaserCompleto, calcU_ISO6946 as calcU_ISO6946_completo,
+  calcGlaser,
   generarCorrecciones,
   STRUCT_MATS,
   getUIdx, MATS
@@ -76,11 +76,8 @@ const rfN = rfStringToNumber
 const getLetraOGUC = obtenerLetraOGUC
 const getRFDeLetra = obtenerRFdeLetra
 const getRFOGUC = obtenerRFOGUC
-// IMPORTANTE: usar la implementación COMPLETA de data.js que retorna
-// {temps, U, Tdew, ifaces, Rtot, condInter, ...}. La de thermal.js (calcularGlaser)
-// es una versión simplificada sin U ni temps que ROMPE el render del calculador.
-const calcGlaser = calcGlaserCompleto
-const calcU_ISO6946 = calcU_ISO6946_completo
+// calcGlaser (Glaser/condensación + U con temperaturas) se importa directo de
+// data.js — motor único. Ya no hay alias ni versión simplificada en thermal.js.
 
 // ─── helpers de estilo ─────────────────────────────────────────────────────────
 const S = {
@@ -125,7 +122,9 @@ const MAT_DEN = {
 // decimales, así que la U calculada se compara redondeada a 2 decimales
 // (0.602 → 0.60 ≤ 0.60 = cumple). Evita marcar "no cumple" cuando el valor
 // mostrado (redondeado) ya está en el límite. 1e-9 cubre el error de coma flotante.
-const uCumpleMax = (u, umax) => Math.round(parseFloat(u) * 100) / 100 <= umax + 1e-9
+// uCumpleMax se importa de lib/engines/thermal.js (compara el U real, sin
+// redondear a 2 decimales — ver bug C). Se mantiene el nombre para no tocar
+// los ~15 call-sites.
 
 // ─── FICHA SC — VISOR GRÁFICO ─────────────────────────────────────────────────
 function capasParaSC(s) {
@@ -2573,7 +2572,8 @@ function TabTermica({ proy, termica, setTermica, setTab, notas, setNotas, calcUI
               const up = parseFloat(uGobStr)
               const uCorr = (!isNaN(up) && up > 0 && tbPct > 0) ? (up * (1 + tbPct/100)) : up
               const uDisplay = (!isNaN(uCorr) && uCorr > 0) ? uCorr.toFixed(3) : ''
-              const cumpleU = !umax || !uDisplay || uCumpleMax(uDisplay, umax)
+              // Comparar el U REAL (uCorr), no el mostrado con 3 decimales (bug C).
+              const cumpleU = !umax || !uDisplay || uCumpleMax(uCorr, umax)
               const uInvalid = uRaw !== '' && (isNaN(uManual) || uManual <= 0)
               // El gobernante proviene de un cálculo / peor-sistema distinto al tecleado
               const uEsGob = !isNaN(up) && up > 0 && (isNaN(uManual) || Math.abs(up - uManual) > 5e-4)
