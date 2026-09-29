@@ -6,6 +6,7 @@ import {
   validarNombre,
   validarCoincidencia,
 } from './utils/validation'
+import { hayErrores } from './utils/errors'
 import { PoliticaPrivacidadModal, POLITICA_VERSION } from './components/PoliticaPrivacidad'
 
 export default function AuthGate({ children }) {
@@ -250,7 +251,7 @@ export default function AuthGate({ children }) {
                 <input
                   type="checkbox"
                   checked={aceptaPolitica}
-                  onChange={e => { setAceptaPolitica(e.target.checked); setFieldErrors(prev => ({ ...prev, politica: undefined })) }}
+                  onChange={e => { setAceptaPolitica(e.target.checked); setFieldErrors(prev => { const n = { ...prev }; delete n.politica; return n }) }}
                   disabled={procesando}
                   style={{ marginTop: 2, flexShrink: 0 }}
                 />
@@ -271,14 +272,19 @@ export default function AuthGate({ children }) {
           )}
 
           {/* Botón principal */}
+          {/* Deshabilitar solo si hay errores ACTIVOS (con mensaje). Usar
+              Object.keys().length contaba claves con valor undefined (p. ej.
+              'politica', que se limpiaba a undefined al marcar el checkbox) y
+              dejaba el botón bloqueado para siempre: nadie podía registrarse.
+              hayErrores() cuenta con Object.values(...).some(Boolean). */}
           <button
             type="submit"
             style={{
               ...styles.btn,
-              opacity: procesando || Object.keys(fieldErrors).length > 0 ? 0.6 : 1,
-              cursor: procesando || Object.keys(fieldErrors).length > 0 ? 'not-allowed' : 'pointer',
+              opacity: procesando || hayErrores(fieldErrors) ? 0.6 : 1,
+              cursor: procesando || hayErrores(fieldErrors) ? 'not-allowed' : 'pointer',
             }}
-            disabled={procesando || Object.keys(fieldErrors).length > 0}
+            disabled={procesando || hayErrores(fieldErrors)}
           >
             {procesando ? '⏳ Procesando...' : modo === 'login' ? 'Ingresar →' : 'Crear cuenta →'}
           </button>

@@ -156,7 +156,31 @@ export async function signUp(email, password, nombreCompleto, consentVersion = n
   })
 
   if (authError || !authData.user) {
-    return { ok: false, error: authError?.message || 'Error en signup' }
+    // Log crudo para diagnóstico (visible en la consola del navegador).
+    // Incluye status/code de Supabase para distinguir 429/500/duplicado.
+    console.error('signUp error:', { message: authError?.message, status: authError?.status, code: authError?.code, authError })
+
+    // Traducir los errores típicos de Supabase a mensajes claros en español
+    // (mismo criterio que signIn). El mensaje crudo se conserva en `raw`.
+    const raw = (authError?.message || '').toLowerCase()
+    let mensaje = authError?.message || 'No se pudo crear la cuenta. Intenta nuevamente.'
+
+    if (raw.includes('already registered') || raw.includes('already been registered') || raw.includes('user already exists')) {
+      mensaje = 'Este email ya tiene una cuenta. Inicia sesión (si no confirmaste el correo, pide un nuevo link).'
+    } else if (raw.includes('database error') || raw.includes('saving new user')) {
+      // Falla el trigger handle_new_user / esquema al crear org+perfil (lado servidor).
+      mensaje = 'Error del servidor al crear la cuenta (base de datos). No es por tus datos: es configuración nuestra. Ya estamos avisados para resolverlo.'
+    } else if (raw.includes('weak') || raw.includes('at least') || (raw.includes('password') && raw.includes('short'))) {
+      mensaje = 'La contraseña no cumple los requisitos mínimos: usa 8+ caracteres, con mayúscula, número y un símbolo (!@#$%^&*).'
+    } else if (raw.includes('rate limit') || raw.includes('too many') || authError?.status === 429) {
+      mensaje = 'Demasiados intentos o envíos de correo seguidos. Espera unos minutos e intenta de nuevo.'
+    } else if (raw.includes('signups not allowed') || raw.includes('signup is disabled') || raw.includes('signups are disabled')) {
+      mensaje = 'El registro está deshabilitado temporalmente. Escríbenos para habilitar tu cuenta.'
+    } else if (raw.includes('invalid') && raw.includes('email')) {
+      mensaje = 'El email no es válido. Revísalo e intenta de nuevo.'
+    }
+
+    return { ok: false, error: mensaje, errorCode: authError?.code, status: authError?.status, raw: authError?.message }
   }
 
   // El trigger crea org + perfil automáticamente con SECURITY DEFINER.
