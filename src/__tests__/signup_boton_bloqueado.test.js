@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, it, expect } from 'vitest'
 import { hayErrores } from '../utils/errors'
+import { botonAuthDeshabilitado } from '../utils/authForm'
 
 describe('Botón "Crear cuenta" — no debe bloquearse por claves fantasma', () => {
   it('objeto vacío → sin errores (botón habilitado)', () => {
@@ -40,5 +41,39 @@ describe('Botón "Crear cuenta" — no debe bloquearse por claves fantasma', () 
   it('null/undefined como objeto → sin errores (no revienta)', () => {
     expect(hayErrores(null)).toBe(false)
     expect(hayErrores(undefined)).toBe(false)
+  })
+})
+
+describe('botonAuthDeshabilitado — gating del botón de enviar (login/signup)', () => {
+  it('login, sin errores, casilla sin marcar → HABILITADO (login no exige casilla)', () => {
+    expect(botonAuthDeshabilitado({ modo: 'login', fieldErrors: {}, aceptaPolitica: false })).toBe(false)
+  })
+
+  it('login, procesando → deshabilitado', () => {
+    expect(botonAuthDeshabilitado({ modo: 'login', procesando: true })).toBe(true)
+  })
+
+  it('signup, casilla SIN marcar, sin errores → DESHABILITADO (exigir consentimiento)', () => {
+    expect(botonAuthDeshabilitado({ modo: 'signup', fieldErrors: {}, aceptaPolitica: false })).toBe(true)
+  })
+
+  it('signup, casilla marcada, sin errores → HABILITADO', () => {
+    expect(botonAuthDeshabilitado({ modo: 'signup', fieldErrors: {}, aceptaPolitica: true })).toBe(false)
+  })
+
+  it('signup, casilla marcada, con clave fantasma {politica: undefined} → HABILITADO (no bloquea)', () => {
+    expect(botonAuthDeshabilitado({ modo: 'signup', fieldErrors: { politica: undefined }, aceptaPolitica: true })).toBe(false)
+  })
+
+  it('signup, casilla marcada, con error de campo real → deshabilitado', () => {
+    expect(botonAuthDeshabilitado({ modo: 'signup', fieldErrors: { email: 'Email inválido' }, aceptaPolitica: true })).toBe(true)
+  })
+
+  it('signup, casilla marcada, procesando → deshabilitado', () => {
+    expect(botonAuthDeshabilitado({ modo: 'signup', aceptaPolitica: true, procesando: true })).toBe(true)
+  })
+
+  it('sin argumentos → usa defaults (login, sin nada) → HABILITADO', () => {
+    expect(botonAuthDeshabilitado()).toBe(false)
   })
 })

@@ -6,7 +6,7 @@ import {
   validarNombre,
   validarCoincidencia,
 } from './utils/validation'
-import { hayErrores } from './utils/errors'
+import { botonAuthDeshabilitado } from './utils/authForm'
 import { PoliticaPrivacidadModal, POLITICA_VERSION } from './components/PoliticaPrivacidad'
 
 export default function AuthGate({ children }) {
@@ -159,6 +159,12 @@ export default function AuthGate({ children }) {
     return children
   }
 
+  // El botón se deshabilita si: está procesando, hay errores de campo activos, o
+  // —solo en signup— aún no se acepta la Política de Privacidad (Ley 21.719). Así
+  // la exigencia del consentimiento es visible ANTES de intentar enviar. En login
+  // no aplica (no hay casilla). Lógica pura y testeada en utils/authForm.js.
+  const botonDeshabilitado = botonAuthDeshabilitado({ procesando, fieldErrors, modo, aceptaPolitica })
+
   // Formulario de login/signup
   return (
     <div style={styles.overlay}>
@@ -271,20 +277,18 @@ export default function AuthGate({ children }) {
             </div>
           )}
 
-          {/* Botón principal */}
-          {/* Deshabilitar solo si hay errores ACTIVOS (con mensaje). Usar
-              Object.keys().length contaba claves con valor undefined (p. ej.
-              'politica', que se limpiaba a undefined al marcar el checkbox) y
-              dejaba el botón bloqueado para siempre: nadie podía registrarse.
-              hayErrores() cuenta con Object.values(...).some(Boolean). */}
+          {/* Botón principal — ver `botonDeshabilitado` arriba.
+              NOTA: hayErrores() usa Object.values(...).some(Boolean); NO usar
+              Object.keys().length, que contaba claves con valor undefined (p. ej.
+              'politica' al limpiarse) y dejaba el botón bloqueado para siempre. */}
           <button
             type="submit"
             style={{
               ...styles.btn,
-              opacity: procesando || hayErrores(fieldErrors) ? 0.6 : 1,
-              cursor: procesando || hayErrores(fieldErrors) ? 'not-allowed' : 'pointer',
+              opacity: botonDeshabilitado ? 0.6 : 1,
+              cursor: botonDeshabilitado ? 'not-allowed' : 'pointer',
             }}
-            disabled={procesando || hayErrores(fieldErrors)}
+            disabled={botonDeshabilitado}
           >
             {procesando ? '⏳ Procesando...' : modo === 'login' ? 'Ingresar →' : 'Crear cuenta →'}
           </button>
