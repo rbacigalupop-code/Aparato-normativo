@@ -1,8 +1,33 @@
-# 📊 NormaCheck - Estado del Proyecto
+# 📊 Talora — Estado del Proyecto
 
-**Última actualización:** 2026-05-11  
-**Estado:** ✅ Completamente implementado y deployado  
-**Build:** ✅ Exitoso (sin errores)
+**Última actualización:** 2026-09-30
+**Versión actual:** v9.35.2 (verificador normativo OGUC + térmica)
+**Estado:** ✅ En producción, estable
+**Build:** ✅ Exitoso · **Tests:** ✅ 456/456 pasando (31 archivos)
+
+> _Talora_ es el nombre de marca actual del producto antes conocido como
+> _NormaCheck_. El código y la UI ya usan "Talora"; las secciones históricas
+> más abajo conservan el nombre antiguo por trazabilidad.
+
+---
+
+## 🧭 ESTADO ACTUAL (2026-09-30)
+
+- **Rebrand a Talora:** completado en toda la app y documentos legales.
+- **Salud técnica:** 456 tests unitarios verdes; `vite build` sin errores.
+- **Carga:** `html2pdf` (~982 KB) y `xlsx` (~429 KB) se cargan de forma
+  perezosa (dynamic `import()`), fuera del bundle inicial.
+- **Trabajo reciente (v9.30–v9.36):** motor de cumplimiento de 5 estados
+  (fin del fail-open), térmica comparando el U real, clasificación de piso en
+  envolvente, vigencia normativa LOSCAT E14 (MINVU), y flujo de registro con
+  consentimiento de Política de Privacidad.
+- **Higiene de repo:** `docs/PDA/` (~680 MB de referencia normativa), `tmp/`,
+  material de skills y backups locales quedan fuera del repo vía `.gitignore`.
+
+### Deuda técnica conocida (no bloqueante)
+- `src/App.jsx` es un monolito (~695 KB); el chunk `index` ronda 1.6 MB
+  (gzip ~423 KB). Un code-split por módulos bajaría la carga inicial, pero es
+  de alto riesgo y está fuera del alcance de "pulido".
 
 ---
 

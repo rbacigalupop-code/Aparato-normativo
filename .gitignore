@@ -4,3 +4,17 @@ dist/
 
 # Informes de la auditoría semanal
 logs/
+
+# Material de trabajo y scratch (no es código fuente)
+tmp/
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Documentos de referencia normativa (pesados, fuera del repo)
+docs/PDA/
+Documentos legales NormaCheck/
+Registro DDI NormaCheck/
+
+# Backups locales
+*.backup-*

@@ -2,6 +2,7 @@
  * OGUC Data Functions — Cargar datos normativos desde Supabase
  * En desarrollo/offline: fallback a datos locales
  */
+import { supabase } from '../supabase.js'
 
 // Datos locales fallback (mismos que en data.js)
 const OGUC_RF_LETRAS_LOCAL = {
@@ -77,7 +78,6 @@ const OGUC_TABLA1_LOCAL = {
  */
 export async function obtenerOGUCRFLetras() {
   try {
-    const { supabase } = await import('../supabase.js')
     if (!supabase) return OGUC_RF_LETRAS_LOCAL
 
     const { data, error } = await supabase
@@ -103,7 +103,6 @@ export async function obtenerOGUCRFLetras() {
  */
 export async function obtenerOGUCTabla1() {
   try {
-    const { supabase } = await import('../supabase.js')
     if (!supabase) return OGUC_TABLA1_LOCAL
 
     const { data, error } = await supabase
@@ -129,7 +128,6 @@ export async function obtenerOGUCTabla1() {
  */
 export async function obtenerOGUCElemCol() {
   try {
-    const { supabase } = await import('../supabase.js')
     if (!supabase) return OGUC_ELEM_COL_LOCAL
 
     const { data, error } = await supabase
