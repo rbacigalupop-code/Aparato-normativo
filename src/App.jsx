@@ -4510,6 +4510,7 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
   const [cubiertaVent, setCubiertaVent] = useState(false)
   // Corrección puentes térmicos ΔU (ISO 6946 §6.9.3) — suma al U calculado
   const [deltaU, setDeltaU] = useState('')
+  const [avisoCalc, setAvisoCalc] = useState('')         // aviso cuando faltan datos para calcular U
 
   useEffect(() => {
     if (!initData?.capas?.length) return
@@ -4703,7 +4704,23 @@ function PanelCalcU({ elemKey, elemTipo, label, umax, proy, initData, headerColo
       setRes(null); setCorrec([]); setCalcuando(false)
     }
   }
-  function calcular() { calcularConCapas(capas) }
+  function calcular() {
+    // Validación UX: en vez de no hacer nada silenciosamente cuando faltan
+    // datos, avisar qué falta. Una capa es "computable" si tiene λ>0 y esp>0.
+    const reales = capas.filter(c => !c.esCamara)
+    const computables = reales.filter(c => parseFloat(c.lam) > 0 && parseFloat(c.esp) > 0)
+    const incompletas = reales.filter(c => (c.mat || c.lam) && !(parseFloat(c.esp) > 0))
+    if (!computables.length) {
+      setAvisoCalc(incompletas.length
+        ? 'Completa el espesor (mm) de las capas para calcular el U.'
+        : 'Agrega al menos una capa con material y espesor (mm) para calcular.')
+      return
+    }
+    setAvisoCalc(incompletas.length
+      ? `Se omitió ${incompletas.length} capa(s) sin espesor del cálculo.`
+      : '')
+    calcularConCapas(capas)
+  }
 
   // Volver a la solución original del LOSCAT: descarta correcciones aplicadas o
   // ediciones manuales, restaura las capas guardadas en origCapas al cargar la
@@ -5240,7 +5257,7 @@ ${cambios.length && solucion ? `
                         )}
                       </td>
                       <td style={S.td}><input style={{ ...ist, width:60 }} value={c.lam} onChange={e=>updCapa(c.id,'lam',e.target.value)} placeholder="0.04"/></td>
-                      <td style={S.td}><input style={{ ...ist, width:70 }} value={c.esp} onChange={e=>updCapa(c.id,'esp',e.target.value)} placeholder="100"/></td>
+                      <td style={S.td}><input style={{ ...ist, width:70 }} value={c.esp} onChange={e=>updCapa(c.id,'esp',e.target.value)} placeholder="mm"/></td>
                       <td style={S.td}><input style={{ ...ist, width:60 }} value={c.mu} onChange={e=>updCapa(c.id,'mu',e.target.value)} placeholder="1"/></td>
                       <td style={S.td}>{btnMv('↑', ()=>moveUp(c.id), idx===0)}{btnMv('↓', ()=>moveDown(c.id), idx===capas.length-1)}</td>
                       <td style={S.td}><button style={{ ...S.btn('#dc2626'), padding:'2px 8px' }} onClick={()=>delCapa(c.id)}>✕</button></td>
@@ -5318,6 +5335,11 @@ ${cambios.length && solucion ? `
           )}
           {capas.length>0 && <span style={{ fontSize:11, color:'#94a3b8', alignSelf:'center' }}>↑↓ Mueve capas y recalcula para homologar</span>}
         </div>
+        {avisoCalc && (
+          <div style={{ marginTop:6, fontSize:12, color:'#b45309', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'6px 10px' }}>
+            ⚠ {avisoCalc}
+          </div>
+        )}
       </div>
 
       {/* ── Corte de capas (en vivo, se actualiza al reordenar/editar) ────────── */}

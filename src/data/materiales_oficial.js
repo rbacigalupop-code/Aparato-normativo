@@ -2,6 +2,10 @@
 // λ (W/mK) y μ (factor difusión, seco) según ISO 10456 / NCh853:2021. muHum = μ húmedo (opcional).
 // μ=100000 representa materiales impermeables al vapor ("inf" en la fuente: metales, vidrio).
 // NO editar a mano. Importado 2026-05-27. usos: piso/techo/muro según grupo (resto universal).
+// Edición manual 2026-09-30: dos nombres venían duplicados con λ distinto e impedían
+// seleccionar la 2ª variante (colisión de key/value en el <select>). Se desambiguó la
+// 2ª ocurrencia añadiendo λ: "Acero inoxidable (ρ=7900, λ=30)" y "Yeso (ρ=900, λ=1.0)".
+// Al reimportar desde el .xlsm, reaplicar esta desambiguación.
 export const MATERIALES_OFICIAL = [
   { g: "Oficial NCh853 — Asfalto", items: [
     { n: "Asfalto (ρ=2100)", lam: 0.7, mu: 50000 },
@@ -43,7 +47,7 @@ export const MATERIALES_OFICIAL = [
     { n: "Plomo (ρ=11300)", lam: 35, mu: 100000, usos:["muro","techo"] },
     { n: "Acero (ρ=7800)", lam: 50, mu: 100000, usos:["muro","techo"] },
     { n: "Acero inoxidable (ρ=7900)", lam: 17, mu: 100000, usos:["muro","techo"] },
-    { n: "Acero inoxidable (ρ=7900)", lam: 30, mu: 100000, usos:["muro","techo"] },
+    { n: "Acero inoxidable (ρ=7900, λ=30)", lam: 30, mu: 100000, usos:["muro","techo"] },
     { n: "Zinc (ρ=7200)", lam: 110, mu: 100000, usos:["muro","techo"] },
   ]},
   { g: "Oficial NCh853 — Plásticos", items: [
@@ -93,7 +97,7 @@ export const MATERIALES_OFICIAL = [
     { n: "Yeso (ρ=1200)", lam: 0.57, mu: 10, muHum:4 },
     { n: "Yeso (ρ=1500)", lam: 0.8, mu: 10, muHum:4 },
     { n: "Yeso cartón (ρ=700)", lam: 0.8, mu: 10, muHum:4 },
-    { n: "Yeso (ρ=900)", lam: 1, mu: 10, muHum:4 },
+    { n: "Yeso (ρ=900, λ=1.0)", lam: 1, mu: 10, muHum:4 },
   ]},
   { g: "Oficial NCh853 — Enlucidos", items: [
     { n: "Enlucido de yeso aislante (ρ=600)", lam: 0.18, mu: 10, muHum:6 },
