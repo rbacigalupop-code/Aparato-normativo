@@ -1095,7 +1095,7 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
           <option value="">+ Material a agregar...</option>
           {/* Filtra por elemento: si es techo/techumbre, sólo cubiertas y materiales
               universales. Evita que aparezcan revestimientos de muro en techumbres. */}
-          {filterMatsByElem(elem).map(g=><optgroup key={g.g} label={g.g}>{g.items.map(m=><option key={m.n} value={m.n}>{m.n} (λ={m.lam})</option>)}</optgroup>)}
+          {filterMatsByElem(elem).map(g=><optgroup key={g.g} label={g.g}>{g.items.map((m,i)=><option key={g.g+'·'+i} value={m.n}>{m.n} (λ={m.lam})</option>)}</optgroup>)}
         </select>
         <input type="number" min={5} max={300} placeholder="mm" value={newEsp} onChange={e=>setNewEsp(e.target.value)}
           style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11,width:62 }}/>
@@ -5223,7 +5223,7 @@ ${cambios.length && solucion ? `
                               universales; los muros excluyen cubiertas de techumbre. */}
                           {filterMatsByElem(elemTipo).map(g=>(
                             <optgroup key={g.g} label={g.g}>
-                              {g.items.map(m=><option key={m.n} value={m.n}>{m.n}</option>)}
+                              {g.items.map((m,i)=><option key={g.g+'·'+i} value={m.n}>{m.n}</option>)}
                             </optgroup>
                           ))}
                         </select>

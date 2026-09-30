@@ -37,7 +37,7 @@ export default function ModeSwitcher({ mode, onChange, perfil }) {
     ...btnBase,
     background: 'rgba(255,255,255,0.95)',
     color: '#0e6560',
-    borderColor: '#fff',
+    border: '1px solid #fff',
     boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
   }
 
