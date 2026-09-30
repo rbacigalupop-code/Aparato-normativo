@@ -31,6 +31,42 @@
 
 ---
 
+## 🔧 SESIÓN DE PULIDO (2026-09-30) — desplegada en producción
+
+Cuatro commits, todos con 456/456 tests y build limpio, verificados en vivo
+y confirmados en producción (`taloraapp.vercel.app`):
+
+- **`30ac47f` — Higiene + import supabase:** `ogucData.js` pasó de 3 `import()`
+  dinámicos de `supabase.js` a un import estático (elimina el warning de build).
+  `.gitignore` ampliado (excluye `docs/PDA/` ~680 MB, `tmp/`, material de skills,
+  `*.backup-*`). Eliminado `App.jsx.backup-pre-design-c` (último resto de
+  "NormaCheck"). PROJECT_STATUS actualizado a v9.35.
+- **`59b7c56` — 2 bugs de consola:** (1) las `<option>` de materiales usaban
+  `key={m.n}`; con dos materiales de igual nombre React emitía "two children
+  with the same key" (riesgo de duplicar/omitir opciones) → `key` única por
+  grupo. (2) `ModeSwitcher` mezclaba `border` (shorthand) y `borderColor`
+  → shorthand completo. Verificado runtime: 0 warnings.
+- **`bbbe502` — Materiales duplicados + feedback al calcular:**
+  · `materiales_oficial.js`: "Acero inoxidable (ρ=7900)" y "Yeso (ρ=900)"
+    venían duplicados con λ distinto (misma etiqueta y value → 2ª variante
+    inseleccionable). Se renombró la 2ª de cada par añadiendo λ, dejando la 1ª
+    intacta (no rompe proyectos guardados). Nota de reimportación en el header.
+  · Cálculo U: pulsar "Calcular U" con capas sin espesor ya no es un no-op
+    silencioso; `calcular()` valida y muestra un aviso. Placeholder del espesor
+    cambiado de "100" (parecía valor) a "mm".
+- **`f31a206` — Transmitancia U a 2 decimales:** el U se mostraba con 3–4
+  decimales, inconsistente con los U-máx normativos (0.45, 0.28…). Ahora toda
+  la vista de Cálculo U va a 2 decimales (tarjeta, badge, banner, resumen ΔU en
+  `App.jsx`; y los 10 `impactoU` de correcciones en `data.js`). Motor y export
+  PDF conservan su precisión interna (4 dec.).
+
+**Investigado y descartado (sin cambios):** `ERR_CONNECTION_REFUSED` en consola
+solo aparece en localhost (dev); producción queda 100% limpia. No es `fetch`,
+recursos del DOM ni Vite HMR. La app solo llama a Google Fonts y Supabase
+(ambas OK). Artefacto del navegador embebido/dev.
+
+---
+
 ## ✅ INCIDENCIAS RESUELTAS
 
 ### 1. **Crash del módulo de fuego (TabFuego)**
