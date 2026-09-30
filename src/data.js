@@ -1511,7 +1511,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           descripcion:'Para cumplir '+motivoStr+', se propone un complejo tipo EIFS/SATE: '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK) adherido a la estructura + Estuco cemento 15mm como terminación exterior. El aislante queda completamente embebido y protegido; nunca expuesto al exterior.',
           cambio:'+ '+esp+'mm '+alt.n+' (exterior) + Estuco cemento 15mm',
           capasCorregidas:cvNuevo,resultado:rN,
-          impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+          impactoU:'U '+(+rN.U).toFixed(2)+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
           advertencias:withPenaltyAviso(['El adhesivo y la malla de fibra de vidrio (ETICS) no afectan el cálculo U pero son obligatorios constructivamente (NCh 1938)',
             ...(cierresAgg.length?['Capas de cierre agregadas automáticamente: '+cierresAgg.join(', ')]:[])])});
         break;
@@ -1543,7 +1543,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           descripcion:'Para cumplir '+motivoStr+', se propone un complejo tipo Fachada Ventilada: '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK) + Barrera de humedad transpirable (Tyvek/fieltro, μ=150) posicionada entre el aislante y la cámara ventilada + Fibrocemento 6mm. La barrera de humedad queda correctamente entre el aislante y la cámara; jamás como capa final expuesta.',
           cambio:'+ '+esp+'mm '+alt.n+' + Tyvek (barrera humedad) + Cámara ventilada + Fibrocemento 6mm',
           capasCorregidas:cvNuevo,resultado:rN,
-          impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+          impactoU:'U '+(+rN.U).toFixed(2)+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
           advertencias:withPenaltyAviso(['La cámara ventilada requiere entrada de aire en la base y salida en coronamiento (ASHRAE 160 / NCh853:2021 §6.9)',
             'El fibrocemento debe fijarse a subestructura metálica o de madera — no se adhiere directamente al aislante'])});
         break;
@@ -1577,7 +1577,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           descripcion:'Para cumplir '+motivoStr+' sin intervención exterior, se propone un complejo tipo Trasdosado Interior: Yeso cartón 13mm + Barrera de vapor (polietileno μ=9999) posicionada en cara caliente (interior, justo detrás del revestimiento) + '+esp+'mm de '+alt.n+' (λ='+alt.lam+' W/mK). La barrera de vapor bloquea la difusión antes de que el vapor alcance el punto de rocío en el aislante.',
           cambio:'+ Yeso cartón 13mm + Barrera vapor PE (0.2mm μ=9999) + '+esp+'mm '+alt.n+' (interior)',
           capasCorregidas:cvNuevo,resultado:rN,
-          impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+          impactoU:'U '+(+rN.U).toFixed(2)+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
           advertencias:withPenaltyAviso(['Reduce el ancho libre del recinto en '+(13+esp)+'mm aprox.',
             'Requiere resolución en aristas, zócalos y marcos para evitar puentes térmicos perimetrales',
             'El sellado de la barrera de vapor en penetraciones (instalaciones) es crítico (OGUC Art. 4.1.10)'])});
@@ -1613,7 +1613,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         descripcion:'Aumentar \''+nomAis+'\' de '+espOrig+'mm a '+(espOrig+extra)+'mm resuelve '+motivoStr+'. Homologable con LOSCAT (mismo material, mayor espesor).'+notaCierre,
         cambio:'\''+nomAis+'\': '+espOrig+'mm → '+(espOrig+extra)+'mm (+'+extra+'mm)',
         capasCorregidas:cvCerrado,resultado:rN,
-        impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+        impactoU:'U '+(+rN.U).toFixed(2)+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
         advertencias:withPenaltyAviso(cierresAgg.map(c=>'⚠ Se añadió automáticamente '+c.n+' ('+({cierre_ext:'terminación exterior',cierre_int:'terminación interior'}[c._rol]||'')+') — esta capa no puede quedar expuesta'))});
     }
   }
@@ -1636,7 +1636,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         descripcion:'Se añade lámina de polietileno (μ=9999, 0.2mm) inmediatamente detrás del revestimiento interior (cara caliente), bloqueando la difusión de vapor antes de que alcance la zona de condensación. Posición correcta según NCh853:2021: siempre en la cara caliente (interior), nunca como capa final exterior ni como primera capa desnuda.',
         cambio:'Agrega Barrera de vapor PE (0.2mm, μ=9999) tras revestimiento interior',
         capasCorregidas:cvCerrado,resultado:rN,
-        impactoU:'U '+rN.U+' W/m²K'+(umaxTarget&&parseFloat(rN.U)<=umaxTarget?' ✓':''),
+        impactoU:'U '+(+rN.U).toFixed(2)+' W/m²K'+(umaxTarget&&parseFloat(rN.U)<=umaxTarget?' ✓':''),
         advertencias:withPenaltyAviso(['El sellado perimetral y en penetraciones de instalaciones es obligatorio para garantizar la continuidad de la barrera (OGUC Art. 4.1.10)',
           'Verificar que no quede ninguna capa de aislante al exterior de la barrera de vapor sin protección'])});
     }
@@ -1704,7 +1704,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           cambio: '+ Barrera vapor PE (cara caliente) + Cámara ventilada 30mm tras aislante',
           capasCorregidas: cvVisual,
           resultado: rN,
-          impactoU: 'U ' + rN.U + ' W/m²K' + (umaxTarget && parseFloat(rN.U) <= umaxTarget ? ' ✓' : ''),
+          impactoU: 'U ' + (+rN.U).toFixed(2) + ' W/m²K' + (umaxTarget && parseFloat(rN.U) <= umaxTarget ? ' ✓' : ''),
           advertencias: withPenaltyAviso([
             '⚠ IMPORTANTE: tras aplicar, marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.3).',
             'La cámara debe tener aberturas continuas en alero y coronamiento (entrada y salida de aire por convección).',
@@ -1747,7 +1747,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           descripcion:'Solución de mínima intervención para entramados con tablero de alta resistencia al vapor (OSB/MDF/contrachapado) en posición fría intermedia, donde actúa como trampa de vapor. Combina: 1) llevar el tablero a la cara caliente (interior); 2) barrera de vapor de polietileno (μ=9999) por dentro del tablero; 3) el aislante hacia el exterior. Conserva los mismos materiales y espesor del proyecto — solo cambia la secuencia y agrega la lámina de barrera de vapor. Posición correcta según NCh853:2021: máxima resistencia al vapor en la cara caliente.',
           cambio:'Nueva secuencia int → ext: '+ordenTxt+' (+ barrera de vapor interior)',
           capasCorregidas:cvCc,resultado:rCc,
-          impactoU:'U '+rCc.U+' W/m²K'+(umaxTarget&&parseFloat(rCc.U)<=umaxTarget?' ✓':''),
+          impactoU:'U '+(+rCc.U).toFixed(2)+' W/m²K'+(umaxTarget&&parseFloat(rCc.U)<=umaxTarget?' ✓':''),
           advertencias:withPenaltyAviso([
             '⚠ Verificar factibilidad estructural: el tablero (OSB/contrachapado) suele cumplir rol de arriostramiento; esta propuesta asume que puede ubicarse en la cara interior del entramado.',
             'La barrera de vapor debe sellarse en perímetro y penetraciones para garantizar continuidad (OGUC Art. 4.1.10).',
@@ -1814,7 +1814,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
         descripcion:'Para cumplir '+motivoStr+', se incorpora '+espMm+'mm de '+elegido.cand.n+' (λ='+elegido.cand.lam+' W/mK) '+dondeTxt+(capasBV.length?', con barrera de vapor en la cara caliente para el control higrotérmico':'')+'.'+(extAltoMu?' La cámara ventilada deja las capas exteriores a condiciones exteriores (ISO 6946 §6.9.3), evitando la trampa de vapor de la capa de alto μ.':''),
         cambio:'+ '+espMm+'mm '+elegido.cand.n+(capasBV.length?' + barrera de vapor':'')+(extAltoMu?' + cámara ventilada':''),
         capasCorregidas:visual,resultado:rN,
-        impactoU:'U '+rN.U+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
+        impactoU:'U '+(+rN.U).toFixed(2)+' W/m²K ✓'+(umaxTarget?' ≤'+umaxTarget:''),
         advertencias:withPenaltyAviso([
           extAltoMu?'⚠ Marca el checkbox "Cubierta ventilada" en la calculadora para que el modelo Glaser ignore correctamente las capas sobre la cámara (ISO 6946 §6.9.3).':(elemTipo==='piso'?'Verificar la altura libre y el encuentro con puertas tras incorporar el aislante.':'Verificar la ventilación del entretecho y el encuentro con elementos contiguos.'),
           ...(capasBV.length?['El sellado perimetral de la barrera de vapor es obligatorio (OGUC Art. 4.1.10).']:[])])});
@@ -1839,7 +1839,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           descripcion:'Reemplazar \''+(orig.n||orig.mat)+'\' (λ='+orig.lam+' W/mK) por \''+alt.n+'\' (λ='+alt.lam+' W/mK) con igual espesor '+Math.round(orig.esp*1000)+'mm. Mayor resistencia térmica por unidad de espesor.',
           cambio:'\''+(orig.n||orig.mat)+'\' → \''+alt.n+'\' (λ: '+orig.lam+' → '+alt.lam+' W/mK)',
           capasCorregidas:cvCerrado,resultado:rA,
-          impactoU:'U '+rA.U+' W/m²K ✓',
+          impactoU:'U '+(+rA.U).toFixed(2)+' W/m²K ✓',
           advertencias:withPenaltyAviso(['Verificar compatibilidad de adhesión entre \''+alt.n+'\' y la estructura existente'])});
         break;
       }
@@ -1897,7 +1897,7 @@ export async function generarCorrecciones(cv,ti,te,hr,elemTipo="muro",umaxTarget
           cambio: 'Nueva secuencia int → ext: ' + orden,
           capasCorregidas: cvCerrado,
           resultado: rR,
-          impactoU: 'U ' + rR.U + ' W/m²K ✓' + (umaxTarget ? ' ≤' + umaxTarget : ''),
+          impactoU: 'U ' + (+rR.U).toFixed(2) + ' W/m²K ✓' + (umaxTarget ? ' ≤' + umaxTarget : ''),
           advertencias: withPenaltyAviso([
             'Verificar que el reordenamiento sea constructivamente factible (capas estructurales vs revestimientos)',
             'La solución es homologable a la LOSCAT original ya que conserva los mismos materiales',

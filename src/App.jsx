@@ -5059,7 +5059,7 @@ ${cambios.length && solucion ? `
       <div style={{ background: headerColor, color: '#fff', borderRadius: collapsed ? 8 : '8px 8px 0 0', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setCollapsed(v => !v)}>
         <span style={{ fontWeight: 700, fontSize: 13 }}>{label}</span>
         {solucion && <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 4, padding: '1px 8px', fontSize: 11 }}>{solucion.cod}</span>}
-        {res && <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 4, padding: '1px 8px', fontSize: 11 }}>U = {res.U} W/m²K</span>}
+        {res && <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 4, padding: '1px 8px', fontSize: 11 }}>U = {(+res.U).toFixed(2)} W/m²K</span>}
         {res && umax && (() => { const ok = uCumpleMax(res.U, umax); return <span style={{ background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b', borderRadius: 4, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{ok ? 'CUMPLE' : 'NO CUMPLE'}</span> })()}
         {!res && !solucion && <span style={{ fontSize: 11, opacity: 0.7 }}>Sin datos — aplica una solución o agrega capas</span>}
         <span style={{ marginLeft: 'auto', fontSize: 16 }}>{collapsed ? '▼' : '▲'}</span>
@@ -5409,7 +5409,7 @@ ${cambios.length && solucion ? `
         // ΔU corrección puentes térmicos (ISO 6946 §6.9.3)
         const dU    = parseFloat(deltaU) || 0
         const uCalc = parseFloat(res.U) + dU
-        const uCorrStr = uCalc.toFixed(3)
+        const uCorrStr = uCalc.toFixed(2)   // 2 decimales: convención normativa (U máx DS N°15)
         const cumpleU      = !umax || uCumpleMax(uCalc, umax)
         const tSupExt      = parseFloat(res.temps[res.temps.length-1]).toFixed(2)
         const supExtBajaTd = parseFloat(tSupExt) < parseFloat(res.Tdew)
@@ -5452,7 +5452,7 @@ ${cambios.length && solucion ? `
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 {!cumpleU && umax && (
                   <div style={{ fontSize:12 }}>
-                    <b style={{ color:'#dc2626' }}>Térmica:</b> U calculado <b>{res.U} W/m²K</b> supera el máximo DS N°15 para zona {proy.zona||'—'}: ≤ {umax} W/m²K.{' '}
+                    <b style={{ color:'#dc2626' }}>Térmica:</b> U calculado <b>{(+res.U).toFixed(2)} W/m²K</b> supera el máximo DS N°15 para zona {proy.zona||'—'}: ≤ {umax} W/m²K.{' '}
                     <span style={{ color:'#374151' }}>
                       Se requiere ΔR adicional de <b>{((1/umax - 1/uCalc)).toFixed(3)} m²K/W</b>.{' '}
                       {(()=>{
@@ -5516,7 +5516,7 @@ ${cambios.length && solucion ? `
             </div>
             {umax && <div style={{ marginBottom:10 }}>
               <span style={S.badge(cumpleU)}>{cumpleU?`✓ U cumple DS N°15 (máx ${umax} W/m²K)`:`✗ U no cumple DS N°15 (máx ${umax} W/m²K)`}</span>
-              {dU > 0 && <span style={{ fontSize:11, color:'#64748b', marginLeft:8 }}>U ISO 6946: {res.U} + ΔU: {dU.toFixed(3)} = {uCorrStr} W/m²K</span>}
+              {dU > 0 && <span style={{ fontSize:11, color:'#64748b', marginLeft:8 }}>U ISO 6946: {(+res.U).toFixed(2)} + ΔU: {dU.toFixed(2)} = {uCorrStr} W/m²K</span>}
             </div>}
 
             {/* ── Desglose de R (Design) ──────────────────────────────────────── */}
