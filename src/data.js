@@ -489,7 +489,7 @@ export const SC_CAPAS={
   "1.2.M.A23.1":[{mat:"Hormigon armado",lam:2.50,esp:100,mu:130},{mat:"EPS 20kg/m3",lam:0.038,esp:60,mu:60},{mat:"Mortero cemento",lam:0.70,esp:6,mu:25}],
   "1.2.M.A22.2":[{mat:"Hormigon armado",lam:2.50,esp:150,mu:130},{mat:"EPS 15kg/m3",lam:0.041,esp:80,mu:40},{mat:"Corcho aglomerado",lam:0.045,esp:5,mu:20}],
   "1.2.G.C1.3":[{mat:"Yeso carton",lam:0.26,esp:10,mu:8},{mat:"Lana vidrio 10kg",lam:0.046,esp:60,mu:1},{mat:"OSB/MDF",lam:0.23,esp:9,mu:200},{mat:"Lana vidrio 10kg",lam:0.046,esp:40,mu:1},{mat:"Fibrocemento",lam:0.23,esp:6,mu:50}],
-  "1.2.G.C1.4":[{mat:"Yeso carton",lam:0.26,esp:10,mu:8},{mat:"Lana vidrio 10kg",lam:0.042,esp:50,mu:1},{mat:"OSB/MDF",lam:0.23,esp:9,mu:200},{mat:"EPS 20kg/m3",lam:0.038,esp:10,mu:60},{mat:"Mortero cemento",lam:1.40,esp:15,mu:25}],
+  "1.2.G.C1.4":[{mat:"Yeso carton",lam:0.26,esp:10,mu:8},{mat:"Lana vidrio 10kg",lam:0.042,esp:90,mu:1},{mat:"OSB/MDF",lam:0.23,esp:11,mu:200},{mat:"EPS 20kg/m3",lam:0.038,esp:30,mu:60},{mat:"Mortero cemento",lam:1.40,esp:15,mu:25}],
   // Metalframe — SC_CAPAS
   "2.2.M.MF1.1":[{mat:"Yeso carton F",lam:0.26,esp:12.5,mu:8},{mat:"Lana mineral 30kg",lam:0.035,esp:75,mu:1},{mat:"Yeso carton F",lam:0.26,esp:12.5,mu:8}],
   "2.2.M.MF1.2":[{mat:"Yeso carton F",lam:0.26,esp:12.5,mu:8},{mat:"Lana mineral 30kg",lam:0.035,esp:90,mu:1},{mat:"Yeso carton F",lam:0.26,esp:12.5,mu:8}],

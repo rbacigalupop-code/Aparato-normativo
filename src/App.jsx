@@ -921,11 +921,20 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
   // ── #7 Exportar ficha ─────────────────────────────────────────────────────
   function exportarFicha() {
     const allC = [...capas, ...extra]
+    // Las zonas se DERIVAN del U (U ≤ U-máx por zona), no del campo `zonas`
+    // curado a mano del catálogo, que puede sobre-declarar (ver A3, selector de
+    // soluciones). Así la ficha exportada coincide con el cumplimiento real.
+    const _elemZ = s.elem === 'tabique' ? null : (s.elem === 'techumbre' ? 'techo' : s.elem)
+    const zonasCumple = s.elem === 'puerta'
+      ? (Object.keys(ZONAS).filter(z => { const m = PUERTA_U[z]; return !m || s.u <= m }).join('') || 'ninguna')
+      : _elemZ
+      ? (Object.keys(ZONAS).filter(z => s.u <= ZONAS[z][_elemZ]).join('') || 'ninguna')
+      : 'sin exigencia de U (tabique)'
     const lineas = [
       'FICHA DE SOLUCIÓN CONSTRUCTIVA — Talora',
       `Código: ${s.cod}`,
       `Descripción: ${s.desc}`,
-      `Elemento: ${elem}  |  Zonas: ${s.zonas}`,
+      `Elemento: ${elem}  |  Zonas que cumplen U≤U-máx: ${zonasCumple}`,
       '',
       'VALORES CERTIFICADOS (LOSCAT Ed.14 2026):',
       `  U: ${s.u} W/m²K  |  RF: ${s.rf||'—'}  |  Rw: ${s.ac_rw||'—'} dB`,
