@@ -4,7 +4,8 @@
 // Regla: la barrera de vapor (sd alto) va en la cara interior/caliente. Si queda
 // en la cara exterior/fría del aislante (sin barrera equivalente al interior) →
 // aviso de condensación intersticial. Advisory, complementa el Glaser.
-// capas en orden INTERIOR → EXTERIOR. Solo muro/techumbre.
+// capas en orden INTERIOR → EXTERIOR. Muro, techumbre y piso (en piso el
+// interior/caliente es la cara superior; sobre terreno se exime la lámina PE).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from 'vitest'
@@ -47,8 +48,34 @@ describe('alertaSentidoVapor', () => {
     expect(alertaSentidoVapor([yeso, lana, osb, barrera, eifs], 'techumbre')).toBeTruthy()
   })
 
-  it('piso NO se evalúa (orden de capas no normalizado)', () => {
-    expect(alertaSentidoVapor([yeso, lana, osb, barrera, eifs], 'piso')).toBeNull()
+  it('piso SÍ se evalúa: BV en la cara fría (abajo) sin barrera arriba → avisa', () => {
+    // Piso interior→exterior (arriba→abajo): Solado(OSB) · Lana · BV · Cielo(yeso).
+    const a = alertaSentidoVapor([osb, lana, barrera, yeso], 'piso')
+    expect(a).toBeTruthy()
+    expect(a.tipo).toBe('barrera_vapor_cara_fria')
+  })
+
+  it('piso con BV en la cara caliente (arriba, tras el solado) → no avisa', () => {
+    expect(alertaSentidoVapor([osb, barrera, lana, yeso], 'piso')).toBeNull()
+  })
+})
+
+describe('alertaSentidoVapor — piso sobre terreno (excepción barrera de humedad)', () => {
+  const radier = { mat: 'Radier H.A. 100',  lam: 2.0,  esp: 100, mu: 130 }   // masivo
+  const pe     = { mat: 'PE 0.2mm',          lam: 0.50, esp: 0.2, mu: 100000 } // barrera por μ
+  const ripio  = { mat: 'Ripio compactado',  lam: 2.0,  esp: 200, mu: 50 }    // relleno / terreno
+
+  it('radier + aislante + PE + ripio: la PE contra el suelo NO dispara aviso (es barrera de humedad del terreno)', () => {
+    expect(alertasSentidoConstructivo([radier, lana, pe, ripio], 'piso').some(a => a.tipo === 'barrera_vapor_cara_fria')).toBe(false)
+  })
+
+  it('mismo complejo declarado SOBRE_TERRENO por opción → tampoco avisa', () => {
+    const avisos = alertasSentidoConstructivo([radier, lana, pe, yeso], 'piso', { tipoPiso: 'SOBRE_TERRENO' })
+    expect(avisos.some(a => a.tipo === 'barrera_vapor_cara_fria')).toBe(false)
+  })
+
+  it('pero un entrepiso ventilado (sin terreno) con PE en la cara fría SÍ avisa', () => {
+    expect(alertasSentidoConstructivo([osb, lana, pe, yeso], 'piso').some(a => a.tipo === 'barrera_vapor_cara_fria')).toBe(true)
   })
 })
 

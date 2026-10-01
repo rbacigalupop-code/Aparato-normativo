@@ -199,7 +199,7 @@ const ZONAS_FRIAS = new Set(['D', 'E', 'F', 'G', 'H', 'I'])
  */
 export function alertasSentidoConstructivo(capas, elemTipo, opts = {}) {
   const el = elemTipo === 'techumbre' ? 'techo' : elemTipo
-  if (el !== 'muro' && el !== 'techo') return []
+  if (el !== 'muro' && el !== 'techo' && el !== 'piso') return []
   const arr = (capas || []).map(c => {
     const esp = parseFloat(c.esp) || 0
     const mu = parseFloat(c.mu) || 0
@@ -237,8 +237,20 @@ export function alertasSentidoConstructivo(capas, elemTipo, opts = {}) {
 
   const avisos = []
 
+  // Piso SOBRE TERRENO: una capa de alto μ en la cara exterior (contra el suelo)
+  // es la barrera de humedad del terreno (lámina PE sobre ripio) — posición
+  // CORRECTA, no una barrera de vapor mal puesta. Su función es frenar la humedad
+  // ascendente del suelo, distinta de la difusión de vapor del aire interior. Se
+  // detecta por el tipo de piso declarado o por una capa de relleno/terreno.
+  const esPisoSobreTerreno = el === 'piso' && (
+    /terreno/i.test(String(opts.tipoPiso || '')) ||
+    arr.some(c => /ripio|terreno|\bsuelo\b|relleno|compactad|\bgrava\b/i.test(c.mat))
+  )
+
   // 1. Barrera de vapor en la cara fría (exterior) sin equivalente al interior.
-  if (barreraExterior && !barreraInterior) {
+  //    (No aplica a piso sobre terreno: ahí la cara fría es el suelo y la lámina
+  //    de alto μ es la barrera de humedad del terreno, correctamente ubicada.)
+  if (barreraExterior && !barreraInterior && !esPisoSobreTerreno) {
     avisos.push({
       tipo: 'barrera_vapor_cara_fria', capa: barreraExterior.mat, sd: Math.round(barreraExterior.sd * 10) / 10,
       mensaje: `La barrera de vapor «${barreraExterior.mat}» (sd≈${Math.round(barreraExterior.sd)} m) está en la cara fría/exterior del aislante. En clima de calefacción la barrera de vapor va en la cara interior/caliente; en esta posición puede condensar dentro del aislante. Revisa el orden de las capas, o si esta capa va al exterior usa una membrana transpirable (sd bajo).`,
