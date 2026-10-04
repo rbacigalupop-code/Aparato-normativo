@@ -602,6 +602,13 @@ function scoreLOFC(item, estructura, loscat, elemSource) {
 // FILTRA estrictamente por tipo de elemento (no asociar entrepiso a muro, etc.).
 export function homologarLOFC(loscat, reqRF) {
   const reqRfMin = rfToMinutos(reqRF)
+  // RF declarado por la PROPIA solución — es el ANCLA del cruce LOFC. El
+  // requerimiento del proyecto (reqRfMin) NO debe elegir el ítem homologado:
+  // filtrar el pool por él inflaba la RF al escalón exigido (F30→F60→F90…) y la
+  // marcaba como intrínseca, pintando de verde un RF que la construcción no
+  // sostiene. El requerimiento se evalúa aguas abajo (cumple/capas_extras).
+  // Criterio conservador, igual que el lado acústico: nunca sobre-declarar.
+  const baseRfMin = rfToMinutos(loscat?.rf)
   const estructura = identificarEstructuraBase(loscat)
   if (!estructura) return null
 
@@ -618,7 +625,7 @@ export function homologarLOFC(loscat, reqRF) {
   //    muros/elementos verticales: no acreditan techumbres ni pisos. Antes se
   //    aplicaban también a techumbre/piso y generaban códigos de muro inválidos.
   if (elemSource === 'muro' || !elemSource) {
-    const macizo = homologarMacizo(estructura, reqRfMin)
+    const macizo = homologarMacizo(estructura, baseRfMin)
     if (macizo) return macizo
   }
 
@@ -629,24 +636,45 @@ export function homologarLOFC(loscat, reqRF) {
   //    `capas_extras` en vez de descartar el ítem (o peor, presentarlo como si
   //    ya se cumpliera).
   const espSol = espesorProtectorLOSCAT(loscat)
+  // El campo espesor_mm del LOFC es, en algunos ítems, el espesor de la PLACA
+  // protectora (12,5 mm) y en otros el espesor TOTAL del complejo (p. ej.
+  // 134,6 mm) — la extracción automática no los distingue. El faltante de placa
+  // solo tiene sentido contra una placa: si espesor_mm excede un rango creíble
+  // de placa (≤ MAX_PLACA_MM), no se puede derivar un déficit de revestimiento,
+  // así que no se genera refuerzo (evita "engrosar la placa a 134,6 mm").
+  const MAX_PLACA_MM = 40
   const candidatos = Object.values(LOFC)
-    .filter(item => item.rf_minutos >= reqRfMin)
+    // Sin pre-filtro por el requerimiento del proyecto: el cruce se ancla a la
+    // CONSTRUCCIÓN y al RF declarado, nunca al escalón exigido (evita inflar).
     .map(item => {
       const score = scoreLOFC(item, estructura, loscat, elemSource)
       // faltante > 0 → hay que engrosar la placa para acogerse a ese ítem
-      const faltante = (espSol != null && item.espesor_mm > 0 && espSol < item.espesor_mm)
+      const faltante = (espSol != null && item.espesor_mm > 0 && item.espesor_mm <= MAX_PLACA_MM && espSol < item.espesor_mm)
         ? Math.round((item.espesor_mm - espSol) * 10) / 10
         : 0
       return { item, score, faltante }
     })
     .filter(c => c.score >= 60)  // umbral más alto = match más confiable
     .sort((a, b) => {
-      // 1) Preferir el que YA se cumple sin engrosar capas
+      // 1) Preferir el ítem certificado EN EL MISMO escalón de RF declarado:
+      //    es el único que acredita la RF de la solución de forma intrínseca.
+      //    Un entramado F30 se cruza con un ítem F30 (aunque exija engrosar la
+      //    placa → se declara en capas_extras) antes que con el F15 de abajo o
+      //    el F60 cortafuego de arriba. Esto mantiene la guía de refuerzo
+      //    "engrosa la placa para alcanzar tu F30" sin inflar al escalón exigido.
+      const ea = (a.item.rf_minutos === baseRfMin) ? 0 : 1
+      const eb = (b.item.rf_minutos === baseRfMin) ? 0 : 1
+      if (ea !== eb) return ea - eb
+      // 2) Dentro del mismo escalón, preferir el que YA cumple sin engrosar
       if ((a.faltante > 0) !== (b.faltante > 0)) return a.faltante - b.faltante
-      // 2) Score (similitud constructiva)
+      // 3) Score (similitud constructiva)
       if (b.score !== a.score) return b.score - a.score
-      // 3) Empate: mayor RF (más restrictiva)
-      return b.item.rf_minutos - a.item.rf_minutos
+      // 4) RF más CERCANO al declarado (nunca saltar de escalón por capricho).
+      const da = Math.abs(a.item.rf_minutos - baseRfMin)
+      const db = Math.abs(b.item.rf_minutos - baseRfMin)
+      if (da !== db) return da - db
+      // 5) A igual cercanía, el MENOR RF (nunca sobre-declarar)
+      return a.item.rf_minutos - b.item.rf_minutos
     })
 
   if (candidatos.length === 0) return null
@@ -665,13 +693,87 @@ export function homologarLOFC(loscat, reqRF) {
     rf: mejor.item.rf,
     rf_minutos: mejor.item.rf_minutos,
     descripcion: mejor.item.descripcion,
-    // intrínseco solo si NO requiere engrosar capas y ya alcanza el RF declarado
-    intrinseco: capasExtras.length === 0 && mejor.item.rf_minutos >= rfToMinutos(loscat.rf || 'F0'),
+    // Intrínseco SOLO cuando hay un ítem LOFC certificado EN EL MISMO escalón
+    // de RF que declara la solución, sin engrosar capas: ahí sí la RF está
+    // acreditada por un ensayo de una construcción equivalente. Si el ítem más
+    // parecido queda por encima (no se logra sin refuerzo/ensayo) o por debajo
+    // (el equivalente certificado da menos que lo declarado), el cruce es
+    // REFERENCIAL — se muestra el código pero NO en verde, y pide ensayo NCh935.
+    intrinseco: capasExtras.length === 0 && mejor.item.rf_minutos === baseRfMin,
     capas_extras: capasExtras,
     espesor_certificado_mm: mejor.item.espesor_mm || null,
     espesor_solucion_mm: espSol,
     fuente: `LOFC Ed.17 ${mejor.item.seccion} (item)`,
     score: mejor.score,
+  }
+}
+
+// ─── RF máximo que la construcción ACTUAL (modificada) certifica ──────────────
+// A diferencia de homologarLOFC (que se ancla al RF DECLARADO, conservador para
+// el catálogo sin tocar), esta función responde "¿qué RF acredita lo que hay
+// dibujado AHORA?". La usa la pestaña Fuego cuando el usuario modifica las capas
+// (engrosar/añadir placa protectora): así la mejora SÍ sube el veredicto.
+//
+// Reglas:
+//  · Másicos (HA, albañilería, bloque, CLT): RF intrínseco real por masa/espesor
+//    (tabla de macizos) — un radier/losa más grueso sube solo.
+//  · Entramado ligero: el ítem LOFC de MAYOR RF cuya construcción calza
+//    (score ≥ 60) y cuya placa protectora certificada está REALMENTE satisfecha
+//    por la placa de la solución (espSol ≥ espesor_mm del ítem).
+//
+// Guarda anti-dato-sucio: solo cuentan ítems con espesor de PLACA creíble
+// (0 < espesor_mm ≤ MAX_PLACA_MM). Los ítems cuyo espesor_mm es el total del
+// complejo (p. ej. 134,6 mm) NO pueden inflar el RF: sin una comparación de
+// placa válida, no se acreditan. Devuelve null si no hay calce certificado.
+export function rfMaximoCertificado(loscat) {
+  const estructura = identificarEstructuraBase(loscat)
+  if (!estructura) return null
+  const elemSource = loscat?.elem || null
+  if (elemSource === 'ventana' || elemSource === 'puerta') return null
+
+  // Másicos: su RF es intrínseco a la masa (reqRfMin=0 → el mayor que da su espesor).
+  if (elemSource === 'muro' || !elemSource) {
+    const macizo = homologarMacizo(estructura, 0)
+    if (macizo) return macizo
+  }
+
+  const espSol = espesorProtectorLOSCAT(loscat)
+  const MAX_PLACA_MM = 40
+  // Piso de plausibilidad de la PLACA protectora por escalón de RF (mm). Base:
+  // ingeniería de fuego — una placa de yeso cartón aporta ~15–20 min por cada
+  // ~12,5 mm; un F60 de entramado típico lleva doble placa (~25 mm) o placa RF
+  // gruesa. El LOFC a veces guarda un espesor parcial irreal (p. ej. F60 con
+  // 11,1 mm); si la placa certificada es más delgada que este piso, se descarta
+  // como DATO SUCIO para no sobre-certificar (un tabique de una placa de 13 mm
+  // NO es F60). Para F120+ no hay entramado ligero realista → esos van por la
+  // vía de macizos, no por ítem.
+  const PLACA_MIN_POR_RF = { 15: 9, 30: 12.5, 60: 25, 90: 38 }
+  const cand = Object.values(LOFC)
+    .map(item => ({ item, score: scoreLOFC(item, estructura, loscat, elemSource) }))
+    .filter(({ item, score }) => {
+      if (score < 60) return false
+      if (espSol == null) return false
+      if (!(item.espesor_mm > 0 && item.espesor_mm <= MAX_PLACA_MM)) return false
+      const piso = PLACA_MIN_POR_RF[item.rf_minutos]
+      if (piso != null && item.espesor_mm < piso) return false  // placa implausible → dato sucio
+      return espSol >= item.espesor_mm       // la placa de la solución YA satisface la certificada
+    })
+    .sort((a, b) => b.item.rf_minutos - a.item.rf_minutos)   // el MAYOR RF certificado
+
+  if (!cand.length) return null
+  const m = cand[0]
+  return {
+    codigo: `LOFC ${m.item.codigo}`,
+    codigo_base: m.item.codigo,
+    rf: m.item.rf,
+    rf_minutos: m.item.rf_minutos,
+    descripcion: m.item.descripcion,
+    intrinseco: true,
+    capas_extras: [],
+    espesor_certificado_mm: m.item.espesor_mm,
+    espesor_solucion_mm: espSol,
+    fuente: `LOFC Ed.17 ${m.item.seccion} (máx. certificado por capas modificadas)`,
+    score: m.score,
   }
 }
 

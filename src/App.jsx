@@ -8,7 +8,7 @@ import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/ca
 import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
 import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso } from './lib/compliance/piso.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
-import { homologarSolucion } from './lib/engines/homologacion.js'
+import { homologarSolucion, rfMaximoCertificado } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
 import { corteSVG, alertasSentidoConstructivo } from './lib/engines/capas.js'
 import { exportarSistemasRevit } from './lib/engines/revit-export.js'
@@ -1253,8 +1253,11 @@ function CodigosNormativos({ sc, rfReq, acReq, omitirTermico = false, modoBaseRe
           </span>
         )}
         {oficial !== false && intrinseco === false && (
-          <span style={{ marginLeft: 'auto', fontSize: 9, background: '#fef3c7', color: '#92400e', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}>
-            requiere capas
+          <span style={{ marginLeft: 'auto', fontSize: 9, background: '#fef3c7', color: '#92400e', borderRadius: 3, padding: '1px 5px', fontWeight: 600 }}
+            title={capasExtras?.length > 0
+              ? 'La solución alcanza el RF del ítem engrosando la placa indicada abajo.'
+              : 'Cruce referencial: construcción similar pero el RF del ítem no coincide con el declarado. Respaldar con ensayo NCh935/1 o certificado del fabricante.'}>
+            {capasExtras?.length > 0 ? 'requiere capas' : 'referencial'}
           </span>
         )}
         {oficial !== false && intrinseco === true && (
@@ -3498,10 +3501,35 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   const _cajaEnUso  = (escaleras?.tieneCaja === null || escaleras?.tieneCaja === undefined)
     ? requiereCajaEscalera(uso, proy.pisos)
     : !!escaleras?.tieneCaja
+  // RF EFECTIVO por elemento: parte del RF del catálogo, pero si el usuario
+  // MODIFICÓ las capas (termica[el].capas: engrosar/añadir placa, aplicar una
+  // corrección) y la construcción modificada certifica —homologada a un
+  // ensamblaje LOFC real, con la placa satisfecha— un RF MAYOR, se usa ese:
+  // así la mejora sube el veredicto de Fuego. Nunca baja del valor de catálogo.
+  const _rfMin = (s) => { const m = String(s || '').match(/F[-\s]?(\d+)/i); return m ? +m[1] : 0 }
+  const rfEfectivo = (el) => {
+    const t = termica[el]
+    const sol = t?.solucion
+    const catalogRf = sol?.rf || ''
+    const capasMod = t?.capas
+    if (!sol || !capasMod?.length) return catalogRf   // sin modificar → catálogo
+    try {
+      const loscatMod = {
+        ...sol,
+        capas: capasMod
+          .filter(c => !c.esCamara)
+          .map(c => `${c.mat || c.name || ''} ${Math.round(+c.esp) || ''}`.trim())
+          .join(' | '),
+      }
+      const rmax = rfMaximoCertificado(loscatMod)
+      if (rmax && _rfMin(rmax.rf) > _rfMin(catalogRf)) return rmax.rf
+    } catch { /* noop → se queda con el catálogo */ }
+    return catalogRf
+  }
   const rfFromSol = {
-    estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
-    cubierta:   termica.techo?.solucion?.rf || '',
-    muros_sep:  termica.tabique?.solucion?.rf || termica.muro?.solucion?.rf || '',
+    estructura: rfEfectivo('muro') || rfEfectivo('techo') || rfEfectivo('piso') || '',
+    cubierta:   rfEfectivo('techo') || '',
+    muros_sep:  rfEfectivo('tabique') || rfEfectivo('muro') || '',
     cajas_esc:  _cajaEnUso ? (_matCajaObj?.rfBase || '') : '',
     escaleras:  _matEscObj?.rfBase || '',
   }
@@ -3740,14 +3768,21 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                             const homol = homologarSolucion(sol, { rfRequerido: rfReq })
                             if (homol?.fuego?.codigo_base) {
                               const intrinseco = homol.fuego.intrinseco
+                              // Mostrar la RF que el ítem LOFC certifica (viene codificada en
+                              // el propio código, A.2.3.·60·.102). Si NO es intrínseco, el
+                              // cruce es solo REFERENCIAL: construcción parecida pero el RF del
+                              // ítem no coincide con el declarado → no se pinta verde y pide
+                              // ensayo, para no sugerir que la solución ya acredita ese RF.
                               return (
-                                <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:3 }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:3, flexWrap:'wrap' }}>
                                   <span style={{ fontSize:9, color:'#dc2626', fontWeight:700 }} title="Código LOFC — fuego">🔥</span>
                                   <span style={{ fontSize:9, background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:3, padding:'1px 5px', color:'#991b1b', fontWeight:700, fontFamily:'monospace' }} title={homol.fuego.descripcion || ''}>
-                                    LOFC {homol.fuego.codigo_base}
+                                    LOFC {homol.fuego.codigo_base}{homol.fuego.rf ? ` · ${homol.fuego.rf}` : ''}
                                   </span>
-                                  {intrinseco && (
-                                    <span style={{ fontSize:8, color:'#166534', fontWeight:600 }}>✓int</span>
+                                  {intrinseco ? (
+                                    <span style={{ fontSize:8, background:'#dcfce7', color:'#166534', fontWeight:700, borderRadius:3, padding:'1px 4px' }} title="RF acreditada por ítem LOFC certificado de igual construcción y mismo escalón de RF">✓ intrínseco</span>
+                                  ) : (
+                                    <span style={{ fontSize:8, background:'#fef3c7', color:'#92400e', fontWeight:700, borderRadius:3, padding:'1px 4px' }} title="Cruce referencial: construcción similar pero el RF del ítem no coincide con el declarado. Respaldar con ensayo NCh935/1 o certificado del fabricante.">referencial · ensayo</span>
                                   )}
                                 </div>
                               )
@@ -3767,7 +3802,16 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                       {VALID_RF.map(f=><option key={f}>{f}</option>)}
                     </select>
                     {rfInvalid && <div style={{ fontSize:10, color:'#dc2626' }}>⚠ valor fuera de norma</div>}
-                    {!rfManual && rfSol && <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>}
+                    {!rfManual && rfSol && (() => {
+                      // Si el RF efectivo superó al del catálogo, fue por las capas
+                      // modificadas (engrosar/añadir placa). Se avisa para que sea
+                      // trazable por qué subió el veredicto.
+                      const catRf = sol?.rf || ''
+                      const subioPorMod = catRf && _rfMin(rfSol) > _rfMin(catRf)
+                      return subioPorMod
+                        ? <div style={{ fontSize:10, color:'#166534', marginTop:2, fontWeight:600 }} title={`El catálogo declara ${catRf}; tus capas modificadas homologan a ${rfSol} (ítem LOFC certificado, placa satisfecha). Respáldalo con ensayo NCh935 si corresponde.`}>↑ {rfSol} (capas modificadas · era {catRf})</div>
+                        : <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>
+                    })()}
                   </td>
                   <td style={{ ...S.td, color: noAplica?'#94a3b8':(rfReq?'#dc2626':'#94a3b8'), fontWeight: (rfReq && !noAplica)?700:'normal' }}>
                     {noAplica
@@ -8202,7 +8246,7 @@ ${res.condInter
           if (homol) {
             const t = homol.termico, f = homol.fuego, a = homol.acustico
             const intr = (v) => v?.intrinseco === true ? '<span style="background:#dcfce7;color:#166534;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">intrínseco</span>'
-                            : v?.intrinseco === false ? '<span style="background:#fef3c7;color:#92400e;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">requiere capas</span>'
+                            : v?.intrinseco === false ? `<span style="background:#fef3c7;color:#92400e;font-size:8pt;padding:1px 5px;border-radius:3px;font-weight:600">${v?.capas_extras?.length > 0 ? 'requiere capas' : 'referencial · ensayo'}</span>`
                             : ''
             homologHtml = `<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;padding:10px 12px;margin:6px 0">
               <div style="font-size:11pt;font-weight:700;color:#0f766e;margin-bottom:6px">📋 Códigos normativos homologados</div>
