@@ -238,6 +238,59 @@ export async function signOut() {
   return !error
 }
 
+// ─── Reseteo de contraseña (self-service vía email) ──────────────────────────
+// Envía al usuario un correo con link de recuperación. El usuario define su
+// propia contraseña nueva al volver a la app (evento PASSWORD_RECOVERY). Es el
+// flujo seguro con la clave publishable: NO se manejan contraseñas en el
+// frontend ni se requiere service_role. Lo usa tanto el admin (resetear a otro
+// usuario) como el propio usuario ("olvidé mi contraseña").
+export async function enviarResetPassword(email) {
+  const correo = String(email || '').trim().toLowerCase()
+  if (!correo || !correo.includes('@')) {
+    return { ok: false, error: 'Email inválido' }
+  }
+  try {
+    // El link vuelve a la app con ?recovery=1 + el hash de recuperación de
+    // Supabase; useAuth detecta PASSWORD_RECOVERY y muestra "definir contraseña".
+    const redirectTo = `${window.location.origin}/?recovery=1`
+    const { error } = await supabase.auth.resetPasswordForEmail(correo, { redirectTo })
+    if (error) {
+      console.warn('enviarResetPassword error:', error)
+      const raw = (error.message || '').toLowerCase()
+      if (raw.includes('rate limit') || raw.includes('too many') || error.status === 429)
+        return { ok: false, error: 'Demasiados envíos seguidos. Espera unos minutos e intenta de nuevo.' }
+      return { ok: false, error: error.message || 'No se pudo enviar el correo de reseteo' }
+    }
+    // Nota: Supabase responde ok aunque el email no exista (anti-enumeración).
+    return { ok: true, message: `Correo de reseteo enviado a ${correo}` }
+  } catch (err) {
+    console.error('enviarResetPassword exception:', err)
+    return { ok: false, error: 'Error procesando el reseteo' }
+  }
+}
+
+// Actualiza la contraseña del usuario AUTENTICADO (sesión de recuperación tras
+// el link del correo, o sesión normal). El usuario escribe su propia clave.
+export async function actualizarPassword(nuevaPassword) {
+  try {
+    const { data, error } = await supabase.auth.updateUser({ password: nuevaPassword })
+    if (error || !data?.user) {
+      const raw = (error?.message || '').toLowerCase()
+      if (raw.includes('weak') || raw.includes('at least') || (raw.includes('password') && raw.includes('short')))
+        return { ok: false, error: 'La contraseña no cumple los requisitos: 8+ caracteres, con mayúscula, número y un símbolo.' }
+      if (raw.includes('session') || raw.includes('not authenticated') || raw.includes('jwt') || raw.includes('expired'))
+        return { ok: false, error: 'El enlace de recuperación expiró o ya se usó. Pide uno nuevo.' }
+      if (raw.includes('same') && raw.includes('password'))
+        return { ok: false, error: 'La nueva contraseña no puede ser igual a la anterior.' }
+      return { ok: false, error: error?.message || 'No se pudo actualizar la contraseña' }
+    }
+    return { ok: true, message: 'Contraseña actualizada. Ya puedes iniciar sesión.' }
+  } catch (err) {
+    console.error('actualizarPassword exception:', err)
+    return { ok: false, error: 'Error procesando la contraseña' }
+  }
+}
+
 // Obtener sesión actual
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession()

@@ -3,6 +3,8 @@ import {
   signUp,
   signIn,
   signOut,
+  enviarResetPassword,
+  actualizarPassword,
   getSession,
   obtenerPerfil,
   obtenerOrganizacionesUsuario,
@@ -58,6 +60,10 @@ export function AuthProvider({ children }) {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
   const [tokens, setTokens] = useState({ disponibles: 0, usados: 0 })
+  // Flujo de recuperación de contraseña: cuando el usuario vuelve desde el link
+  // del correo, Supabase emite PASSWORD_RECOVERY. En ese modo la app NO debe
+  // entrar normal: muestra la pantalla "definir nueva contraseña".
+  const [modoRecovery, setModoRecovery] = useState(false)
 
   // Detectar y limpiar tokens de auth del URL (magic links)
   function limpiarTokensDelUrl() {
@@ -72,6 +78,17 @@ export function AuthProvider({ children }) {
   // Monitorear cambios de sesión
   useEffect(() => {
     setCargando(true)
+
+    // Detectar retorno desde el link de recuperación ANTES de limpiar el URL.
+    // Supabase también emite PASSWORD_RECOVERY (más abajo), pero este chequeo
+    // cubre el caso de que el evento llegue antes de montar el listener.
+    try {
+      const hash = window.location.hash || ''
+      const search = window.location.search || ''
+      if (hash.includes('type=recovery') || /[?&]recovery=1\b/.test(search)) {
+        setModoRecovery(true)
+      }
+    } catch { /* noop */ }
 
     // Limpiar tokens del URL si vienen de un magic link
     limpiarTokensDelUrl()
@@ -91,6 +108,10 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, sess) => {
       setSession(sess)
+      // Retorno desde el correo de reseteo: activar modo "definir contraseña".
+      if (event === 'PASSWORD_RECOVERY') {
+        setModoRecovery(true)
+      }
       // Limpiar tokens del URL después de autenticarse
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         limpiarTokensDelUrl()
@@ -246,6 +267,32 @@ export function AuthProvider({ children }) {
     return ok
   }, [])
 
+  // Función: Enviar correo de reseteo de contraseña (admin a otro usuario, o
+  // el propio usuario desde "olvidé mi contraseña"). No requiere sesión.
+  const handleEnviarResetPassword = useCallback((email) => enviarResetPassword(email), [])
+
+  // Función: Definir la nueva contraseña (durante el modo recovery). Al terminar
+  // bien, salimos del modo recovery y cerramos la sesión de recuperación para
+  // que el usuario entre con su contraseña nueva.
+  const handleActualizarPassword = useCallback(async (nuevaPassword) => {
+    const result = await actualizarPassword(nuevaPassword)
+    if (result.ok) {
+      setModoRecovery(false)
+      await signOut().catch(() => {})
+      setSession(null); setUser(null); setPerfil(null)
+      setOrganizaciones([]); setOrgActual(null)
+    }
+    return result
+  }, [])
+
+  // Salir del modo recovery sin cambiar la contraseña (el usuario cancela).
+  const cancelarRecovery = useCallback(async () => {
+    setModoRecovery(false)
+    await signOut().catch(() => {})
+    setSession(null); setUser(null); setPerfil(null)
+    setOrganizaciones([]); setOrgActual(null)
+  }, [])
+
   // Función: Cambiar organización activa
   const switchOrganzacion = useCallback((orgId) => {
     const org = organizaciones.find(o => o.id === orgId)
@@ -353,6 +400,12 @@ export function AuthProvider({ children }) {
     signUp: handleSignUp,
     signIn: handleSignIn,
     signOut: handleSignOut,
+
+    // Reseteo / recuperación de contraseña
+    enviarResetPassword: handleEnviarResetPassword, // admin o self-service: envía correo
+    actualizarPassword: handleActualizarPassword,   // define la nueva contraseña (modo recovery)
+    modoRecovery,                                   // true → mostrar pantalla "definir contraseña"
+    cancelarRecovery,
 
     // Funciones de organización
     switchOrganzacion,

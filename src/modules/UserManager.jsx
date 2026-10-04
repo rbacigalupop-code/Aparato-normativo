@@ -23,6 +23,7 @@ export default function UserManager() {
     desactivarUsuario,
     reactivarYEnviarEmail,
     eliminarUsuario,
+    enviarResetPassword,
     generarLinkInvitacion,
   } = useAuth()
 
@@ -322,6 +323,26 @@ export default function UserManager() {
       setMsg({ tipo: 'err', texto: result.error || 'Error al eliminar usuario' })
     }
     setTimeout(() => setMsg(null), 5000)
+  }
+
+  // Enviar correo de reseteo de contraseña a un usuario (admin).
+  // No fija la contraseña: el usuario la define al abrir el link de su correo.
+  async function handleResetPassword(email) {
+    if (!email || !email.includes('@')) {
+      setMsg({ tipo: 'err', texto: 'Este usuario no tiene un email válido para enviar el reseteo.' })
+      setTimeout(() => setMsg(null), 5000)
+      return
+    }
+    if (!window.confirm(`¿Enviar a ${email} un correo para restablecer su contraseña?\n\nRecibirá un enlace y definirá ella misma su nueva contraseña. Tú no verás ni fijarás la contraseña.`)) return
+    setCargando(true)
+    const result = await enviarResetPassword(email)
+    setCargando(false)
+    if (result.ok) {
+      setMsg({ tipo: 'ok', texto: `✓ Correo de reseteo enviado a ${email}. Pídele que revise su bandeja (y spam).` })
+    } else {
+      setMsg({ tipo: 'err', texto: result.error || 'No se pudo enviar el correo de reseteo' })
+    }
+    setTimeout(() => setMsg(null), 6000)
   }
 
   // Cancelar invitación pendiente
@@ -747,15 +768,25 @@ export default function UserManager() {
                       {/* Acciones */}
                       <td style={{ padding: '7px 10px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
                         {u.activo ? (
-                          // Usuario ACTIVO: opción de desactivar
-                          <button
-                            style={S.btnSm('#dc2626')}
-                            onClick={() => handleDesactivar(u.id)}
-                            disabled={cargando}
-                            title="Desactivar usuario"
-                          >
-                            🚫 Desactivar
-                          </button>
+                          // Usuario ACTIVO: resetear contraseña o desactivar
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            <button
+                              style={S.btnSm('#0f766e')}
+                              onClick={() => handleResetPassword(u.nombre_completo)}
+                              disabled={cargando}
+                              title="Enviar al usuario un correo para que defina una nueva contraseña"
+                            >
+                              🔑 Resetear contraseña
+                            </button>
+                            <button
+                              style={S.btnSm('#dc2626')}
+                              onClick={() => handleDesactivar(u.id)}
+                              disabled={cargando}
+                              title="Desactivar usuario"
+                            >
+                              🚫 Desactivar
+                            </button>
+                          </div>
                         ) : (
                           // Usuario INACTIVO: opciones de reenviar email o eliminar
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -766,6 +797,14 @@ export default function UserManager() {
                               title="Reactivar usuario y enviar email con link de acceso"
                             >
                               📧 Reenviar email
+                            </button>
+                            <button
+                              style={S.btnSm('#0f766e')}
+                              onClick={() => handleResetPassword(u.nombre_completo)}
+                              disabled={cargando}
+                              title="Enviar al usuario un correo para que defina una nueva contraseña"
+                            >
+                              🔑 Resetear contraseña
                             </button>
                             <button
                               style={S.btnSm('#dc2626')}

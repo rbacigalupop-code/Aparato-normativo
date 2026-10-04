@@ -10,16 +10,55 @@ import { botonAuthDeshabilitado } from './utils/authForm'
 import { PoliticaPrivacidadModal, POLITICA_VERSION } from './components/PoliticaPrivacidad'
 
 export default function AuthGate({ children }) {
-  const { session, cargando, isLoggedIn } = useAuth()
-  const [modo, setModo] = useState('login') // 'login' | 'signup'
+  const { session, cargando, isLoggedIn, modoRecovery, actualizarPassword, cancelarRecovery, enviarResetPassword } = useAuth()
+  const [modo, setModo] = useState('login') // 'login' | 'signup' | 'recuperar'
   const [formData, setFormData] = useState({ email: '', password: '', nombreCompleto: '', passwordConfirm: '' })
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [aceptaPolitica, setAceptaPolitica] = useState(false) // consentimiento Ley 21.719
   const [showPolitica, setShowPolitica] = useState(false)
+  const [aviso, setAviso] = useState(null)   // mensaje de éxito (p. ej. correo enviado)
+  // Form "definir nueva contraseña" (modo recovery, tras el link del correo)
+  const [recPass, setRecPass] = useState({ p1: '', p2: '' })
 
   const { signIn, signUp } = useAuth()
+
+  // Self-service: enviar correo de reseteo de contraseña ("olvidé mi contraseña")
+  async function handleEnviarRecuperacion(e) {
+    e.preventDefault()
+    setError(null); setAviso(null)
+    const emailErr = validarEmail(formData.email)
+    if (emailErr) { setFieldErrors({ email: emailErr }); setError(emailErr); return }
+    setProcesando(true)
+    const result = await enviarResetPassword(formData.email)
+    setProcesando(false)
+    if (result.ok) {
+      setAviso('Si existe una cuenta con ese correo, te enviamos un enlace para restablecer la contraseña. Revisa tu bandeja (y spam).')
+    } else {
+      setError(result.error || 'No se pudo enviar el correo')
+    }
+  }
+
+  // Modo recovery: definir la nueva contraseña (ya hay sesión de recuperación).
+  async function handleDefinirPassword(e) {
+    e.preventDefault()
+    setError(null); setAviso(null)
+    const passErr = validarPassword(recPass.p1)
+    if (passErr) { setError(passErr); return }
+    const confErr = validarCoincidencia(recPass.p1, recPass.p2, 'Contraseñas')
+    if (confErr) { setError(confErr); return }
+    setProcesando(true)
+    const result = await actualizarPassword(recPass.p1)
+    setProcesando(false)
+    if (result.ok) {
+      setRecPass({ p1: '', p2: '' })
+      setModo('login')
+      setAviso('Contraseña actualizada. Inicia sesión con tu nueva contraseña.')
+    } else {
+      setError(result.error || 'No se pudo actualizar la contraseña')
+    }
+  }
 
   // Validar campo individual
   function validarCampo(fieldName, value) {
@@ -154,6 +193,58 @@ export default function AuthGate({ children }) {
     )
   }
 
+  // Modo recuperación de contraseña (volvió desde el link del correo). Se evalúa
+  // ANTES de "usuario logueado" porque el link abre una sesión de recuperación:
+  // sin este corte, la app entraría normal y nunca pediría la nueva contraseña.
+  if (modoRecovery) {
+    return (
+      <div style={styles.overlay}>
+        <div style={styles.bgPattern} />
+        <div style={styles.card}>
+          <img src="/logo-lockup.svg" alt="Talora" style={{ width: 200, height: 'auto', marginBottom: 14 }} />
+          <div style={styles.tagline}>Restablecer contraseña</div>
+          <div style={styles.divider} />
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 12, textAlign: 'center' }}>
+            Define tu nueva contraseña
+          </h2>
+          {error && <div style={styles.errorBox}>{error}</div>}
+          <form onSubmit={handleDefinirPassword} style={{ width: '100%' }}>
+            <div style={{ marginBottom: 12 }}>
+              <label style={styles.label}>Nueva contraseña</label>
+              <input
+                type="password" name="new-password" autoComplete="new-password"
+                style={styles.input} placeholder="••••••••"
+                value={recPass.p1} onChange={e => setRecPass(p => ({ ...p, p1: e.target.value }))}
+                disabled={procesando}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={styles.label}>Repite la contraseña</label>
+              <input
+                type="password" name="confirm-password" autoComplete="new-password"
+                style={styles.input} placeholder="••••••••"
+                value={recPass.p2} onChange={e => setRecPass(p => ({ ...p, p2: e.target.value }))}
+                disabled={procesando}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
+              Mínimo 8 caracteres, con mayúscula, número y un símbolo (!@#$%^&amp;*).
+            </div>
+            <button type="submit" style={{ ...styles.btn, opacity: procesando ? 0.6 : 1, cursor: procesando ? 'wait' : 'pointer' }} disabled={procesando}>
+              {procesando ? '⏳ Guardando...' : 'Guardar contraseña →'}
+            </button>
+          </form>
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <button type="button" onClick={cancelarRecovery}
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Usuario logueado
   if (isLoggedIn && session) {
     return children
@@ -177,12 +268,19 @@ export default function AuthGate({ children }) {
         <div style={styles.divider} />
 
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 12, textAlign: 'center' }}>
-          {modo === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+          {modo === 'login' ? 'Iniciar sesión' : modo === 'recuperar' ? 'Recuperar contraseña' : 'Crear cuenta'}
         </h2>
 
         {error && <div style={styles.errorBox}>{error}</div>}
+        {aviso && <div style={styles.avisoBox}>{aviso}</div>}
 
-        <form onSubmit={modo === 'login' ? handleLogin : handleSignup}>
+        {modo === 'recuperar' && (
+          <div style={{ fontSize: 12.5, color: '#64748b', marginBottom: 14, lineHeight: 1.5, textAlign: 'center' }}>
+            Ingresa tu email y te enviaremos un enlace para definir una nueva contraseña.
+          </div>
+        )}
+
+        <form onSubmit={modo === 'login' ? handleLogin : modo === 'recuperar' ? handleEnviarRecuperacion : handleSignup}>
           {/* Nombre (solo en signup) */}
           {modo === 'signup' && (
             <div style={{ marginBottom: 12 }}>
@@ -216,7 +314,8 @@ export default function AuthGate({ children }) {
             {fieldErrors.email && <div style={styles.fieldErrorText}>{fieldErrors.email}</div>}
           </div>
 
-          {/* Contraseña */}
+          {/* Contraseña (no aplica en modo recuperar) */}
+          {modo !== 'recuperar' && (
           <div style={{ marginBottom: modo === 'signup' ? 12 : 16 }}>
             <label style={styles.label}>Contraseña</label>
             <input
@@ -230,7 +329,17 @@ export default function AuthGate({ children }) {
               autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
             />
             {fieldErrors.password && <div style={styles.fieldErrorText}>{fieldErrors.password}</div>}
+            {modo === 'login' && (
+              <div style={{ textAlign: 'right', marginTop: 6 }}>
+                <button type="button"
+                  onClick={() => { setModo('recuperar'); setError(null); setAviso(null); setFieldErrors({}) }}
+                  style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}>
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            )}
           </div>
+          )}
 
           {/* Confirmar Contraseña (solo en signup) */}
           {modo === 'signup' && (
@@ -290,13 +399,20 @@ export default function AuthGate({ children }) {
             }}
             disabled={botonDeshabilitado}
           >
-            {procesando ? '⏳ Procesando...' : modo === 'login' ? 'Ingresar →' : 'Crear cuenta →'}
+            {procesando ? '⏳ Procesando...' : modo === 'login' ? 'Ingresar →' : modo === 'recuperar' ? 'Enviar enlace de reseteo →' : 'Crear cuenta →'}
           </button>
         </form>
 
-        {/* Toggle login/signup */}
+        {/* Toggle login/signup/recuperar */}
         <div style={{ marginTop: 16, textAlign: 'center', fontSize: 13, color: '#64748b' }}>
-          {modo === 'login' ? (
+          {modo === 'recuperar' ? (
+            <button
+              onClick={() => { setModo('login'); setError(null); setAviso(null); setFieldErrors({}) }}
+              style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 600 }}
+            >
+              ← Volver a iniciar sesión
+            </button>
+          ) : modo === 'login' ? (
             <>
               ¿No tienes cuenta?{' '}
               <button
@@ -422,6 +538,16 @@ const styles = {
     borderRadius: 8,
     padding: '10px 14px',
     color: '#991b1b',
+    fontSize: 13,
+    marginBottom: 14,
+  },
+  avisoBox: {
+    width: '100%',
+    background: '#ecfdf5',
+    border: '1px solid #a7f3d0',
+    borderRadius: 8,
+    padding: '10px 14px',
+    color: '#065f46',
     fontSize: 13,
     marginBottom: 14,
   },
