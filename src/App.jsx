@@ -8,7 +8,7 @@ import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/ca
 import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
 import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso } from './lib/compliance/piso.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
-import { homologarSolucion, rfMaximoCertificado } from './lib/engines/homologacion.js'
+import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
 import { corteSVG, alertasSentidoConstructivo } from './lib/engines/capas.js'
 import { exportarSistemasRevit } from './lib/engines/revit-export.js'
@@ -3501,35 +3501,16 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   const _cajaEnUso  = (escaleras?.tieneCaja === null || escaleras?.tieneCaja === undefined)
     ? requiereCajaEscalera(uso, proy.pisos)
     : !!escaleras?.tieneCaja
-  // RF EFECTIVO por elemento: parte del RF del catálogo, pero si el usuario
-  // MODIFICÓ las capas (termica[el].capas: engrosar/añadir placa, aplicar una
-  // corrección) y la construcción modificada certifica —homologada a un
-  // ensamblaje LOFC real, con la placa satisfecha— un RF MAYOR, se usa ese:
-  // así la mejora sube el veredicto de Fuego. Nunca baja del valor de catálogo.
-  const _rfMin = (s) => { const m = String(s || '').match(/F[-\s]?(\d+)/i); return m ? +m[1] : 0 }
-  const rfEfectivo = (el) => {
-    const t = termica[el]
-    const sol = t?.solucion
-    const catalogRf = sol?.rf || ''
-    const capasMod = t?.capas
-    if (!sol || !capasMod?.length) return catalogRf   // sin modificar → catálogo
-    try {
-      const loscatMod = {
-        ...sol,
-        capas: capasMod
-          .filter(c => !c.esCamara)
-          .map(c => `${c.mat || c.name || ''} ${Math.round(+c.esp) || ''}`.trim())
-          .join(' | '),
-      }
-      const rmax = rfMaximoCertificado(loscatMod)
-      if (rmax && _rfMin(rmax.rf) > _rfMin(catalogRf)) return rmax.rf
-    } catch { /* noop → se queda con el catálogo */ }
-    return catalogRf
-  }
+  // RF por elemento = la del LISTADO de la solución aplicada. La RF NO sube por
+  // modificar/engrosar/apilar placas: la homologación al fuego solo reconoce un
+  // RF mayor con el ENSAYO correspondiente (NCh935), que el proyectista adjunta
+  // y carga a mano en "RF propuesta". El cálculo de U (térmico) sí recalcula con
+  // las capas modificadas: son criterios independientes — mejorar la aislación
+  // no acredita más resistencia al fuego. Ver auditoría 2026-10-04.
   const rfFromSol = {
-    estructura: rfEfectivo('muro') || rfEfectivo('techo') || rfEfectivo('piso') || '',
-    cubierta:   rfEfectivo('techo') || '',
-    muros_sep:  rfEfectivo('tabique') || rfEfectivo('muro') || '',
+    estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
+    cubierta:   termica.techo?.solucion?.rf || '',
+    muros_sep:  termica.tabique?.solucion?.rf || termica.muro?.solucion?.rf || '',
     cajas_esc:  _cajaEnUso ? (_matCajaObj?.rfBase || '') : '',
     escaleras:  _matEscObj?.rfBase || '',
   }
@@ -3802,16 +3783,7 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                       {VALID_RF.map(f=><option key={f}>{f}</option>)}
                     </select>
                     {rfInvalid && <div style={{ fontSize:10, color:'#dc2626' }}>⚠ valor fuera de norma</div>}
-                    {!rfManual && rfSol && (() => {
-                      // Si el RF efectivo superó al del catálogo, fue por las capas
-                      // modificadas (engrosar/añadir placa). Se avisa para que sea
-                      // trazable por qué subió el veredicto.
-                      const catRf = sol?.rf || ''
-                      const subioPorMod = catRf && _rfMin(rfSol) > _rfMin(catRf)
-                      return subioPorMod
-                        ? <div style={{ fontSize:10, color:'#166534', marginTop:2, fontWeight:600 }} title={`El catálogo declara ${catRf}; tus capas modificadas homologan a ${rfSol} (ítem LOFC certificado, placa satisfecha). Respáldalo con ensayo NCh935 si corresponde.`}>↑ {rfSol} (capas modificadas · era {catRf})</div>
-                        : <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>
-                    })()}
+                    {!rfManual && rfSol && <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>}
                   </td>
                   <td style={{ ...S.td, color: noAplica?'#94a3b8':(rfReq?'#dc2626':'#94a3b8'), fontWeight: (rfReq && !noAplica)?700:'normal' }}>
                     {noAplica

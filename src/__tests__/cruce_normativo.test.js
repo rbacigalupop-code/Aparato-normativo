@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { SC } from '../data.js'
-import { homologarSolucion, rfMaximoCertificado } from '../lib/engines/homologacion.js'
+import { homologarSolucion } from '../lib/engines/homologacion.js'
 import { LOSCAT_INDEX, LOSCAT_META } from '../data/loscat.js'
 
 // Mantener en sincronía con scripts/auditar-cruce-normativo.mjs
@@ -212,53 +212,6 @@ describe('Homologación LOFC — RF conservador (no inflar al requerimiento)', (
         `${s.cod}: pinta ✓int un ${h.rf} sobre el declarado ${s.rf}`
       ).toBe(false)
     }
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// rfMaximoCertificado — RF que certifica la construcción ACTUAL (capas
-// modificadas). La pestaña Fuego la usa para que una mejora (engrosar/añadir
-// placa) suba el veredicto, SIN sobre-certificar por dato sucio del LOFC.
-// ─────────────────────────────────────────────────────────────────────────────
-describe('rfMaximoCertificado — RF por capas modificadas (seguro)', () => {
-  const rfN = (s) => { const m = String(s || '').match(/F[-\s]?(\d+)/i); return m ? +m[1] : 0 }
-
-  it('entramado de madera con UNA placa de 13 mm NO certifica F60 (dato sucio: el ítem F60 guarda 11,1 mm)', () => {
-    const muro = { cod: 'T-MAD', elem: 'muro', desc: 'Entramado madera 2x4 + lana', capas: 'Yeso carton 13 | Lana mineral 90 | OSB 11' }
-    const r = rfMaximoCertificado(muro)
-    // Aunque exista A.2.3.60.102 (F60) con espesor_mm=11.1 ≤ 13, el piso de
-    // plausibilidad (F60 ≥ 25 mm de placa) lo descarta → nunca sube a F60.
-    expect(r == null || r.rf_minutos < 60).toBe(true)
-  })
-
-  it('un muro másico (albañilería Santiago 9) sí refleja su RF intrínseco alto (F180)', () => {
-    const b16 = SC.find(s => s.cod === '1.2.M.B16.1')
-    const r = rfMaximoCertificado(b16)
-    expect(r).toBeTruthy()
-    expect(r.rf_minutos).toBeGreaterThanOrEqual(120)
-  })
-
-  it('una techumbre con cielo de yeso 12,5 mm certifica F30 (placa plausible y satisfecha)', () => {
-    const techo = { cod: 'T-TEC', elem: 'techumbre', desc: 'Cercha madera + lana + cielo yeso', capas: 'Yeso carton 13 | Lana mineral 150 | Tablon OSB' }
-    const r = rfMaximoCertificado(techo)
-    expect(r).toBeTruthy()
-    expect(r.rf_minutos).toBe(30)
-    expect(r.espesor_certificado_mm).toBeLessThanOrEqual(13)   // placa realmente satisfecha
-  })
-
-  it('no inventa RF con un ítem cuyo espesor_mm es el total del complejo (>40 mm)', () => {
-    // Si solo hubiera calce con un ítem de espesor_mm enorme (total, no placa),
-    // no se certifica: la guarda MAX_PLACA_MM lo excluye.
-    const muro = { cod: 'T-MAD2', elem: 'muro', desc: 'Entramado madera', capas: 'Yeso carton 13 | Lana mineral 90 | OSB 11' }
-    const r = rfMaximoCertificado(muro)
-    if (r && /\(máx\. certificado/.test(r.fuente)) {
-      expect(r.espesor_certificado_mm).toBeLessThanOrEqual(40)
-    }
-  })
-
-  it('ventanas y puertas no pasan por esta vía', () => {
-    expect(rfMaximoCertificado({ cod: 'V', elem: 'ventana', desc: 'Ventana Al + DVH' })).toBeNull()
-    expect(rfMaximoCertificado({ cod: 'P', elem: 'puerta', desc: 'Puerta madera', rf: 'F30' })).toBeNull()
   })
 })
 
