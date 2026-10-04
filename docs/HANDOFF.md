@@ -6,7 +6,7 @@ _Última actualización: 2026-06-13_
 - **App:** NormaCheck — SaaS de verificación de norma chilena (OGUC / DS N°15 MINVU, Art. 4.1.10 térmico).
 - **Ruta local:** `C:\Users\UCSC\Documents\verificador-oguc`
 - **Stack:** React 18 + Vite · backend Supabase · deploy Vercel auto desde `main`.
-- **Repo:** `rbacigalupop-code/Aparato-normativo` · **Live:** normacheck-eta.vercel.app
+- **Repo:** `rbacigalupop-code/Aparato-normativo` · **Live:** taloraapp.vercel.app (antes normacheck-eta.vercel.app, dado de baja)
 - **Estado producto:** beta. Gating Pro/trial/free activo. Idioma SIEMPRE español neutro latinoamericano (tú/puedes), nunca voseo.
 
 ## Reglas de seguridad (persistentes)

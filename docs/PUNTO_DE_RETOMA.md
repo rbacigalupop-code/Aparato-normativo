@@ -8,7 +8,7 @@
 
 - **Branch:** `main` (sincronizado con `origin/main`)
 - **Último commit:** `b3f0484` — Asistente de seleccion de soluciones constructivas
-- **Deploy:** Vercel auto-deploy activo desde `main` (normacheck-eta.vercel.app)
+- **Deploy:** Vercel auto-deploy activo desde `main` (taloraapp.vercel.app; normacheck-eta.vercel.app quedó dado de baja)
 - **Tests:** 90 verdes (`npm test`) — calcU, fire, glaser_mensual, demanda (incluye PT)
 - **Fase:** BETA con testers activos — **todos en plan trial** (expiran ~10 jul)
 
