@@ -82,16 +82,20 @@ export function AuthProvider({ children }) {
     // Detectar retorno desde el link de recuperación ANTES de limpiar el URL.
     // Supabase también emite PASSWORD_RECOVERY (más abajo), pero este chequeo
     // cubre el caso de que el evento llegue antes de montar el listener.
+    let esRecovery = false
     try {
       const hash = window.location.hash || ''
       const search = window.location.search || ''
-      if (hash.includes('type=recovery') || /[?&]recovery=1\b/.test(search)) {
-        setModoRecovery(true)
-      }
+      esRecovery = hash.includes('type=recovery') || /[?&]recovery=1\b/.test(search)
+      if (esRecovery) setModoRecovery(true)
     } catch { /* noop */ }
 
-    // Limpiar tokens del URL si vienen de un magic link
-    limpiarTokensDelUrl()
+    // Limpiar tokens del URL solo para magic links NORMALES. En recovery NO se
+    // limpia aquí: hay que DEJAR el hash (#access_token&type=recovery) para que
+    // supabase-js establezca la sesión de recuperación. Se limpia recién tras el
+    // evento PASSWORD_RECOVERY. Si se borrara ahora, la sesión nunca se crearía
+    // y updateUser fallaría con "enlace expirado o ya usado".
+    if (!esRecovery) limpiarTokensDelUrl()
 
     // Obtener sesión actual
     getSession().then(sess => {
@@ -109,8 +113,11 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange(async (event, sess) => {
       setSession(sess)
       // Retorno desde el correo de reseteo: activar modo "definir contraseña".
+      // Aquí YA se estableció la sesión de recuperación, así que ahora sí es
+      // seguro limpiar el hash del URL (lo dejamos intacto en el mount).
       if (event === 'PASSWORD_RECOVERY') {
         setModoRecovery(true)
+        limpiarTokensDelUrl()
       }
       // Limpiar tokens del URL después de autenticarse
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
