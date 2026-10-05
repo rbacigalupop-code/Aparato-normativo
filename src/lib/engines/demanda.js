@@ -18,6 +18,7 @@
 import { obtenerHDD18 } from '../../data/grados_dia.js'
 import { obtenerCDD26, obtenerTverano, obtenerRadiacionVertical, FRACCION_VERANO, calificacionPorDemanda } from '../../data/clima_anual.js'
 import { obtenerZonaClimaComuna } from '../../data/comunas_chile.js'
+import { obtenerTextMes } from '../../data/clima_mensual.js'
 
 // Constantes físicas
 const Cp_AIRE = 0.34  // Wh/m³·K — calor específico del aire (ρ·Cp / 3600)
@@ -235,6 +236,185 @@ export function balanceTermicoAnual({
     kwhM2Anio,
     calificacion,
     hdd18,
+    parametros: { areaUtil, volumen: v, ach, factorSolar, factorProteccion, masaTermica },
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MÉTODO MENSUAL (ISO 13790 §12) — más preciso que el anual/estacional
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Días por mes (hemisferio sur: mes 1 = enero = verano)
+const DIAS_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+// Temperatura de consigna de calefacción (°C). El método mensual usa el setpoint
+// real (20 °C) y acredita las ganancias explícitamente vía η, en vez del HDD18
+// (base 18) que incorpora un margen fijo de 2 °C por ganancias.
+const T_SET_CALEF = 20
+// cos de los 3 meses de verano (Dic, Ene, Feb) para calibrar la forma solar:
+// cos(0)=1 (Ene) + cos(30°) (Feb) + cos(330°) (Dic) ≈ 2.732
+const COS_VERANO = Math.cos(0) + Math.cos((2 * Math.PI) / 12) + Math.cos((2 * Math.PI * 11) / 12)
+
+/**
+ * Distribuye la radiación vertical ANUAL por orientación en 12 meses.
+ * Forma sinusoidal (máx en enero = verano) calibrada por orientación con
+ * FRACCION_VERANO, luego NORMALIZADA para que la suma de los 12 meses sea
+ * exactamente la radiación anual de esa orientación (invariante testeable).
+ * @param {string} zonaClima  macrozona A-H
+ * @returns {Array<{N:number,E:number,S:number,O:number}>}  12 filas, kWh/m²·mes
+ */
+export function radiacionVerticalMensual(zonaClima) {
+  const anual = obtenerRadiacionVertical(zonaClima)
+  const orient = ['N', 'E', 'S', 'O']
+  // k por orientación: fracción verano (3 meses) = (3 + k·COS_VERANO)/12
+  const K = {}
+  for (const o of orient) {
+    const fv = FRACCION_VERANO[o] ?? 0.33
+    K[o] = (12 * fv - 3) / COS_VERANO
+  }
+  const pesos = []
+  const sumaPeso = { N: 0, E: 0, S: 0, O: 0 }
+  for (let m = 1; m <= 12; m++) {
+    const c = Math.cos((2 * Math.PI * (m - 1)) / 12)
+    const fila = {}
+    for (const o of orient) {
+      const w = Math.max(0, 1 + K[o] * c)   // clamp ≥0 (orientaciones muy estacionales)
+      fila[o] = w
+      sumaPeso[o] += w
+    }
+    pesos.push(fila)
+  }
+  // normalizar → cada orientación suma exactamente su radiación anual
+  return pesos.map(fila => {
+    const r = {}
+    for (const o of orient) r[o] = sumaPeso[o] > 0 ? (anual[o] * fila[o]) / sumaPeso[o] : 0
+    return r
+  })
+}
+
+/**
+ * Balance térmico por el MÉTODO MENSUAL ISO 13790 (§12.2).
+ * Para cada mes usa el ΔT real (setpoint − T_ext del mes), las ganancias solares
+ * e internas del mes, y aplica el factor de utilización η mes a mes; la demanda
+ * de calefacción se trunca a 0 por mes y se suma en el año.
+ *
+ * Corrige el sesgo del método anual, que mezclaba pérdidas de temporada fría
+ * (HDD18) con ganancias de año completo (8760 h) y aplicaba η sobre el γ anual,
+ * sub-estimando la demanda. Parámetro a del factor η en su variante MENSUAL
+ * (a0=1.0, τ0=15 h), distinta de la estacional (0.8, 30 h).
+ *
+ * Mismos parámetros y forma de retorno que balanceTermicoAnual, con un campo
+ * extra `meses` (desglose) e iso13790.metodo = 'mensual'.
+ */
+export function balanceTermicoMensual({
+  elementos = [],
+  areaUtil = 100,
+  volumen = null,
+  ach = 0.8,
+  areasVidrio = { N: 0, E: 0, S: 0, O: 0 },
+  factorSolar = 0.70,
+  factorProteccion = 1,
+  gananciasInternasWm2 = GANANCIAS_INTERNAS_W_M2,
+  masaTermica = 'media',
+  psiLTotal = 0,
+  comunaKey = null,
+  zonaClima = null,
+}) {
+  const v = volumen || areaUtil * 2.5
+  const zonaEf = zonaClima || obtenerZonaClimaComuna(comunaKey) || 'D'
+
+  // Coeficiente global de pérdidas H = H_tr + H_ve [W/K] (constante en el año)
+  const H_env = elementos.reduce((s, e) => {
+    const u = parseFloat(e.U) || 0, a = parseFloat(e.area) || 0
+    return (u > 0 && a > 0) ? s + u * a : s
+  }, 0)
+  const H_inf = Cp_AIRE * ach * v
+  const H = H_env + (psiLTotal || 0) + H_inf
+
+  // Constante de tiempo τ [h] y parámetro a — variante MENSUAL (a0=1.0, τ0=15 h)
+  const cmM2 = CM_POR_MASA[masaTermica] ?? CM_POR_MASA.media
+  const tau = H > 0 ? (cmM2 * areaUtil) / (3600 * H) : 0
+  const aNum = 1.0 + tau / 15
+
+  const radMes = radiacionVerticalMensual(zonaEf)
+  const orient = ['N', 'E', 'S', 'O']
+
+  let needTot = 0, lossEnv = 0, lossPT = 0, lossInf = 0
+  let solTot = 0, intTot = 0, utilTot = 0
+  const solPorOrient = { N: 0, E: 0, S: 0, O: 0 }
+  const meses = []
+
+  for (let m = 1; m <= 12; m++) {
+    const te = obtenerTextMes(m, comunaKey, zonaEf)
+    const dT = T_SET_CALEF - te
+    const horas = DIAS_MES[m - 1] * 24
+    if (dT <= 0) {               // mes sin necesidad de calefacción
+      meses.push({ mes: m, te: Math.round(te * 10) / 10, perdidas: 0, solar: 0, interna: 0, eta: 0, demanda: 0, calefacciona: false })
+      continue
+    }
+    const qEnv = (H_env * dT * horas) / 1000
+    const qPT  = ((psiLTotal || 0) * dT * horas) / 1000
+    const qInf = (H_inf * dT * horas) / 1000
+    const qLoss = qEnv + qPT + qInf
+
+    let qSol = 0
+    for (const o of orient) {
+      const a = parseFloat(areasVidrio?.[o]) || 0
+      const g = a * factorSolar * (radMes[m - 1][o] || 0) * factorProteccion
+      solPorOrient[o] += g
+      qSol += g
+    }
+    const qInt = (gananciasInternasWm2 * areaUtil * horas) / 1000
+    const qGn = qSol + qInt
+
+    const gamma = qGn / Math.max(1e-6, qLoss)
+    const eta = etaUtilizacion13790(gamma, aNum)
+    const need = Math.max(0, qLoss - eta * qGn)
+
+    needTot += need
+    lossEnv += qEnv; lossPT += qPT; lossInf += qInf
+    solTot += qSol; intTot += qInt; utilTot += eta * qGn
+
+    meses.push({
+      mes: m, te: Math.round(te * 10) / 10,
+      perdidas: Math.round(qLoss), solar: Math.round(qSol), interna: Math.round(qInt),
+      eta: Math.round(eta * 100) / 100, demanda: Math.round(need), calefacciona: true,
+    })
+  }
+
+  const perdidasTot = lossEnv + lossPT + lossInf
+  const gananciasTot = solTot + intTot
+  const demandaNeta = Math.round(needTot)
+  const kwhM2Anio = areaUtil > 0 ? Math.round(demandaNeta / areaUtil) : 0
+  const factorUtilizacion = gananciasTot > 0 ? utilTot / gananciasTot : 0
+
+  return {
+    perdidas: {
+      envolvente:      Math.round(lossEnv),
+      puentesTermicos: Math.round(lossPT),
+      infiltracion:    Math.round(lossInf),
+      total:           Math.round(perdidasTot),
+    },
+    ganancias: {
+      solares:          Math.round(solTot),
+      solaresPorOrient: { N: Math.round(solPorOrient.N), E: Math.round(solPorOrient.E), S: Math.round(solPorOrient.S), O: Math.round(solPorOrient.O) },
+      internas:         Math.round(intTot),
+      total:            Math.round(gananciasTot),
+      utilizadas:       Math.round(utilTot),
+      factorUtilizacion: Math.round(factorUtilizacion * 100) / 100,
+    },
+    iso13790: {
+      gamma:     Math.round((gananciasTot / Math.max(1, perdidasTot)) * 100) / 100,
+      tauHoras:  Math.round(tau * 10) / 10,
+      aNum:      Math.round(aNum * 100) / 100,
+      H_WK:      Math.round(H * 10) / 10,
+      psiLTotal: Math.round((psiLTotal || 0) * 100) / 100,
+      metodo:    'mensual',
+    },
+    demandaNeta,
+    kwhM2Anio,
+    calificacion: calificacionPorDemanda(kwhM2Anio),
+    hdd18: obtenerHDD18(comunaKey, zonaEf),
+    meses,
     parametros: { areaUtil, volumen: v, ach, factorSolar, factorProteccion, masaTermica },
   }
 }

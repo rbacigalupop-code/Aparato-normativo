@@ -19,7 +19,7 @@
 
 import React, { useState, useMemo } from 'react'
 import {
-  balanceTermicoAnual,
+  balanceTermicoMensual,
   analizarSobrecalentamiento,
   envolventeFromCalcUInit,
   ventanasFromFachadas,
@@ -62,7 +62,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
   const volumen = areaUtil * alturaCielo
 
   // Cálculos
-  const balance = useMemo(() => balanceTermicoAnual({
+  const balance = useMemo(() => balanceTermicoMensual({
     elementos, areaUtil, volumen, ach,
     areasVidrio: ventanas.areasVidrio,
     factorSolar, factorProteccion: proteccion,
@@ -148,7 +148,7 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
       />
 
       <p style={{ fontSize: 10, color: 'var(--ink-3)', textAlign: 'center', marginTop: 16, fontStyle: 'italic', lineHeight: 1.5 }}>
-        Cálculo según método estacionario simplificado ISO 13790 / CTE-HE. Es referencial:
+        Cálculo según método mensual cuasi-estacionario ISO 13790 §12 (balance mes a mes). Es referencial:
         para certificación CEV oficial se requiere CCTE_CL del MINVU. Sin embargo, los
         órdenes de magnitud y comparaciones relativas son válidos para diseño y decisiones.
       </p>

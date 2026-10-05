@@ -6,7 +6,7 @@
 // Hace los cálculos en cadena: demanda → CEV → renovables → priorización.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { balanceTermicoAnual, envolventeFromCalcUInit, ventanasFromFachadas, FACTOR_SOLAR_VIDRIOS } from './demanda.js'
+import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas, FACTOR_SOLAR_VIDRIOS } from './demanda.js'
 import { analizarFV, analizarSolarTermico, analizarBdC, estimarDemandaTermica } from './renovables.js'
 import { calcularCEVEstimada, compararContraBenchmarks } from './cev.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
@@ -40,7 +40,7 @@ export function agregarInforme({
   // ── 1. BALANCE TÉRMICO ANUAL ─────────────────────────────────────────────
   const elementos = envolventeFromCalcUInit(calcUInit)
   const ventanas  = ventanasFromFachadas(fachadas)
-  const balance = balanceTermicoAnual({
+  const balance = balanceTermicoMensual({
     elementos,
     areaUtil,
     volumen: areaUtil * 2.5,
