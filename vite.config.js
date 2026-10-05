@@ -12,6 +12,21 @@ function gitCommit() {
 export default defineConfig({
   plugins: [react()],
   server: { port: 3000 },
+  build: {
+    rollupOptions: {
+      output: {
+        // Separa las librerías de terceros en chunks propios y estables: como
+        // cambian poco, el navegador las cachea entre deploys y solo re-descarga
+        // el código de la app. xlsx y html2pdf ya se separan solos (import dinámico).
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/react') || id.includes('/scheduler')) return 'vendor-react'
+            if (id.includes('@supabase')) return 'vendor-supabase'
+          }
+        },
+      },
+    },
+  },
   define: {
     // Fecha en hora de Chile (en-CA da formato ISO YYYY-MM-DD), coherente con el resto de la UI
     __BUILD_DATE__: JSON.stringify(

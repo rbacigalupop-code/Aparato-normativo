@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, forwardRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, forwardRef, Suspense, lazy } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
@@ -12,7 +12,6 @@ import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
 import { corteSVG, alertasSentidoConstructivo } from './lib/engines/capas.js'
 import { exportarSistemasRevit } from './lib/engines/revit-export.js'
-import Modelo3D from './components/Modelo3D.jsx'
 
 // L'n,w efectivo del entrepiso = base − ΔL,w del revestimiento elegido (si hay).
 // Envuelve lnwConMejora del motor para recibir el objeto de estado completo.
@@ -41,22 +40,12 @@ import {
 import { UMBRALES_U_VENTANA, TABLA3_VENTANAS, maxVidriadoVentana } from './data/ds15_ventanas.js'
 import { PDA, PDA_SOLUCIONES, resolvePDA, uMaxEfectiva, climaPDA, evaluarDVH_PDA } from './data/pda.js'
 import TabDiag from './modules/TabDiag.jsx'
-import AdminZonas from './modules/AdminZonas.jsx'
-import UserManager from './modules/UserManager.jsx'
-import AdminStats from './modules/AdminStats.jsx'
-import AdminTokens from './modules/AdminTokens.jsx'
-import AdminFeedback from './modules/AdminFeedback.jsx'
 import FeedbackForm from './modules/FeedbackForm.jsx'
 import UserHeader from './components/UserHeader.jsx'
 import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
 import ModeSwitcher from './components/ModeSwitcher.jsx'
 import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
-import EnergeticoHome   from './modules/energetico/EnergeticoHome.jsx'
-import EnergeticoConfig from './modules/energetico/EnergeticoConfig.jsx'
-import DemandaAnual    from './modules/energetico/DemandaAnual.jsx'
-import Detalles        from './modules/energetico/Detalles.jsx'
-import PuertasDetalladas from './modules/energetico/PuertasDetalladas.jsx'
 import {
   HOJAS as PUERTA_HOJAS, MARCOS_PUERTA, SELLOS as PUERTA_SELLOS,
   RF_MINIMO_POR_USO as PUERTA_RF_MIN, RW_MINIMO_POR_USO as PUERTA_RW_MIN,
@@ -66,13 +55,35 @@ import {
   calcularPuertaCombinada, cumpleDS15Puerta,
   cumpleRFPuerta, cumpleRWPuerta, cumpleOGUC,
 } from './lib/engines/puertas_detalladas.js'
-import Renovables      from './modules/energetico/Renovables.jsx'
-import InformeEjecutivo from './modules/energetico/InformeEjecutivo.jsx'
 import PaywallGate      from './modules/energetico/PaywallGate.jsx'
 import { isPro, estaEnTrial, diasRestantesTrial } from './lib/plan.js'
 import { analizarCorreccion } from './lib/engines/economic.js'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
+
+// ─── Carga diferida (code-splitting) ──────────────────────────────────────────
+// Estos módulos NO se ven al primer paint (admin tras subTab, energético tras
+// appMode, 3D dentro de la pestaña de capas). Se descargan en su propio chunk la
+// primera vez que se usan, fuera del bundle inicial. El envoltorio Suspense propio
+// mantiene intactos los sitios de render: se siguen usando como <Componente .../>.
+const _cargando = <div style={{ padding: 24, color: '#94a3b8', fontSize: 12 }}>Cargando módulo…</div>
+function lazyC(loader) {
+  const C = lazy(loader)
+  const Envuelto = (props) => <Suspense fallback={_cargando}><C {...props} /></Suspense>
+  return Envuelto
+}
+const Modelo3D        = lazyC(() => import('./components/Modelo3D.jsx'))
+const AdminZonas      = lazyC(() => import('./modules/AdminZonas.jsx'))
+const UserManager     = lazyC(() => import('./modules/UserManager.jsx'))
+const AdminStats      = lazyC(() => import('./modules/AdminStats.jsx'))
+const AdminTokens     = lazyC(() => import('./modules/AdminTokens.jsx'))
+const AdminFeedback   = lazyC(() => import('./modules/AdminFeedback.jsx'))
+const EnergeticoHome   = lazyC(() => import('./modules/energetico/EnergeticoHome.jsx'))
+const EnergeticoConfig = lazyC(() => import('./modules/energetico/EnergeticoConfig.jsx'))
+const DemandaAnual    = lazyC(() => import('./modules/energetico/DemandaAnual.jsx'))
+const Detalles        = lazyC(() => import('./modules/energetico/Detalles.jsx'))
+const Renovables      = lazyC(() => import('./modules/energetico/Renovables.jsx'))
+const InformeEjecutivo = lazyC(() => import('./modules/energetico/InformeEjecutivo.jsx'))
 
 // ─── Aliases para compatibilidad con código existente ────────────────────────
 const rfN = rfStringToNumber
