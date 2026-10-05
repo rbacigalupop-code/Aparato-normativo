@@ -28,8 +28,13 @@ const PASOS = [
   },
   {
     tab: 2,
-    titulo: '3 a 6 · Verificaciones',
-    cuerpo: 'Térmica, Fuego, Acústica y Cálculo U contrastan tus soluciones con la norma. Verde = cumple, rojo = no cumple. El Cálculo U recalcula capa por capa y detecta condensación.',
+    titulo: '3 a 5 · Verificaciones normativas',
+    cuerpo: 'Tres pestañas contrastan tus soluciones con la norma: Térmica (transmitancia vs U máximo), Fuego (resistencia al fuego RF según OGUC) y Acústica (aislamiento según LOSCAT). Verde = cumple, rojo = no cumple.',
+  },
+  {
+    tab: 5,
+    titulo: '6 · Calculadora U — el corazón de Talora',
+    cuerpo: 'La herramienta más potente: recalcula la transmitancia capa por capa, detecta condensación intersticial (Glaser) y aplica correcciones por puentes térmicos. Es lo que hace que el cálculo sea defendible ante la DOM, no solo un valor de catálogo.',
   },
   {
     tab: 9,
