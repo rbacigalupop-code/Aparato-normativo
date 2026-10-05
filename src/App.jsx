@@ -60,6 +60,7 @@ import { isPro, estaEnTrial, diasRestantesTrial } from './lib/plan.js'
 import { analizarCorreccion } from './lib/engines/economic.js'
 import { useProjects } from './useProjects.js'
 import ProjectManager from './ProjectManager.jsx'
+import TourGuiado from './components/TourGuiado.jsx'
 
 // ─── Carga diferida (code-splitting) ──────────────────────────────────────────
 // Estos módulos NO se ven al primer paint (admin tras subTab, energético tras
@@ -10600,6 +10601,25 @@ function AppInner() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [esDemo, setEsDemo] = useState(false)   // proyecto de ejemplo cargado
 
+  // ── Tour guiado de onboarding ───────────────────────────────────────────────
+  // Se auto-abre la primera vez (una vez cerrada la bienvenida, para no solapar
+  // dos modales). "Ya visto" se guarda en localStorage; es una conveniencia por
+  // navegador, así que toda lectura/escritura va envuelta en try/catch.
+  const TOUR_KEY = 'talora_tour_visto'
+  const [showTour, setShowTour] = useState(false)
+  const tourVisto = () => { try { return localStorage.getItem(TOUR_KEY) === '1' } catch { return false } }
+  const marcarTourVisto = () => { try { localStorage.setItem(TOUR_KEY, '1') } catch { /* modo privado */ } }
+  const cerrarTour = () => { setShowTour(false); marcarTourVisto() }
+  const abrirTour   = () => { setShowWelcome(false); setAppMode('normativo'); setShowTour(true) }
+
+  // Auto-inicio: cuando NO hay bienvenida abierta y el tour nunca se vio.
+  useEffect(() => {
+    if (!showWelcome && !showTour && !tourVisto()) {
+      const t = setTimeout(() => setShowTour(true), 350)
+      return () => clearTimeout(t)
+    }
+  }, [showWelcome]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Restore autosave on mount — incluir puertas + escaleras para que no se
   // pierdan al recargar la app (reportado por usuario 2026-05-27).
   useEffect(() => {
@@ -10969,15 +10989,30 @@ function AppInner() {
       )}
       <div style={{ ...S.tabs, alignItems: 'center' }} className="nc-tabs">
         {appMode === 'normativo'
-          ? TABS.map((t, i) => <button key={t} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)
+          ? TABS.map((t, i) => <button key={t} data-tab-idx={i} style={S.tab(tab === i)} onClick={() => setTab(i)}>{t}</button>)
           : ENERG_TABS.map((t, i) => <button key={t} style={S.tab(energTab === i)} onClick={() => setEnergTab(i)}>{t}</button>)
         }
+        {appMode === 'normativo' && (
+          <button
+            onClick={abrirTour}
+            title="Recorrido guiado de la app"
+            style={{
+              marginLeft: 'auto', marginBottom: 2, padding: '5px 11px',
+              background: '#f0fdfa', border: '1px solid #99f6e4',
+              borderRadius: 6, fontSize: 11, fontWeight: 700,
+              color: '#0e6560', cursor: 'pointer', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <span>🧭</span>Tour
+          </button>
+        )}
         {appMode === 'normativo' && ayudaData[tab] && (
           <button
             className="nc-sidebar-btn"
             onClick={() => setShowAyuda(v => !v)}
             style={{
-              marginLeft: 'auto', marginBottom: 2, padding: '5px 11px',
+              marginLeft: 8, marginBottom: 2, padding: '5px 11px',
               background: showAyuda ? '#ccfbf1' : '#f0fdfa',
               border: `1px solid ${showAyuda ? '#5eead4' : '#99f6e4'}`,
               borderRadius: 6, fontSize: 11, fontWeight: 700,
@@ -11098,6 +11133,9 @@ function AppInner() {
         </div>
       )}
 
+      {showTour && !showWelcome && (
+        <TourGuiado onIrATab={setTab} onCerrar={cerrarTour} />
+      )}
       {showWelcome && (
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setShowWelcome(false) }}
