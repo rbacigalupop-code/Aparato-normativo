@@ -38,6 +38,7 @@ import {
   COMBUSTIBLES_CALEFACCION, TARIFA_ELEC_DEFAULT, clpKwhUtil, zonaOGUCaMacrozona,
 } from '../../data/combustibles.js'
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
+import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas } from './demanda.js'
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SOLAR FOTOVOLTAICO
@@ -346,29 +347,41 @@ export function analizarBdC({
 }
 
 /**
- * Helper: estima demanda térmica anual del proyecto a partir de los U-values
- * calculados. Esto es muy simplificado — el cálculo riguroso vendrá en Sprint 3.
+ * Helper: estima la demanda térmica anual de calefacción del proyecto — la
+ * energía que la bomba de calor (o el sistema de calefacción) debe suministrar.
  *
- * @param {object} proy - proyecto
- * @param {object} calcUInit - estado de cálculos U del proyecto
- * @param {number} hdd18 - grados-día calefacción base 18°C
- * @returns {number} kWh/año demanda térmica estimada
+ * Unificado con el método MENSUAL ISO 13790 (balanceTermicoMensual), el mismo
+ * que usa la pestaña Demanda, en vez del antiguo barrido anual Σ U·A·HDD que
+ * ignoraba las ganancias. Devuelve la demanda NETA (pérdidas − ganancias útiles),
+ * que es lo que realmente debe aportar el equipo.
+ *
+ * @param {object} proy       - proyecto (zona, comuna, superficie, fachadas, config)
+ * @param {object} calcUInit  - estado de cálculos U del proyecto
+ * @param {number} [hdd18]    - sin uso (se conserva por compatibilidad de firma;
+ *                              el clima lo deriva el método mensual desde proy)
+ * @returns {number} kWh/año demanda térmica neta estimada
  */
-export function estimarDemandaTermica(proy, calcUInit = {}, hdd18 = 1500) {
-  // Áreas referenciales por elemento (sin geometría detallada)
-  const AREAS_DEF = { muro: 80, piso: 70, techo: 70, tabique: 30 }
-  let qAnual = 0
-  for (const [key, data] of Object.entries(calcUInit)) {
-    if (!data?.res?.U) continue
-    const elemKey = key.includes('::') ? key.split('::').pop() : key
-    const area = AREAS_DEF[elemKey] || 40
-    const u = parseFloat(data.res.U)
-    qAnual += u * area * hdd18 * 24 / 1000  // kWh/año
+export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint-disable-line no-unused-vars
+  const zonaEf = zonaClimaDeOGUC(proy?.zona, proy?.configEnergetica?.comunaKey || proy?.comuna)
+  const elementos = envolventeFromCalcUInit(calcUInit)
+
+  // Sin cálculos U → estimación gruesa por macrozona climática (A-H), como antes.
+  if (elementos.length === 0) {
+    return ({ A: 2500, B: 4000, C: 6000, D: 8000, E: 11000, F: 14000, G: 17000, H: 20000 })[zonaEf] || 8000
   }
-  // Si no hay cálculos U → estimación gruesa por macrozona climática (A-H)
-  if (qAnual === 0) {
-    const zonaEf = zonaClimaDeOGUC(proy?.zona, proy?.configEnergetica?.comunaKey || proy?.comuna)
-    qAnual = ({ A: 2500, B: 4000, C: 6000, D: 8000, E: 11000, F: 14000, G: 17000, H: 20000 })[zonaEf] || 8000
-  }
-  return Math.round(qAnual)
+
+  // Con cálculos U → demanda NETA por el método mensual (consistente con la
+  // pestaña Demanda). Usa las ventanas del proyecto si existen (ganancias solares).
+  const comunaKey = proy?.configEnergetica?.comunaKey
+    || proy?.comuna?.toLowerCase?.().replace(/\s/g, '_')
+  const ventanas = ventanasFromFachadas(proy?.fachadas)
+  const balance = balanceTermicoMensual({
+    elementos,
+    areaUtil: Number(proy?.superficie) || 100,
+    ach: Number(proy?.configEnergetica?.ach) || 0.8,
+    areasVidrio: ventanas.areasVidrio,
+    comunaKey,
+    zonaClima: zonaEf,
+  })
+  return balance.demandaNeta
 }
