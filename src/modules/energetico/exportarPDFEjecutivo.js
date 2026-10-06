@@ -21,27 +21,59 @@ export async function exportarPDFEjecutivo(informe, nombreArchivo = 'informe-eje
 
   const html = buildHtmlInforme(informe)
 
-  // Cargar html2pdf dinámicamente
-  const mod = await import('html2pdf.js')
-  const html2pdf = mod.default ?? mod
+  // IMPORTANTE: el tema de la app (themes.css) define sus colores en oklch(), y
+  // html2canvas (1.4.1) no sabe parsear oklch → lanza "unsupported color
+  // function" y el PDF sale EN BLANCO. html2pdf además reubica el contenido al
+  // documento principal, así que un iframe no basta con su API.
+  // Solución robusta: renderizar el informe (documento autocontenido en hex) en
+  // un IFRAME AISLADO, capturarlo con html2canvas directo (no ve el oklch de la
+  // app) y armar el PDF con jsPDF manualmente (multipágina).
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ])
 
-  // Renderizar fuera del viewport
-  const container = document.createElement('div')
-  container.innerHTML = html
-  container.style.cssText = 'position:absolute;left:-9999px;top:0;width:820px;background:#fff;'
-  document.body.appendChild(container)
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:absolute;left:-9999px;top:0;width:820px;height:1200px;border:0;'
+  document.body.appendChild(iframe)
 
   try {
-    await html2pdf().set({
-      margin: [12, 12, 12, 12],
-      filename: nombreArchivo,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: 820, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['.hero', '.kpi-grid', '.section'] },
-    }).from(container).save()
+    const doc = iframe.contentDocument || iframe.contentWindow.document
+    doc.open()
+    doc.write(html)
+    doc.close()
+    // Esperar a que el iframe asiente layout y fuentes antes de capturar
+    await new Promise(r => setTimeout(r, 350))
+
+    const canvas = await html2canvas(doc.body, {
+      scale: 2, useCORS: true, windowWidth: 820, backgroundColor: '#ffffff', logging: false,
+    })
+
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
+    const margin = 12
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const usableW = pageW - 2 * margin
+    const usableH = pageH - 2 * margin
+    const imgH = (canvas.height * usableW) / canvas.width   // alto de la imagen escalada [mm]
+    const img = canvas.toDataURL('image/jpeg', 0.95)
+
+    // Multipágina: la imagen completa se re-posiciona desplazada hacia arriba en
+    // cada página, de modo que cada hoja muestra su franja.
+    let heightLeft = imgH
+    let pos = margin
+    pdf.addImage(img, 'JPEG', margin, pos, usableW, imgH)
+    heightLeft -= usableH
+    while (heightLeft > 0) {
+      pos = margin - (imgH - heightLeft)
+      pdf.addPage()
+      pdf.addImage(img, 'JPEG', margin, pos, usableW, imgH)
+      heightLeft -= usableH
+    }
+
+    pdf.save(nombreArchivo)
   } finally {
-    document.body.removeChild(container)
+    document.body.removeChild(iframe)
   }
 }
 
