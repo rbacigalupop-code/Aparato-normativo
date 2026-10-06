@@ -194,6 +194,7 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
         proteccion={proteccion} setProteccion={setProteccion}
         gananciasInt={gananciasInt} setGananciasInt={setGananciasInt}
         uVentana={uVentana}
+        areasBase={areasBase}
         zonaEf={zonaEf}
       />
 
@@ -274,7 +275,7 @@ function Hero({ balance }) {
 }
 
 // ─── SECCIÓN INVIERNO ────────────────────────────────────────────────────────
-function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, uVentana, zonaEf }) {
+function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, uVentana, areasBase, zonaEf }) {
   const tienePT = psiLTotal > 0
   return (
     <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Clima ${zonaEf} · ${ZONA_CLIMA_LABELS[zonaEf] || ''}`}>
