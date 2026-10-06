@@ -150,6 +150,37 @@ export default function InformeEjecutivo({ proy, calcUInit, fachadas }) {
         </Card>
       )}
 
+      {/* Situación actual: costos + desglose de pérdidas */}
+      <Card titulo="💰 Situación actual">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
+          <KPI label="Calefacción / año" value={`CLP ${informe.costos.calefaccion.toLocaleString('es-CL')}`} sub={informe.costos.combNombre} />
+          <KPI label="Electricidad / año" value={`CLP ${informe.costos.electricidad.toLocaleString('es-CL')}`} sub={`${informe.costos.tarifaElec} CLP/kWh`} />
+          <KPI label="Total energético / año" value={`CLP ${informe.costos.total.toLocaleString('es-CL')}`} sub={`${informe.emisiones.total.toLocaleString('es-CL')} kg CO₂`} color="var(--bad)" />
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Desglose de pérdidas</div>
+        {(() => {
+          const p = informe.balance.perdidas
+          const items = [
+            ['Envolvente', p.envolvente],
+            ['Ventanas', p.ventanas || 0],
+            ['Puentes térmicos', p.puentesTermicos || 0],
+            ['Infiltración', p.infiltracion],
+          ].filter(([, v]) => v > 0)
+          const max = Math.max(...items.map(([, v]) => v), 1)
+          return items.map(([lbl, v]) => (
+            <div key={lbl} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 110px', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: 'var(--ink-2)' }}>{lbl}</span>
+              <div style={{ background: 'var(--bg-alt)', height: 14, borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.round(v / max * 100)}%`, height: '100%', background: 'var(--bad)' }} />
+              </div>
+              <span style={{ fontSize: 11, textAlign: 'right', color: 'var(--ink-2)' }}>
+                {(v / 1000).toFixed(1)}k kWh · {Math.round(v / p.total * 100)}%
+              </span>
+            </div>
+          ))
+        })()}
+      </Card>
+
       {/* Comparativas */}
       <Card titulo="📊 Tu proyecto vs benchmarks chilenos">
         <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>

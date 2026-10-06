@@ -256,6 +256,12 @@ ${(d.zonas && d.zonas.length > 1) ? `
     <div class="v">${fmtK(d.balance.perdidas.envolvente)} kWh</div>
     <div class="s">${(d.balance.perdidas.envolvente / d.balance.perdidas.total * 100).toFixed(0)}% del total</div>
   </div>
+  ${(d.balance.perdidas.ventanas > 0) ? `
+  <div class="kpi">
+    <div class="l">Pérdidas ventanas</div>
+    <div class="v">${fmtK(d.balance.perdidas.ventanas)} kWh</div>
+    <div class="s">${(d.balance.perdidas.ventanas / d.balance.perdidas.total * 100).toFixed(0)}% del total · conducción por vidrio</div>
+  </div>` : ''}
   <div class="kpi">
     <div class="l">Pérdidas infiltración</div>
     <div class="v">${fmtK(d.balance.perdidas.infiltracion)} kWh</div>
