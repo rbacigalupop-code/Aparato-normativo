@@ -62,13 +62,13 @@ export function agregarInforme({
       multiZona: true,
     }
   } else {
-    const areasBase = estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy.pisos })
+    const areasBase = estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy.pisos, tipoProyecto: cfg.tipoProyecto })
     const elementos = envolventeFromCalcUInit(calcUInit, null, areasBase)
     balance = balanceTermicoMensual({
       elementos,
       areaUtil,
       volumen: areaUtil * 2.5,
-      ach: 0.8,
+      ach: cfg.tipoProyecto === 'depto' ? 0.6 : 0.8,
       areasVidrio: ventanas.areasVidrio,
       factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4,
       factorProteccion: 1.0,

@@ -52,4 +52,20 @@ describe('estimarAreasEnvolvente', () => {
     const a = estimarAreasEnvolvente({ superficie: 100, pisos: 0 })
     expect(a._geom.pisos).toBe(1)
   })
+
+  describe('tipoProyecto depto', () => {
+    it('depto: solo fachada parcial, sin techo ni piso al exterior', () => {
+      const casa  = estimarAreasEnvolvente({ superficie: 100, pisos: 1, tipoProyecto: 'unifamiliar' })
+      const depto = estimarAreasEnvolvente({ superficie: 100, pisos: 1, tipoProyecto: 'depto' })
+      expect(depto.techo).toBe(0)
+      expect(depto.piso).toBe(0)
+      expect(depto.muro).toBeLessThan(casa.muro)   // solo ~40% del perímetro
+      expect(depto._geom.tipo).toBe('depto')
+    })
+    it('depto es un solo nivel (ignora pisos del edificio)', () => {
+      const d = estimarAreasEnvolvente({ superficie: 100, pisos: 5, tipoProyecto: 'depto' })
+      expect(d._geom.pisos).toBe(1)
+      expect(d._geom.footprint).toBe(100)   // superficie completa en un nivel
+    })
+  })
 })

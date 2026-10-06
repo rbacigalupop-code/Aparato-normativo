@@ -377,9 +377,10 @@ export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint
     }).demandaNetaTotal
   }
 
-  // Áreas derivadas de la geometría del proyecto (superficie, pisos) — misma base
-  // que la pestaña Demanda; sin ellas cae a "vivienda tipo".
-  const areasBase = estimarAreasEnvolvente({ superficie: proy?.superficie, pisos: proy?.pisos })
+  // Áreas derivadas de la geometría del proyecto (superficie, pisos, tipo) — misma
+  // base que la pestaña Demanda; sin ellas cae a "vivienda tipo".
+  const tipoProyecto = proy?.configEnergetica?.tipoProyecto
+  const areasBase = estimarAreasEnvolvente({ superficie: proy?.superficie, pisos: proy?.pisos, tipoProyecto })
   const elementos = envolventeFromCalcUInit(calcUInit, null, areasBase)
 
   // Sin cálculos U → estimación gruesa por macrozona climática (A-H), como antes.
@@ -395,7 +396,7 @@ export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint
   const balance = balanceTermicoMensual({
     elementos,
     areaUtil: Number(proy?.superficie) || 100,
-    ach: Number(proy?.configEnergetica?.ach) || 0.8,
+    ach: Number(proy?.configEnergetica?.ach) || (tipoProyecto === 'depto' ? 0.6 : 0.8),
     areasVidrio: ventanas.areasVidrio,
     uVentana: U_VENTANA_VIDRIOS.dvh_4_12_4,
     comunaKey,

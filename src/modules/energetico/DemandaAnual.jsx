@@ -59,8 +59,8 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
   // Áreas de envolvente derivadas de la geometría del proyecto (superficie, pisos,
   // altura). Son la BASE editable: el override manual del usuario manda sobre ellas.
   const areasBase = useMemo(
-    () => estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy?.pisos, alturaCielo }),
-    [areaUtil, proy?.pisos, alturaCielo]
+    () => estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy?.pisos, alturaCielo, tipoProyecto: cfg.tipoProyecto }),
+    [areaUtil, proy?.pisos, alturaCielo, cfg.tipoProyecto]
   )
 
   // Auto-derivar del proyecto
@@ -328,7 +328,9 @@ function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, 
           <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Áreas de envolvente en contacto con el exterior (m²)</div>
           {areasBase?._geom && (
             <div style={{ fontSize: 11, color: 'var(--ink-3, #64748b)', marginBottom: 6 }}>
-              📐 Estimadas de la geometría: {areasBase._geom.pisos} piso(s) · huella {areasBase._geom.footprint} m² · perímetro {areasBase._geom.perimetro} m. Ajusta cualquier valor si conoces la geometría real.
+              {areasBase._geom.tipo === 'depto'
+                ? <>🏢 Departamento: solo fachada expuesta (~40% del perímetro); techo y piso dan a vecinos calefaccionados → 0. Ajusta si es unidad de piso superior (techo) o inferior (piso).</>
+                : <>📐 Estimadas de la geometría: {areasBase._geom.pisos} piso(s) · huella {areasBase._geom.footprint} m² · perímetro {areasBase._geom.perimetro} m. Ajusta cualquier valor si conoces la geometría real.</>}
             </div>
           )}
           <div style={{ fontSize: 11, color: 'var(--ink-3, #64748b)', marginBottom: 10 }}>
