@@ -38,7 +38,7 @@ import {
   COMBUSTIBLES_CALEFACCION, TARIFA_ELEC_DEFAULT, clpKwhUtil, zonaOGUCaMacrozona,
 } from '../../data/combustibles.js'
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
-import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas } from './demanda.js'
+import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas, U_VENTANA_VIDRIOS } from './demanda.js'
 import { estimarAreasEnvolvente } from './geometria.js'
 import { balanceMultiZona, uValuesFromCalcUInit } from './zonas.js'
 
@@ -373,6 +373,7 @@ export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint
     const comunaKeyZ = proy?.configEnergetica?.comunaKey || proy?.comuna?.toLowerCase?.().replace(/\s/g, '_')
     return balanceMultiZona(zonasHeat, {
       uValues: uValuesFromCalcUInit(calcUInit), comunaKey: comunaKeyZ, zonaClima: zonaEf,
+      uVentana: U_VENTANA_VIDRIOS.dvh_4_12_4,
     }).demandaNetaTotal
   }
 
@@ -396,6 +397,7 @@ export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint
     areaUtil: Number(proy?.superficie) || 100,
     ach: Number(proy?.configEnergetica?.ach) || 0.8,
     areasVidrio: ventanas.areasVidrio,
+    uVentana: U_VENTANA_VIDRIOS.dvh_4_12_4,
     comunaKey,
     zonaClima: zonaEf,
   })

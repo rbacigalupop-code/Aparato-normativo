@@ -24,6 +24,7 @@ import {
   envolventeFromCalcUInit,
   ventanasFromFachadas,
   FACTOR_SOLAR_VIDRIOS,
+  U_VENTANA_VIDRIOS,
 } from '../../lib/engines/demanda.js'
 import { estimarAreasEnvolvente } from '../../lib/engines/geometria.js'
 import { balanceMultiZona, zonificarPorPiso, uValuesFromCalcUInit } from '../../lib/engines/zonas.js'
@@ -66,6 +67,7 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
   const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit, areasOverride, areasBase), [calcUInit, areasOverride, areasBase])
   const ventanas  = useMemo(() => ventanasFromFachadas(fachadas), [fachadas])
   const factorSolar = FACTOR_SOLAR_VIDRIOS[vidrioTipo] ?? 0.70
+  const uVentana = U_VENTANA_VIDRIOS[vidrioTipo] ?? U_VENTANA_VIDRIOS.default
   const psiLTotal = useMemo(() => calcularSumaPsiL(inventarioPT), [inventarioPT])
 
   const volumen = areaUtil * alturaCielo
@@ -74,11 +76,11 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
   const balance = useMemo(() => balanceTermicoMensual({
     elementos, areaUtil, volumen, ach,
     areasVidrio: ventanas.areasVidrio,
-    factorSolar, factorProteccion: proteccion,
+    factorSolar, factorProteccion: proteccion, uVentana,
     gananciasInternasWm2: gananciasInt,
     masaTermica, psiLTotal,
     comunaKey, zonaClima: zonaEf,
-  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, gananciasInt, masaTermica, psiLTotal, comunaKey, zonaEf])
+  }), [elementos, areaUtil, volumen, ach, ventanas, factorSolar, proteccion, uVentana, gananciasInt, masaTermica, psiLTotal, comunaKey, zonaEf])
 
   const verano = useMemo(() => analizarSobrecalentamiento({
     areasVidrio: ventanas.areasVidrio,
@@ -101,9 +103,9 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
   const paramsMZ = useMemo(() => ({
     uValues: uValuesFromCalcUInit(calcUInit),
     comunaKey, zonaClima: zonaEf,
-    factorSolar, factorProteccion: proteccion,
+    factorSolar, factorProteccion: proteccion, uVentana,
     gananciasInternasWm2: gananciasInt, masaTermica,
-  }), [calcUInit, comunaKey, zonaEf, factorSolar, proteccion, gananciasInt, masaTermica])
+  }), [calcUInit, comunaKey, zonaEf, factorSolar, proteccion, uVentana, gananciasInt, masaTermica])
 
   const multiZona = useMemo(() => {
     if (zonasUsuario?.length) {
@@ -191,6 +193,7 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
         vidrioTipo={vidrioTipo} setVidrioTipo={setVidrioTipo}
         proteccion={proteccion} setProteccion={setProteccion}
         gananciasInt={gananciasInt} setGananciasInt={setGananciasInt}
+        uVentana={uVentana}
         zonaEf={zonaEf}
       />
 
@@ -271,7 +274,7 @@ function Hero({ balance }) {
 }
 
 // ─── SECCIÓN INVIERNO ────────────────────────────────────────────────────────
-function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, zonaEf }) {
+function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, ventanas, psiLTotal, inventarioPT, areaUtil, setAreaUtil, alturaCielo, setAlturaCielo, ach, setAch, vidrioTipo, setVidrioTipo, proteccion, setProteccion, gananciasInt, setGananciasInt, uVentana, zonaEf }) {
   const tienePT = psiLTotal > 0
   return (
     <Card titulo="❄️ Invierno — Demanda de calefacción" subtitulo={`Clima ${zonaEf} · ${ZONA_CLIMA_LABELS[zonaEf] || ''}`}>
@@ -383,6 +386,15 @@ function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, 
           color="var(--bad)"
           badge={<BadgeOrigen origen="usuario" small />}
         />
+        {balance.perdidas.ventanas > 0 && (
+          <BigKPI
+            label="Pérdidas ventanas"
+            value={`${(balance.perdidas.ventanas/1000).toFixed(1)}k kWh`}
+            sub="conducción por vidrio"
+            color="var(--bad)"
+            badge={<BadgeOrigen origen="usuario" small label={`Uw ${uVentana}`} />}
+          />
+        )}
         <BigKPI
           label="Ganancias solares"
           value={`${(balance.ganancias.solares/1000).toFixed(1)}k kWh`}

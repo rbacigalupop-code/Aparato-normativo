@@ -6,7 +6,7 @@
 // Hace los cálculos en cadena: demanda → CEV → renovables → priorización.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas, FACTOR_SOLAR_VIDRIOS } from './demanda.js'
+import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas, FACTOR_SOLAR_VIDRIOS, U_VENTANA_VIDRIOS } from './demanda.js'
 import { analizarFV, analizarSolarTermico, analizarBdC, estimarDemandaTermica } from './renovables.js'
 import { estimarAreasEnvolvente } from './geometria.js'
 import { balanceMultiZona, uValuesFromCalcUInit } from './zonas.js'
@@ -49,6 +49,7 @@ export function agregarInforme({
     const mz = balanceMultiZona(zonasHeat, {
       uValues: uValuesFromCalcUInit(calcUInit), comunaKey, zonaClima: zonaEf,
       factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4, factorProteccion: 1.0,
+      uVentana: U_VENTANA_VIDRIOS.dvh_4_12_4,
     })
     zonasDesglose = mz.porZona.map(z => ({ nombre: z.nombre, superficie: z.superficie, kwhM2: z.kwhM2, demanda: z.balance.demandaNeta }))
     balance = {
@@ -71,6 +72,7 @@ export function agregarInforme({
       areasVidrio: ventanas.areasVidrio,
       factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4,
       factorProteccion: 1.0,
+      uVentana: U_VENTANA_VIDRIOS.dvh_4_12_4,
       comunaKey, zonaClima: zonaEf,
     })
   }

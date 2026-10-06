@@ -119,6 +119,29 @@ describe('balanceTermicoMensual — estructura y física', () => {
   })
 })
 
+describe('balanceTermicoMensual — pérdidas conductivas por ventanas (uVentana)', () => {
+  const conMuro = {
+    elementos: [{ U: 0.5, area: 100, elemKey: 'muro' }, { U: 0.3, area: 60, elemKey: 'techo' }],
+    areaUtil: 100, ach: 0.8,
+    areasVidrio: { N: 10, E: 0, S: 0, O: 0 },
+    factorSolar: 0.7, zonaClima: 'F',
+  }
+  it('uVentana=0 (legado) → sin pérdida por ventanas', () => {
+    expect(balanceTermicoMensual(conMuro).perdidas.ventanas).toBe(0)
+  })
+  it('uVentana>0 agrega pérdida por ventanas y sube la demanda', () => {
+    const sin = balanceTermicoMensual(conMuro)
+    const con = balanceTermicoMensual({ ...conMuro, uVentana: 2.8 })
+    expect(con.perdidas.ventanas).toBeGreaterThan(0)
+    expect(con.demandaNeta).toBeGreaterThan(sin.demandaNeta)
+  })
+  it('descuenta el área de ventana del muro (no doble conteo) → pérdida envolvente baja', () => {
+    const sin = balanceTermicoMensual(conMuro)
+    const con = balanceTermicoMensual({ ...conMuro, uVentana: 2.8 })
+    expect(con.perdidas.envolvente).toBeLessThan(sin.perdidas.envolvente)
+  })
+})
+
 describe('mensual vs anual — la corrección aumenta la demanda (anti-subestimación)', () => {
   it('en zona fría el método mensual da ≥ demanda que el anual', () => {
     const an = balanceTermicoAnual(base)

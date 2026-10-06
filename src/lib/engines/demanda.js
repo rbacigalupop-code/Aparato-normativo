@@ -62,6 +62,18 @@ export const FACTOR_SOLAR_VIDRIOS = {
   default:            0.70,
 }
 
+// U de ventana completa Uw [W/m²K] (vidrio + marco típico) por tipo de vidrio.
+// Alimenta la pérdida conductiva por ventanas en el balance (ISO 13790 H_tr).
+export const U_VENTANA_VIDRIOS = {
+  monolitico_4mm:     5.8,
+  monolitico_6mm:     5.7,
+  dvh_4_12_4:         2.8,
+  dvh_low_e:          1.9,
+  dvh_low_e_argon:    1.6,
+  triple_low_e:       1.1,
+  default:            3.0,
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // PÉRDIDAS (invierno)
 // ═════════════════════════════════════════════════════════════════════════════
@@ -316,19 +328,32 @@ export function balanceTermicoMensual({
   gananciasInternasWm2 = GANANCIAS_INTERNAS_W_M2,
   masaTermica = 'media',
   psiLTotal = 0,
+  uVentana = 0,          // U de la ventana [W/m²K]; 0 = no contar pérdida por ventana (legado)
   comunaKey = null,
   zonaClima = null,
 }) {
   const v = volumen || areaUtil * 2.5
   const zonaEf = zonaClima || obtenerZonaClimaComuna(comunaKey) || 'D'
 
+  // Área de ventana total. Si se cuenta su pérdida (uVentana>0), se DESCUENTA del
+  // muro para no doble-contar el mismo paño (el hueco pierde por el vidrio, no por
+  // el muro opaco).
+  const areaVentana = (parseFloat(areasVidrio?.N) || 0) + (parseFloat(areasVidrio?.E) || 0)
+    + (parseFloat(areasVidrio?.S) || 0) + (parseFloat(areasVidrio?.O) || 0)
+  const elementosEf = (uVentana > 0 && areaVentana > 0)
+    ? elementos.map(e => e.elemKey === 'muro'
+        ? { ...e, area: Math.max(0, (parseFloat(e.area) || 0) - areaVentana) }
+        : e)
+    : elementos
+
   // Coeficiente global de pérdidas H = H_tr + H_ve [W/K] (constante en el año)
-  const H_env = elementos.reduce((s, e) => {
+  const H_env = elementosEf.reduce((s, e) => {
     const u = parseFloat(e.U) || 0, a = parseFloat(e.area) || 0
     return (u > 0 && a > 0) ? s + u * a : s
   }, 0)
+  const H_vent = (uVentana > 0 ? uVentana : 0) * areaVentana   // pérdida conductiva por ventanas
   const H_inf = Cp_AIRE * ach * v
-  const H = H_env + (psiLTotal || 0) + H_inf
+  const H = H_env + H_vent + (psiLTotal || 0) + H_inf
 
   // Constante de tiempo τ [h] y parámetro a — variante MENSUAL (a0=1.0, τ0=15 h)
   const cmM2 = CM_POR_MASA[masaTermica] ?? CM_POR_MASA.media
@@ -338,7 +363,7 @@ export function balanceTermicoMensual({
   const radMes = radiacionVerticalMensual(zonaEf)
   const orient = ['N', 'E', 'S', 'O']
 
-  let needTot = 0, lossEnv = 0, lossPT = 0, lossInf = 0
+  let needTot = 0, lossEnv = 0, lossPT = 0, lossInf = 0, lossVent = 0
   let solTot = 0, intTot = 0, utilTot = 0
   const solPorOrient = { N: 0, E: 0, S: 0, O: 0 }
   const meses = []
@@ -351,10 +376,11 @@ export function balanceTermicoMensual({
       meses.push({ mes: m, te: Math.round(te * 10) / 10, perdidas: 0, solar: 0, interna: 0, eta: 0, demanda: 0, calefacciona: false })
       continue
     }
-    const qEnv = (H_env * dT * horas) / 1000
-    const qPT  = ((psiLTotal || 0) * dT * horas) / 1000
-    const qInf = (H_inf * dT * horas) / 1000
-    const qLoss = qEnv + qPT + qInf
+    const qEnv  = (H_env * dT * horas) / 1000
+    const qVent = (H_vent * dT * horas) / 1000
+    const qPT   = ((psiLTotal || 0) * dT * horas) / 1000
+    const qInf  = (H_inf * dT * horas) / 1000
+    const qLoss = qEnv + qVent + qPT + qInf
 
     let qSol = 0
     for (const o of orient) {
@@ -371,7 +397,7 @@ export function balanceTermicoMensual({
     const need = Math.max(0, qLoss - eta * qGn)
 
     needTot += need
-    lossEnv += qEnv; lossPT += qPT; lossInf += qInf
+    lossEnv += qEnv; lossVent += qVent; lossPT += qPT; lossInf += qInf
     solTot += qSol; intTot += qInt; utilTot += eta * qGn
 
     meses.push({
@@ -381,7 +407,7 @@ export function balanceTermicoMensual({
     })
   }
 
-  const perdidasTot = lossEnv + lossPT + lossInf
+  const perdidasTot = lossEnv + lossVent + lossPT + lossInf
   const gananciasTot = solTot + intTot
   const demandaNeta = Math.round(needTot)
   const kwhM2Anio = areaUtil > 0 ? Math.round(demandaNeta / areaUtil) : 0
@@ -390,6 +416,7 @@ export function balanceTermicoMensual({
   return {
     perdidas: {
       envolvente:      Math.round(lossEnv),
+      ventanas:        Math.round(lossVent),
       puentesTermicos: Math.round(lossPT),
       infiltracion:    Math.round(lossInf),
       total:           Math.round(perdidasTot),

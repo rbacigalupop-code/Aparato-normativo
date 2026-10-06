@@ -83,6 +83,7 @@ export function balanceMultiZona(zonas = [], params = {}) {
       areasVidrio: z.areasVidrio ?? { N: 0, E: 0, S: 0, O: 0 },
       factorSolar: params.factorSolar ?? 0.70,
       factorProteccion: params.factorProteccion ?? 1,
+      uVentana: z.uVentana ?? params.uVentana ?? 0,
       gananciasInternasWm2: z.gananciasInternasWm2 ?? params.gananciasInternasWm2,
       masaTermica: z.masaTermica ?? params.masaTermica ?? 'media',
       psiLTotal: z.psiLTotal ?? 0,
