@@ -15,6 +15,7 @@ import {
 } from '../lib/engines/renovables.js'
 import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas } from '../lib/engines/demanda.js'
 import { estimarAreasEnvolvente } from '../lib/engines/geometria.js'
+import { balanceMultiZona, uValuesFromCalcUInit } from '../lib/engines/zonas.js'
 import { zonaClimaDeOGUC } from '../data/zona_clima.js'
 import { PR_FV, FACTOR_NETBILLING } from '../data/precios_renovables.js'
 
@@ -125,5 +126,20 @@ describe('estimarDemandaTermica — unificada con el método mensual', () => {
     expect(neta).toBeGreaterThan(0)
     expect(Number.isFinite(neta)).toBe(true)
     expect(neta).not.toBe(14000)   // calculó, no usó el fallback grueso
+  })
+
+  it('si el proyecto define zonas térmicas, delega en la suma MULTI-ZONA calefaccionada', () => {
+    const calcU = { muro: { res: { U: '0.5' } }, techo: { res: { U: '0.3' } }, piso: { res: { U: '0.4' } } }
+    const zonasTermicas = [
+      { id: 'a', nombre: 'Deptos', superficie: 300, pisos: 1, tocaTerreno: false, tocaCubierta: true, calefaccionada: true },
+      { id: 'b', nombre: 'Local PB', superficie: 200, pisos: 1, tocaTerreno: true, tocaCubierta: false, calefaccionada: true },
+      { id: 'c', nombre: 'Estacionamiento', superficie: 400, calefaccionada: false },   // no calefaccionada → excluida
+    ]
+    const proy = { zona: 'F', superficie: 900, zonasTermicas }
+    const esperado = balanceMultiZona(
+      zonasTermicas.filter(z => z.calefaccionada !== false),
+      { uValues: uValuesFromCalcUInit(calcU), comunaKey: undefined, zonaClima: zonaClimaDeOGUC('F', undefined) },
+    ).demandaNetaTotal
+    expect(estimarDemandaTermica(proy, calcU)).toBe(esperado)
   })
 })

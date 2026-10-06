@@ -40,6 +40,7 @@ import {
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas } from './demanda.js'
 import { estimarAreasEnvolvente } from './geometria.js'
+import { balanceMultiZona, uValuesFromCalcUInit } from './zonas.js'
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SOLAR FOTOVOLTAICO
@@ -364,6 +365,17 @@ export function analizarBdC({
  */
 export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint-disable-line no-unused-vars
   const zonaEf = zonaClimaDeOGUC(proy?.zona, proy?.configEnergetica?.comunaKey || proy?.comuna)
+
+  // Si el proyecto define zonas térmicas, la demanda es la suma multi-zona de las
+  // zonas calefaccionadas (consistente con la pestaña Demanda y el informe).
+  const zonasHeat = (proy?.zonasTermicas || []).filter(z => z.calefaccionada !== false && Number(z.superficie) > 0)
+  if (zonasHeat.length) {
+    const comunaKeyZ = proy?.configEnergetica?.comunaKey || proy?.comuna?.toLowerCase?.().replace(/\s/g, '_')
+    return balanceMultiZona(zonasHeat, {
+      uValues: uValuesFromCalcUInit(calcUInit), comunaKey: comunaKeyZ, zonaClima: zonaEf,
+    }).demandaNetaTotal
+  }
+
   // Áreas derivadas de la geometría del proyecto (superficie, pisos) — misma base
   // que la pestaña Demanda; sin ellas cae a "vivienda tipo".
   const areasBase = estimarAreasEnvolvente({ superficie: proy?.superficie, pisos: proy?.pisos })

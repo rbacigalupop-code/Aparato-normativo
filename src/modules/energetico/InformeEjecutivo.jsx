@@ -123,6 +123,33 @@ export default function InformeEjecutivo({ proy, calcUInit, fachadas }) {
         </div>
       </Card>
 
+      {/* Desglose por zona térmica (multi-zona) */}
+      {informe.zonas?.length > 1 && (
+        <Card titulo="🏢 Desglose por zona térmica">
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>
+            La demanda total ({informe.balance.kwhM2Anio} kWh/m²·año) es la suma de {informe.zonas.length} zonas calefaccionadas:
+          </div>
+          {(() => {
+            const maxK = Math.max(...informe.zonas.map(z => z.kwhM2))
+            return informe.zonas.map((z, i) => {
+              const pct = maxK > 0 ? Math.round((z.kwhM2 / maxK) * 100) : 0
+              const critico = z.kwhM2 === maxK
+              return (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 150px', gap: 8, alignItems: 'center', fontSize: 11, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{z.nombre}</span>
+                  <div style={{ background: 'var(--bg-alt)', height: 16, borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: critico ? 'var(--bad)' : 'var(--accent)' }} />
+                  </div>
+                  <span style={{ textAlign: 'right', color: critico ? 'var(--bad)' : 'var(--ink-2)', fontWeight: critico ? 700 : 400 }}>
+                    {z.superficie} m² · {z.kwhM2} kWh/m²
+                  </span>
+                </div>
+              )
+            })
+          })()}
+        </Card>
+      )}
+
       {/* Comparativas */}
       <Card titulo="📊 Tu proyecto vs benchmarks chilenos">
         <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>

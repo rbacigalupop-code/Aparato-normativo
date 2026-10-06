@@ -9,6 +9,7 @@
 import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas, FACTOR_SOLAR_VIDRIOS } from './demanda.js'
 import { analizarFV, analizarSolarTermico, analizarBdC, estimarDemandaTermica } from './renovables.js'
 import { estimarAreasEnvolvente } from './geometria.js'
+import { balanceMultiZona, uValuesFromCalcUInit } from './zonas.js'
 import { calcularCEVEstimada, compararContraBenchmarks } from './cev.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
@@ -39,21 +40,40 @@ export function agregarInforme({
   const areaUtil = superficieUtil || proy.superficie || 100
 
   // ── 1. BALANCE TÉRMICO ANUAL ─────────────────────────────────────────────
-  // Áreas de envolvente derivadas de la geometría del proyecto (misma base que
-  // la pestaña Demanda) en vez de los defaults de "vivienda tipo".
-  const areasBase = estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy.pisos })
-  const elementos = envolventeFromCalcUInit(calcUInit, null, areasBase)
-  const ventanas  = ventanasFromFachadas(fachadas)
-  const balance = balanceTermicoMensual({
-    elementos,
-    areaUtil,
-    volumen: areaUtil * 2.5,
-    ach: 0.8,
-    areasVidrio: ventanas.areasVidrio,
-    factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4,
-    factorProteccion: 1.0,
-    comunaKey, zonaClima: zonaEf,
-  })
+  const ventanas = ventanasFromFachadas(fachadas)
+  // Si el proyecto define zonas térmicas, el balance es la suma MULTI-ZONA de las
+  // zonas calefaccionadas; si no, el modelo de una zona con áreas geométricas.
+  const zonasHeat = (proy.zonasTermicas || []).filter(z => z.calefaccionada !== false && Number(z.superficie) > 0)
+  let balance, zonasDesglose = null
+  if (zonasHeat.length) {
+    const mz = balanceMultiZona(zonasHeat, {
+      uValues: uValuesFromCalcUInit(calcUInit), comunaKey, zonaClima: zonaEf,
+      factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4, factorProteccion: 1.0,
+    })
+    zonasDesglose = mz.porZona.map(z => ({ nombre: z.nombre, superficie: z.superficie, kwhM2: z.kwhM2, demanda: z.balance.demandaNeta }))
+    balance = {
+      kwhM2Anio:   mz.kwhM2AnioPromedio,
+      demandaNeta: mz.demandaNetaTotal,
+      perdidas:    mz.perdidas,
+      ganancias:   mz.ganancias,
+      calificacion: mz.calificacion,
+      hdd18,
+      multiZona: true,
+    }
+  } else {
+    const areasBase = estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy.pisos })
+    const elementos = envolventeFromCalcUInit(calcUInit, null, areasBase)
+    balance = balanceTermicoMensual({
+      elementos,
+      areaUtil,
+      volumen: areaUtil * 2.5,
+      ach: 0.8,
+      areasVidrio: ventanas.areasVidrio,
+      factorSolar: FACTOR_SOLAR_VIDRIOS.dvh_4_12_4,
+      factorProteccion: 1.0,
+      comunaKey, zonaClima: zonaEf,
+    })
+  }
 
   // ── 2. CEV ESTIMADA ──────────────────────────────────────────────────────
   const cev = calcularCEVEstimada({
@@ -176,6 +196,7 @@ export function agregarInforme({
 
     // Sección 1: estado actual
     balance,
+    zonas: zonasDesglose,   // desglose por zona térmica (null si es una sola zona)
     cev,
     comparativas,
 
