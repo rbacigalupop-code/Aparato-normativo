@@ -209,6 +209,7 @@ export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, 
           multiZona={multiZona}
           verPorPisos={verPorPisos} setVerPorPisos={setVerPorPisos}
           zonasUsuario={zonasUsuario}
+          uValuesProyecto={paramsMZ.uValues}
           puedePersistir={!!onChangeProy}
           onDefinir={definirZonas} onAgregar={agregarZona}
           onEditar={editarZona} onEliminar={eliminarZona} onLimpiar={limpiarZonas}
@@ -589,8 +590,20 @@ function TotalEdificio({ multiZona }) {
   )
 }
 
-function SeccionZonas({ nPisos, multiZona, verPorPisos, setVerPorPisos, zonasUsuario, puedePersistir, onDefinir, onAgregar, onEditar, onEliminar, onLimpiar }) {
+function SeccionZonas({ nPisos, multiZona, verPorPisos, setVerPorPisos, zonasUsuario, uValuesProyecto = {}, puedePersistir, onDefinir, onAgregar, onEditar, onEliminar, onLimpiar }) {
   const modoUsuario = !!zonasUsuario?.length
+  const [expandida, setExpandida] = useState(null)
+
+  // U por zona: vacío = hereda el U del proyecto. Borra la clave para no romper
+  // elementosDeZona (que hace spread de uValues).
+  const setU = (z, elem, v) => {
+    const u = { ...(z.uValues || {}) }
+    if (v === '' || v == null) delete u[elem]
+    else u[elem] = Number(v)
+    onEditar(z.id, { uValues: Object.keys(u).length ? u : undefined })
+  }
+  const setVidrio = (z, o, v) =>
+    onEditar(z.id, { areasVidrio: { ...(z.areasVidrio || { N: 0, E: 0, S: 0, O: 0 }), [o]: Number(v) || 0 } })
 
   return (
     <Card
@@ -641,17 +654,52 @@ function SeccionZonas({ nPisos, multiZona, verPorPisos, setVerPorPisos, zonasUsu
           {/* Editor de zonas */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Cabecera */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 70px 54px 54px 60px 28px', gap: 8, fontSize: 9, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 2px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 70px 54px 54px 60px 52px', gap: 8, fontSize: 9, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 2px' }}>
               <span>Nombre</span><span>Sup. m²</span><span>Terreno</span><span>Cubierta</span><span>Calefac.</span><span></span>
             </div>
             {(zonasUsuario || []).map(z => (
-              <div key={z.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 70px 54px 54px 60px 28px', gap: 8, alignItems: 'center' }}>
-                <input value={z.nombre} onChange={e => onEditar(z.id, { nombre: e.target.value })} style={{ ...inputStyle }} />
-                <input type="number" min={0} value={z.superficie} onChange={e => onEditar(z.id, { superficie: Number(e.target.value) || 0 })} style={{ ...inputStyle }} />
-                <input type="checkbox" checked={z.tocaTerreno !== false} onChange={e => onEditar(z.id, { tocaTerreno: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
-                <input type="checkbox" checked={z.tocaCubierta !== false} onChange={e => onEditar(z.id, { tocaCubierta: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
-                <input type="checkbox" checked={z.calefaccionada !== false} onChange={e => onEditar(z.id, { calefaccionada: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
-                <button onClick={() => onEliminar(z.id)} title="Eliminar zona" style={{ background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer', fontSize: 15 }}>✕</button>
+              <div key={z.id}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 70px 54px 54px 60px 52px', gap: 8, alignItems: 'center' }}>
+                  <input value={z.nombre} onChange={e => onEditar(z.id, { nombre: e.target.value })} style={{ ...inputStyle }} />
+                  <input type="number" min={0} value={z.superficie} onChange={e => onEditar(z.id, { superficie: Number(e.target.value) || 0 })} style={{ ...inputStyle }} />
+                  <input type="checkbox" checked={z.tocaTerreno !== false} onChange={e => onEditar(z.id, { tocaTerreno: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
+                  <input type="checkbox" checked={z.tocaCubierta !== false} onChange={e => onEditar(z.id, { tocaCubierta: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
+                  <input type="checkbox" checked={z.calefaccionada !== false} onChange={e => onEditar(z.id, { calefaccionada: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setExpandida(expandida === z.id ? null : z.id)} title="U y ventanas de la zona"
+                      style={{ background: 'none', border: 'none', color: expandida === z.id ? 'var(--accent)' : 'var(--ink-3)', cursor: 'pointer', fontSize: 14 }}>⚙</button>
+                    <button onClick={() => onEliminar(z.id)} title="Eliminar zona" style={{ background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer', fontSize: 15 }}>✕</button>
+                  </div>
+                </div>
+                {expandida === z.id && (
+                  <div style={{ margin: '6px 0 10px', padding: 10, background: 'var(--bg-alt)', borderRadius: 6, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 4 }}>U por zona (W/m²K · vacío = usa el del proyecto)</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {['muro', 'techo', 'piso'].map(el => (
+                          <label key={el} style={{ fontSize: 10, color: 'var(--ink-2)' }}>
+                            {el}<br />
+                            <input type="number" min={0} step={0.01} placeholder={uValuesProyecto[el] != null ? String(uValuesProyecto[el]) : '—'}
+                              value={z.uValues?.[el] ?? ''} onChange={e => setU(z, el, e.target.value)}
+                              style={{ ...inputStyle, width: 64 }} />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 4 }}>Ventanas por orientación (m²)</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {['N', 'E', 'S', 'O'].map(o => (
+                          <label key={o} style={{ fontSize: 10, color: 'var(--ink-2)' }}>
+                            {o}<br />
+                            <input type="number" min={0} value={z.areasVidrio?.[o] ?? 0} onChange={e => setVidrio(z, o, e.target.value)}
+                              style={{ ...inputStyle, width: 52 }} />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

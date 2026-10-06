@@ -116,6 +116,20 @@ describe('balanceMultiZona — agregación', () => {
     expect(areas.piso).toBe(lumped.piso)
     expect(Math.abs(areas.muro - lumped.muro)).toBeLessThanOrEqual(5)   // redondeo por piso
   })
+  it('ventanas por zona aportan ganancias solares → menos demanda que sin ventanas', () => {
+    const base = { id: 'z', nombre: 'Z', superficie: 200, pisos: 1, tocaTerreno: true, tocaCubierta: true, calefaccionada: true }
+    const sinVentanas = balanceMultiZona([{ ...base, areasVidrio: { N: 0, E: 0, S: 0, O: 0 } }], { uValues: U, zonaClima: 'D' })
+    const conVentanas = balanceMultiZona([{ ...base, areasVidrio: { N: 8, E: 0, S: 0, O: 0 } }], { uValues: U, zonaClima: 'D' })
+    expect(conVentanas.demandaNetaTotal).toBeLessThan(sinVentanas.demandaNetaTotal)
+  })
+
+  it('U por zona: una zona con peor U (muro) demanda más', () => {
+    const base = { id: 'z', nombre: 'Z', superficie: 200, pisos: 1, tocaTerreno: true, tocaCubierta: true, calefaccionada: true }
+    const estandar = balanceMultiZona([{ ...base }], { uValues: U, zonaClima: 'F' })
+    const peorMuro = balanceMultiZona([{ ...base, uValues: { muro: 1.5 } }], { uValues: U, zonaClima: 'F' })
+    expect(peorMuro.demandaNetaTotal).toBeGreaterThan(estandar.demandaNetaTotal)
+  })
+
   it('ignora zonas sin superficie; lista vacía → totales 0', () => {
     const vacio = balanceMultiZona([{ nombre: 'x', superficie: 0 }], { uValues: U, zonaClima: 'F' })
     expect(vacio.superficieTotal).toBe(0)

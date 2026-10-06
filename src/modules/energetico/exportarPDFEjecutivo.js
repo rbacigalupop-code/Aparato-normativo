@@ -223,6 +223,31 @@ function buildHtmlInforme(d) {
   La barra muestra cada benchmark. El marcador vertical oscuro indica tu proyecto: ${d.balance.kwhM2Anio} kWh/m²·año.
 </p>
 
+${(d.zonas && d.zonas.length > 1) ? `
+<!-- DESGLOSE POR ZONA -->
+<h2>🏢 Desglose por zona térmica</h2>
+<div>
+  ${(() => {
+    const maxK = Math.max(...d.zonas.map(z => z.kwhM2 || 0)) || 1
+    return d.zonas.map(z => {
+      const pct = Math.min(100, (z.kwhM2 / maxK) * 100)
+      const critico = z.kwhM2 === maxK
+      return `
+      <div class="barra-row">
+        <span class="lbl">${z.nombre}</span>
+        <div class="barra">
+          <div class="barra-fill" style="width: ${pct}%; background: ${critico ? '#dc2626' : '#0e6560'};"></div>
+        </div>
+        <span class="val" style="color: ${critico ? '#dc2626' : '#334155'}">${z.superficie} m² · ${z.kwhM2} kWh/m²</span>
+      </div>`
+    }).join('')
+  })()}
+</div>
+<p style="font-size: 8pt; color: #64748b; margin-top: 6pt;">
+  Demanda total ${d.balance.kwhM2Anio} kWh/m²·año = suma de ${d.zonas.length} zonas calefaccionadas. La zona resaltada es la más exigente (suele ser la de cubierta o la de contacto con el terreno).
+</p>
+` : ''}
+
 <!-- COSTOS Y EMISIONES ACTUALES -->
 <h2>💰 Situación actual</h2>
 <div class="kpi-grid">
