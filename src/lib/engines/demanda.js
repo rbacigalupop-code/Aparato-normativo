@@ -542,8 +542,11 @@ export function analizarSobrecalentamiento({
  * Convierte el calcUInit del proyecto al formato de envolvente que demanda.js
  * espera (array de {U, area, elemKey}). Usa áreas por defecto.
  */
-export function envolventeFromCalcUInit(calcUInit = {}, areasOverride = null) {
-  const AREAS_DEF = { muro: 80, piso: 70, techo: 70, tabique: 30 }
+export function envolventeFromCalcUInit(calcUInit = {}, areasOverride = null, areasBase = null) {
+  // Áreas por defecto: las derivadas de la geometría del proyecto (areasBase) si
+  // se pasan, si no las de "vivienda tipo". Un override explícito del usuario
+  // manda sobre ambas.
+  const AREAS = { muro: 80, piso: 70, techo: 70, tabique: 30, ...(areasBase || {}) }
   const elementos = []
   for (const [key, data] of Object.entries(calcUInit)) {
     if (!data?.res?.U) continue
@@ -554,7 +557,7 @@ export function envolventeFromCalcUInit(calcUInit = {}, areasOverride = null) {
     // (un entrepiso entre recintos calefaccionados no es envolvente → 0 pérdidas;
     // un piso parcialmente en voladizo cuenta solo el área del voladizo).
     const ov = areasOverride?.[key] ?? areasOverride?.[elemKey]
-    const area = (ov !== undefined && ov !== null && ov !== '') ? Number(ov) : (AREAS_DEF[elemKey] || 40)
+    const area = (ov !== undefined && ov !== null && ov !== '') ? Number(ov) : (AREAS[elemKey] ?? 40)
     elementos.push({ U: u, area, elemKey, key })
   }
   return elementos

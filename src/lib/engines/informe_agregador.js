@@ -8,6 +8,7 @@
 
 import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas, FACTOR_SOLAR_VIDRIOS } from './demanda.js'
 import { analizarFV, analizarSolarTermico, analizarBdC, estimarDemandaTermica } from './renovables.js'
+import { estimarAreasEnvolvente } from './geometria.js'
 import { calcularCEVEstimada, compararContraBenchmarks } from './cev.js'
 import { obtenerHDD18 } from '../../data/grados_dia.js'
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
@@ -38,7 +39,10 @@ export function agregarInforme({
   const areaUtil = superficieUtil || proy.superficie || 100
 
   // ── 1. BALANCE TÉRMICO ANUAL ─────────────────────────────────────────────
-  const elementos = envolventeFromCalcUInit(calcUInit)
+  // Áreas de envolvente derivadas de la geometría del proyecto (misma base que
+  // la pestaña Demanda) en vez de los defaults de "vivienda tipo".
+  const areasBase = estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy.pisos })
+  const elementos = envolventeFromCalcUInit(calcUInit, null, areasBase)
   const ventanas  = ventanasFromFachadas(fachadas)
   const balance = balanceTermicoMensual({
     elementos,

@@ -14,6 +14,7 @@ import {
   copEstacional, analizarBdC, estimarDemandaTermica,
 } from '../lib/engines/renovables.js'
 import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas } from '../lib/engines/demanda.js'
+import { estimarAreasEnvolvente } from '../lib/engines/geometria.js'
 import { zonaClimaDeOGUC } from '../data/zona_clima.js'
 import { PR_FV, FACTOR_NETBILLING } from '../data/precios_renovables.js'
 
@@ -102,12 +103,13 @@ describe('estimarDemandaTermica — unificada con el método mensual', () => {
     expect(estimarDemandaTermica({}, {})).toBe(8000)   // sin zona → D
   })
 
-  it('CON cálculos U delega EXACTAMENTE en balanceTermicoMensual().demandaNeta', () => {
+  it('CON cálculos U delega EXACTAMENTE en balanceTermicoMensual() con áreas geométricas', () => {
     const calcU = { muro: { res: { U: '0.5' } }, techo: { res: { U: '0.3' } }, piso: { res: { U: '0.4' } } }
     const proy = { zona: 'F', superficie: 100 }
     const zonaEf = zonaClimaDeOGUC('F', undefined)
+    const areasBase = estimarAreasEnvolvente({ superficie: 100, pisos: undefined })
     const esperado = balanceTermicoMensual({
-      elementos: envolventeFromCalcUInit(calcU),
+      elementos: envolventeFromCalcUInit(calcU, null, areasBase),
       areaUtil: 100,
       ach: 0.8,
       areasVidrio: ventanasFromFachadas(proy.fachadas).areasVidrio,
@@ -117,11 +119,11 @@ describe('estimarDemandaTermica — unificada con el método mensual', () => {
     expect(estimarDemandaTermica(proy, calcU)).toBe(esperado)
   })
 
-  it('la demanda neta (con ganancias) es menor que el bruto de envolvente', () => {
+  it('con cálculos U devuelve una demanda neta positiva (no cae al fallback)', () => {
     const calcU = { muro: { res: { U: '0.5' } }, techo: { res: { U: '0.3' } }, piso: { res: { U: '0.4' } } }
-    const proy = { zona: 'F', superficie: 100 }
-    const neta = estimarDemandaTermica(proy, calcU)
+    const neta = estimarDemandaTermica({ zona: 'F', superficie: 100 }, calcU)
     expect(neta).toBeGreaterThan(0)
-    expect(neta).toBeLessThan(14000)   // < el fallback grueso de la misma zona
+    expect(Number.isFinite(neta)).toBe(true)
+    expect(neta).not.toBe(14000)   // calculó, no usó el fallback grueso
   })
 })

@@ -41,12 +41,17 @@ export function calcularCEVEstimada({
   // - Leña no certificada en zonas saturadas → penaliza
   // - BdC reemplazando combustión → bonifica (mismo trabajo con menos energía primaria)
   // - Renovables FV/ST → bonifican
-  let demandaAjustada = dem
-  if (tieneBdC) demandaAjustada *= 0.85
-  if (tieneFV) demandaAjustada *= 0.80
-  if (tieneST) demandaAjustada *= 0.93
-  // Penalización leve si el combustible es muy contaminante
   const combDef = COMBUSTIBLES_CALEFACCION.find(c => c.id === combustibleCalef)
+  // ¿La calefacción es eléctrica? (resistiva o bomba de calor). Solo entonces el
+  // FV reduce la energía de calefacción; con leña/gas el FV no toca la demanda
+  // térmica — ayuda al consumo eléctrico/CO₂, no a la letra basada en demanda.
+  const calefaccionElectrica = !!combDef?.usaTarifaElec || tieneBdC
+
+  let demandaAjustada = dem
+  if (tieneBdC) demandaAjustada *= 0.85                       // BdC: menos energía para la misma demanda
+  if (tieneFV && calefaccionElectrica) demandaAjustada *= 0.85 // FV solo si la calefacción es eléctrica
+  if (tieneST) demandaAjustada *= 0.93                        // solar térmico cubre parte del ACS
+  // Penalización leve si el combustible es muy contaminante
   if (combDef?.co2_kg_kwh > 0.30 && !tieneBdC) demandaAjustada *= 1.05
 
   const letraInfo = letraCEVporDemanda(demandaAjustada)

@@ -25,6 +25,7 @@ import {
   ventanasFromFachadas,
   FACTOR_SOLAR_VIDRIOS,
 } from '../../lib/engines/demanda.js'
+import { estimarAreasEnvolvente } from '../../lib/engines/geometria.js'
 import { calcularSumaPsiL } from '../../lib/engines/puentes_termicos.js'
 import { BENCHMARKS_DEMANDA } from '../../data/clima_anual.js'
 import { ZONA_CLIMA_LABELS } from '../../data/comunas_chile.js'
@@ -53,8 +54,15 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
   // el área default. 0 = elemento interior (p.ej. entrepiso entre recintos calef.).
   const [areasOverride, setAreasOverride] = useState({})
 
+  // Áreas de envolvente derivadas de la geometría del proyecto (superficie, pisos,
+  // altura). Son la BASE editable: el override manual del usuario manda sobre ellas.
+  const areasBase = useMemo(
+    () => estimarAreasEnvolvente({ superficie: areaUtil, pisos: proy?.pisos, alturaCielo }),
+    [areaUtil, proy?.pisos, alturaCielo]
+  )
+
   // Auto-derivar del proyecto
-  const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit, areasOverride), [calcUInit, areasOverride])
+  const elementos = useMemo(() => envolventeFromCalcUInit(calcUInit, areasOverride, areasBase), [calcUInit, areasOverride, areasBase])
   const ventanas  = useMemo(() => ventanasFromFachadas(fachadas), [fachadas])
   const factorSolar = FACTOR_SOLAR_VIDRIOS[vidrioTipo] ?? 0.70
   const psiLTotal = useMemo(() => calcularSumaPsiL(inventarioPT), [inventarioPT])
@@ -254,6 +262,11 @@ function SeccionInvierno({ balance, elementos, areasOverride, setAreasOverride, 
       {elementos.length > 0 && (
         <div style={{ marginBottom: 18, padding: 12, background: 'var(--surface-2, #f8fafc)', border: '1px solid var(--line, #e2e8f0)', borderRadius: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Áreas de envolvente en contacto con el exterior (m²)</div>
+          {areasBase?._geom && (
+            <div style={{ fontSize: 11, color: 'var(--ink-3, #64748b)', marginBottom: 6 }}>
+              📐 Estimadas de la geometría: {areasBase._geom.pisos} piso(s) · huella {areasBase._geom.footprint} m² · perímetro {areasBase._geom.perimetro} m. Ajusta cualquier valor si conoces la geometría real.
+            </div>
+          )}
           <div style={{ fontSize: 11, color: 'var(--ink-3, #64748b)', marginBottom: 10 }}>
             Solo cuenta el área que da al <b>exterior</b> o a un <b>recinto no calefaccionado</b>. Un <b>entrepiso entre recintos calefaccionados</b> no es envolvente → ponlo en <b>0</b>. Un piso parcialmente <b>en voladizo</b> → solo el área del voladizo.
           </div>

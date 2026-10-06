@@ -39,6 +39,7 @@ import {
 } from '../../data/combustibles.js'
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import { balanceTermicoMensual, envolventeFromCalcUInit, ventanasFromFachadas } from './demanda.js'
+import { estimarAreasEnvolvente } from './geometria.js'
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SOLAR FOTOVOLTAICO
@@ -363,7 +364,10 @@ export function analizarBdC({
  */
 export function estimarDemandaTermica(proy, calcUInit = {}, hdd18) {   // eslint-disable-line no-unused-vars
   const zonaEf = zonaClimaDeOGUC(proy?.zona, proy?.configEnergetica?.comunaKey || proy?.comuna)
-  const elementos = envolventeFromCalcUInit(calcUInit)
+  // Áreas derivadas de la geometría del proyecto (superficie, pisos) — misma base
+  // que la pestaña Demanda; sin ellas cae a "vivienda tipo".
+  const areasBase = estimarAreasEnvolvente({ superficie: proy?.superficie, pisos: proy?.pisos })
+  const elementos = envolventeFromCalcUInit(calcUInit, null, areasBase)
 
   // Sin cálculos U → estimación gruesa por macrozona climática (A-H), como antes.
   if (elementos.length === 0) {
