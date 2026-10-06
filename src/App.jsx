@@ -11046,6 +11046,7 @@ function AppInner() {
               <PaywallGate perfil={perfil} feature="Demanda energética anual">
                 <DemandaAnual
                   proy={proy}
+                  onChangeProy={setProy}
                   calcUInit={calcUInit}
                   fachadas={fachadas}
                   inventarioPT={inventarioPT}

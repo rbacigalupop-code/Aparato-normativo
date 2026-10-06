@@ -33,7 +33,7 @@ import { ZONA_CLIMA_LABELS } from '../../data/comunas_chile.js'
 import { zonaClimaDeOGUC } from '../../data/zona_clima.js'
 import AyudaEnergetico, { BadgeOrigen } from './AyudaEnergetico.jsx'
 
-export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }) {
+export default function DemandaAnual({ proy, onChangeProy, calcUInit, fachadas, inventarioPT }) {
   const cfg = proy?.configEnergetica || {}
   const comunaKey = cfg.comunaKey || null
   // Macrozona climática derivada de la zona oficial elegida (sigue multi-zona)
@@ -89,22 +89,51 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
     areaUtil,
   }), [ventanas, factorSolar, proteccion, zonaEf, comunaKey, masaTermica, ventNocturna, areaUtil])
 
-  // ── Análisis multi-zona POR PISOS (Fase 2) ───────────────────────────────
-  // Auto-genera una zona por piso desde la geometría + U + ventanas ya existentes,
-  // con la exposición correcta (el piso inferior toca terreno, el superior cubierta,
-  // los intermedios ninguno). Revela qué pisos son los críticos.
+  // ── Análisis multi-zona (Fase 2) ──────────────────────────────────────────
+  // Dos modos: (a) zonas PERSONALIZADAS definidas por el usuario y persistidas en
+  // proy.zonasTermicas (uso mixto, zonas no calefaccionadas); (b) desglose
+  // automático por piso (efímero) desde la geometría. La exposición (terreno/
+  // cubierta) define qué pierde cada zona — un piso intermedio solo por muros.
   const nPisos = Math.max(1, Math.floor(Number(proy?.pisos) || 1))
+  const zonasUsuario = proy?.zonasTermicas || null
   const [verPorPisos, setVerPorPisos] = useState(false)
+
+  const paramsMZ = useMemo(() => ({
+    uValues: uValuesFromCalcUInit(calcUInit),
+    comunaKey, zonaClima: zonaEf,
+    factorSolar, factorProteccion: proteccion,
+    gananciasInternasWm2: gananciasInt, masaTermica,
+  }), [calcUInit, comunaKey, zonaEf, factorSolar, proteccion, gananciasInt, masaTermica])
+
   const multiZona = useMemo(() => {
-    if (!verPorPisos || nPisos < 2) return null
-    const zonas = zonificarPorPiso({ superficie: areaUtil, pisos: nPisos, alturaCielo, areasVidrio: ventanas.areasVidrio })
-    return balanceMultiZona(zonas, {
-      uValues: uValuesFromCalcUInit(calcUInit),
-      comunaKey, zonaClima: zonaEf,
-      factorSolar, factorProteccion: proteccion,
-      gananciasInternasWm2: gananciasInt, masaTermica,
-    })
-  }, [verPorPisos, nPisos, areaUtil, alturaCielo, ventanas, calcUInit, comunaKey, zonaEf, factorSolar, proteccion, gananciasInt, masaTermica])
+    if (zonasUsuario?.length) {
+      const calef = zonasUsuario.filter(z => z.calefaccionada !== false && Number(z.superficie) > 0)
+      return calef.length ? balanceMultiZona(calef, paramsMZ) : null
+    }
+    if (verPorPisos && nPisos >= 2) {
+      const zonas = zonificarPorPiso({ superficie: areaUtil, pisos: nPisos, alturaCielo, areasVidrio: ventanas.areasVidrio })
+      return balanceMultiZona(zonas, paramsMZ)
+    }
+    return null
+  }, [zonasUsuario, verPorPisos, nPisos, areaUtil, alturaCielo, ventanas, paramsMZ])
+
+  // ── CRUD de zonas personalizadas (persistidas en el proyecto) ─────────────
+  const setZonas = (nuevas) => onChangeProy?.({ ...proy, zonasTermicas: nuevas })
+  const definirZonas = () => {
+    const base = zonificarPorPiso({ superficie: areaUtil, pisos: nPisos, alturaCielo, areasVidrio: ventanas.areasVidrio })
+      .map(z => ({ ...z, calefaccionada: true }))
+    setZonas(base.length ? base : [{
+      id: `z${Date.now()}`, nombre: 'Zona 1', superficie: areaUtil || 100, pisos: 1, alturaCielo,
+      tocaTerreno: true, tocaCubierta: true, calefaccionada: true, areasVidrio: { N: 0, E: 0, S: 0, O: 0 },
+    }])
+  }
+  const agregarZona = () => setZonas([...(zonasUsuario || []), {
+    id: `z${Date.now()}`, nombre: `Zona ${(zonasUsuario?.length || 0) + 1}`, superficie: 100, pisos: 1, alturaCielo,
+    tocaTerreno: false, tocaCubierta: false, calefaccionada: true, areasVidrio: { N: 0, E: 0, S: 0, O: 0 },
+  }])
+  const editarZona = (id, patch) => setZonas((zonasUsuario || []).map(z => z.id === id ? { ...z, ...patch } : z))
+  const eliminarZona = (id) => setZonas((zonasUsuario || []).filter(z => z.id !== id))
+  const limpiarZonas = () => onChangeProy?.({ ...proy, zonasTermicas: undefined })
 
   const sinDatosEnvolvente = elementos.length === 0
 
@@ -173,9 +202,17 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
         ventNocturna={ventNocturna} setVentNocturna={setVentNocturna}
       />
 
-      {/* ── Análisis por pisos (multi-zona) ─────────────────────────────── */}
-      {nPisos >= 2 && !sinDatosEnvolvente && (
-        <SeccionPorPisos verPorPisos={verPorPisos} setVerPorPisos={setVerPorPisos} multiZona={multiZona} nPisos={nPisos} />
+      {/* ── Análisis multi-zona (por pisos / zonas personalizadas) ──────── */}
+      {!sinDatosEnvolvente && (
+        <SeccionZonas
+          nPisos={nPisos}
+          multiZona={multiZona}
+          verPorPisos={verPorPisos} setVerPorPisos={setVerPorPisos}
+          zonasUsuario={zonasUsuario}
+          puedePersistir={!!onChangeProy}
+          onDefinir={definirZonas} onAgregar={agregarZona}
+          onEditar={editarZona} onEliminar={eliminarZona} onLimpiar={limpiarZonas}
+        />
       )}
 
       <p style={{ fontSize: 10, color: 'var(--ink-3)', textAlign: 'center', marginTop: 16, fontStyle: 'italic', lineHeight: 1.5 }}>
@@ -517,63 +554,115 @@ function SeccionVerano({ verano, ventanas, masaTermica, setMasaTermica, ventNoct
   )
 }
 
-// ─── SECCIÓN POR PISOS (multi-zona) ───────────────────────────────────────────
-function SeccionPorPisos({ verPorPisos, setVerPorPisos, multiZona, nPisos }) {
-  // Peor y mejor piso para destacar los críticos
-  const zs = multiZona?.porZona || []
-  const maxKwh = zs.length ? Math.max(...zs.map(z => z.kwhM2)) : 0
+// ─── SECCIÓN MULTI-ZONA (por pisos o zonas personalizadas) ─────────────────────
+function BarraDesglose({ porZona }) {
+  const maxKwh = porZona.length ? Math.max(...porZona.map(z => z.kwhM2)) : 0
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {porZona.map(z => {
+        const pct = maxKwh > 0 ? Math.round((z.kwhM2 / maxKwh) * 100) : 0
+        const critico = z.kwhM2 === maxKwh && porZona.length > 1
+        return (
+          <div key={z.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 110px', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{z.nombre}</span>
+            <div style={{ background: 'var(--bg-alt)', borderRadius: 4, height: 18, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: critico ? 'var(--bad)' : 'var(--accent)' }} />
+            </div>
+            <span style={{ fontSize: 12, textAlign: 'right', color: critico ? 'var(--bad)' : 'var(--ink-2)', fontWeight: critico ? 700 : 400 }}>
+              {z.kwhM2} kWh/m² {critico ? '⚠' : ''}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function TotalEdificio({ multiZona }) {
+  return (
+    <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 12 }}>
+      Total: <b>{multiZona.demandaNetaTotal.toLocaleString('es-CL')} kWh</b> ·
+      <b> {multiZona.kwhM2AnioPromedio} kWh/m²·año</b>
+      {multiZona.calificacion ? <> · <b style={{ color: multiZona.calificacion.color }}>{multiZona.calificacion.letra}</b></> : null}
+      {' '}<span style={{ color: 'var(--ink-3)' }}>· {multiZona.superficieTotal.toLocaleString('es-CL')} m² calefaccionados</span>
+    </div>
+  )
+}
+
+function SeccionZonas({ nPisos, multiZona, verPorPisos, setVerPorPisos, zonasUsuario, puedePersistir, onDefinir, onAgregar, onEditar, onEliminar, onLimpiar }) {
+  const modoUsuario = !!zonasUsuario?.length
+
   return (
     <Card
-      titulo="🏢 Análisis por pisos (multi-zona)"
-      subtitulo={`Edificio de ${nPisos} pisos · cada piso con su exposición real (el inferior toca terreno, el superior cubierta)`}
+      titulo="🏢 Zonas térmicas (multi-zona)"
+      subtitulo={modoUsuario
+        ? 'Zonas definidas por ti · uso mixto, zonas no calefaccionadas, exposición por zona'
+        : `El balance de arriba trata el proyecto como una sola zona${nPisos >= 2 ? ` · edificio de ${nPisos} pisos` : ''}`}
     >
-      {!verPorPisos ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 200 }}>
-            El balance de arriba trata el edificio como una sola zona. Desglósalo por piso para ver
-            cuáles son los críticos (los pisos de techo y de piso pierden más).
+      {!modoUsuario ? (
+        <>
+          <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 12, lineHeight: 1.5 }}>
+            Desglosa el edificio en zonas para ver cuáles son críticas. La <b>exposición</b> de cada zona
+            (si toca terreno o cubierta) define qué pierde: un piso intermedio solo pierde por sus muros.
           </div>
-          <button
-            onClick={() => setVerPorPisos(true)}
-            style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            Desglosar por piso →
-          </button>
-        </div>
-      ) : !multiZona ? (
-        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Sin datos suficientes para el desglose.</div>
+          {verPorPisos && multiZona && (
+            <div style={{ marginBottom: 14 }}>
+              <TotalEdificio multiZona={multiZona} />
+              <BarraDesglose porZona={multiZona.porZona} />
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {nPisos >= 2 && (
+              <button onClick={() => setVerPorPisos(v => !v)}
+                style={{ background: verPorPisos ? 'var(--bg-alt)' : 'var(--accent)', color: verPorPisos ? 'var(--ink-2)' : '#fff', border: verPorPisos ? '1px solid var(--line)' : 'none', borderRadius: 6, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                {verPorPisos ? 'Ocultar desglose por piso' : 'Desglosar por piso (automático) →'}
+              </button>
+            )}
+            {puedePersistir && (
+              <button onClick={onDefinir}
+                style={{ background: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 6, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                ✎ Definir zonas personalizadas (uso mixto) →
+              </button>
+            )}
+          </div>
+          {!puedePersistir && (
+            <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 8, fontStyle: 'italic' }}>
+              El desglose por piso es solo de vista (no se guarda). Las zonas personalizadas requieren guardar el proyecto.
+            </div>
+          )}
+        </>
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
-              Total edificio: <b>{multiZona.demandaNetaTotal.toLocaleString('es-CL')} kWh</b> ·
-              <b> {multiZona.kwhM2AnioPromedio} kWh/m²·año</b>
-              {multiZona.calificacion ? <> · <b style={{ color: multiZona.calificacion.color }}>{multiZona.calificacion.letra}</b></> : null}
+          {multiZona ? <TotalEdificio multiZona={multiZona} /> : (
+            <div style={{ fontSize: 12, color: 'var(--warn)', marginBottom: 12 }}>⚠ Ninguna zona calefaccionada con superficie — agrega al menos una.</div>
+          )}
+          {multiZona && <div style={{ marginBottom: 14 }}><BarraDesglose porZona={multiZona.porZona} /></div>}
+
+          {/* Editor de zonas */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Cabecera */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 70px 54px 54px 60px 28px', gap: 8, fontSize: 9, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 2px' }}>
+              <span>Nombre</span><span>Sup. m²</span><span>Terreno</span><span>Cubierta</span><span>Calefac.</span><span></span>
             </div>
-            <button onClick={() => setVerPorPisos(false)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: 'var(--ink-3)', cursor: 'pointer' }}>
-              Ocultar
-            </button>
+            {(zonasUsuario || []).map(z => (
+              <div key={z.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 70px 54px 54px 60px 28px', gap: 8, alignItems: 'center' }}>
+                <input value={z.nombre} onChange={e => onEditar(z.id, { nombre: e.target.value })} style={{ ...inputStyle }} />
+                <input type="number" min={0} value={z.superficie} onChange={e => onEditar(z.id, { superficie: Number(e.target.value) || 0 })} style={{ ...inputStyle }} />
+                <input type="checkbox" checked={z.tocaTerreno !== false} onChange={e => onEditar(z.id, { tocaTerreno: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
+                <input type="checkbox" checked={z.tocaCubierta !== false} onChange={e => onEditar(z.id, { tocaCubierta: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
+                <input type="checkbox" checked={z.calefaccionada !== false} onChange={e => onEditar(z.id, { calefaccionada: e.target.checked })} style={{ justifySelf: 'center', width: 16, height: 16 }} />
+                <button onClick={() => onEliminar(z.id)} title="Eliminar zona" style={{ background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer', fontSize: 15 }}>✕</button>
+              </div>
+            ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {zs.map(z => {
-              const pct = maxKwh > 0 ? Math.round((z.kwhM2 / maxKwh) * 100) : 0
-              const critico = z.kwhM2 === maxKwh && zs.length > 1
-              return (
-                <div key={z.id} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 110px', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{z.nombre}</span>
-                  <div style={{ background: 'var(--bg-alt)', borderRadius: 4, height: 18, overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: critico ? 'var(--bad)' : 'var(--accent)' }} />
-                  </div>
-                  <span style={{ fontSize: 12, textAlign: 'right', color: critico ? 'var(--bad)' : 'var(--ink-2)', fontWeight: critico ? 700 : 400 }}>
-                    {z.kwhM2} kWh/m² {critico ? '⚠' : ''}
-                  </span>
-                </div>
-              )
-            })}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            <button onClick={onAgregar} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Agregar zona</button>
+            <button onClick={onLimpiar} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 6, padding: '7px 14px', fontSize: 11, color: 'var(--ink-3)', cursor: 'pointer' }}>Volver a modo automático</button>
           </div>
-          <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 10, fontStyle: 'italic' }}>
-            Los pisos resaltados son los más exigentes — suelen ser el de cubierta y el de contacto con el terreno.
-            Prioriza aislar techo y piso ahí. Zonas generadas automáticamente desde la geometría; superficie y ventanas repartidas por igual.
+          <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 10, fontStyle: 'italic', lineHeight: 1.5 }}>
+            Marca <b>Terreno</b>/<b>Cubierta</b> según la exposición real de cada zona. Las zonas <b>no calefaccionadas</b>
+            (estacionamiento, bodega) no suman a la demanda. Las zonas usan los U del proyecto; superficie y exposición las defines tú.
           </div>
         </>
       )}
