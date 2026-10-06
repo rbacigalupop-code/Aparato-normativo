@@ -26,6 +26,7 @@ import {
   FACTOR_SOLAR_VIDRIOS,
 } from '../../lib/engines/demanda.js'
 import { estimarAreasEnvolvente } from '../../lib/engines/geometria.js'
+import { balanceMultiZona, zonificarPorPiso, uValuesFromCalcUInit } from '../../lib/engines/zonas.js'
 import { calcularSumaPsiL } from '../../lib/engines/puentes_termicos.js'
 import { BENCHMARKS_DEMANDA } from '../../data/clima_anual.js'
 import { ZONA_CLIMA_LABELS } from '../../data/comunas_chile.js'
@@ -87,6 +88,23 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
     masaTermica, ventilacionNocturna: ventNocturna,
     areaUtil,
   }), [ventanas, factorSolar, proteccion, zonaEf, comunaKey, masaTermica, ventNocturna, areaUtil])
+
+  // ── Análisis multi-zona POR PISOS (Fase 2) ───────────────────────────────
+  // Auto-genera una zona por piso desde la geometría + U + ventanas ya existentes,
+  // con la exposición correcta (el piso inferior toca terreno, el superior cubierta,
+  // los intermedios ninguno). Revela qué pisos son los críticos.
+  const nPisos = Math.max(1, Math.floor(Number(proy?.pisos) || 1))
+  const [verPorPisos, setVerPorPisos] = useState(false)
+  const multiZona = useMemo(() => {
+    if (!verPorPisos || nPisos < 2) return null
+    const zonas = zonificarPorPiso({ superficie: areaUtil, pisos: nPisos, alturaCielo, areasVidrio: ventanas.areasVidrio })
+    return balanceMultiZona(zonas, {
+      uValues: uValuesFromCalcUInit(calcUInit),
+      comunaKey, zonaClima: zonaEf,
+      factorSolar, factorProteccion: proteccion,
+      gananciasInternasWm2: gananciasInt, masaTermica,
+    })
+  }, [verPorPisos, nPisos, areaUtil, alturaCielo, ventanas, calcUInit, comunaKey, zonaEf, factorSolar, proteccion, gananciasInt, masaTermica])
 
   const sinDatosEnvolvente = elementos.length === 0
 
@@ -154,6 +172,11 @@ export default function DemandaAnual({ proy, calcUInit, fachadas, inventarioPT }
         masaTermica={masaTermica} setMasaTermica={setMasaTermica}
         ventNocturna={ventNocturna} setVentNocturna={setVentNocturna}
       />
+
+      {/* ── Análisis por pisos (multi-zona) ─────────────────────────────── */}
+      {nPisos >= 2 && !sinDatosEnvolvente && (
+        <SeccionPorPisos verPorPisos={verPorPisos} setVerPorPisos={setVerPorPisos} multiZona={multiZona} nPisos={nPisos} />
+      )}
 
       <p style={{ fontSize: 10, color: 'var(--ink-3)', textAlign: 'center', marginTop: 16, fontStyle: 'italic', lineHeight: 1.5 }}>
         Cálculo según método mensual cuasi-estacionario ISO 13790 §12 (balance mes a mes). Es referencial:
@@ -489,6 +512,70 @@ function SeccionVerano({ verano, ventanas, masaTermica, setMasaTermica, ventNoct
             {verano.recomendaciones.map((r, i) => <li key={i} style={{ marginBottom: 4 }}>{r}</li>)}
           </ul>
         </div>
+      )}
+    </Card>
+  )
+}
+
+// ─── SECCIÓN POR PISOS (multi-zona) ───────────────────────────────────────────
+function SeccionPorPisos({ verPorPisos, setVerPorPisos, multiZona, nPisos }) {
+  // Peor y mejor piso para destacar los críticos
+  const zs = multiZona?.porZona || []
+  const maxKwh = zs.length ? Math.max(...zs.map(z => z.kwhM2)) : 0
+  return (
+    <Card
+      titulo="🏢 Análisis por pisos (multi-zona)"
+      subtitulo={`Edificio de ${nPisos} pisos · cada piso con su exposición real (el inferior toca terreno, el superior cubierta)`}
+    >
+      {!verPorPisos ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 200 }}>
+            El balance de arriba trata el edificio como una sola zona. Desglósalo por piso para ver
+            cuáles son los críticos (los pisos de techo y de piso pierden más).
+          </div>
+          <button
+            onClick={() => setVerPorPisos(true)}
+            style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Desglosar por piso →
+          </button>
+        </div>
+      ) : !multiZona ? (
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Sin datos suficientes para el desglose.</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+              Total edificio: <b>{multiZona.demandaNetaTotal.toLocaleString('es-CL')} kWh</b> ·
+              <b> {multiZona.kwhM2AnioPromedio} kWh/m²·año</b>
+              {multiZona.calificacion ? <> · <b style={{ color: multiZona.calificacion.color }}>{multiZona.calificacion.letra}</b></> : null}
+            </div>
+            <button onClick={() => setVerPorPisos(false)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: 'var(--ink-3)', cursor: 'pointer' }}>
+              Ocultar
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {zs.map(z => {
+              const pct = maxKwh > 0 ? Math.round((z.kwhM2 / maxKwh) * 100) : 0
+              const critico = z.kwhM2 === maxKwh && zs.length > 1
+              return (
+                <div key={z.id} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 110px', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{z.nombre}</span>
+                  <div style={{ background: 'var(--bg-alt)', borderRadius: 4, height: 18, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: critico ? 'var(--bad)' : 'var(--accent)' }} />
+                  </div>
+                  <span style={{ fontSize: 12, textAlign: 'right', color: critico ? 'var(--bad)' : 'var(--ink-2)', fontWeight: critico ? 700 : 400 }}>
+                    {z.kwhM2} kWh/m² {critico ? '⚠' : ''}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 10, fontStyle: 'italic' }}>
+            Los pisos resaltados son los más exigentes — suelen ser el de cubierta y el de contacto con el terreno.
+            Prioriza aislar techo y piso ahí. Zonas generadas automáticamente desde la geometría; superficie y ventanas repartidas por igual.
+          </div>
+        </>
       )}
     </Card>
   )
