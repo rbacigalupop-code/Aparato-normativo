@@ -50,20 +50,52 @@ export const MESES_LABELS = [
   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 ]
 
+// ─── Curvas MENSUALES representativas por MACROZONA climática A-H (°C) ────────
+// Temperatura media mensual (Ene..Dic) de una estación representativa de cada
+// macrozona, basada en la climatología chilena conocida. Son REFERENCIALES (no
+// reemplazan las normales DMC de la estación específica). Se usan por su FORMA
+// (qué meses son fríos/cálidos, asimetría otoño/primavera, mes más frío real):
+// la magnitud se re-escala a los Tinv/Tver de la comuna, así cada comuna
+// conserva su rango propio pero gana la forma real del año (mejor que una
+// sinusoide simétrica de 2 puntos).
+export const NORMALES_MENSUALES_ZONA = {
+  'A': [20, 20, 19, 18, 16, 15, 14, 14, 15, 16, 17, 19],  // Litoral norte (marítimo, muy atenuado)
+  'B': [19, 18, 17, 14, 11,  9,  8, 10, 12, 14, 16, 18],  // Desértico interior (fuerte estacionalidad)
+  'C': [18, 18, 17, 15, 14, 13, 12, 12, 13, 14, 15, 17],  // Litoral centro
+  'D': [22, 21, 19, 15, 12,  9,  8, 10, 12, 15, 18, 21],  // Interior centro (mediterráneo)
+  'E': [17, 17, 15, 13, 11,  9,  9,  9, 10, 12, 14, 16],  // Litoral sur
+  'F': [16, 16, 14, 12,  9,  7,  7,  8,  9, 11, 13, 15],  // Interior sur
+  'G': [14, 13, 11,  8,  5,  3,  2,  3,  5,  8, 10, 12],  // Austral norte
+  'H': [11, 11,  9,  7,  4,  2,  2,  3,  5,  7,  9, 10],  // Austral extremo
+}
+
 /**
- * T_ext mensual estimada con modelo sinusoidal.
+ * T_ext media mensual. Usa la FORMA de la curva mensual representativa de la
+ * macrozona (NORMALES_MENSUALES_ZONA) re-escalada al rango Tinv..Tver de la
+ * comuna; si no hay curva para la zona, cae al modelo sinusoidal de 2 puntos.
  *
  * @param {number} mes        - 1..12
  * @param {string} comunaKey
- * @param {string} zonaClima
+ * @param {string} zonaClima  - macrozona A-H
  */
 export function obtenerTextMes(mes, comunaKey, zonaClima = null) {
-  const tInv = obtenerTinvierno(comunaKey, zonaClima)  // mes 7 aprox
-  const tVer = obtenerTverano(comunaKey, zonaClima)    // mes 1 aprox
+  const tInv = obtenerTinvierno(comunaKey, zonaClima)  // invierno JJA (frío)
+  const tVer = obtenerTverano(comunaKey, zonaClima)    // verano DEF (cálido)
+  const zona = zonaClima || obtenerZonaClimaComuna(comunaKey) || 'D'
+  const normales = NORMALES_MENSUALES_ZONA[zona]
+
+  if (normales) {
+    const min = Math.min(...normales), max = Math.max(...normales)
+    if (max > min) {
+      // forma 0 (mes más frío) .. 1 (mes más cálido), re-escalada a Tinv..Tver
+      const forma = (normales[mes - 1] - min) / (max - min)
+      return tInv + forma * (tVer - tInv)
+    }
+  }
+
+  // Fallback sinusoidal (2 puntos): Ene = peak verano, Jul = peak invierno
   const tMedia = (tInv + tVer) / 2
   const ampl   = (tVer - tInv) / 2
-  // mes 1 (Ene) = peak verano → cos(0) = +1
-  // mes 7 (Jul) = peak invierno → cos(π) = -1
   return tMedia + ampl * Math.cos(2 * Math.PI * (mes - 1) / 12)
 }
 
