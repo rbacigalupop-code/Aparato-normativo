@@ -79,6 +79,7 @@ const UserManager     = lazyC(() => import('./modules/UserManager.jsx'))
 const AdminStats      = lazyC(() => import('./modules/AdminStats.jsx'))
 const AdminTokens     = lazyC(() => import('./modules/AdminTokens.jsx'))
 const AdminFeedback   = lazyC(() => import('./modules/AdminFeedback.jsx'))
+const RevitBridge     = lazyC(() => import('./modules/RevitBridge.jsx'))
 const EnergeticoHome   = lazyC(() => import('./modules/energetico/EnergeticoHome.jsx'))
 const EnergeticoConfig = lazyC(() => import('./modules/energetico/EnergeticoConfig.jsx'))
 const DemandaAnual    = lazyC(() => import('./modules/energetico/DemandaAnual.jsx'))
@@ -10242,6 +10243,7 @@ function AdminPanel({ onOverridesChanged }) {
         <button style={stBtnStyle(subTab === 'zonas')}   onClick={() => setSubTab('zonas')}>🗺 Zonas</button>
         <button style={stBtnStyle(subTab === 'usuarios')} onClick={() => setSubTab('usuarios')}>👥 Usuarios</button>
         <button style={stBtnStyle(subTab === 'feedback')} onClick={() => setSubTab('feedback')}>📬 Buzon</button>
+        <button style={stBtnStyle(subTab === 'revit')}    onClick={() => setSubTab('revit')}>🔗 Revit</button>
       </div>
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 16 }}>
         {subTab === 'stats'    && <AdminStats />}
@@ -10249,6 +10251,7 @@ function AdminPanel({ onOverridesChanged }) {
         {subTab === 'zonas'    && <AdminZonas  onOverridesChanged={onOverridesChanged} />}
         {subTab === 'usuarios' && <UserManager />}
         {subTab === 'feedback' && <AdminFeedback />}
+        {subTab === 'revit'    && <RevitBridge />}
       </div>
     </div>
   )
