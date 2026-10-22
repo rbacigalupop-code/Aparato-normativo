@@ -46,6 +46,7 @@ import ThemePicker, { useTheme } from './components/ThemePicker.jsx'
 import ModeSwitcher from './components/ModeSwitcher.jsx'
 import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
+import MaterialCombobox from './components/MaterialCombobox.jsx'
 import {
   HOJAS as PUERTA_HOJAS, MARCOS_PUERTA, SELLOS as PUERTA_SELLOS,
   RF_MINIMO_POR_USO as PUERTA_RF_MIN, RW_MINIMO_POR_USO as PUERTA_RW_MIN,
@@ -1112,13 +1113,9 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
 
       {/* ── Agregar capa */}
       <div style={{ display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:10 }}>
-        <select value={newMat} onChange={e=>setNewMat(e.target.value)}
-          style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11,minWidth:200 }}>
-          <option value="">+ Material a agregar...</option>
-          {/* Filtra por elemento: si es techo/techumbre, sólo cubiertas y materiales
-              universales. Evita que aparezcan revestimientos de muro en techumbres. */}
-          {filterMatsByElem(elem).map(g=><optgroup key={g.g} label={g.g}>{g.items.map((m,i)=><option key={g.g+'·'+i} value={m.n}>{m.n} (λ={m.lam})</option>)}</optgroup>)}
-        </select>
+        {/* Buscador de materiales (filtra por material o por conjunto/grupo). Drop-in del
+            <select>: value=nombre, onChange(nombre)=setNewMat, filtrado por elemento. */}
+        <MaterialCombobox value={newMat} onChange={setNewMat} elem={elem} placeholder="+ Material a agregar…" width={200} />
         <input type="number" min={5} max={300} placeholder="mm" value={newEsp} onChange={e=>setNewEsp(e.target.value)}
           style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11,width:62 }}/>
         <button onClick={agregarCapa} disabled={!newMat||!newEsp}
@@ -5268,20 +5265,11 @@ ${cambios.length && solucion ? `
                         {tieneEB && <div style={{ fontSize:9, fontWeight:700, color: esAcero ? '#dc2626' : '#92400e', letterSpacing:0, marginTop:1 }}>{esAcero?'⚡TB':'🪵TB'}</div>}
                       </td>
                       <td style={S.td}>
-                        <select style={{ ...ist, width:196 }} value={c.mat} onChange={e=>setMat(c.id,e.target.value)}>
-                          <option value="">Seleccionar material...</option>
-                          {c.mat && !ALL_MATS.find(x=>x.n===c.mat) && (
-                            <option value={c.mat}>{c.mat} *</option>
-                          )}
-                          {/* Filtra por elemento: los techos muestran cubiertas (PV4/PV5/
-                              Zincalum/Teja asfáltica/Fibrocemento Gran Onda) + materiales
-                              universales; los muros excluyen cubiertas de techumbre. */}
-                          {filterMatsByElem(elemTipo).map(g=>(
-                            <optgroup key={g.g} label={g.g}>
-                              {g.items.map((m,i)=><option key={g.g+'·'+i} value={m.n}>{m.n}</option>)}
-                            </optgroup>
-                          ))}
-                        </select>
+                        {/* Buscador de materiales (filtra por material o por conjunto/grupo).
+                            Drop-in del <select>: value=c.mat, onChange(nombre)=setMat(c.id,nombre),
+                            filtrado por elemento. Conserva el material "personalizado" si no está
+                            en el catálogo (lo muestra como opción heredada). */}
+                        <MaterialCombobox value={c.mat} onChange={name=>setMat(c.id,name)} elem={elemTipo} placeholder="Seleccionar material…" width={196} />
                         {isAislante && (
                           <button
                             onClick={()=>updEstructura(c.id,null,!tieneEB)}
