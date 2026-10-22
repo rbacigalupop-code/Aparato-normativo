@@ -7634,7 +7634,9 @@ function ResolverNVForm({ inicial, onGuardar, onCancelar, onQuitar }) {
   const setD = (k, v) => setDoc(d => ({ ...d, [k]: v }))
   const puedeGuardar = tipo === 'no_aplica'
     ? motivo.trim().length > 0
-    : (doc.tipoDoc.trim().length > 0 && doc.entidad.trim().length > 0)
+    // Acreditar NO aprueba hasta que exista el código/N° del documento que valida
+    // (lo que lo hace verificable ante DOM), además del tipo y la entidad emisora.
+    : (doc.tipoDoc.trim().length > 0 && doc.num.trim().length > 0 && doc.entidad.trim().length > 0)
   const inp = { width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 5, padding: '5px 7px', fontSize: 12 }
   const lab = { fontSize: 10.5, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 2 }
   function guardar() {
@@ -7663,10 +7665,13 @@ function ResolverNVForm({ inicial, onGuardar, onCancelar, onQuitar }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div><label style={lab}>Tipo de documento *</label><input value={doc.tipoDoc} onChange={e => setD('tipoDoc', e.target.value)} style={inp} placeholder="Ensayo NCh935 / Certificado ETA / Ficha LOSCAT…" /></div>
-          <div><label style={lab}>N° / ID</label><input value={doc.num} onChange={e => setD('num', e.target.value)} style={inp} placeholder="N° de certificado o informe" /></div>
+          <div><label style={lab}>N° / código del documento *</label><input value={doc.num} onChange={e => setD('num', e.target.value)} style={{ ...inp, borderColor: doc.num.trim() ? '#cbd5e1' : '#fca5a5' }} placeholder="N° de certificado / informe que lo valida" /></div>
           <div><label style={lab}>Entidad emisora *</label><input value={doc.entidad} onChange={e => setD('entidad', e.target.value)} style={inp} placeholder="IDIEM / DICTUC / fabricante…" /></div>
           <div><label style={lab}>Fecha de emisión</label><input type="date" value={doc.fecha} onChange={e => setD('fecha', e.target.value)} style={inp} /></div>
         </div>
+      )}
+      {tipo === 'acreditado' && !puedeGuardar && (
+        <div style={{ fontSize: 10.5, color: '#92400e', marginTop: 8, fontWeight: 600 }}>No se aprueba sin el <b>código/N° del documento</b> que valida (más el tipo y la entidad emisora).</div>
       )}
       <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 8 }}>Se declara bajo responsabilidad del profesional (OGUC Art. 1.2.2). El documento citado debe adjuntarse al expediente DOM.</div>
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
