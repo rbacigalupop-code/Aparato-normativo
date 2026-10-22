@@ -92,3 +92,38 @@ export function etiquetaEstado(estado) {
     default:                   return '—'
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resoluciones del profesional sobre un NO_VERIFICADO (Nivel 1 — referencia
+// documental, sin subir archivos). Un NO_VERIFICADO significa "falta un dato
+// obligatorio", NO "incumple". El profesional, bajo su responsabilidad (OGUC
+// Art. 1.2.2), puede resolverlo de DOS formas, y SOLO si el check está
+// NO_VERIFICADO (nunca puede tapar un NO_CUMPLE real):
+//   · no_aplica  → el elemento no está presente en el proyecto. Pasa a NO_APLICA
+//                  con el motivo declarado; deja de bloquear el global.
+//   · acreditado → el elemento cumple por documento externo (ensayo/certificado/
+//                  ficha). Pasa a CUMPLE citando el documento. Queda marcado
+//                  `resuelto:'acreditado'` para auditarlo en el informe.
+// La resolución se declara por `label` del check y se persiste con el proyecto.
+// Es idempotente: reaplicarla sobre un check ya resuelto no lo altera.
+export function aplicarResolucion(check, resolucion) {
+  if (!check || !resolucion) return check
+  // Guarda clave: solo resuelve faltas de dato, nunca un incumplimiento real.
+  if (estadoDeCheck(check) !== ESTADO.NO_VERIFICADO) return check
+  if (resolucion.tipo === 'no_aplica') {
+    return { ...check, estado: ESTADO.NO_APLICA, resuelto: 'no_aplica', motivo: resolucion.motivo || '' }
+  }
+  if (resolucion.tipo === 'acreditado') {
+    return { ...check, estado: ESTADO.CUMPLE, ok: true, resuelto: 'acreditado', doc: resolucion.doc || {} }
+  }
+  return check
+}
+
+// Aplica el mapa { [label]: resolucion } sobre una lista de checks.
+export function aplicarResoluciones(checks, resoluciones) {
+  const rs = resoluciones || {}
+  return (checks || []).map(c => {
+    const r = c && rs[c.label]
+    return r ? aplicarResolucion(c, r) : c
+  })
+}

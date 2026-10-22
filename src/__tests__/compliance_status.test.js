@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ESTADO, estadoDeCheck, esBloqueador, contarEstados, consolidar,
+  aplicarResolucion, aplicarResoluciones,
 } from '../lib/compliance/status.js'
 
 describe('estadoDeCheck — mapeo de un check a estado', () => {
@@ -135,5 +136,73 @@ describe('contarEstados', () => {
       { val: '~40', ok: false, informativo: true },  // INFORMATIVO
     ]
     expect(contarEstados(checks)).toEqual({ CUMPLE: 1, NO_CUMPLE: 1, NO_VERIFICADO: 1, NO_APLICA: 1, INFORMATIVO: 1 })
+  })
+})
+
+describe('aplicarResolucion — salidas del profesional sobre un NO_VERIFICADO', () => {
+  const nv = { label: 'RF Cubierta', val: null, obligatorio: true } // NO_VERIFICADO
+
+  it('"no_aplica" → NO_APLICA con motivo, deja de bloquear', () => {
+    const r = aplicarResolucion(nv, { tipo: 'no_aplica', motivo: 'No hay cubierta independiente' })
+    expect(estadoDeCheck(r)).toBe(ESTADO.NO_APLICA)
+    expect(r.resuelto).toBe('no_aplica')
+    expect(r.motivo).toBe('No hay cubierta independiente')
+    expect(esBloqueador(r)).toBe(false)
+  })
+
+  it('"acreditado" → CUMPLE con el documento citado, deja de bloquear', () => {
+    const doc = { tipoDoc: 'Ensayo NCh935', num: 'IDIEM-123', entidad: 'IDIEM', fecha: '2026-03-10' }
+    const r = aplicarResolucion(nv, { tipo: 'acreditado', doc })
+    expect(estadoDeCheck(r)).toBe(ESTADO.CUMPLE)
+    expect(r.resuelto).toBe('acreditado')
+    expect(r.doc).toEqual(doc)
+    expect(esBloqueador(r)).toBe(false)
+  })
+
+  it('NUNCA tapa un NO_CUMPLE real (dato presente que incumple)', () => {
+    const noCumple = { label: 'Muro U', val: '0.80', ok: false, obligatorio: true }
+    const r = aplicarResolucion(noCumple, { tipo: 'acreditado', doc: { tipoDoc: 'X', entidad: 'Y' } })
+    expect(estadoDeCheck(r)).toBe(ESTADO.NO_CUMPLE) // intacto
+    expect(r.resuelto).toBeUndefined()
+  })
+
+  it('no toca un CUMPLE existente', () => {
+    const cumple = { label: 'Techo U', val: '0.20', ok: true, obligatorio: true }
+    expect(aplicarResolucion(cumple, { tipo: 'no_aplica', motivo: 'x' })).toBe(cumple)
+  })
+
+  it('es idempotente: reaplicar sobre lo ya resuelto no cambia nada', () => {
+    const r1 = aplicarResolucion(nv, { tipo: 'no_aplica', motivo: 'm' })
+    const r2 = aplicarResolucion(r1, { tipo: 'acreditado', doc: { tipoDoc: 'Z', entidad: 'W' } })
+    expect(r2).toBe(r1) // guarda estadoDeCheck !== NO_VERIFICADO
+  })
+
+  it('resolución desconocida o nula → check sin cambios', () => {
+    expect(aplicarResolucion(nv, null)).toBe(nv)
+    expect(aplicarResolucion(nv, { tipo: 'otro' })).toBe(nv)
+  })
+})
+
+describe('aplicarResoluciones — mapa por label sobre la lista', () => {
+  it('resuelve solo las filas con resolución declarada y desbloquea el global', () => {
+    const checks = [
+      { label: 'Muro U', val: '0.30', ok: true, obligatorio: true },  // CUMPLE
+      { label: 'RF Cubierta', val: null, obligatorio: true },         // NO_VERIFICADO
+      { label: 'RF Escaleras', val: null, obligatorio: true },        // NO_VERIFICADO
+    ]
+    const res = {
+      'RF Cubierta': { tipo: 'acreditado', doc: { tipoDoc: 'Ensayo', entidad: 'IDIEM' } },
+      'RF Escaleras': { tipo: 'no_aplica', motivo: 'Sin escalera de evacuación' },
+    }
+    const out = aplicarResoluciones(checks, res)
+    expect(consolidar(out).estado).toBe(ESTADO.CUMPLE)
+    expect(out[1].resuelto).toBe('acreditado')
+    expect(out[2].resuelto).toBe('no_aplica')
+  })
+
+  it('sin resoluciones devuelve la lista equivalente (sin romper)', () => {
+    const checks = [{ label: 'Muro U', val: null, obligatorio: true }]
+    expect(aplicarResoluciones(checks, {})).toEqual(checks)
+    expect(aplicarResoluciones(checks, undefined)).toEqual(checks)
   })
 })

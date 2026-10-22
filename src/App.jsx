@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AuthGate from './AuthGate.jsx'
 import MigrationGate from './MigrationGate.jsx'
 import { sugerirMejorasTermicas, peorUPorElemento, uEfectivo, uCumpleMax } from './lib/engines/thermal.js'
-import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado } from './lib/compliance/status.js'
+import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado, aplicarResoluciones } from './lib/compliance/status.js'
 import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/capas.js'
 import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
 import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso } from './lib/compliance/piso.js'
@@ -7619,7 +7619,69 @@ function ViewDetalleModal({ detalle, obtenerCapas, proy, onClose }) {
 }
 
 // ─── PESTAÑA RESULTADOS ────────────────────────────────────────────────────────
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, escaleras, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [] }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// ResolverNVForm — formulario inline para resolver una verificación INCOMPLETA
+// (NO_VERIFICADO) sin romper el fail-safe. Dos salidas, ambas declaración del
+// profesional (OGUC Art. 1.2.2), Nivel 1 (referencia documental, sin subir PDF):
+//   · No aplica  → el elemento no existe en el proyecto (con motivo).
+//   · Acreditado → cumple por certificado/ensayo/ficha externa (se cita el doc).
+// Emite onGuardar({tipo:'no_aplica', motivo}) | ({tipo:'acreditado', doc}).
+// ─────────────────────────────────────────────────────────────────────────────
+function ResolverNVForm({ inicial, onGuardar, onCancelar, onQuitar }) {
+  const [tipo, setTipo]     = useState(inicial?.tipo || 'no_aplica')
+  const [motivo, setMotivo] = useState(inicial?.motivo || '')
+  const [doc, setDoc]       = useState({ tipoDoc: '', num: '', entidad: '', fecha: '', ...(inicial?.doc || {}) })
+  const setD = (k, v) => setDoc(d => ({ ...d, [k]: v }))
+  const puedeGuardar = tipo === 'no_aplica'
+    ? motivo.trim().length > 0
+    : (doc.tipoDoc.trim().length > 0 && doc.entidad.trim().length > 0)
+  const inp = { width: '100%', boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 5, padding: '5px 7px', fontSize: 12 }
+  const lab = { fontSize: 10.5, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 2 }
+  function guardar() {
+    if (!puedeGuardar) return
+    onGuardar(tipo === 'no_aplica'
+      ? { tipo: 'no_aplica', motivo: motivo.trim() }
+      : { tipo: 'acreditado', doc: { tipoDoc: doc.tipoDoc.trim(), num: doc.num.trim(), entidad: doc.entidad.trim(), fecha: doc.fecha } })
+  }
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 8 }}>Resolver verificación incompleta</div>
+      <div style={{ display: 'flex', gap: 18, marginBottom: 10, flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+          <input type="radio" checked={tipo === 'no_aplica'} onChange={() => setTipo('no_aplica')} /> No aplica a este proyecto
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+          <input type="radio" checked={tipo === 'acreditado'} onChange={() => setTipo('acreditado')} /> Acreditado por documento externo
+        </label>
+      </div>
+      {tipo === 'no_aplica' ? (
+        <div>
+          <label style={lab}>Motivo (por qué no aplica a este proyecto) *</label>
+          <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical' }}
+            placeholder="Ej.: El proyecto no contempla escalera de evacuación (vivienda unifamiliar de 1 piso)." />
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div><label style={lab}>Tipo de documento *</label><input value={doc.tipoDoc} onChange={e => setD('tipoDoc', e.target.value)} style={inp} placeholder="Ensayo NCh935 / Certificado ETA / Ficha LOSCAT…" /></div>
+          <div><label style={lab}>N° / ID</label><input value={doc.num} onChange={e => setD('num', e.target.value)} style={inp} placeholder="N° de certificado o informe" /></div>
+          <div><label style={lab}>Entidad emisora *</label><input value={doc.entidad} onChange={e => setD('entidad', e.target.value)} style={inp} placeholder="IDIEM / DICTUC / fabricante…" /></div>
+          <div><label style={lab}>Fecha de emisión</label><input type="date" value={doc.fecha} onChange={e => setD('fecha', e.target.value)} style={inp} /></div>
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 8 }}>Se declara bajo responsabilidad del profesional (OGUC Art. 1.2.2). El documento citado debe adjuntarse al expediente DOM.</div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+        <button onClick={guardar} disabled={!puedeGuardar}
+          style={{ padding: '6px 14px', background: puedeGuardar ? '#0e6560' : '#cbd5e1', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: puedeGuardar ? 'pointer' : 'not-allowed' }}>✓ Guardar</button>
+        <button onClick={onCancelar} style={{ padding: '6px 14px', background: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+        {onQuitar && <button onClick={onQuitar} style={{ padding: '6px 14px', background: '#fff', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}>Quitar resolución</button>}
+      </div>
+    </div>
+  )
+}
+
+function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, escaleras, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [], resolucionesNV = {}, setResolucionesNV = () => {} }) {
+  // Fila cuyo resolver (No aplica / Acreditar por documento) está abierto en la tabla.
+  const [nvEditor, setNvEditor] = useState(null)
   // Fallbacks defensivos por si las props no están disponibles
   const getRFOGUC_loaded = getRFOGUC || (() => null)
   const getLetraOGUC_loaded = getLetraOGUC || (() => null)
@@ -7848,8 +7910,10 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
     // Los checks OBLIGATORIOS sin dato NO se descartan: quedan como
     // NO_VERIFICADO (ver status.js) y bloquean el CUMPLE global. Los opcionales
     // sin dato sí se ocultan. Esto elimina el fail-open (proyecto vacío = CUMPLE).
-    return _rows.filter(c => c.val || c.obligatorio)
-  }, [proy, termica, calcUInit, zona, uso, escaleras])
+    // Sobre ese resultado se aplican las resoluciones declaradas por el profesional
+    // (No aplica / Acreditado por documento), que solo actúan sobre NO_VERIFICADO.
+    return aplicarResoluciones(_rows.filter(c => c.val || c.obligatorio), resolucionesNV)
+  }, [proy, termica, calcUInit, zona, uso, escaleras, resolucionesNV])
 
   // Consolidación central de cumplimiento (motor único de estados).
   //   estadoGlobal ∈ CUMPLE / NO_CUMPLE / NO_VERIFICADO
@@ -8386,7 +8450,7 @@ ${glaserHtml}`
     // a partir de las capas. Esto evita falsos CUMPLE cuando el LOSCAT declara
     // un U que no coincide con el cálculo correcto (p.ej. piso ventilado con
     // RSi/RSe distintos al muro original que se aplicó).
-    const checksExtendido = [...checks]
+    let checksExtendido = [...checks]
 
     // Mapa label → recálculo desde capas
     const _uRecalc = {}
@@ -8475,6 +8539,10 @@ ${glaserHtml}`
       })
     }
 
+    // Resoluciones del profesional también sobre las filas que SOLO existen en el
+    // informe (condensación por capa, etc.). Idempotente con lo ya resuelto en checks.
+    checksExtendido = aplicarResoluciones(checksExtendido, resolucionesNV)
+
     // Consolidación central (incluye condensación + VPCT). estadoGlobalLocal ∈
     // CUMPLE / NO_CUMPLE / NO_VERIFICADO. Un obligatorio sin dato ya NO permite
     // declarar cumplimiento (antes desaparecía y daba CUMPLE por vacío).
@@ -8485,12 +8553,13 @@ ${glaserHtml}`
     const allOkLocal = estadoGlobalLocal === ESTADO.CUMPLE
     // Presentación 3-estados para sellos/banners del informe.
     const _selloColor = estadoGlobalLocal === ESTADO.CUMPLE ? '#22c55e' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#f59e0b' : '#ef4444'
-    const _selloTexto = estadoGlobalLocal === ESTADO.CUMPLE ? '✓ CUMPLE' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '⚠ NO VERIFICADO' : '✗ OBSERVACIONES'
+    const _selloTexto = estadoGlobalLocal === ESTADO.CUMPLE ? '✓ CUMPLE' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '⚠ INCOMPLETO' : '✗ OBSERVACIONES'
     const _bloqLista = bloqueadoresLocal.map(c => `${c.label}${c.val ? ` (${c.val})` : ' (sin dato)'}`)
+    const _nVerif = contadoresLocal.NO_VERIFICADO
     const _cardBg     = estadoGlobalLocal === ESTADO.CUMPLE ? '#f0fdf4' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#fffbeb' : '#fef2f2'
     const _cardBorder = estadoGlobalLocal === ESTADO.CUMPLE ? '#86efac' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#fcd34d' : '#fca5a5'
     const _cardText   = estadoGlobalLocal === ESTADO.CUMPLE ? '#15803d' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '#92400e' : '#991b1b'
-    const _cardTitulo = estadoGlobalLocal === ESTADO.CUMPLE ? '✓ CUMPLE NORMATIVA' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '⚠ NO VERIFICADO' : '✗ CON OBSERVACIONES'
+    const _cardTitulo = estadoGlobalLocal === ESTADO.CUMPLE ? '✓ CUMPLE NORMATIVA' : estadoGlobalLocal === ESTADO.NO_VERIFICADO ? '⚠ INFORME INCOMPLETO' : '✗ CON OBSERVACIONES'
 
     const resumenRows = checksExtendido.map(c => {
       const categoria = c.label.startsWith('Muro') || c.label.startsWith('Techo') || c.label.startsWith('Piso') || c.label.startsWith('Puerta') ? 'Térmico' :
@@ -8498,21 +8567,43 @@ ${glaserHtml}`
         c.label.startsWith('Rw') || c.label.startsWith("L'n,w") ? 'Acústico' :
         c.label.startsWith('Cond.') ? 'Higrotérmico' : 'Otro'
       const catColor = categoria === 'Térmico' ? '#0e6560' : categoria === 'Incendio' ? '#dc2626' : categoria === 'Acústico' ? '#0f766e' : categoria === 'Higrotérmico' ? '#7c3aed' : '#64748b'
+      const _docTxt = c.doc ? [c.doc.tipoDoc, c.doc.num, c.doc.entidad, c.doc.fecha].filter(Boolean).join(' · ') : ''
+      const _valCell = c.val || (c.resuelto === 'acreditado' ? 'Acreditado por documento' : c.resuelto === 'no_aplica' ? 'No aplica a este proyecto' : '—')
       return `<tr>
         <td><span style="font-size:8pt;color:${catColor};font-weight:700;background:${catColor}15;border-radius:3px;padding:1px 5px;margin-right:4px">${categoria}</span><b>${c.label}</b></td>
-        <td>${c.val || '—'}</td>
+        <td>${_valCell}</td>
         <td>${c.max || '—'}</td>
         <td>${c.norma ? `<span style="font-size:8pt;color:#64748b">${c.norma}</span>` : ''}</td>
         <td>${(() => {
           const est = estadoDeCheck(c)
+          // Filas resueltas por el profesional (declaración Art. 1.2.2): se marcan explícitas.
+          if (c.resuelto === 'no_aplica')  return `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO APLICA</span><div style="font-size:7.5pt;color:#64748b;margin-top:3px">Declarado: ${c.motivo || 'no aplica a este proyecto'}</div>`
+          if (c.resuelto === 'acreditado') return `<span class="badge-ok">CUMPLE</span><div style="font-size:7.5pt;color:#166534;margin-top:3px">Acreditado por documento${_docTxt ? ': ' + _docTxt : ''}</div>`
           if (est === ESTADO.NO_APLICA)     return '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO APLICA</span>'
           if (est === ESTADO.INFORMATIVO)   return `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">${c.ok ? 'CUMPLE (est.)' : 'REVISAR (est.)'}</span>`
-          if (est === ESTADO.NO_VERIFICADO) return '<span style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">NO VERIFICADO</span>'
+          if (est === ESTADO.NO_VERIFICADO) return '<span style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;padding:2px 8px;border-radius:4px;font-weight:700;font-size:9pt">INCOMPLETO</span>'
           if (est === ESTADO.CUMPLE)        return '<span class="badge-ok">CUMPLE</span>'
           return '<span class="badge-no">NO CUMPLE</span>'
         })()}</td>
       </tr>`
     }).join('')
+
+    // ── Declaraciones del profesional (Art. 1.2.2) — trazabilidad de las filas
+    // resueltas como "No aplica" o "Acreditado por documento". Es lo que un
+    // revisor DOM necesita para saber qué se declaró y sobre qué base.
+    const _resueltos = checksExtendido.filter(c => c.resuelto)
+    const declaracionesHtml = _resueltos.length === 0 ? '' : `
+<div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;background:#fcfcfd">
+  <div style="font-size:9pt;font-weight:700;color:#334155;margin-bottom:6px">Declaraciones del profesional (OGUC Art. 1.2.2)</div>
+  <div style="font-size:8pt;color:#64748b;margin-bottom:8px">Las verificaciones siguientes se resolvieron por declaración del profesional responsable, bajo su firma. Los documentos citados forman parte del expediente y deben adjuntarse al ingreso DOM.</div>
+  <table style="font-size:8.5pt">
+    <tr><th>Verificación</th><th>Resolución</th><th>Fundamento declarado</th></tr>
+    ${_resueltos.map(c => c.resuelto === 'no_aplica'
+      ? `<tr><td><b>${c.label}</b></td><td><span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:4px;font-weight:700">NO APLICA</span></td><td>${c.motivo || '—'}</td></tr>`
+      : `<tr><td><b>${c.label}</b></td><td><span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:4px;font-weight:700">ACREDITADO</span></td><td>${[c.doc?.tipoDoc, c.doc?.num, c.doc?.entidad, c.doc?.fecha].filter(Boolean).join(' · ') || '—'}</td></tr>`
+    ).join('')}
+  </table>
+</div>`
 
     // ── VPCT — análisis por fachada ───────────────────────────────────────────
     const vpctZona = zonaData ? TABLA3_VENTANAS[proy.zona] : null
@@ -9314,18 +9405,19 @@ ${(proy.profesional || proy.arq || proy.propietario) ? `
 
 <h2 id="resumen">Resumen ejecutivo — Estado de cumplimiento</h2>
 <div style="font-size:8.5pt;color:#64748b;margin-bottom:8px">
-  Consolidación automática de las verificaciones normativas. Las verificaciones aplicables sin información suficiente se consideran <b>NO VERIFICADAS</b> y no permiten declarar cumplimiento global mientras no se completen.
+  Consolidación automática de las verificaciones normativas. Una verificación aplicable sin información suficiente queda <b>incompleta</b> — no es un incumplimiento — y no permite declarar el cumplimiento global mientras no se complete, se declare <i>No aplica</i> o se acredite por documento.
 </div>
 ${checksExtendido.length === 0 ? '<div class="aviso">Sin parámetros verificados. Complete los módulos Térmica, Fuego y Acústica.</div>' : `
 ${estadoGlobalLocal === ESTADO.CUMPLE
   ? '<div class="resumen-ok">✅ El proyecto CUMPLE los parámetros normativos verificados.</div>'
   : estadoGlobalLocal === ESTADO.NO_VERIFICADO
-    ? `<div style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;padding:10px 14px;border-radius:6px;font-weight:700">⚠️ NO VERIFICADO — Faltan datos obligatorios; no es posible declarar cumplimiento global.<div style="font-weight:400;font-size:9pt;margin-top:4px">Bloquean el cumplimiento: ${_bloqLista.join(' · ')}</div></div>`
+    ? `<div style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;padding:10px 14px;border-radius:6px;font-weight:700">⚠️ INFORME INCOMPLETO — Ningún requisito se incumple: falta${_nVerif === 1 ? '' : 'n'} completar ${_nVerif} verificación${_nVerif === 1 ? '' : 'es'} antes de declarar el cumplimiento global.<div style="font-weight:400;font-size:9pt;margin-top:4px">Pendiente de completar: ${_bloqLista.join(' · ')}</div><div style="font-weight:400;font-size:8.5pt;margin-top:6px;color:#78716c">Cada pendiente se resuelve en la pestaña <b>Resultados</b>: ingresa el dato, o decláralo <b>No aplica</b> (si el elemento no existe en el proyecto) o <b>Acreditado por documento</b> (certificado/ensayo externo).</div></div>`
     : `<div class="resumen-no">❌ El proyecto NO CUMPLE con uno o más requisitos — ver detalle.<div style="font-weight:400;font-size:9pt;margin-top:4px">Bloquean el cumplimiento: ${_bloqLista.join(' · ')}</div></div>`}
 <table>
   <tr><th>Módulo / Elemento</th><th>Valor calculado</th><th>Exigencia normativa</th><th>Norma / Tabla</th><th>Estado</th></tr>
   ${resumenRows}
-</table>`}
+</table>
+${declaracionesHtml}`}
 
 <h2 id="modulo-1">Módulo 1 — Diagnóstico del proyecto</h2>
 <table>
@@ -9596,8 +9688,8 @@ ${cards}`)
       ${_cardTitulo}
     </div>
     <div style="font-size:9pt;color:#475569;line-height:1.5">
-      ${contadoresLocal.CUMPLE} cumple · ${contadoresLocal.NO_CUMPLE} no cumple · ${contadoresLocal.NO_VERIFICADO} no verificado · ${contadoresLocal.NO_APLICA} no aplica · ${contadoresLocal.INFORMATIVO} informativo
-      <div style="font-size:8pt;color:#94a3b8;margin-top:4px;font-weight:400">Las verificaciones aplicables sin información suficiente cuentan como NO VERIFICADO y bloquean el cumplimiento global hasta completarse. La escalera (Módulo 5c), si aplica, se verifica en su propio módulo.</div>
+      ${contadoresLocal.CUMPLE} cumple · ${contadoresLocal.NO_CUMPLE} no cumple · ${contadoresLocal.NO_VERIFICADO} incompleto · ${contadoresLocal.NO_APLICA} no aplica · ${contadoresLocal.INFORMATIVO} informativo
+      <div style="font-size:8pt;color:#94a3b8;margin-top:4px;font-weight:400">Una verificación aplicable sin dato suficiente queda <b>incompleta</b> (no es un incumplimiento) y no permite declarar el cumplimiento global hasta completarse, declararse <i>No aplica</i> o acreditarse por documento. La escalera (Módulo 5c), si aplica, se verifica en su propio módulo.</div>
     </div>
   </div>
   <div style="flex:1;min-width:240px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:14px 16px">
@@ -9884,7 +9976,7 @@ ${cards}`)
               {estadoGlobal === ESTADO.CUMPLE
                 ? '✅ El proyecto CUMPLE los parámetros normativos verificados.'
                 : estadoGlobal === ESTADO.NO_VERIFICADO
-                  ? '⚠️ NO VERIFICADO: faltan datos obligatorios. No es posible declarar cumplimiento hasta completarlos (ver filas “NO VERIFICADO”).'
+                  ? `⚠️ Informe incompleto — ${cumplimiento.contadores.NO_VERIFICADO} verificación${cumplimiento.contadores.NO_VERIFICADO === 1 ? '' : 'es'} pendiente${cumplimiento.contadores.NO_VERIFICADO === 1 ? '' : 's'}. Ningún requisito se incumple. Resuélvelas en la tabla: completa el dato, o decláralas «No aplica» / «Acreditado por documento».`
                   : '❌ El proyecto NO CUMPLE con uno o más requisitos normativos.'}
             </div>
             <table style={S.table}>
@@ -9895,20 +9987,56 @@ ${cards}`)
                 <th style={S.th}>Estado</th>
               </tr></thead>
               <tbody>
-                {checks.map(c => (
-                  <tr key={c.label}>
-                    <td style={S.td}><b>{c.label}</b></td>
-                    <td style={S.td}>{c.val || '—'}</td>
-                    <td style={S.td}>{c.max}</td>
-                    <td style={S.td}>{(() => {
-                      const est = estadoDeCheck(c)
-                      if (est === ESTADO.NO_APLICA)   return <span style={{ background:'#f1f5f9', color:'#64748b', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }}>NO APLICA</span>
-                      if (est === ESTADO.INFORMATIVO) return <span title="Estimado — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
-                      if (est === ESTADO.NO_VERIFICADO) return <span title="Exigencia obligatoria sin datos suficientes. Debe completarse en su módulo — no permite declarar cumplimiento." style={{ background:'#fffbeb', color:'#92400e', border:'1px solid #fcd34d', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>NO VERIFICADO</span>
-                      return <span style={S.badge(est === ESTADO.CUMPLE)}>{est === ESTADO.CUMPLE ? 'CUMPLE' : 'NO CUMPLE'}</span>
-                    })()}</td>
-                  </tr>
-                ))}
+                {checks.map(c => {
+                  const est = estadoDeCheck(c)
+                  const abierto = nvEditor === c.label
+                  // Solo las filas incompletas (o ya resueltas por el profesional)
+                  // ofrecen el resolver. Un CUMPLE/NO CUMPLE real no se "resuelve" acá.
+                  const resolvible = est === ESTADO.NO_VERIFICADO || !!c.resuelto
+                  const docTxt = c.doc ? [c.doc.tipoDoc, c.doc.num, c.doc.entidad, c.doc.fecha].filter(Boolean).join(' · ') : ''
+                  const _gris  = { background:'#f1f5f9', color:'#64748b', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }
+                  const _teal  = { background:'#f0fdfa', color:'#0f766e', border:'1px solid #99f6e4', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }
+                  const _amber = { background:'#fffbeb', color:'#92400e', border:'1px solid #fcd34d', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }
+                  return (
+                  <React.Fragment key={c.label}>
+                    <tr>
+                      <td style={S.td}><b>{c.label}</b></td>
+                      <td style={S.td}>{c.val || (c.resuelto === 'acreditado' ? 'Acreditado por documento' : c.resuelto === 'no_aplica' ? 'No aplica' : '—')}</td>
+                      <td style={S.td}>{c.max}</td>
+                      <td style={S.td}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                          {(() => {
+                            if (c.resuelto === 'no_aplica')  return <span title={c.motivo || 'Declarado no aplica'} style={{ ..._gris, cursor:'help' }}>NO APLICA</span>
+                            if (c.resuelto === 'acreditado') return <span title={docTxt || 'Acreditado por documento externo'} style={{ ..._teal, cursor:'help' }}>CUMPLE · acreditado</span>
+                            if (est === ESTADO.NO_APLICA)   return <span style={_gris}>NO APLICA</span>
+                            if (est === ESTADO.INFORMATIVO) return <span title="Estimado — no certificado. No afecta el estado general." style={{ background:'#fef3c7', color:'#92400e', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700, cursor:'help' }}>{c.ok ? 'CUMPLE (est.)' : '⚠ REVISAR (est.)'}</span>
+                            if (est === ESTADO.NO_VERIFICADO) return <span title="Falta un dato obligatorio. No es un incumplimiento: complétalo, o decláralo No aplica / Acreditado por documento." style={{ ..._amber, cursor:'help' }}>INCOMPLETO</span>
+                            return <span style={S.badge(est === ESTADO.CUMPLE)}>{est === ESTADO.CUMPLE ? 'CUMPLE' : 'NO CUMPLE'}</span>
+                          })()}
+                          {resolvible && (
+                            <button onClick={() => setNvEditor(abierto ? null : c.label)}
+                              style={{ background:'none', border:'none', color:'#0e6560', fontSize:11, fontWeight:700, cursor:'pointer', textDecoration:'underline', padding:0 }}>
+                              {abierto ? 'Cerrar' : c.resuelto ? 'Editar' : 'Resolver'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {abierto && (
+                      <tr>
+                        <td colSpan={4} style={{ padding:'2px 8px 10px' }}>
+                          <ResolverNVForm
+                            inicial={resolucionesNV[c.label]}
+                            onGuardar={resol => { setResolucionesNV(prev => ({ ...prev, [c.label]: resol })); setNvEditor(null) }}
+                            onCancelar={() => setNvEditor(null)}
+                            onQuitar={c.resuelto ? () => { setResolucionesNV(prev => { const n = { ...prev }; delete n[c.label]; return n }); setNvEditor(null) } : undefined}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                  )
+                })}
               </tbody>
             </table>
             {/* ── Selector de formato + botón exportar ──────────────────── */}
@@ -10203,6 +10331,10 @@ function AppInner() {
   const [tab, setTab] = useState(0)
   const [proy, setProy] = useState({ nombre: '', propietario: '', rutPropietario: '', direccion: '', rolAvaluo: '', arq: '', comuna: '', zona: '', uso: 'Vivienda', pisos: '2', superficie: '', destinoOGUC: '', estructura: '', estructuras: [], profesional: '', rutProfesional: '', titulo: '', rol: '', email: '', telefono: '', ocupantes: '' })
   const [termica, setTermica] = useState({})
+  // Resoluciones del profesional sobre checks NO_VERIFICADO (No aplica / Acreditado
+  // por documento). Mapa { [labelCheck]: {tipo, motivo?|doc?} }. Se persiste con el
+  // proyecto (autoguardado + snapshot). Motor en lib/compliance/status.js.
+  const [resolucionesNV, setResolucionesNV] = useState({})
   const [calcUInit, setCalcUInit] = useState({})
   const [exportError, setExportError] = useState('')
   const [notas, setNotas] = useState({})
@@ -10576,6 +10708,7 @@ function AppInner() {
       if (saved.escaleras)         setEscaleras(saved.escaleras)
       if (saved.notas)             setNotas(saved.notas)
       if (saved.detallesIlustrados) setDetallesIlustrados(saved.detallesIlustrados)
+      if (saved.resolucionesNV)    setResolucionesNV(saved.resolucionesNV)
       // Solo mostrar modal si el borrador tiene contenido real (nombre,
       // soluciones o datos en alguna pestaña). Borrador vacío → directo.
       const tieneContenido = !!(saved.proy?.nombre || saved.proy?.comuna
@@ -10609,6 +10742,7 @@ function AppInner() {
     setEscaleras({ incluido: false, matId: 'ha', tieneCaja: null, matCajaId: 'ha' })
     setNotas({})
     setDetallesIlustrados([])
+    setResolucionesNV({})
     setProyectoActual(null)
     setHasUnsaved(false)
     setEsDemo(false)
@@ -10645,6 +10779,7 @@ function AppInner() {
     setEscaleras({ incluido: false, matId: 'ha', tieneCaja: null, matCajaId: 'ha' })
     setNotas({})
     setDetallesIlustrados([])
+    setResolucionesNV({})
     setProyectoActual(null)
     setEsDemo(true)
     setShowWelcome(false)
@@ -10657,11 +10792,11 @@ function AppInner() {
   useEffect(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados })
+      proyectos.autoGuardar({ proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados, resolucionesNV })
       setHasUnsaved(true)
     }, 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados])
+  }, [proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados, resolucionesNV])
 
   // Callback que llama TabResultados antes de generar el informe.
   // El informe PDF es un beneficio del Plan Pro, no un consumible por token.
@@ -10709,7 +10844,7 @@ function AppInner() {
   // proyectos y cargarlos en otra sesión. Incluye puertas + escaleras desde
   // 2026-05-27 (antes esos módulos perdían sus datos al recargar).
   function getData() {
-    return { proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados }
+    return { proy, termica, calcUInit, fachadas, fachadasNextId, puertas, puertasNextId, escaleras, notas, detallesIlustrados, resolucionesNV }
   }
 
   function onCargar(data) {
@@ -10723,6 +10858,7 @@ function AppInner() {
     if (data.escaleras)          setEscaleras(data.escaleras)
     if (data.notas)              setNotas(data.notas)
     if (data.detallesIlustrados) setDetallesIlustrados(data.detallesIlustrados)
+    setResolucionesNV(data.resolucionesNV || {})
     setHasUnsaved(false)
   }
 
@@ -11040,7 +11176,7 @@ function AppInner() {
               {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 7 && <TabPuerta proy={proy} puertas={puertas} setPuertas={setPuertas} puertasNextId={puertasNextId} setPuertasNextId={setPuertasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 8 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
-              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} escaleras={escaleras} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} />}
+              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} escaleras={escaleras} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} resolucionesNV={resolucionesNV} setResolucionesNV={setResolucionesNV} />}
               {tab === 10 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
             </div>
             {showAyuda && ayudaData[tab] && (
