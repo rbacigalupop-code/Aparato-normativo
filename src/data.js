@@ -276,6 +276,10 @@ export const MATS=[
     {n:"EPS 10kg/m3",      lam:0.047, mu:40},
     {n:"EPS 15kg/m3",      lam:0.043, mu:40},
     {n:"EPS 20kg/m3",      lam:0.040, mu:60},
+    // Núcleo del panel Volcapol (Volcán, ficha 2021) — EPS densidad 15 kg/m³, λ=0.041 (NCh1070).
+    // El panel completo = este EPS + plancha de Volcanita (yeso-cartón, λ0.26) ± Barrera de Vapor
+    // Volcán. Es un REVESTIMIENTO INTERIOR de muros; ver soluciones NC-1.2.M.V*. Marca=referencia.
+    {n:"EPS Volcapol D15 (Volcán)", lam:0.041, mu:40},
     {n:"XPS extruido",     lam:0.036, mu:100},
     {n:"Lana vidrio 10kg", lam:0.040, mu:1},
     {n:"Lana vidrio 13kg", lam:0.036, mu:1},
@@ -560,6 +564,13 @@ export const SC_CAPAS={
   "1.4.G.M1.1":[{mat:"Yeso carton",lam:0.26,esp:13,mu:8},{mat:"Lana mineral 30kg",lam:0.035,esp:100,mu:1},{mat:"OSB/MDF",lam:0.23,esp:18,mu:200},{mat:"OSB/MDF",lam:0.23,esp:18,mu:200}],
   "1.4.G.M1.2":[{mat:"OSB/MDF",lam:0.23,esp:18,mu:200},{mat:"Lana mineral 30kg",lam:0.035,esp:100,mu:1},{mat:"Lamina impermeable",lam:0.23,esp:2,mu:9999},{mat:"Yeso carton",lam:0.26,esp:13,mu:8}],
   "1.4.G.M2.1":[{mat:"XPS extruido",lam:0.036,esp:40,mu:100},{mat:"OSB/MDF",lam:0.23,esp:18,mu:200},{mat:"Lana mineral 30kg",lam:0.035,esp:150,mu:1},{mat:"Lamina impermeable",lam:0.23,esp:2,mu:9999},{mat:"Yeso carton",lam:0.26,esp:13,mu:8}],
+  // ── Volcapol (Volcán): revestimiento interior Volcanita + EPS D15 sobre muro ──
+  // Orden interior→exterior: Volcanita (cara habitación) · EPS D15 · muro estructural.
+  // Aislación POR EL INTERIOR → el muro másico queda del lado frío: en zonas frías
+  // usar la versión «Barrera de Vapor» (membrana entre Volcanita y EPS) y revisar Glaser.
+  "NC-1.2.M.V1.1":[{mat:"Yeso carton",lam:0.26,esp:10,mu:8},{mat:"EPS Volcapol D15",lam:0.041,esp:20,mu:40},{mat:"Hormigon armado",lam:2.50,esp:150,mu:130}],
+  "NC-1.2.M.V1.2":[{mat:"Yeso carton",lam:0.26,esp:15,mu:8},{mat:"EPS Volcapol D15",lam:0.041,esp:40,mu:40},{mat:"Hormigon armado",lam:2.50,esp:150,mu:130}],
+  "NC-1.2.M.V2.1":[{mat:"Yeso carton",lam:0.26,esp:15,mu:8},{mat:"EPS Volcapol D15",lam:0.041,esp:40,mu:40},{mat:"Ladrillo ceramico perforado",lam:0.48,esp:140,mu:8}],
 };
 
 // BUG-03 FIX: calcU_SC usa RSE correcto según elemento
@@ -728,6 +739,16 @@ export const SC=[
   {cod:"1.2.M.A28.1",elem:"muro",sistemas:["Hormigon armado","Albanileria confinada","Albanileria armada","Mixta HA + albanileria"],desc:"Macizo + Dryvit Outsulation EPS 100mm (SATE)",capas:"Muro macizo HA 150 (base ref.) | EPS 20kg 100 | Mortero 10",u:0.35,rf:"F60",ac_rw:48,zonas:"ABCDEFGI",usos:["Vivienda","Educacion","Oficina","Comercio"],obs:"Dryvit Outsulation. EPS blanco 20kg lambda=0.038. U=0.35 calculado ISO 6946 sobre base de referencia HA 150mm; si tu muro es albanileria/adobe/otro, reemplaza la 1a capa en Calculo U y recalcula. RF depende del muro base (>=F60)."},
   {cod:"1.2.M.F2.3",elem:"muro",sistemas:null,desc:"Panel muro Monoplac PMO-110 (LOSCAT Ed.14)",capas:"Mortero 30 | EPS 10kg 90 | Mortero 30",u:0.43,rf:"F30",ac_rw:38,zonas:"ABCDEF",usos:["Vivienda","Oficina"],obs:"LOSCAT 1.2.M.F2.3. EPS nucleo 10kg/m3 90mm, mortero 30mm c/cara. U=0.43@90mm. RF y acustica requieren mejora para Salud/Educacion."},
   {cod:"1.2.M.F2.5",elem:"muro",sistemas:null,desc:"Panel muro Monoplac PMO-160 (LOSCAT Ed.14)",capas:"Mortero 30 | EPS 10kg 140 | Mortero 30",u:0.29,rf:"F30",ac_rw:38,zonas:"ABCDEFGHI",usos:["Vivienda","Oficina"],obs:"LOSCAT 1.2.M.F2.5. EPS nucleo 10kg/m3 140mm, mortero 30mm c/cara. U=0.29@140mm. Requiere revestimiento ignifugo adicional."},
+
+  // ── MUROS — Revestimiento interior Volcapol (Volcán): Volcanita + EPS D15 ──────
+  // Panel compuesto que se pega por el INTERIOR de muros de hormigón/albañilería para
+  // mejorar su U (ficha Volcán 2021). Es una mejora MODESTA: aún a 55mm no pasa de las
+  // zonas A-D. Aislación por el interior → el muro másico queda del lado frío (riesgo de
+  // condensación): usar la versión «Barrera de Vapor» y verificar Glaser en zonas frías.
+  // EPS combustible protegido por Volcanita: verificar reacción al fuego (OGUC 4.3).
+  {cod:"NC-1.2.M.V1.1",elem:"muro",sistemas:["Hormigon armado"],desc:"H.A. 15cm + Volcapol 30mm revestimiento interior (Volcán)",capas:"Volcanita 10 | EPS D15 Volcapol 20 | H.A. 150",u:1.32,rf:"F150",ac_rw:null,zonas:"A",usos:["Vivienda","Educacion","Oficina","Comercio"],obs:"Volcapol SB 30mm (Volcanita 10 + EPS D15 20) pegado al interior del muro HA. λ EPS=0.041, Volcanita=0.26 (ficha Volcán 2021 / NCh853). U=1.32 → solo cumple muro en zona A; para más zonas usar Volcapol 45-55mm o aislación adicional. Aislación interior: usar la versión Barrera de Vapor y verificar Glaser (el HA queda del lado frío). EPS combustible protegido por Volcanita: verificar reacción al fuego. Acústica: plancha liviana sobre muro másico puede no mejorar Rw (riesgo de resonancia), verificar."},
+  {cod:"NC-1.2.M.V1.2",elem:"muro",sistemas:["Hormigon armado"],desc:"H.A. 15cm + Volcapol 55mm revestimiento interior (Volcán)",capas:"Volcanita 15 | EPS D15 Volcapol 40 | H.A. 150",u:0.79,rf:"F150",ac_rw:null,zonas:"ABCD",usos:["Vivienda","Educacion","Oficina","Comercio"],obs:"Volcapol 55mm (Volcanita 15 + EPS D15 40) pegado al interior del muro HA. U=0.79 → cumple muro zonas A-D; NO alcanza E-I (U-max E=0.60). Aislación interior: usar la versión Barrera de Vapor y verificar Glaser. EPS combustible protegido por Volcanita: verificar reacción al fuego. λ ficha Volcán 2021."},
+  {cod:"NC-1.2.M.V2.1",elem:"muro",sistemas:["Albanileria confinada","Albanileria armada","Mixta HA + albanileria"],desc:"Albañilería cerámica 14cm + Volcapol 55mm revestimiento interior (Volcán)",capas:"Volcanita 15 | EPS D15 Volcapol 40 | Albañilería cerámica 140",u:0.67,rf:"F120",ac_rw:null,zonas:"ABCD",usos:["Vivienda","Educacion","Oficina","Comercio"],obs:"Volcapol 55mm sobre albañilería de ladrillo cerámico perforado 140mm (λ0.48). U=0.67 → cumple muro zonas A-D. Aislación interior: usar la versión Barrera de Vapor y verificar Glaser. EPS combustible protegido por Volcanita: verificar reacción al fuego. λ ficha Volcán 2021 / NCh853."},
   // ── MUROS — Estructura de madera ─────────────────────────────────────────
   {cod:"1.2.G.C1.3",elem:"muro",sistemas:["Estructura de madera"],desc:"Entramado madera 2x3 (65x38mm) + lana vidrio 80mm + yeso carton",capas:"Yeso carton 10 | Lana vidrio 80 | OSB 11 | Camara 20 | Yeso carton 10",u:0.34,rf:"F60",ac_rw:48,zonas:"ABCDEFGI",usos:["Vivienda","Educacion","Oficina"],obs:"LOSCAT 1.2.G.C1.3. Requiere barrera vapor en zona F-I. U con factor puente termico madera."},
   {cod:"1.2.G.M1.1",elem:"muro",sistemas:["Estructura de madera"],desc:"Entramado madera 2x4 (89x38mm) + lana mineral 90mm + yeso carton",capas:"Yeso carton 13 | Lana mineral 90 | OSB 11 | Camara 20 | Fibrocemento 8",u:0.41,rf:"F30",ac_rw:42,zonas:"ABCDEF",usos:["Vivienda","Educacion","Oficina"],obs:"Solución estándar Chile. Factor puente térmico madera (~15%). Requiere barrera vapor zona F-I. U=0.41 con TB."},
