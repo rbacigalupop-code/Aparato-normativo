@@ -15,9 +15,16 @@ export function filtrarMateriales(grupos, query) {
   if (!q) return grupos || []
   return (grupos || [])
     .map(g => {
-      const grupoMatch = (g.g || '').toLowerCase().includes(q)
-      const items = grupoMatch ? (g.items || []) : (g.items || []).filter(m => (m.n || '').toLowerCase().includes(q))
-      return items.length ? { g: g.g, items } : null
+      // Genérico: el nombre del grupo puede venir como `g` (catálogo de materiales)
+      // o `group` (opciones normalizadas de SearchSelect); el de cada ítem como `n`
+      // (material) o `label` (opción). Así el mismo filtro sirve para cualquier
+      // desplegable, no solo materiales.
+      const nombreGrupo = (g.g ?? g.group ?? '')
+      const grupoMatch = nombreGrupo.toLowerCase().includes(q)
+      const items = grupoMatch
+        ? (g.items || [])
+        : (g.items || []).filter(m => (m.n ?? m.label ?? '').toLowerCase().includes(q))
+      return items.length ? { ...g, items } : null
     })
     .filter(Boolean)
 }

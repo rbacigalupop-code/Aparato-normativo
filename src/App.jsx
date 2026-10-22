@@ -47,6 +47,7 @@ import ModeSwitcher from './components/ModeSwitcher.jsx'
 import ResultadoU from './components/calculou/ResultadoU.jsx'
 import DesgloseR  from './components/calculou/DesgloseR.jsx'
 import MaterialCombobox from './components/MaterialCombobox.jsx'
+import SearchSelect from './components/SearchSelect.jsx'
 import {
   HOJAS as PUERTA_HOJAS, MARCOS_PUERTA, SELLOS as PUERTA_SELLOS,
   RF_MINIMO_POR_USO as PUERTA_RF_MIN, RW_MINIMO_POR_USO as PUERTA_RW_MIN,
@@ -1203,13 +1204,9 @@ const SimuladorCapas = React.memo(function SimuladorCapas({ s, elem, uMax, rfReq
           style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 8px',fontSize:11,minWidth:170 }}/>
         <button onClick={guardarVariante} style={btnSm('#f8fafc','#374151','#cbd5e1')}>💾 Guardar variante</button>
         {variantes.length>0&&(
-          <select value={varSelIdx} onChange={e=>{
-            const idx=parseInt(e.target.value)
-            if(!isNaN(idx)){const v=variantes[idx];setCapas(v.capas);setExtra(v.extra);setVarSelIdx('')}
-          }} style={{ border:'1px solid #cbd5e1',borderRadius:5,padding:'4px 6px',fontSize:11 }}>
-            <option value="">Cargar variante guardada...</option>
-            {variantes.map((v,i)=><option key={v.id} value={i}>{v.nombre} — U={v.uMod} ({v.fecha})</option>)}
-          </select>
+          <SearchSelect width={230} value={varSelIdx} placeholder="Cargar variante guardada…"
+            onChange={val=>{ const idx=parseInt(val); if(!isNaN(idx)){ const v=variantes[idx]; setCapas(v.capas); setExtra(v.extra); setVarSelIdx('') } }}
+            options={variantes.map((v,i)=>({ value:String(i), label:`${v.nombre} — U=${v.uMod} (${v.fecha})` }))} />
         )}
       </div>
     </div>
@@ -1828,20 +1825,12 @@ function TabSoluciones({ proy, setProy, onAplicar, onEnviarCalcU, notas, setNota
             Solo las que cumplen los 3 criterios
           </label>
           {/* Filtro sistema estructural */}
-          <select value={filtroSistema} onChange={e => setFiltroSistema(e.target.value)}
-            style={{ border:'1.5px solid', borderRadius:5, padding:'3px 8px', fontSize:11,
-              borderColor: filtroSistema ? '#0e6560' : '#cbd5e1',
-              color: filtroSistema ? '#0e6560' : '#94a3b8',
-              fontWeight: filtroSistema ? 700 : 400 }}>
-            <option value="">Sistema: todos</option>
-            {ESTRUCTURAS.map(e => <option key={e} value={e}>{e}</option>)}
-          </select>
+          <SearchSelect width={180} value={filtroSistema} onChange={setFiltroSistema}
+            inputStyle={filtroSistema ? { borderColor:'#0e6560', color:'#0e6560', fontWeight:700 } : {}}
+            options={[{ value:'', label:'Sistema: todos' }, ...ESTRUCTURAS.map(e => ({ value:e, label:e }))]} />
           {/* Filtro RF */}
-          <select value={filtroRF} onChange={e => setFiltroRF(e.target.value)}
-            style={{ border:'1px solid #cbd5e1', borderRadius:5, padding:'3px 8px', fontSize:11, color: filtroRF ? '#374151' : '#94a3b8' }}>
-            <option value="">RF mínimo: todos</option>
-            {['F15','F30','F60','F90','F120'].map(f => <option key={f} value={f}>RF ≥ {f}</option>)}
-          </select>
+          <SearchSelect width={160} value={filtroRF} onChange={setFiltroRF}
+            options={[{ value:'', label:'RF mínimo: todos' }, ...['F15','F30','F60','F90','F120'].map(f => ({ value:f, label:`RF ≥ ${f}` }))]} />
           {/* Toggle: incluir soluciones PDA de otras comunas (grises) */}
           {(elem==='muro'||elem==='techumbre'||elem==='piso') && (
             <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', userSelect:'none' }}
@@ -2783,27 +2772,20 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
                 <div>
                   <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>Familia</label>
-                  <select style={ist} value={familia} onChange={e => {
-                    const f = e.target.value
-                    setFamilia(f)
-                    setSerie(Object.keys(PERFILES_ACERO[f] || {})[0] || '')
-                  }}>
-                    {Object.keys(PERFILES_ACERO).map(f => <option key={f}>{f}</option>)}
-                  </select>
+                  <SearchSelect width="100%" value={familia}
+                    onChange={f => { setFamilia(f); setSerie(Object.keys(PERFILES_ACERO[f] || {})[0] || '') }}
+                    options={Object.keys(PERFILES_ACERO).map(f => ({ value: f, label: f }))} />
                 </div>
                 <div>
                   <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>Serie</label>
-                  <select style={ist} value={serie} onChange={e => setSerie(e.target.value)}>
-                    {Object.keys(PERFILES_ACERO[familia] || {}).map(s => <option key={s}>{s}</option>)}
-                  </select>
+                  <SearchSelect width="100%" value={serie} onChange={setSerie}
+                    options={Object.keys(PERFILES_ACERO[familia] || {}).map(s => ({ value: s, label: s }))} />
                 </div>
               </div>
               <div style={{ marginBottom:6 }}>
                 <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>Exposición al fuego</label>
-                <select style={ist} value={caras} onChange={e => setCaras(e.target.value)}>
-                  <option value="3">3 caras — viga (cara inferior sobre losa)</option>
-                  <option value="4">4 caras — columna (exposición total)</option>
-                </select>
+                <SearchSelect width="100%" value={caras} onChange={setCaras}
+                  options={[{ value:'3', label:'3 caras — viga (cara inferior sobre losa)' }, { value:'4', label:'4 caras — columna (exposición total)' }]} />
               </div>
               {perfData && (
                 <div style={{ background:'#f8fafc', borderRadius:4, padding:'5px 8px', fontSize:10, color:'#64748b' }}>
@@ -2894,9 +2876,8 @@ function CalcRFAcero({ rfReq, tipo, sector }) {
           <label style={{ fontSize:11, color:'#64748b', display:'block', marginBottom:2 }}>
             Sistema de protección
           </label>
-          <select style={{ ...ist, maxWidth:420 }} value={prot} onChange={e => setProt(e.target.value)}>
-            {ACERO_PROT.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
+          <SearchSelect width="100%" style={{ maxWidth:420 }} value={prot} onChange={setProt}
+            options={ACERO_PROT.map(p => ({ value: p.id, label: p.nombre }))} />
           {protSys?.norma && (
             <span style={{ marginLeft:8, fontSize:10, color:'#94a3b8' }}>
               Ref.: {protSys.norma}
@@ -3787,11 +3768,8 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
                     )}
                   </td>
                   <td style={S.td}>
-                    <select style={{ ...ist, width:85 }} value={rfManual}
-                      onChange={e=>set('rf_'+id,'rf',e.target.value)}>
-                      <option value="">—</option>
-                      {VALID_RF.map(f=><option key={f}>{f}</option>)}
-                    </select>
+                    <SearchSelect width={85} searchThreshold={99} value={rfManual} onChange={v=>set('rf_'+id,'rf',v)}
+                      options={[{ value:'', label:'—' }, ...VALID_RF.map(f=>({ value:f, label:f }))]} />
                     {rfInvalid && <div style={{ fontSize:10, color:'#dc2626' }}>⚠ valor fuera de norma</div>}
                     {!rfManual && rfSol && <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>↑ {rfSol} (solución)</div>}
                   </td>
@@ -4235,17 +4213,12 @@ function TabAcustica({ proy, termica, setTermica, notas, setNotas }) {
           <div style={{ fontSize:11, color:'#64748b', marginBottom:8 }}>
             Agrega un revestimiento de piso certificado sobre el entrepiso base. La ficha LOSCAA declara su mejora <b>ΔL,w</b> (impacto), que se resta al L'n,w base. Menor = mejor.
           </div>
-          <select
-            value={termica.ac_impacto_pisos?.mejora || ''}
-            onChange={e => set('ac_impacto_pisos', 'mejora', e.target.value)}
-            style={{ ...ist, width:'100%', maxWidth:520 }}>
-            <option value="">— Sin revestimiento adicional —</option>
-            {MEJORAS_IMPACTO_PISO.map(m => (
-              <option key={m.codigo} value={m.codigo}>
-                {m.codigo} · {m.titulo} — ΔL,w −{m.delta_lw} dB{m.delta_rw_C != null ? ` · ΔRw+C ${m.delta_rw_C >= 0 ? '+' : ''}${m.delta_rw_C} dB` : ''}
-              </option>
-            ))}
-          </select>
+          <SearchSelect width="100%" style={{ maxWidth:520 }} value={termica.ac_impacto_pisos?.mejora || ''}
+            onChange={v => set('ac_impacto_pisos', 'mejora', v)}
+            options={[{ value:'', label:'— Sin revestimiento adicional —' }, ...MEJORAS_IMPACTO_PISO.map(m => ({
+              value: m.codigo,
+              label: `${m.codigo} · ${m.titulo} — ΔL,w −${m.delta_lw} dB${m.delta_rw_C != null ? ` · ΔRw+C ${m.delta_rw_C >= 0 ? '+' : ''}${m.delta_rw_C} dB` : ''}`,
+            }))]} />
           {(() => {
             const selCod = termica.ac_impacto_pisos?.mejora
             if (!selCod) return null
@@ -5300,15 +5273,8 @@ ${cambios.length && solucion ? `
                               ? '⚙ Rastreles/perfiles de la cámara · representación (no altera el U)'
                               : '⚙ Estructura integrada · ISO 6946:2017 método combinado'}
                           </span>
-                          <select
-                            value={c.estructura_integrada.tipo}
-                            onChange={e=>updEstructura(c.id,'tipo',e.target.value)}
-                            style={{ ...ist, fontSize:11 }}
-                          >
-                            {Object.entries(STRUCT_MATS).map(([k,v])=>(
-                              <option key={k} value={k}>{v.label} — λ={v.lam} W/mK</option>
-                            ))}
-                          </select>
+                          <SearchSelect width={220} value={c.estructura_integrada.tipo} onChange={v=>updEstructura(c.id,'tipo',v)}
+                            options={Object.entries(STRUCT_MATS).map(([k,v])=>({ value:k, label:v.label, hint:`λ=${v.lam}` }))} />
                           <label style={{ display:'flex', alignItems:'center', gap:4, color:'#64748b', whiteSpace:'nowrap' }}>
                             Ancho montante
                             <input
@@ -6216,25 +6182,13 @@ function TabVentana({ proy, fachadas, setFachadas, fachadasNextId, setFachadasNe
         <div style={{ ...S.row, marginBottom: 12 }}>
           <div style={S.col}>
             <span style={S.label}>Vidrio</span>
-            <select style={{ ...S.sel, width: 240 }} value={vidrio} onChange={e => setVidrio(e.target.value)}>
-              <option value="">Seleccionar vidrio...</option>
-              {VIDRIOS.map(g => (
-                <optgroup key={g.grupo} label={g.grupo}>
-                  {g.items.map(v => <option key={v.n} value={v.n}>{v.n} (Ug={v.ug})</option>)}
-                </optgroup>
-              ))}
-            </select>
+            <SearchSelect width={240} value={vidrio} onChange={setVidrio} placeholder="Seleccionar vidrio…"
+              options={VIDRIOS.map(g => ({ group: g.grupo, items: g.items.map(v => ({ value: v.n, label: v.n, hint: `Ug=${v.ug}` })) }))} />
           </div>
           <div style={S.col}>
             <span style={S.label}>Marco</span>
-            <select style={{ ...S.sel, width: 240 }} value={marco} onChange={e => setMarco(e.target.value)}>
-              <option value="">Seleccionar marco...</option>
-              {MARCOS.map(g => (
-                <optgroup key={g.grupo} label={g.grupo}>
-                  {g.items.map(m => <option key={m.n} value={m.n}>{m.n} (Uf={m.uf}, ψ={m.psi})</option>)}
-                </optgroup>
-              ))}
-            </select>
+            <SearchSelect width={240} value={marco} onChange={setMarco} placeholder="Seleccionar marco…"
+              options={MARCOS.map(g => ({ group: g.grupo, items: g.items.map(m => ({ value: m.n, label: m.n, hint: `Uf=${m.uf}, ψ=${m.psi}` })) }))} />
           </div>
         </div>
         {/* ── Modo asistido: estimar Ag/Af/Lg desde las medidas de la ventana ─── */}
@@ -6710,24 +6664,18 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
         <div style={{ ...S.row, marginBottom: 12 }}>
           <div style={S.col}>
             <span style={S.label} title="La parte sólida de la puerta (panel/tablero). Aporta su U y su resistencia al fuego (RF).">Hoja</span>
-            <select style={{ ...S.sel, width: 280 }} value={hojaCalc} onChange={e => setHojaCalc(e.target.value)}>
-              <option value="">Seleccionar hoja...</option>
-              {PUERTA_HOJAS.map(h => <option key={h.id} value={h.id}>{h.nombre} (U={h.u}, {h.rf})</option>)}
-            </select>
+            <SearchSelect width={280} value={hojaCalc} onChange={setHojaCalc} placeholder="Seleccionar hoja…"
+              options={PUERTA_HOJAS.map(h => ({ value: h.id, label: h.nombre, hint: `U=${h.u}, ${h.rf}` }))} />
           </div>
           <div style={S.col}>
             <span style={S.label} title="El perfil perimetral. Su ancho (definido en el catálogo) determina cuánta superficie de la puerta es marco vs hoja.">Marco</span>
-            <select style={{ ...S.sel, width: 240 }} value={marcoCalc} onChange={e => setMarcoCalc(e.target.value)}>
-              <option value="">Seleccionar marco...</option>
-              {MARCOS_PUERTA.map(m => <option key={m.id} value={m.id}>{m.nombre} (U={m.u})</option>)}
-            </select>
+            <SearchSelect width={240} value={marcoCalc} onChange={setMarcoCalc} placeholder="Seleccionar marco…"
+              options={MARCOS_PUERTA.map(m => ({ value: m.id, label: m.nombre, hint: `U=${m.u}` }))} />
           </div>
           <div style={S.col}>
             <span style={S.label} title="Burlete/sello entre hoja y marco. Aporta el puente térmico lineal (ψ) y suma aislación acústica.">Sello perimetral</span>
-            <select style={{ ...S.sel, width: 240 }} value={selloCalc} onChange={e => setSelloCalc(e.target.value)}>
-              <option value="">Seleccionar sello...</option>
-              {PUERTA_SELLOS.map(s => <option key={s.id} value={s.id}>{s.nombre} (Ψ={s.psi}, +{s.bonus_rw_db}dB)</option>)}
-            </select>
+            <SearchSelect width={240} value={selloCalc} onChange={setSelloCalc} placeholder="Seleccionar sello…"
+              options={PUERTA_SELLOS.map(s => ({ value: s.id, label: s.nombre, hint: `Ψ=${s.psi}, +${s.bonus_rw_db}dB` }))} />
           </div>
         </div>
         <div style={S.row}>
@@ -6786,17 +6734,18 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
               </div>
               <div style={S.col}>
                 <span style={S.label}>Uso</span>
-                <select style={{ ...S.sel, width: 220 }} value={p.uso} onChange={e => updP(p.id, 'uso', e.target.value)}>
-                  <option value="acceso_vivienda">Acceso vivienda (envolvente)</option>
-                  <option value="acceso_unidades">Entre unidades</option>
-                  <option value="evacuacion_escalera">Salida evacuación</option>
-                  <option value="interior_dormitorio">Interior — dormitorio</option>
-                  <option value="estudio_oficina">Estudio / oficina</option>
-                  <option value="cuarto_tecnico">Cuarto técnico</option>
-                  <option value="cuarto_basura">Sala basura</option>
-                  <option value="cuarto_maquinas">Cuarto máquinas</option>
-                  <option value="ascensor_maquinas">Sala máq. ascensor</option>
-                </select>
+                <SearchSelect width={220} value={p.uso} onChange={v => updP(p.id, 'uso', v)}
+                  options={[
+                    { value:'acceso_vivienda', label:'Acceso vivienda (envolvente)' },
+                    { value:'acceso_unidades', label:'Entre unidades' },
+                    { value:'evacuacion_escalera', label:'Salida evacuación' },
+                    { value:'interior_dormitorio', label:'Interior — dormitorio' },
+                    { value:'estudio_oficina', label:'Estudio / oficina' },
+                    { value:'cuarto_tecnico', label:'Cuarto técnico' },
+                    { value:'cuarto_basura', label:'Sala basura' },
+                    { value:'cuarto_maquinas', label:'Cuarto máquinas' },
+                    { value:'ascensor_maquinas', label:'Sala máq. ascensor' },
+                  ]} />
               </div>
               <div style={S.col}>
                 <span style={S.label}>Ancho (m)</span>
@@ -6820,21 +6769,18 @@ function TabPuerta({ proy, puertas, setPuertas, puertasNextId, setPuertasNextId,
               <div style={{ minWidth: 20 }} />
               <div style={S.col}>
                 <span style={S.label}>Hoja</span>
-                <select style={{ ...S.sel, width: 280 }} value={p.hojaId} onChange={e => updP(p.id, 'hojaId', e.target.value)}>
-                  {PUERTA_HOJAS.map(h => <option key={h.id} value={h.id}>{h.nombre} (U={h.u}, {h.rf})</option>)}
-                </select>
+                <SearchSelect width={280} value={p.hojaId} onChange={v => updP(p.id, 'hojaId', v)}
+                  options={PUERTA_HOJAS.map(h => ({ value: h.id, label: h.nombre, hint: `U=${h.u}, ${h.rf}` }))} />
               </div>
               <div style={S.col}>
                 <span style={S.label}>Marco</span>
-                <select style={{ ...S.sel, width: 220 }} value={p.marcoId} onChange={e => updP(p.id, 'marcoId', e.target.value)}>
-                  {MARCOS_PUERTA.map(m => <option key={m.id} value={m.id}>{m.nombre} (U={m.u})</option>)}
-                </select>
+                <SearchSelect width={220} value={p.marcoId} onChange={v => updP(p.id, 'marcoId', v)}
+                  options={MARCOS_PUERTA.map(m => ({ value: m.id, label: m.nombre, hint: `U=${m.u}` }))} />
               </div>
               <div style={S.col}>
                 <span style={S.label}>Sello</span>
-                <select style={{ ...S.sel, width: 220 }} value={p.selloId} onChange={e => updP(p.id, 'selloId', e.target.value)}>
-                  {PUERTA_SELLOS.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                </select>
+                <SearchSelect width={220} value={p.selloId} onChange={v => updP(p.id, 'selloId', v)}
+                  options={PUERTA_SELLOS.map(s => ({ value: s.id, label: s.nombre }))} />
               </div>
               {p.r && (
                 <div style={{ ...S.col, gap: 3, alignItems: 'flex-end' }}>
@@ -7412,14 +7358,16 @@ function UploadDetalleModal({ onClose, onUpload }) {
           <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Encuentro muro-piso planta baja" style={{ width:'100%', padding:'8px 10px', border:'1px solid #cbd5e1', borderRadius:6, fontSize:13, marginBottom:14 }} />
 
           <label style={{ fontSize:11, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:0.4, marginBottom:4, display:'block' }}>Tipo de unión</label>
-          <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ width:'100%', padding:'8px 10px', border:'1px solid #cbd5e1', borderRadius:6, fontSize:13, marginBottom:14, background:'#fff' }}>
-            <option value="muro-piso">Muro + Piso (planta baja)</option>
-            <option value="muro-cubierta">Muro + Cubierta plana</option>
-            <option value="muro-techumbre">Muro + Techumbre inclinada (alero)</option>
-            <option value="esquina-muros">Esquina muros perimetrales</option>
-            <option value="dintel-ventana">Dintel ventana / vierteaguas</option>
-            <option value="otro">Otro detalle</option>
-          </select>
+          <SearchSelect width="100%" style={{ marginBottom:14 }} inputStyle={{ fontSize:13, padding:'8px 26px 8px 10px', borderRadius:6 }}
+            value={tipo} onChange={setTipo}
+            options={[
+              { value:'muro-piso', label:'Muro + Piso (planta baja)' },
+              { value:'muro-cubierta', label:'Muro + Cubierta plana' },
+              { value:'muro-techumbre', label:'Muro + Techumbre inclinada (alero)' },
+              { value:'esquina-muros', label:'Esquina muros perimetrales' },
+              { value:'dintel-ventana', label:'Dintel ventana / vierteaguas' },
+              { value:'otro', label:'Otro detalle' },
+            ]} />
 
           <label style={{ fontSize:11, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:0.4, marginBottom:4, display:'block' }}>Imagen del detalle (PNG/JPG, máx. 5MB)</label>
           <input type="file" accept="image/*" onChange={handleFileChange} style={{ width:'100%', marginBottom:14, fontSize:12 }} />
@@ -7520,17 +7468,19 @@ function MarkerEditorModal({ detalle, onClose, onSave }) {
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
                     <div style={{ width:24, height:24, borderRadius:'50%', background: m.elemento ? '#0e6560' : '#dc2626', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, flexShrink:0 }}>{m.label}</div>
                     <input value={m.label} onChange={e => actualizarMarcador(m.id, 'label', e.target.value.slice(0, 3).toUpperCase())} style={{ width:50, padding:'3px 6px', border:'1px solid #cbd5e1', borderRadius:4, fontSize:11, fontWeight:700, textAlign:'center' }} />
-                    <select value={m.elemento} onChange={e => actualizarMarcador(m.id, 'elemento', e.target.value)} style={{ flex:1, padding:'4px 6px', border:'1px solid #cbd5e1', borderRadius:4, fontSize:11, background:'#fff' }}>
-                      <option value="">— sin asignar —</option>
-                      <option value="muro">Muro</option>
-                      <option value="piso">Piso</option>
-                      <option value="techo">Techo / Cubierta</option>
-                      <option value="tabique">Tabique</option>
-                      <option value="ventana">Ventana</option>
-                      <option value="fundacion">Fundación</option>
-                      <option value="estructural">Elemento estructural</option>
-                      <option value="otro">Otro</option>
-                    </select>
+                    <SearchSelect width="auto" style={{ flex:1, minWidth:0 }} value={m.elemento}
+                      onChange={v => actualizarMarcador(m.id, 'elemento', v)}
+                      options={[
+                        { value:'', label:'— sin asignar —' },
+                        { value:'muro', label:'Muro' },
+                        { value:'piso', label:'Piso' },
+                        { value:'techo', label:'Techo / Cubierta' },
+                        { value:'tabique', label:'Tabique' },
+                        { value:'ventana', label:'Ventana' },
+                        { value:'fundacion', label:'Fundación' },
+                        { value:'estructural', label:'Elemento estructural' },
+                        { value:'otro', label:'Otro' },
+                      ]} />
                     <button onClick={() => eliminarMarcador(m.id)} style={{ padding:'3px 7px', background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5', borderRadius:4, fontSize:11, cursor:'pointer' }} title="Eliminar marcador">✕</button>
                   </div>
                   <input
