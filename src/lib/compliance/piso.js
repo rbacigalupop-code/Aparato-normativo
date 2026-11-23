@@ -51,3 +51,35 @@ export function reglaPiso(tipoPisoRaw) {
       return { tipo: TIPO_PISO.NO_DEFINIDO, requiereClasificar: true, aplicaUmax: false, label: 'Piso sin clasificar', nota: 'Clasifique el piso (ventilado / sobre terreno / sobre espacio no calef.) para determinar la exigencia.' }
   }
 }
+
+// Infiere el tipo de piso desde la solución constructiva aplicada (lee su
+// desc/obs/cod). Muchas soluciones ya declaran su tipo ("radier sobre terreno",
+// "piso ventilado sobre terreno"). SEGURO ante cumplimiento: los tres tipos usan
+// el mismo Umáx (ver reglaPiso), así que inferir solo quita el bloqueo "sin
+// clasificar"; nunca voltea NO_CUMPLE→CUMPLE. Si no hay señal clara → NO_DEFINIDO
+// (no se adivina y el check sigue NO_VERIFICADO).
+export function inferirTipoPiso(solucion) {
+  if (!solucion) return TIPO_PISO.NO_DEFINIDO
+  const t = [solucion.desc, solucion.obs, solucion.cod].filter(Boolean).join(' ').toLowerCase()
+  // "ventilado" manda sobre "terreno" (caso "piso ventilado sobre terreno").
+  if (/ventilad|sobresolera|c[áa]mara ventilada/.test(t)) return TIPO_PISO.VENTILADO
+  if (/radier|terreno|13370/.test(t)) return TIPO_PISO.SOBRE_TERRENO
+  if (/no\s*calef/.test(t)) return TIPO_PISO.NO_CALEF
+  return TIPO_PISO.NO_DEFINIDO
+}
+
+// Tipo de piso EFECTIVO: el override explícito del proyecto (Diagnóstico) manda;
+// si no está definido, se infiere de la solución de piso aplicada. Es el selector
+// único que debe usar el Resumen para no contradecir a Soluciones/Cálculo U.
+export function tipoPisoEfectivo(proy, termica) {
+  const exp = normalizarTipoPiso(proy?.tipoPiso)
+  if (exp !== TIPO_PISO.NO_DEFINIDO) return exp
+  return inferirTipoPiso(termica?.piso?.solucion)
+}
+
+// ¿El tipo efectivo vino de inferir la solución (no del campo de Diagnóstico)?
+// Para marcar "(inferido de la solución)" en la UI/informe.
+export function tipoPisoInferido(proy, termica) {
+  return normalizarTipoPiso(proy?.tipoPiso) === TIPO_PISO.NO_DEFINIDO
+    && inferirTipoPiso(termica?.piso?.solucion) !== TIPO_PISO.NO_DEFINIDO
+}

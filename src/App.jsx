@@ -6,7 +6,8 @@ import { sugerirMejorasTermicas, peorUPorElemento, uEfectivo, uCumpleMax } from 
 import { ESTADO, estadoDeCheck, consolidar, etiquetaEstado, aplicarResoluciones } from './lib/compliance/status.js'
 import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/capas.js'
 import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
-import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso } from './lib/compliance/piso.js'
+import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso, tipoPisoEfectivo, tipoPisoInferido } from './lib/compliance/piso.js'
+import { rfSolucionPorElemento, rfEfectivo } from './lib/compliance/fuego.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -3498,10 +3499,11 @@ function TabFuego({ proy, termica, setTermica, notas, setNotas, getLetraOGUC, ge
   // y carga a mano en "RF propuesta". El cálculo de U (térmico) sí recalcula con
   // las capas modificadas: son criterios independientes — mejorar la aislación
   // no acredita más resistencia al fuego. Ver auditoría 2026-10-04.
+  // RF por elemento desde la solución aplicada: estructura/cubierta/muros_sep salen
+  // del selector ÚNICO (lib/compliance/fuego.js) que también lee el Resumen → no
+  // pueden divergir. Escalera y caja se resuelven aparte (material elegido).
   const rfFromSol = {
-    estructura: termica.muro?.solucion?.rf || termica.techo?.solucion?.rf || termica.piso?.solucion?.rf || '',
-    cubierta:   termica.techo?.solucion?.rf || '',
-    muros_sep:  termica.tabique?.solucion?.rf || termica.muro?.solucion?.rf || '',
+    ...rfSolucionPorElemento(termica),
     cajas_esc:  _cajaEnUso ? (_matCajaObj?.rfBase || '') : '',
     escaleras:  _matEscObj?.rfBase || '',
   }
@@ -7684,7 +7686,7 @@ function ResolverNVForm({ inicial, onGuardar, onCancelar, onQuitar }) {
   )
 }
 
-function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, escaleras, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [], resolucionesNV = {}, setResolucionesNV = () => {} }) {
+function TabResultados({ proy, setProy = () => {}, termica, onExportar, notas, setNotas, calcUInit, fachadas, puertas, escaleras, modulosInforme, setModulosInforme, getRFOGUC, getLetraOGUC, getRFDeLetra, ogucData, detallesIlustrados = [], resolucionesNV = {}, setResolucionesNV = () => {} }) {
   // Fila cuyo resolver (No aplica / Acreditar por documento) está abierto en la tabla.
   const [nvEditor, setNvEditor] = useState(null)
   // Fallbacks defensivos por si las props no están disponibles
@@ -7809,22 +7811,30 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
       ? rwFachadaCompuesta({ rwMuro: parseFloat(termica.muro?.rw) || 0, rwVentana: termica.ac_fachada?.rwVentana, pctVidriado: termica.ac_fachada?.pctVidriado })
       : null
     const _rwFachVal = _rwFachManual != null ? _rwFachManual : (_rwFachComp ? _rwFachComp.combinado : null)
+    // RF efectiva (override manual o, si no, la de la solución aplicada) — MISMA
+    // fuente que el Módulo 3 (lib/compliance/fuego.js), para que no se contradigan.
+    const _rfEstr     = rfEfectivo(termica, 'estructura')
+    const _rfMurosSep = rfEfectivo(termica, 'muros_sep')
+    const _rfCub      = rfEfectivo(termica, 'cubierta')
     const _rows = [
       { label:'Muro U',            val: uMuro  ? String(parseFloat(uMuro).toFixed(4))  : null, max:`≤ ${_umMuro} W/m²K`,  ok: !uMuro  || uCumpleMax(uMuro,  _umMuro),  obligatorio: !!_umMuro },
       { label:'Techo U',           val: uTecho ? String(parseFloat(uTecho).toFixed(4)) : null, max:`≤ ${_umTecho} W/m²K`, ok: !uTecho || uCumpleMax(uTecho, _umTecho), obligatorio: !!_umTecho },
       (() => {
-        // Piso: no se asume "ventilado". La exigencia depende de la clasificación
-        // (proy.tipoPiso). Sin clasificar y con U ingresado → NO_VERIFICADO.
-        const _rp = reglaPiso(proy.tipoPiso)
-        const _base = { label:'Piso U', val: uPiso ? String(parseFloat(uPiso).toFixed(4)) : null, max:`≤ ${_umPiso} W/m²K`, ok: !uPiso || uCumpleMax(uPiso, _umPiso), obligatorio: !!_umPiso, norma:`DS N°15 · ${_rp.label}` }
+        // Piso: no se asume "ventilado". El tipo EFECTIVO = override de Diagnóstico
+        // (proy.tipoPiso) o, si está vacío, el inferido de la solución de piso
+        // aplicada (fuente única; ver piso.js). Sin clasificar y con U → NO_VERIFICADO.
+        const _rp  = reglaPiso(tipoPisoEfectivo(proy, termica))
+        const _inf = tipoPisoInferido(proy, termica)
+        const _norma = `DS N°15 · ${_rp.label}${_inf ? ' (inferido de la solución)' : ''}`
+        const _base = { label:'Piso U', val: uPiso ? String(parseFloat(uPiso).toFixed(4)) : null, max:`≤ ${_umPiso} W/m²K`, ok: !uPiso || uCumpleMax(uPiso, _umPiso), obligatorio: !!_umPiso, norma:_norma }
         if (uPiso && _rp.requiereClasificar) {
           return { ..._base, estado: ESTADO.NO_VERIFICADO, max: 'Clasifique el piso (ventilado / sobre terreno)' }
         }
         return _base
       })(),
       { label:'Puerta U',          val: uPuerta,                    max: PUERTA_U[proy.zona]?`≤ ${PUERTA_U[proy.zona]} W/m²K`:'—', ok: !uPuerta || !PUERTA_U[proy.zona] || parseFloat(uPuerta) <= PUERTA_U[proy.zona] },
-      { label:'RF Estructura',     val: termica.rf_estructura?.rf,  max:`≥ ${rfReqEstr}`,             ok: !termica.rf_estructura?.rf  || rfN(termica.rf_estructura.rf) >= rfN(rfReqEstr), obligatorio: rfN(rfReqEstr) > 0 },
-      { label:'RF Muros sep.',     val: termica.rf_muros_sep?.rf,   max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !termica.rf_muros_sep?.rf   || rfN(termica.rf_muros_sep.rf)  >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
+      { label:'RF Estructura',     val: _rfEstr || null,            max:`≥ ${rfReqEstr}`,             ok: !_rfEstr || rfN(_rfEstr) >= rfN(rfReqEstr), obligatorio: rfN(rfReqEstr) > 0 },
+      { label:'RF Muros sep.',     val: _rfMurosSep || null,        max:`≥ ${RF_DEF[uso]?.muros_sep}`,ok: !_rfMurosSep || rfN(_rfMurosSep) >= rfN(RF_DEF[uso]?.muros_sep||'F0'), norma:'OGUC Art. 4.5.4' },
       // RF Caja escalera: solo se evalúa si la caja está en uso (OGUC obliga
       // o el usuario opt-in vía escaleras.tieneCaja). El val viene del state
       // lifted de escaleras (material elegido en CalcRFEscalera).
@@ -7864,7 +7874,7 @@ function TabResultados({ proy, termica, onExportar, notas, setNotas, calcUInit, 
           obligatorio: rfN(_rfReqEsc) > 0,
         }
       })(),
-      { label:'RF Cubierta',       val: termica.rf_cubierta?.rf,    max:`≥ ${_rfReqCub}`,             ok: !termica.rf_cubierta?.rf    || rfN(termica.rf_cubierta.rf)   >= rfN(_rfReqCub), norma:'OGUC Art. 4.5.7 Col.(7)', obligatorio: rfN(_rfReqCub) > 0 },
+      { label:'RF Cubierta',       val: _rfCub || null,             max:`≥ ${_rfReqCub}`,             ok: !_rfCub || rfN(_rfCub) >= rfN(_rfReqCub), norma:'OGUC Art. 4.5.7 Col.(7)', obligatorio: rfN(_rfReqCub) > 0 },
       { label:'Rw entre unidades', val: termica.ac_entre_unidades?.rw ? termica.ac_entre_unidades.rw+' dB':null, max:`≥ ${AC_DEF[uso]?.entre_unidades} dB`, ok: !termica.ac_entre_unidades?.rw || parseFloat(termica.ac_entre_unidades.rw) >= (AC_DEF[uso]?.entre_unidades||0) },
       { label:'Rw fachada',        val: _rwFachVal != null ? `${_rwFachVal} dB${_rwFachComp ? ' (muro+ventana)' : ''}` : null, max:`≥ ${AC_DEF[uso]?.fachada} dB`, ok: _rwFachVal == null || _rwFachVal >= _acFachReq, norma: _rwFachComp ? 'Composición muro+ventana en paralelo (ISO 12354-3)' : undefined },
       { label:'Rw entre pisos',    val: termica.ac_entre_pisos?.rw  ? termica.ac_entre_pisos.rw+' dB':null,   max:`≥ ${AC_DEF[uso]?.entre_pisos} dB`,    ok: !termica.ac_entre_pisos?.rw   || parseFloat(termica.ac_entre_pisos.rw)   >= (AC_DEF[uso]?.entre_pisos||0) },
@@ -10002,6 +10012,9 @@ ${cards}`)
                   const _gris  = { background:'#f1f5f9', color:'#64748b', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }
                   const _teal  = { background:'#f0fdfa', color:'#0f766e', border:'1px solid #99f6e4', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }
                   const _amber = { background:'#fffbeb', color:'#92400e', border:'1px solid #fcd34d', borderRadius:4, padding:'2px 8px', fontSize:11, fontWeight:700 }
+                  // Piso sin clasificar: acción concreta de 1 clic (clasificar) en vez
+                  // del resolver genérico "No aplica/Acreditar", que no corresponde aquí.
+                  const esPisoSinClasificar = c.label === 'Piso U' && est === ESTADO.NO_VERIFICADO
                   return (
                   <React.Fragment key={c.label}>
                     <tr>
@@ -10018,7 +10031,15 @@ ${cards}`)
                             if (est === ESTADO.NO_VERIFICADO) return <span title="Falta un dato obligatorio. No es un incumplimiento: complétalo, o decláralo No aplica / Acreditado por documento." style={{ ..._amber, cursor:'help' }}>INCOMPLETO</span>
                             return <span style={S.badge(est === ESTADO.CUMPLE)}>{est === ESTADO.CUMPLE ? 'CUMPLE' : 'NO CUMPLE'}</span>
                           })()}
-                          {resolvible && (
+                          {esPisoSinClasificar ? (
+                            <div style={{ display:'flex', alignItems:'center', gap:4, flexWrap:'wrap' }}>
+                              <span style={{ fontSize:10.5, color:'#92400e', fontWeight:600 }}>Clasifica el piso:</span>
+                              {[['Ventilado', TIPO_PISO.VENTILADO], ['Sobre terreno', TIPO_PISO.SOBRE_TERRENO], ['No calef.', TIPO_PISO.NO_CALEF]].map(([lbl, val]) => (
+                                <button key={val} onClick={() => setProy(p => ({ ...p, tipoPiso: val }))}
+                                  style={{ background:'#fff', border:'1px solid #0e6560', color:'#0e6560', borderRadius:5, padding:'2px 8px', fontSize:10.5, fontWeight:700, cursor:'pointer' }}>{lbl}</button>
+                              ))}
+                            </div>
+                          ) : resolvible && (
                             <button onClick={() => setNvEditor(abierto ? null : c.label)}
                               style={{ background:'none', border:'none', color:'#0e6560', fontSize:11, fontWeight:700, cursor:'pointer', textDecoration:'underline', padding:0 }}>
                               {abierto ? 'Cerrar' : c.resuelto ? 'Editar' : 'Resolver'}
@@ -11181,7 +11202,7 @@ function AppInner() {
               {tab === 6 && <TabVentana proy={proy} fachadas={fachadas} setFachadas={setFachadas} fachadasNextId={fachadasNextId} setFachadasNextId={setFachadasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 7 && <TabPuerta proy={proy} puertas={puertas} setPuertas={setPuertas} puertasNextId={puertasNextId} setPuertasNextId={setPuertasNextId} notas={notas} setNotas={setNotas} />}
               {tab === 8 && <TabDetalles proy={proy} termica={termica} calcUInit={calcUInit} notas={notas} setNotas={setNotas} detallesIlustrados={detallesIlustrados} setDetallesIlustrados={setDetallesIlustrados} />}
-              {tab === 9 && <TabResultados proy={proy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} escaleras={escaleras} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} resolucionesNV={resolucionesNV} setResolucionesNV={setResolucionesNV} />}
+              {tab === 9 && <TabResultados proy={proy} setProy={setProy} termica={termica} onExportar={onExportar} notas={notas} setNotas={setNotas} calcUInit={calcUInit} fachadas={fachadas} puertas={puertas} escaleras={escaleras} modulosInforme={modulosInforme} setModulosInforme={setModulosInforme} getRFOGUC={getRFOGUC_loaded} getLetraOGUC={getLetraOGUC_loaded} getRFDeLetra={getRFDeLetra_loaded} ogucData={ogucDataReady} detallesIlustrados={detallesIlustrados} resolucionesNV={resolucionesNV} setResolucionesNV={setResolucionesNV} />}
               {tab === 10 && <AdminPanel onOverridesChanged={() => window.dispatchEvent(new Event('oguc:zonas-updated'))} />}
             </div>
             {showAyuda && ayudaData[tab] && (
