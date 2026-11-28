@@ -8,6 +8,7 @@ import { parsearCapasString, validarCapasParaCalculo } from './lib/compliance/ca
 import { LISTADO_LOSCAT, validarVigenciaFicha } from './data/normativa/registry.js'
 import { TIPO_PISO, TIPO_PISO_LABEL, normalizarTipoPiso, reglaPiso, tipoPisoEfectivo, tipoPisoInferido } from './lib/compliance/piso.js'
 import { rfSolucionPorElemento, rfEfectivo } from './lib/compliance/fuego.js'
+import { glaserLabelLayout } from './lib/charts/glaserLabels.js'
 import { rfStringToNumber, obtenerLetraOGUC, obtenerRFdeLetra, obtenerRFOGUC, requiereCajaEscalera, evaluarSeccionResidual } from './lib/engines/fire.js'
 import { homologarSolucion } from './lib/engines/homologacion.js'
 import { rwFachadaCompuesta, MEJORAS_IMPACTO_PISO, lnwConMejora } from './lib/engines/acoustic.js'
@@ -4426,9 +4427,9 @@ const GraficoGlaser = forwardRef(function GraficoGlaser({ res, capas, elemTipo }
       <text x={PAD.l + 2} y={PAD.t + gH + 14} fontSize={9} fill="#64748b">int</text>
       <text x={PAD.l + gW - 2} y={PAD.t + gH + 14} fontSize={9} fill="#64748b" textAnchor="end">ext</text>
 
-      {/* Etiquetas de capas */}
-      {capaLabels.map((cl, i) => (
-        <text key={i} x={cl.cx} y={PAD.t + gH + 26} fontSize={7.5} fill="#94a3b8" textAnchor="middle">{cl.label}</text>
+      {/* Etiquetas de capas — repartidas en hasta 2 filas para no encimarse */}
+      {glaserLabelLayout(capaLabels, PAD.t + gH + 24).map((cl, i) => (
+        <text key={i} x={cl.x} y={cl.y} fontSize={7.5} fill="#94a3b8" textAnchor="middle">{cl.label}</text>
       ))}
 
       {/* Eje °C */}
@@ -6884,13 +6885,15 @@ function glaserSvgStr(res, capas) {
     const iface = res.ifaces[i - 1]
     return `<circle cx="${xPx(r)}" cy="${yPx(temps[i])}" r="${(i === 0 || i === rsAcum.length - 1) ? 3 : 4}" fill="${iface?.riesgo ? '#dc2626' : '#0e6560'}" stroke="#fff" stroke-width="1.5"/>`
   }).join('')
-  const capaLabels = (capas || []).map((c, i) => ({ c, i })).filter(x => !x.c.esCamara).map(({ c, i }) => {
+  const _labelItems = (capas || []).map((c, i) => ({ c, i })).filter(x => !x.c.esCamara).map(({ c, i }) => {
     const x0 = parseFloat(xPx(rsAcum[i + 1] - (Rs[i + 1] || 0) / Rtot))
     const x1 = parseFloat(xPx(rsAcum[i + 1]))
-    const cx = ((x0 + x1) / 2).toFixed(1)
-    const label = (c.mat || '').split(' ').slice(0, 2).join(' ')
-    return `<text x="${cx}" y="${PAD.t + gH + 26}" font-size="7.5" fill="#94a3b8" text-anchor="middle">${label}</text>`
-  }).join('')
+    return { label: (c.mat || '').split(' ').slice(0, 2).join(' '), cx: (x0 + x1) / 2 }
+  })
+  // Repartidas en hasta 2 filas (mismo helper que GraficoGlaser) para no encimarse.
+  const capaLabels = glaserLabelLayout(_labelItems, PAD.t + gH + 24)
+    .map(cl => `<text x="${cl.x.toFixed(1)}" y="${cl.y}" font-size="7.5" fill="#94a3b8" text-anchor="middle">${cl.label}</text>`)
+    .join('')
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
 <rect x="${PAD.l}" y="${PAD.t}" width="${gW}" height="${gH}" fill="#f8fafc" rx="4"/>
 ${gridLines}${sepLines}${riskRect}
